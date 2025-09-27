@@ -7,7 +7,7 @@ permissions:
   pull-requests: read
 
 jobs:
-  app-tests:
+  test:
     name: Run tests for applications
     timeout-minutes: 20
     runs-on: ubuntu-latest
@@ -16,18 +16,28 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Go
-        if: steps.check_app_type.outputs.type == 'go'
         uses: actions/setup-go@v4
         with:
           go-version: '1.24'
 
       - name: Run Go tests
-        if: steps.check_app_type.outputs.type == 'go'
         run: |
           go test ./...
+
+  lint:
+    name: Run tests for applications
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
           
       - name: Run golangci-lint
-        if: steps.check_app_type.outputs.type == 'go'
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
