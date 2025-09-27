@@ -37,7 +37,6 @@ type runningServer struct {
 
 func TestE2EWroteToWarehouse(t *testing.T) {
 	withRunningServer(t, func(runningServer runningServer) {
-
 		striker := NewGA4RequestGenerator("localhost", runningServer.port)
 
 		if err := striker.Replay([]HitSequenceItem{
@@ -118,7 +117,7 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 		time.Millisecond*10,
 		pings.NewProcessHitsPingTask(encoding.JSONEncoder),
 	)
-	serverStorage := storagepublisher.NewStoragePublisherAdapter(encoding.JSONEncoder, publisher)
+	serverStorage := storagepublisher.NewAdapter(encoding.JSONEncoder, publisher)
 	partitionedStorage := receiver.NewBatchingStorage(
 		serverStorage,
 		100,

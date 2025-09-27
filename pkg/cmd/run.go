@@ -136,7 +136,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err != nil {
 						logrus.Fatalf("failed to open bolt db: %v", err)
 					}
-					defer boltDB.Close()
+					defer func() {
+						if err := boltDB.Close(); err != nil {
+							logrus.Errorf("failed to close bolt db: %v", err)
+						}
+					}()
 					if err := bolt.EnsureDatabase(boltDB); err != nil {
 						logrus.Fatalf("failed to ensure database: %v", err)
 					}
@@ -146,7 +150,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						time.Second*1,
 						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
 					)
-					serverStorage := storagepublisher.NewStoragePublisherAdapter(encoding.ZlibCBOREncoder, boltPublisher)
+					serverStorage := storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher)
 					workerErrChan := make(chan error, 1)
 					go func() {
 						defer cancel()
@@ -283,7 +287,7 @@ func columnsRegistry() schema.ColumnsRegistry {
 	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol())
 }
 
-func warehouseRegistry(ctx context.Context, c *cli.Context) warehouse.Registry {
+func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {
 	return warehouse.NewStaticDriverRegistry(
 		warehouse.NewConsoleDriver(),
 	)

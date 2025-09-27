@@ -98,7 +98,7 @@ func Handler(
 			nextFuncs := make([]func(context.Context) error, len(middlewares)+1)
 			for i := range nextFuncs {
 				if i == len(nextFuncs)-1 {
-					nextFuncs[i] = func(ctx context.Context) error {
+					nextFuncs[i] = func(_ context.Context) error {
 						b := bytes.NewBuffer(nil)
 						_, err := encoder(b, hit)
 						if err != nil {

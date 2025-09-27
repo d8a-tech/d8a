@@ -186,6 +186,7 @@ func (s *StorageSetRawLogStorage) Store(buffer *bytes.Buffer) error {
 	return nil
 }
 
+// ListItems implements RawLogReader by returning indexed raw log items sorted by timestamp.
 func (s *StorageSetRawLogStorage) ListItems() ([]RawLogItem, error) {
 	items, err := s.indexSet.All([]byte("items"))
 	if err != nil {
@@ -214,6 +215,7 @@ func (s *StorageSetRawLogStorage) ListItems() ([]RawLogItem, error) {
 	return rawLogItems, nil
 }
 
+// GetContent implements RawLogReader by loading and joining content for a given item ID.
 func (s *StorageSetRawLogStorage) GetContent(itemID string) ([]byte, error) {
 	content, err := s.rawlogSet.All([]byte(itemID))
 	if err != nil {

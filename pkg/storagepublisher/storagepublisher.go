@@ -1,3 +1,4 @@
+// Package storagepublisher provides an adapter to publish hits to a worker-backed storage.
 package storagepublisher
 
 import (
@@ -6,14 +7,14 @@ import (
 	"github.com/d8a-tech/d8a/pkg/worker"
 )
 
-// StoragePublisherAdapter translates hits to a task and publishes it to the storage
-type StoragePublisherAdapter struct {
+// Adapter translates hits to a task and publishes it to the storage
+type Adapter struct {
 	encoder   encoding.EncoderFunc
 	publisher worker.Publisher
 }
 
 // Push distributes hits to the storage
-func (p *StoragePublisherAdapter) Push(theHits []*hits.Hit) error {
+func (p *Adapter) Push(theHits []*hits.Hit) error {
 	taskData, err := worker.SerializeTaskData(p.encoder, hits.HitProcessingTask{
 		Hits: theHits,
 	})
@@ -29,9 +30,9 @@ func (p *StoragePublisherAdapter) Push(theHits []*hits.Hit) error {
 	)
 }
 
-// NewStoragePublisherAdapter creates a new StoragePublisherAdapter instance
-func NewStoragePublisherAdapter(encoder encoding.EncoderFunc, publisher worker.Publisher) *StoragePublisherAdapter {
-	return &StoragePublisherAdapter{
+// NewAdapter creates a new Adapter instance
+func NewAdapter(encoder encoding.EncoderFunc, publisher worker.Publisher) *Adapter {
+	return &Adapter{
 		encoder:   encoder,
 		publisher: publisher,
 	}
