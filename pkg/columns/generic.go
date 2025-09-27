@@ -1,0 +1,419 @@
+// Package columns provides generic column implementations for session data tracking.
+package columns
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/sirupsen/logrus"
+)
+
+type simpleSessionColumn struct {
+	id        schema.InterfaceID
+	field     *arrow.Field
+	dependsOn []schema.DependsOnEntry
+	required  bool
+	castFunc  func(any) (any, error)
+	write     func(*simpleSessionColumn, *schema.Session) error
+}
+
+func (c *simpleSessionColumn) Implements() schema.Interface {
+	return schema.Interface{
+		ID:      c.id,
+		Version: "1.0.0",
+		Field:   c.field,
+	}
+}
+
+func (c *simpleSessionColumn) Version() schema.Version {
+	return "1.0.0"
+}
+
+func (c *simpleSessionColumn) Field() *arrow.Field {
+	if c.required {
+		c.field.Nullable = false
+	}
+	return c.field
+}
+
+func (c *simpleSessionColumn) DependsOn() []schema.DependsOnEntry {
+	return c.dependsOn
+}
+
+func (c *simpleSessionColumn) Write(session *schema.Session) error {
+	return c.write(c, session)
+}
+
+// NewSimpleSessionColumn creates a new simple session column with the given configuration
+//
+//nolint:dupl // false positive - .write function cannot be extracted due to type differences
+func NewSimpleSessionColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	getValue func(*schema.Session) (any, error),
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	c := &simpleSessionColumn{
+		id:    id,
+		field: field,
+	}
+	c.write = func(c *simpleSessionColumn, session *schema.Session) error {
+		value, err := getValue(session)
+		if err != nil {
+			return err
+		}
+		casted, err := c.castFunc(value)
+		if err != nil {
+			return err
+		}
+		session.Values[field.Name] = casted
+		return nil
+	}
+	for _, option := range options {
+		option(c)
+	}
+	if c.castFunc == nil {
+		c.castFunc = func(value any) (any, error) {
+			return value, nil
+		}
+	}
+	return c
+}
+
+// FromQueryParamSessionColumn creates a new session column from a query param
+func FromQueryParamSessionColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	queryParam string,
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	return NewSimpleSessionColumn(id, field, func(session *schema.Session) (any, error) {
+		if len(session.Events) == 0 {
+			return nil, nil
+		}
+		lastEvent := session.Events[len(session.Events)-1]
+		if lastEvent.BoundHit.QueryParams == nil {
+			return nil, nil
+		}
+		value := lastEvent.BoundHit.QueryParams.Get(queryParam)
+		return value, nil
+	}, options...)
+}
+
+// SessionColumnOptions configures a simple session column
+type SessionColumnOptions func(*simpleSessionColumn)
+
+// WithSessionColumnDependsOn sets the dependencies for a session column
+func WithSessionColumnDependsOn(dependsOn ...schema.DependsOnEntry) SessionColumnOptions {
+	return func(c *simpleSessionColumn) {
+		c.dependsOn = dependsOn
+	}
+}
+
+// WithSessionColumnRequired sets whether a session column is required
+func WithSessionColumnRequired(required bool) SessionColumnOptions {
+	return func(c *simpleSessionColumn) {
+		c.required = required
+	}
+}
+
+// WithSessionColumnCast sets the cast function for a session column
+func WithSessionColumnCast(castFunc func(any) (any, error)) SessionColumnOptions {
+	return func(c *simpleSessionColumn) {
+		c.castFunc = castFunc
+	}
+}
+
+type simpleEventColumn struct {
+	id        schema.InterfaceID
+	field     *arrow.Field
+	dependsOn []schema.DependsOnEntry
+	required  bool
+	castFunc  func(any) (any, error)
+	write     func(*simpleEventColumn, *schema.Event) error
+}
+
+func (c *simpleEventColumn) Implements() schema.Interface {
+	return schema.Interface{
+		ID:      c.id,
+		Version: "1.0.0",
+		Field:   c.field,
+	}
+}
+
+func (c *simpleEventColumn) Version() schema.Version {
+	return "1.0.0"
+}
+
+func (c *simpleEventColumn) Field() *arrow.Field {
+	if c.required {
+		c.field.Nullable = false
+	}
+	return c.field
+}
+
+func (c *simpleEventColumn) DependsOn() []schema.DependsOnEntry {
+	return c.dependsOn
+}
+
+func (c *simpleEventColumn) Write(event *schema.Event) error {
+	return c.write(c, event)
+}
+
+// NewSimpleEventColumn creates a new simple event column with the given configuration
+//
+//nolint:dupl // false positive - .write function cannot be extracted due to type differences
+func NewSimpleEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	getValue func(*schema.Event) (any, error),
+	options ...EventColumnOptions,
+) schema.EventColumn {
+	c := &simpleEventColumn{
+		id:    id,
+		field: field,
+	}
+	c.write = func(c *simpleEventColumn, event *schema.Event) error {
+		value, err := getValue(event)
+		if err != nil {
+			return err
+		}
+		casted, err := c.castFunc(value)
+		if err != nil {
+			return err
+		}
+		event.Values[field.Name] = casted
+		return nil
+	}
+	for _, option := range options {
+		option(c)
+	}
+	if c.castFunc == nil {
+		c.castFunc = func(value any) (any, error) {
+			return value, nil
+		}
+	}
+	return c
+}
+
+// FromQueryParamEventColumn creates a new event column from a query param
+func FromQueryParamEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	queryParam string,
+	options ...EventColumnOptions,
+) schema.EventColumn {
+	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
+		if len(event.BoundHit.QueryParams) == 0 {
+			return nil, nil
+		}
+		return event.BoundHit.QueryParams.Get(queryParam), nil
+	}, options...)
+}
+
+// FromPageURLEventColumn creates a new event column from a UTM tag
+func FromPageURLEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	utmTag string,
+	options ...EventColumnOptions,
+) schema.EventColumn {
+	options = append(options, WithEventColumnDependsOn(schema.DependsOnEntry{
+		Interface:        CoreInterfaces.EventPageLocation.ID,
+		GreaterOrEqualTo: "1.0.0",
+	}))
+	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
+		pageLocation, ok := event.Values[CoreInterfaces.EventPageLocation.Field.Name]
+		if !ok {
+			return nil, nil
+		}
+		pageLocationStr, ok := pageLocation.(string)
+		if !ok {
+			return nil, nil
+		}
+		parsed, err := url.Parse(pageLocationStr)
+		if err != nil {
+			return nil, err
+		}
+		return parsed.Query().Get(utmTag), nil
+	}, options...)
+}
+
+// EventColumnOptions configures a simple event column
+type EventColumnOptions func(*simpleEventColumn)
+
+// WithEventColumnDependsOn sets the dependencies for an event column
+func WithEventColumnDependsOn(dependsOn ...schema.DependsOnEntry) EventColumnOptions {
+	return func(c *simpleEventColumn) {
+		c.dependsOn = dependsOn
+	}
+}
+
+// WithEventColumnRequired sets whether an event column is required
+func WithEventColumnRequired(required bool) EventColumnOptions {
+	return func(c *simpleEventColumn) {
+		c.required = required
+	}
+}
+
+// WithEventColumnCast sets the cast function for an event column
+func WithEventColumnCast(castFunc func(any) (any, error)) EventColumnOptions {
+	return func(c *simpleEventColumn) {
+		c.castFunc = castFunc
+	}
+}
+
+// CastToInt64OrNil casts a value to int64 or returns nil if conversion fails or value is empty
+func CastToInt64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		valueStr, ok := value.(string)
+		if !ok {
+			logrus.Debugf("CastToInt64OrNil: %s: value is not a string: %v", columnID, value)
+			return nil, nil
+		}
+		if valueStr == "" {
+			return nil, nil
+		}
+		casted, err := strconv.ParseInt(valueStr, 10, 64)
+		if err != nil {
+			logrus.Debugf("CastToInt64OrNil: %s: value is not an int64: %v", columnID, value)
+			return nil, nil
+		}
+		return casted, nil
+	}
+}
+
+// CastToInt64OrZero casts a value to int64 or returns 0 if conversion fails or value is empty
+func CastToInt64OrZero(columnID schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		valueStr, ok := value.(string)
+		if !ok {
+			logrus.Debugf("CastToInt64OrZero: %s: value is not a string: %v", columnID, value)
+			return 0, nil
+		}
+		if valueStr == "" {
+			return 0, nil
+		}
+		casted, err := strconv.ParseInt(valueStr, 10, 64)
+		if err != nil {
+			logrus.Debugf("CastToInt64OrZero: %s: value is not an int64: %v", columnID, value)
+			return 0, nil
+		}
+		return casted, nil
+	}
+}
+
+// CastToFloat64OrNil casts a value to float64 or returns nil if conversion fails or value is empty
+func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		valueStr, ok := value.(string)
+		if !ok {
+			logrus.Debugf("CastToFloat64OrNil: %s: value is not a string: %v", columnID, value)
+			return nil, nil
+		}
+		if valueStr == "" {
+			return nil, nil
+		}
+		casted, err := strconv.ParseFloat(valueStr, 64)
+		if err != nil {
+			logrus.Debugf("CastToFloat64OrNil: %s: value is not a float64: %v", columnID, value)
+			return nil, nil
+		}
+		return casted, nil
+	}
+}
+
+// CastToBool casts a value to bool considering various truthy representations
+func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		// Handle boolean values directly
+		if boolVal, ok := value.(bool); ok {
+			return boolVal, nil
+		}
+
+		// Handle string values
+		valueStr, ok := value.(string)
+		if !ok {
+			logrus.Debugf("CastToBool: %s: value is not a string or bool: %v", columnID, value)
+			return false, nil
+		}
+
+		// Normalize string: trim whitespace and convert to lowercase
+		normalized := strings.ToLower(strings.TrimSpace(valueStr))
+
+		// Handle empty string as error
+		if normalized == "" {
+			return false, fmt.Errorf("value for %s is empty", columnID)
+		}
+
+		// Check truthy values
+		switch normalized {
+		case "true", "yes", "y", "on", "1", "t":
+			return true, nil
+		case "false", "no", "n", "off", "0", "f":
+			return false, nil
+		default:
+			logrus.Debugf("CastToBool: %s: unrecognized boolean value: %v", columnID, value)
+			return false, errors.New("unrecognized boolean value")
+		}
+	}
+}
+
+// StrErrIfEmpty casts a value to string or returns an error if conversion fails or value is empty
+func StrErrIfEmpty(_ schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		_, ok := value.(string)
+		if !ok {
+			return nil, errors.New("value is not a string")
+		}
+		if value == "" {
+			return nil, errors.New("value is empty")
+		}
+		return value, nil
+	}
+}
+
+// CastToString casts a value to string or returns nil if conversion fails
+func CastToString(_ schema.InterfaceID) func(any) (any, error) {
+	return func(value any) (any, error) {
+		valueStr, ok := value.(string)
+		if !ok {
+			return nil, errors.New("value is not a string")
+		}
+		return valueStr, nil
+	}
+}
+
+// NilIfError returns nil if the error is not nil
+func NilIfError(i func(any) (any, error)) func(any) (any, error) {
+	return func(value any) (any, error) {
+		value, err := i(value)
+		if err != nil {
+			return nil, nil
+		}
+		return value, nil
+	}
+}
+
+// StrNilIfErrorOrEmpty returns nil if the error is not nil or the value is an empty string
+func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
+	return func(value any) (any, error) {
+		value, err := i(value)
+		if err != nil {
+			return nil, err
+		}
+		valueStr, ok := value.(string)
+		if !ok {
+			return nil, errors.New("value is not a string")
+		}
+		if valueStr == "" {
+			return nil, nil
+		}
+		return valueStr, nil
+	}
+}
