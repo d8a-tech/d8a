@@ -1,0 +1,98 @@
+linters-settings:
+  forbidigo:
+    # Forbid the use of metric.WithAttributes
+    forbid:
+      - p: "^metric\\.WithAttributes$"
+        msg: "use libs -> monitoring.WithAttributes wrapper instead of metric.WithAttributes directly"
+
+  dupl:
+    threshold: 95
+  funlen:
+    lines: 65
+    statements: 40
+  gocognit:
+    min-complexity: 50
+  goconst:
+    min-occurrences: 4
+  lll:
+    line-length: 120
+  gosec:
+    excludes:
+      - G104 # Duplicate with errcheck
+  depguard:
+    rules:
+      Main:
+        list-mode: lax
+        files:
+        - $all
+        - "!$test"
+        deny:
+          - pkg: reflect
+            desc: Please don't use reflect package
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - unlambda
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  exhaustive:
+    check-generated: false
+    default-signifies-exhaustive: true
+  nakedret:
+    max-func-lines: 30
+  perfsprint:
+    error-format: true
+    string-format: true
+
+linters:
+  disable-all: true
+  enable:
+    - revive
+    - staticcheck
+    - gosimple
+    - gosec
+    - dogsled
+    - godox
+    - govet
+    - gocyclo
+    - lll
+    - funlen
+    - gofmt
+    - gocognit
+    - forbidigo
+    - dupl
+    - depguard
+    - whitespace
+    - goconst
+    - unconvert
+    - unused
+    - errcheck
+    - bodyclose
+    - gocritic
+    - errorlint
+    - misspell
+    - bidichk
+    - contextcheck
+    - nilnil
+    - exhaustive
+    - nakedret
+    - prealloc
+    - forcetypeassert
+    - asciicheck
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-use-default: false
+  # Exclude some linters from running on tests files
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - dupl
+        - gosec

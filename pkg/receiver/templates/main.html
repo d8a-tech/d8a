@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Raw Log Index</title>
+</head>
+
+<body>
+    <h1>Raw Log Index Items</h1>
+    <ul>
+        {{range .Items}}
+        <li><a href="/rawlog/{{.ID}}">{{.FormattedTime}}</a></li>
+        {{end}}
+    </ul>
+</body>
+
+</html>
