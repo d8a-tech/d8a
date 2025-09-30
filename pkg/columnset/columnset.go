@@ -36,6 +36,7 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.DclidColumn,
 		eventcolumns.SrsltidColumn,
 		eventcolumns.AclidColumn,
+		eventcolumns.AnidColumn,
 	}
 }
 

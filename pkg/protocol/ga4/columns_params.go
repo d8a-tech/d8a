@@ -685,6 +685,16 @@ var eventVirtualCurrencyNameColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
+var eventItemNameColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventItemName.ID,
+	ProtocolInterfaces.EventItemName.Field,
+	"ep.item_name",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventItemName.ID)),
+	),
+)
+
 var eventSuccessColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventSuccess.ID,
 	ProtocolInterfaces.EventSuccess.Field,
@@ -899,4 +909,20 @@ var eventLeadStatusColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLeadStatus.ID)),
 	),
+)
+
+var eventFreeTrialColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventFreeTrial.ID,
+	ProtocolInterfaces.EventFreeTrial.Field,
+	"ep.free_trial",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventFreeTrial.ID))),
+)
+
+var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventSubscription.ID,
+	ProtocolInterfaces.EventSubscription.Field,
+	"ep.subscription",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventSubscription.ID))),
 )

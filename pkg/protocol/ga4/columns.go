@@ -109,6 +109,7 @@ var ProtocolInterfaces = struct {
 	EventLevelName           schema.Interface // level_name - used in level_up event
 	EventScore               schema.Interface // score - used in gaming events
 	EventVirtualCurrencyName schema.Interface // virtual_currency_name - earn_virtual_currency, spend_virtual_currency
+	EventItemName            schema.Interface // item_name - used in spend_virtual_currency
 	EventSuccess             schema.Interface // success - used in various gaming events
 	// System params - automatically collected with app events
 	// https://support.google.com/analytics/answer/9234069?hl=en
@@ -621,6 +622,11 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/params_virtual_currency_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_virtual_currency_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventItemName: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_item_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_item_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventSuccess: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_success",

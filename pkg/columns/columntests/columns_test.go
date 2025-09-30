@@ -28,7 +28,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "dl",
 			value:       "https://example.com/page?foo=bar&gclid=1337",
 			expected:    "1337",
-			fieldName:   "gclid",
+			fieldName:   "params_gclid",
 			description: "Valid GCLID",
 		},
 		{
@@ -36,7 +36,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "dl",
 			value:       "https://example.com/page?foo=bar",
 			expected:    nil,
-			fieldName:   "gclid",
+			fieldName:   "params_gclid",
 			description: "Empty GCLID",
 		},
 		{
@@ -44,8 +44,24 @@ func TestEventColumns(t *testing.T) {
 			param:       "blabla",
 			value:       "1337",
 			expected:    nil,
-			fieldName:   "gclid",
+			fieldName:   "params_gclid",
 			description: "dl is missing",
+		},
+		{
+			name:        "EventAnid_Valid",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar&anid=1337",
+			expected:    "1337",
+			fieldName:   "params_anid",
+			description: "Valid ANID",
+		},
+		{
+			name:        "EventAnid_Empty",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar",
+			expected:    nil,
+			fieldName:   "params_anid",
+			description: "Empty ANID",
 		},
 	}
 

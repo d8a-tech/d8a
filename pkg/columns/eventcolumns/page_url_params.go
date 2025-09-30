@@ -43,3 +43,13 @@ var AclidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventAclid.ID)),
 	),
 )
+
+// AnidColumn is the column for the ANID tag of an event
+var AnidColumn = columns.FromPageURLEventColumn(
+	columns.CoreInterfaces.EventAnid.ID,
+	columns.CoreInterfaces.EventAnid.Field,
+	"anid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventAnid.ID)),
+	),
+)
