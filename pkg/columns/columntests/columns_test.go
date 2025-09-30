@@ -60,7 +60,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "dl",
 			value:       "https://example.com/page?foo=bar",
 			expected:    nil,
-			fieldName:   "anid",
+			fieldName:   "params_anid",
 			description: "Empty ANID",
 		},
 	}
