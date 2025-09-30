@@ -332,6 +332,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventLevelNameColumn,
 			eventScoreColumn,
 			eventVirtualCurrencyNameColumn,
+			eventItemNameColumn,
 			eventSuccessColumn,
 			eventVisibleColumn,
 			eventScreenResolutionColumn,
@@ -357,6 +358,8 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventLeadSourceColumn,
 			eventLeadStatusColumn,
 			itemsColumn,
+			eventFreeTrialColumn,
+			eventSubscriptionColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,

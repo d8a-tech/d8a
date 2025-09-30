@@ -27,6 +27,7 @@ var CoreInterfaces = struct {
 	EventDclid            schema.Interface
 	EventSrsltid          schema.Interface
 	EventAclid            schema.Interface
+	EventAnid             schema.Interface
 	SessionID             schema.Interface
 	SessionDuration       schema.Interface
 	SessionFirstEventTime schema.Interface
@@ -107,7 +108,7 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/gclid",
 		Version: "1.0.0",
 		Field: &arrow.Field{
-			Name:     "gclid",
+			Name:     "params_gclid",
 			Type:     arrow.BinaryTypes.String,
 			Nullable: true,
 		},
@@ -115,17 +116,22 @@ var CoreInterfaces = struct {
 	EventDclid: schema.Interface{
 		ID:      "core.d8a.tech/events/dclid",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+		Field:   &arrow.Field{Name: "params_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventSrsltid: schema.Interface{
 		ID:      "core.d8a.tech/events/srsltid",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+		Field:   &arrow.Field{Name: "params_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventAclid: schema.Interface{
 		ID:      "core.d8a.tech/events/aclid",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "aclid", Type: arrow.BinaryTypes.String, Nullable: true},
+		Field:   &arrow.Field{Name: "params_aclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventAnid: schema.Interface{
+		ID:      "core.d8a.tech/events/anid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionID: schema.Interface{
 		ID:      "core.d8a.tech/sessions/id",
