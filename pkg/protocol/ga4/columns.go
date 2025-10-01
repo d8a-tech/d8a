@@ -352,6 +352,8 @@ var ProtocolInterfaces = struct {
 				arrow.Field{Name: "location_id", Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: "price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: "quantity", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: "item_refund", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: "item_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: "promotion_id", Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: "promotion_name", Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: "creative_name", Type: arrow.BinaryTypes.String, Nullable: true},

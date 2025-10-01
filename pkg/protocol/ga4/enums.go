@@ -8,4 +8,6 @@ const (
 	ScrollEventType = "scroll"
 	// ClickEventType is the event type for clicks
 	ClickEventType = "click"
+	// RefundEventType is the event type for refunds
+	RefundEventType = "refund"
 )

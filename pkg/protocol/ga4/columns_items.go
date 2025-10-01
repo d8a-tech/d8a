@@ -51,6 +51,11 @@ var itemsColumn = columns.NewSimpleEventColumn(
 			Interface:        ProtocolInterfaces.EventPromotionName.ID,
 			GreaterOrEqualTo: ProtocolInterfaces.EventPromotionName.Version,
 		},
+		// We need to have event_name to calculate the refund value for items
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+		},
 	),
 )
 
@@ -62,6 +67,9 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 
 	item := make(map[string]any)
 	parts := strings.Split(itemStr, "~")
+
+	price := float64(0)
+	quantity := float64(0)
 
 	for _, part := range parts {
 		if len(part) < 2 {
@@ -109,12 +117,12 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 		case "lo":
 			item["location_id"] = value
 		case "pr":
-			if price, err := strconv.ParseFloat(value, 64); err == nil {
-				item["price"] = price
+			if parsedPrice, err := strconv.ParseFloat(value, 64); err == nil {
+				price = parsedPrice
 			}
 		case "qt":
-			if quantity, err := strconv.ParseFloat(value, 64); err == nil {
-				item["quantity"] = quantity
+			if parsedQuantity, err := strconv.ParseFloat(value, 64); err == nil {
+				quantity = parsedQuantity
 			}
 		case "cn":
 			item["creative_name"] = value
@@ -125,6 +133,17 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 		case "pn":
 			item["promotion_name"] = value
 		}
+	}
+
+	item["price"] = price
+	item["quantity"] = quantity
+
+	if event.Values[columns.CoreInterfaces.EventName.Field.Name] == RefundEventType {
+		item["item_refund"] = price * quantity
+		item["item_revenue"] = float64(0)
+	} else {
+		item["item_revenue"] = price * quantity
+		item["item_refund"] = float64(0)
 	}
 
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
