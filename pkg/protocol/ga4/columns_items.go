@@ -187,12 +187,16 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 	return nil
 }
 
-type ItemsBasedIterator[T int64 | float64] func(event *schema.Event, item map[string]any) (T, error)
+// ItemValueFunc computes a numeric value for a single item in an event.
+// It is used to aggregate values across all items of the event.
+type ItemValueFunc[T int64 | float64] func(event *schema.Event, item map[string]any) (T, error)
 
+// NewItemsBasedEventColumn creates an event column that aggregates values
+// across items by applying the provided ItemValueFunc to each item and summing.
 func NewItemsBasedEventColumn[T int64 | float64](
 	interfaceID schema.InterfaceID,
 	interfaceField *arrow.Field,
-	iterator ItemsBasedIterator[T],
+	valueFunc ItemValueFunc[T],
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		interfaceID,
@@ -212,7 +216,7 @@ func NewItemsBasedEventColumn[T int64 | float64](
 				if !ok {
 					return value, nil
 				}
-				result, err := iterator(event, itemMap)
+				result, err := valueFunc(event, itemMap)
 				if err != nil {
 					return value, err
 				}
@@ -302,9 +306,8 @@ var eventUniqueItemsColumn = columns.NewSimpleEventColumn(
 				}
 				uniques[itemNameStr] = true
 				continue
-			} else {
-				return int64(0), nil
 			}
+			return int64(0), nil
 		}
 		return int64(len(uniques)), nil
 	},
