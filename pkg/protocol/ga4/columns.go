@@ -6,6 +6,35 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+// Item attribute keys used inside the nested items array
+const (
+	itemKeyID            = "item_id"
+	itemKeyName          = "item_name"
+	itemKeyAffiliation   = "affiliation"
+	itemKeyCoupon        = "coupon"
+	itemKeyDiscount      = "discount"
+	itemKeyIndex         = "index"
+	itemKeyBrand         = "item_brand"
+	itemKeyCategory      = "item_category"
+	itemKeyCategory2     = "item_category2"
+	itemKeyCategory3     = "item_category3"
+	itemKeyCategory4     = "item_category4"
+	itemKeyCategory5     = "item_category5"
+	itemKeyListID        = "item_list_id"
+	itemKeyListName      = "item_list_name"
+	itemKeyVariant       = "item_variant"
+	itemKeyLocationID    = "location_id"
+	itemKeyPrice         = "price"
+	itemKeyQuantity      = "quantity"
+	itemKeyRefund        = "item_refund"
+	itemKeyRevenue       = "item_revenue"
+	itemKeyPromotionID   = "promotion_id"
+	itemKeyPromotionName = "promotion_name"
+	itemKeyCreativeName  = "creative_name"
+	itemKeyCreativeSlot  = "creative_slot"
+	itemKeyShipping      = "item_shipping"
+)
+
 // ProtocolInterfaces are the columns that are specific to the ga4 protocol.
 var ProtocolInterfaces = struct {
 	EventIgnoreReferrer   schema.Interface
@@ -24,14 +53,19 @@ var ProtocolInterfaces = struct {
 	EventContentDescription schema.Interface
 	// E-commerce params
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-	EventCoupon        schema.Interface
-	EventCurrency      schema.Interface
-	EventShipping      schema.Interface
-	EventShippingTier  schema.Interface
-	EventPaymentType   schema.Interface
-	EventTax           schema.Interface
-	EventTransactionID schema.Interface
-	EventValue         schema.Interface
+	EventCoupon          schema.Interface
+	EventCurrency        schema.Interface
+	EventShipping        schema.Interface
+	EventShippingTier    schema.Interface
+	EventPaymentType     schema.Interface
+	EventTax             schema.Interface
+	EventTransactionID   schema.Interface
+	EventValue           schema.Interface
+	EventPurchaseRevenue schema.Interface
+	EventRefundValue     schema.Interface
+	EventShippingValue   schema.Interface
+	EventUniqueItems     schema.Interface
+
 	// Item list params
 	EventItemListID   schema.Interface
 	EventItemListName schema.Interface
@@ -260,6 +294,26 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
+	EventPurchaseRevenue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/purchase_revenue",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "purchase_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventRefundValue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/refund_value",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "refund_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventShippingValue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/shipping_value",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "shipping_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventUniqueItems: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/unique_items",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "unique_items", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
 	SessionEngagement: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/engagement",
 		Version: "1.0.0",
@@ -334,30 +388,30 @@ var ProtocolInterfaces = struct {
 		Field: &arrow.Field{
 			Nullable: true,
 			Name:     "items", Type: arrow.ListOf(arrow.StructOf(
-				arrow.Field{Name: "item_id", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_name", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "affiliation", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "coupon", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "discount", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "index", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "item_brand", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_category", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_category2", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_category3", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_category4", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_category5", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_list_id", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_list_name", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "item_variant", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "location_id", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "quantity", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "item_refund", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "item_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-				arrow.Field{Name: "promotion_id", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "promotion_name", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "creative_name", Type: arrow.BinaryTypes.String, Nullable: true},
-				arrow.Field{Name: "creative_slot", Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyID, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyName, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyAffiliation, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCoupon, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyDiscount, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyIndex, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyBrand, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCategory, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCategory2, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCategory3, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCategory4, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCategory5, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyListID, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyListName, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyVariant, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyLocationID, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyPrice, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyQuantity, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyRefund, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyRevenue, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyPromotionID, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyPromotionName, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCreativeName, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: itemKeyCreativeSlot, Type: arrow.BinaryTypes.String, Nullable: true},
 			)),
 		},
 	},
