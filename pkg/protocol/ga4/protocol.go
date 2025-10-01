@@ -360,6 +360,10 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			itemsColumn,
 			eventFreeTrialColumn,
 			eventSubscriptionColumn,
+			eventPurchaseRevenueColumn,
+			eventRefundValueColumn,
+			eventShippingValueColumn,
+			eventUniqueItemsColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,

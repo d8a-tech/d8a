@@ -1,6 +1,7 @@
 package ga4
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
@@ -55,6 +56,76 @@ func TestItemsColumnAllParams(t *testing.T) {
 			"idSKU_12345~nmStan and Friends Tee~afGoogle Store~cpSUMMER_FUN~ds2.22~lp5~brGoogle~caApparel~c2Adult~c3Shirts~c4Crew~c5Short sleeve~lirelated_products~lnRelated products~vagreen~loChIJIQBpAG2ahYAR_6128GcTUEo~pr10.01~qt3~cnSummer Creative~csheader-banner~piPROMO_123~pnSummer Sale", // nolint:lll // contains all item params
 		),
 	)
+}
+
+func TestItemsColumnRefund(t *testing.T) {
+	// given
+	testCases := []struct {
+		name            string
+		itemID          string
+		price           float64
+		quantity        float64
+		eventName       string
+		expectedRefund  float64
+		expectedRevenue float64
+	}{
+		{
+			name:            "basic refund",
+			itemID:          "SKU_12345",
+			price:           10.01,
+			quantity:        3.0,
+			eventName:       "refund",
+			expectedRefund:  30.03,
+			expectedRevenue: 0.0,
+		},
+		{
+			name:            "basic revenue",
+			itemID:          "SKU_12345",
+			price:           10.01,
+			quantity:        3.0,
+			eventName:       "purchase",
+			expectedRefund:  0.0,
+			expectedRevenue: 30.03,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			columntests.ColumnTestCase(
+				t,
+				columntests.TestHits{columntests.TestHitOne()},
+				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					// when + then
+					require.NoError(t, closeErr)
+					record := whd.WriteCalls[0].Records[0]
+
+					items, ok := record["items"].([]any)
+					require.True(t, ok, "items should be of type []any")
+					assert.Len(t, items, 1)
+
+					item, ok := items[0].(map[string]any)
+					require.True(t, ok, "item should be of type map[string]any")
+					assert.Equal(t, tc.itemID, item["item_id"])
+					assert.Equal(t, tc.price, item["price"])
+					assert.Equal(t, tc.quantity, item["quantity"])
+					assert.Equal(t, tc.expectedRefund, item["item_refund"])
+					assert.Equal(t, tc.expectedRevenue, item["item_revenue"])
+				},
+				NewGA4Protocol(),
+				columntests.EnsureQueryParam(
+					0,
+					"pr1",
+					"id"+tc.itemID+"~pr"+fmt.Sprintf("%.2f", tc.price)+"~qt"+fmt.Sprintf("%.0f", tc.quantity),
+				),
+				columntests.EnsureQueryParam(
+					0,
+					"en",
+					tc.eventName,
+				),
+			)
+		})
+	}
 }
 
 func TestItemsColumnTakeFromEvent(t *testing.T) {
@@ -118,4 +189,115 @@ func TestItemsColumnTakeFromEvent(t *testing.T) {
 			"Event Promotion",
 		),
 	)
+}
+
+func TestItemsAggregatedEventParams(t *testing.T) {
+	type item struct {
+		itemID   string
+		price    float64
+		quantity float64
+	}
+	// given
+	testCases := []struct {
+		name       string
+		items      []item
+		eventName  string
+		assertFunc func(t *testing.T, record map[string]any)
+	}{
+		{
+			name:      "basic refund",
+			items:     []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
+			eventName: "refund",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 0.0, record["purchase_revenue"])
+				assert.Equal(t, 30.03, record["refund_value"])
+			},
+		},
+		{
+			name:      "basic revenue",
+			items:     []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
+			eventName: "purchase",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 30.03, record["purchase_revenue"])
+				assert.Equal(t, 0.0, record["refund_value"])
+			},
+		},
+
+		{
+			name: "multiple items refund",
+			items: []item{
+				{itemID: "SKU_12345", price: 10.01, quantity: 3.0},
+				{itemID: "SKU_12346", price: 10.02, quantity: 4.0},
+			},
+			eventName: "refund",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(2), record["unique_items"])
+				assert.Equal(t, 0.0, record["purchase_revenue"])
+				assert.Equal(t, 70.11, record["refund_value"])
+			},
+		},
+		{
+			name: "multiple items revenue",
+			items: []item{
+				{itemID: "SKU_12345", price: 10.01, quantity: 3.0},
+				{itemID: "SKU_12346", price: 10.02, quantity: 4.0},
+			},
+			eventName: "purchase",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(2), record["unique_items"])
+				assert.Equal(t, 70.11, record["purchase_revenue"])
+				assert.Equal(t, 0.0, record["refund_value"])
+			},
+		},
+		{
+			name: "multiple items same id",
+			items: []item{
+				{itemID: "SKU_12345", price: 10.01, quantity: 3.0},
+				{itemID: "SKU_12345", price: 10.02, quantity: 4.0},
+			},
+			eventName: "purchase",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 70.11, record["purchase_revenue"])
+				assert.Equal(t, 0.0, record["refund_value"])
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+
+			refFuncs := []columntests.RequirememtnsFunc{
+				columntests.EnsureQueryParam(
+					0,
+					"en",
+					tc.eventName,
+				),
+			}
+
+			for n, item := range tc.items {
+				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
+					0,
+					fmt.Sprintf("pr%d", n+1),
+					"id"+item.itemID+"~pr"+fmt.Sprintf("%.2f", item.price)+"~qt"+fmt.Sprintf("%.0f", item.quantity),
+				))
+			}
+			columntests.ColumnTestCase(
+				t,
+				columntests.TestHits{columntests.TestHitOne()},
+				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					// when + then
+					require.NoError(t, closeErr)
+					record := whd.WriteCalls[0].Records[0]
+
+					tc.assertFunc(t, record)
+				},
+				NewGA4Protocol(),
+				refFuncs...,
+			)
+		})
+	}
 }

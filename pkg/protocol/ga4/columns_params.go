@@ -1,6 +1,9 @@
 package ga4
 
-import "github.com/d8a-tech/d8a/pkg/columns"
+import (
+	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/schema"
+)
 
 var eventContentGroupColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventContentGroup.ID,
@@ -129,6 +132,31 @@ var eventShippingColumn = columns.FromQueryParamEventColumn(
 	"ep.shipping",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventShipping.ID)),
+)
+
+// On surface duplicates the above - nevertheless it's in the dataform, so including it for now
+// I guess the reasoning that is the former contains raw param value, while the latter
+// draws some conclusions, like using zero value if the param is empty
+var eventShippingValueColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventShippingValue.ID,
+	ProtocolInterfaces.EventShippingValue.Field,
+	func(event *schema.Event) (any, error) {
+		shipping := event.Values[ProtocolInterfaces.EventShipping.Field.Name]
+		if shipping == nil {
+			return float64(0), nil
+		}
+		shippingAsFloat, ok := shipping.(float64)
+		if !ok {
+			return float64(0), nil
+		}
+		return shippingAsFloat, nil
+	},
+	columns.WithEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventShipping.ID,
+			GreaterOrEqualTo: ProtocolInterfaces.EventShipping.Version,
+		},
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
