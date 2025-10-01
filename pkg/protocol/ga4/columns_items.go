@@ -265,20 +265,6 @@ var eventRefundValueColumn = NewItemsBasedEventColumn[float64](
 	},
 )
 
-var eventShippingValueColumn = NewItemsBasedEventColumn[float64](
-	ProtocolInterfaces.EventShippingValue.ID,
-	ProtocolInterfaces.EventShippingValue.Field,
-	func(event *schema.Event, item map[string]any) (float64, error) {
-		if item["item_shipping"] == nil {
-			return float64(0), nil
-		}
-		shippingAsFloat, ok := item["item_shipping"].(float64)
-		if !ok {
-			return float64(0), nil
-		}
-		return shippingAsFloat, nil
-	},
-)
 var eventUniqueItemsColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventUniqueItems.ID,
 	ProtocolInterfaces.EventUniqueItems.Field,
