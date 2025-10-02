@@ -37,6 +37,15 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.SrsltidColumn,
 		eventcolumns.AclidColumn,
 		eventcolumns.AnidColumn,
+		eventcolumns.UtmMarketingTacticColumn,
+		eventcolumns.UtmSourcePlatformColumn,
+		eventcolumns.UtmTermColumn,
+		eventcolumns.UtmContentColumn,
+		eventcolumns.UtmSourceColumn,
+		eventcolumns.UtmMediumColumn,
+		eventcolumns.UtmCampaignColumn,
+		eventcolumns.UtmIdColumn,
+		eventcolumns.UtmCreativeFormatColumn,
 	}
 }
 
