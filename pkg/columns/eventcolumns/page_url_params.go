@@ -124,13 +124,13 @@ var UtmCampaignColumn = columns.FromPageURLEventColumn(
 	),
 )
 
-// UtmIdColumn is the column for the UTM ID of an event
-var UtmIdColumn = columns.FromPageURLEventColumn(
-	columns.CoreInterfaces.EventUtmId.ID,
-	columns.CoreInterfaces.EventUtmId.Field,
+// UtmIDColumn is the column for the UTM ID of an event
+var UtmIDColumn = columns.FromPageURLEventColumn(
+	columns.CoreInterfaces.EventUtmID.ID,
+	columns.CoreInterfaces.EventUtmID.Field,
 	"utm_id",
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmId.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmID.ID)),
 	),
 )
 

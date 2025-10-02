@@ -36,7 +36,7 @@ var CoreInterfaces = struct {
 	EventUtmSource          schema.Interface
 	EventUtmMedium          schema.Interface
 	EventUtmCampaign        schema.Interface
-	EventUtmId              schema.Interface
+	EventUtmID              schema.Interface
 	EventUtmCreativeFormat  schema.Interface
 	SessionID               schema.Interface
 	SessionDuration         schema.Interface
@@ -183,7 +183,7 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "utm_campaign", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventUtmId: schema.Interface{
+	EventUtmID: schema.Interface{
 		ID:      "core.d8a.tech/events/utm_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "utm_id", Type: arrow.BinaryTypes.String, Nullable: true},
