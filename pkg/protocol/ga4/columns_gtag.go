@@ -1,6 +1,8 @@
 package ga4
 
 import (
+	"net/url"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -13,25 +15,41 @@ var eventNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.StrErrIfEmpty(columns.CoreInterfaces.EventName.ID)),
 )
 
-var eventDocumentTitleColumn = columns.FromQueryParamEventColumn(
-	columns.CoreInterfaces.EventDocumentTitle.ID,
-	columns.CoreInterfaces.EventDocumentTitle.Field,
+var eventPageTitleColumn = columns.FromQueryParamEventColumn(
+	columns.CoreInterfaces.EventPageTitle.ID,
+	columns.CoreInterfaces.EventPageTitle.Field,
 	"dt",
 	columns.WithEventColumnRequired(false),
 )
 
-var eventDocumentLocationColumn = columns.FromQueryParamEventColumn(
-	columns.CoreInterfaces.EventDocumentLocation.ID,
-	columns.CoreInterfaces.EventDocumentLocation.Field,
+var eventPageReferrerColumn = columns.FromQueryParamEventColumn(
+	columns.CoreInterfaces.EventPageReferrer.ID,
+	columns.CoreInterfaces.EventPageReferrer.Field,
+	"dr",
+	columns.WithEventColumnRequired(false),
+)
+
+var eventPagePathColumn = columns.URLElementColumn(
+	columns.CoreInterfaces.EventPagePath.ID,
+	columns.CoreInterfaces.EventPagePath.Field,
+	func(_ *schema.Event, url *url.URL) (any, error) {
+		return url.Path, nil
+	},
+)
+
+var eventPageLocationColumn = columns.FromQueryParamEventColumn(
+	columns.CoreInterfaces.EventPageLocation.ID,
+	columns.CoreInterfaces.EventPageLocation.Field,
 	"dl",
 	columns.WithEventColumnRequired(false),
 )
 
-var eventDocumentReferrerColumn = columns.FromQueryParamEventColumn(
-	columns.CoreInterfaces.EventDocumentReferrer.ID,
-	columns.CoreInterfaces.EventDocumentReferrer.Field,
-	"dr",
-	columns.WithEventColumnRequired(false),
+var eventPageHostnameColumn = columns.URLElementColumn(
+	columns.CoreInterfaces.EventPageHostname.ID,
+	columns.CoreInterfaces.EventPageHostname.Field,
+	func(_ *schema.Event, url *url.URL) (any, error) {
+		return url.Hostname(), nil
+	},
 )
 
 var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
@@ -64,13 +82,6 @@ var eventEngagementTimeMsColumn = columns.FromQueryParamEventColumn(
 	"_et",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventEngagementTimeMs.ID)),
-)
-
-var eventPageLocationColumn = columns.FromQueryParamEventColumn(
-	columns.CoreInterfaces.EventPageLocation.ID,
-	columns.CoreInterfaces.EventPageLocation.Field,
-	"dl",
-	columns.WithEventColumnRequired(false),
 )
 
 var sessionGa4SessionIDColumn = columns.FromQueryParamSessionColumn(
