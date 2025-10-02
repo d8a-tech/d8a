@@ -13,16 +13,17 @@ var CoreInterfaces = struct {
 	EventName             schema.Interface
 	EventTimestamp        schema.Interface
 	EventDate             schema.Interface
-	EventDocumentTitle    schema.Interface
-	EventDocumentLocation schema.Interface
-	EventDocumentReferrer schema.Interface
+	EventPageTitle        schema.Interface
+	EventPageReferrer     schema.Interface
+	EventPagePath         schema.Interface
+	EventPageLocation     schema.Interface
+	EventPageHostname     schema.Interface
 	EventClientID         schema.Interface
 	EventUserID           schema.Interface
 	EventPropertyID       schema.Interface
 	EventTrackingProtocol schema.Interface
 	EventPlatform         schema.Interface
 	EventIPAddress        schema.Interface
-	EventPageLocation     schema.Interface
 	EventGclid            schema.Interface
 	EventDclid            schema.Interface
 	EventSrsltid          schema.Interface
@@ -54,20 +55,30 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "event_date", Type: arrow.FixedWidthTypes.Date32},
 	},
-	EventDocumentTitle: schema.Interface{
-		ID:      "core.d8a.tech/events/document_title",
+	EventPageTitle: schema.Interface{
+		ID:      "core.d8a.tech/events/page_title",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "document_title", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "page_title", Type: arrow.BinaryTypes.String},
 	},
-	EventDocumentLocation: schema.Interface{
-		ID:      "core.d8a.tech/events/document_location",
+	EventPageReferrer: schema.Interface{
+		ID:      "core.d8a.tech/events/page_referrer",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "document_location", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "page_referrer", Type: arrow.BinaryTypes.String},
 	},
-	EventDocumentReferrer: schema.Interface{
-		ID:      "core.d8a.tech/events/document_referrer",
+	EventPagePath: schema.Interface{
+		ID:      "core.d8a.tech/events/page_path",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "document_referrer", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "page_path", Type: arrow.BinaryTypes.String},
+	},
+	EventPageLocation: schema.Interface{
+		ID:      "core.d8a.tech/events/page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "page_location", Type: arrow.BinaryTypes.String},
+	},
+	EventPageHostname: schema.Interface{
+		ID:      "core.d8a.tech/events/page_hostname",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "page_hostname", Type: arrow.BinaryTypes.String},
 	},
 	EventClientID: schema.Interface{
 		ID:      "core.d8a.tech/events/client_id",
@@ -98,11 +109,6 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/ip_address",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "ip_address", Type: arrow.BinaryTypes.String},
-	},
-	EventPageLocation: schema.Interface{
-		ID:      "core.d8a.tech/events/page_location",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "page_location", Type: arrow.BinaryTypes.String},
 	},
 	EventGclid: schema.Interface{
 		ID:      "core.d8a.tech/events/gclid",

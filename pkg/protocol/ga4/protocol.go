@@ -254,9 +254,11 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	return schema.Columns{
 		Event: []schema.EventColumn{
 			eventNameColumn,
-			eventDocumentTitleColumn,
-			eventDocumentLocationColumn,
-			eventDocumentReferrerColumn,
+			eventPageTitleColumn,
+			eventPageReferrerColumn,
+			eventPagePathColumn,
+			eventPageLocationColumn,
+			eventPageHostnameColumn,
 			eventTrackingProtocolColumn,
 			eventIgnoreReferrerColumn,
 			eventPlatformColumn,
@@ -288,7 +290,6 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventCampaignMediumColumn,
 			eventCampaignContentColumn,
 			eventCampaignTermColumn,
-			eventPageLocationColumn,
 			eventAdEventIDColumn,
 			eventExposureTimeColumn,
 			eventAdUnitCodeColumn,

@@ -105,6 +105,40 @@ func FromQueryParamSessionColumn(
 	}, options...)
 }
 
+// URLElementColumn creates a new event column from a URL element
+func URLElementColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	getValue func(e *schema.Event, url *url.URL) (any, error),
+) schema.EventColumn {
+	return NewSimpleEventColumn(
+		id,
+		field,
+		func(e *schema.Event) (any, error) {
+			pageLocation, ok := e.Values[CoreInterfaces.EventPageLocation.Field.Name]
+			if !ok {
+				return nil, nil
+			}
+			pageLocationStr, ok := pageLocation.(string)
+			if !ok {
+				return nil, nil
+			}
+			parsed, err := url.Parse(pageLocationStr)
+			if err != nil {
+				return nil, err
+			}
+			return getValue(e, parsed)
+		},
+		WithEventColumnRequired(false),
+		WithEventColumnDependsOn(
+			schema.DependsOnEntry{
+				Interface:        CoreInterfaces.EventPageLocation.ID,
+				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
+			},
+		),
+	)
+}
+
 // SessionColumnOptions configures a simple session column
 type SessionColumnOptions func(*simpleSessionColumn)
 
