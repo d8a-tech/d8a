@@ -32,7 +32,7 @@ var eventPageReferrerColumn = columns.FromQueryParamEventColumn(
 var eventPagePathColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPagePath.ID,
 	columns.CoreInterfaces.EventPagePath.Field,
-	func(e *schema.Event, url *url.URL) (any, error) {
+	func(_ *schema.Event, url *url.URL) (any, error) {
 		return url.Path, nil
 	},
 )
@@ -47,7 +47,7 @@ var eventPageLocationColumn = columns.FromQueryParamEventColumn(
 var eventPageHostnameColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPageHostname.ID,
 	columns.CoreInterfaces.EventPageHostname.Field,
-	func(e *schema.Event, url *url.URL) (any, error) {
+	func(_ *schema.Event, url *url.URL) (any, error) {
 		return url.Hostname(), nil
 	},
 )
