@@ -12,6 +12,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columnset"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/pings"
@@ -241,7 +242,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						),
 						c.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(),
+							"/g/collect": ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
 							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),
@@ -284,7 +285,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 }
 
 func columnsRegistry() schema.ColumnsRegistry {
-	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol())
+	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol(currency.NewDummyConverter(1)))
 }
 
 func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {

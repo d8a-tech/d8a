@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +50,7 @@ func TestItemsColumnAllParams(t *testing.T) {
 			assert.Equal(t, "PROMO_123", item["promotion_id"])
 			assert.Equal(t, "Summer Sale", item["promotion_name"])
 		},
-		NewGA4Protocol(),
+		NewGA4Protocol(currency.NewDummyConverter(1)),
 		columntests.EnsureQueryParam(
 			0,
 			"pr1",
@@ -112,7 +113,7 @@ func TestItemsColumnRefund(t *testing.T) {
 					assert.Equal(t, tc.expectedRefund, item["item_refund"])
 					assert.Equal(t, tc.expectedRevenue, item["item_revenue"])
 				},
-				NewGA4Protocol(),
+				NewGA4Protocol(currency.NewDummyConverter(1)),
 				columntests.EnsureQueryParam(
 					0,
 					"pr1",
@@ -152,7 +153,7 @@ func TestItemsColumnTakeFromEvent(t *testing.T) {
 			assert.Equal(t, "EVENT_PROMO_456", item["promotion_id"])
 			assert.Equal(t, "Event Promotion", item["promotion_name"])
 		},
-		NewGA4Protocol(),
+		NewGA4Protocol(currency.NewDummyConverter(1)),
 		columntests.EnsureQueryParam(
 			0,
 			"pr1",
@@ -199,32 +200,36 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 	}
 	// given
 	testCases := []struct {
-		name       string
-		items      []item
-		eventName  string
-		assertFunc func(t *testing.T, record map[string]any)
+		name         string
+		baseCurrency string
+		items        []item
+		eventName    string
+		assertFunc   func(t *testing.T, record map[string]any)
 	}{
 		{
-			name:      "basic refund",
-			items:     []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
-			eventName: "refund",
+			name:         "basic refund",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
+			eventName:    "refund",
 			assertFunc: func(t *testing.T, record map[string]any) {
 				assert.Equal(t, int64(1), record["unique_items"])
 				assert.Equal(t, 0.0, record["purchase_revenue"])
+				assert.Equal(t, 0.0, record["purchase_revenue_in_usd"])
 				assert.Equal(t, 30.03, record["refund_value"])
 			},
 		},
 		{
-			name:      "basic revenue",
-			items:     []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
-			eventName: "purchase",
+			name:         "basic revenue",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
+			eventName:    "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
 				assert.Equal(t, int64(1), record["unique_items"])
 				assert.Equal(t, 30.03, record["purchase_revenue"])
+				assert.Equal(t, 15.02, record["purchase_revenue_in_usd"])
 				assert.Equal(t, 0.0, record["refund_value"])
 			},
 		},
-
 		{
 			name: "multiple items refund",
 			items: []item{
@@ -235,6 +240,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			assertFunc: func(t *testing.T, record map[string]any) {
 				assert.Equal(t, int64(2), record["unique_items"])
 				assert.Equal(t, 0.0, record["purchase_revenue"])
+				assert.Equal(t, nil, record["purchase_revenue_in_usd"]) // no currency defined
 				assert.Equal(t, 70.11, record["refund_value"])
 			},
 		},
@@ -278,6 +284,14 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 				),
 			}
 
+			if tc.baseCurrency != "" {
+				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
+					0,
+					"ep.currency",
+					tc.baseCurrency,
+				))
+			}
+
 			for n, item := range tc.items {
 				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
 					0,
@@ -295,7 +309,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 
 					tc.assertFunc(t, record)
 				},
-				NewGA4Protocol(),
+				NewGA4Protocol(currency.NewDummyConverter(.5)),
 				refFuncs...,
 			)
 		})

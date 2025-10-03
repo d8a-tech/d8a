@@ -53,18 +53,19 @@ var ProtocolInterfaces = struct {
 	EventContentDescription schema.Interface
 	// E-commerce params
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-	EventCoupon          schema.Interface
-	EventCurrency        schema.Interface
-	EventShipping        schema.Interface
-	EventShippingTier    schema.Interface
-	EventPaymentType     schema.Interface
-	EventTax             schema.Interface
-	EventTransactionID   schema.Interface
-	EventValue           schema.Interface
-	EventPurchaseRevenue schema.Interface
-	EventRefundValue     schema.Interface
-	EventShippingValue   schema.Interface
-	EventUniqueItems     schema.Interface
+	EventCoupon               schema.Interface
+	EventCurrency             schema.Interface
+	EventShipping             schema.Interface
+	EventShippingTier         schema.Interface
+	EventPaymentType          schema.Interface
+	EventTax                  schema.Interface
+	EventTransactionID        schema.Interface
+	EventValue                schema.Interface
+	EventPurchaseRevenue      schema.Interface
+	EventPurchaseRevenueInUSD schema.Interface
+	EventRefundValue          schema.Interface
+	EventShippingValue        schema.Interface
+	EventUniqueItems          schema.Interface
 
 	// Item list params
 	EventItemListID   schema.Interface
@@ -298,6 +299,11 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/purchase_revenue",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "purchase_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventPurchaseRevenueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/purchase_revenue_in_usd",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "purchase_revenue_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	EventRefundValue: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/refund_value",

@@ -8,12 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-type ga4Protocol struct{}
+type ga4Protocol struct {
+	converter currency.Converter
+}
 
 func (p *ga4Protocol) ID() string {
 	return "ga4"
@@ -362,6 +365,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventFreeTrialColumn,
 			eventSubscriptionColumn,
 			eventPurchaseRevenueColumn,
+			eventPurchaseRevenueInUSDColumn(p.converter),
 			eventRefundValueColumn,
 			eventShippingValueColumn,
 			eventUniqueItemsColumn,
@@ -375,6 +379,8 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 }
 
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
-func NewGA4Protocol() protocol.Protocol {
-	return &ga4Protocol{}
+func NewGA4Protocol(converter currency.Converter) protocol.Protocol {
+	return &ga4Protocol{
+		converter: converter,
+	}
 }
