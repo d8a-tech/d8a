@@ -22,6 +22,32 @@ func NewDummyConverter(factor float64) Converter {
 	return &dummyConverter{factor: factor}
 }
 
+// bankersRound implements banker's rounding (round half to even).
+func bankersRound(value float64, precision int) float64 {
+	multiplier := float64(1)
+	for i := 0; i < precision; i++ {
+		multiplier *= 10
+	}
+
+	scaled := value * multiplier
+	floor := float64(int64(scaled))
+	remainder := scaled - floor
+
+	// If remainder is exactly 0.5, round to even
+	if remainder == 0.5 {
+		if int64(floor)%2 == 0 {
+			return floor / multiplier
+		}
+		return (floor + 1) / multiplier
+	}
+
+	// Standard rounding for other cases
+	if remainder >= 0.5 {
+		return (floor + 1) / multiplier
+	}
+	return floor / multiplier
+}
+
 // DoConversion is a helper, that can be used in column implementations
 // to quickly convert a value stored in other columns
 func DoConversion(
@@ -45,6 +71,6 @@ func DoConversion(
 	if err != nil {
 		return nil, err
 	}
-	rounded := float64(int64(converted*100+0.5)) / 100
+	rounded := bankersRound(converted, 2)
 	return rounded, nil
 }
