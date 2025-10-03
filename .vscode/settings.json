@@ -1,0 +1,16 @@
+{
+    "go.lintTool": "golangci-lint",
+    "go.lintOnSave": "package",
+    "go.lintFlags": [
+        "--config=${workspaceFolder}/.golangci.yml"
+    ],
+    "editor.formatOnSave": true,
+    "[go]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        }
+    },
+    "go.testTimeout": "30s",
+    "go.testEnvVars": {},
+    "go.testFlags": []
+}
