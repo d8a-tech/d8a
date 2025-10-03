@@ -1,6 +1,9 @@
+// Package eventcolumns provides event column implementations for session-scoped data.
 package eventcolumns
 
 import (
+	"errors"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -16,7 +19,7 @@ var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 				return int64(i), nil
 			}
 		}
-		return nil, nil
+		return nil, errors.New("event not found in session")
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
 )
@@ -28,17 +31,25 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSESessionPageNumber.Field,
 	func(e *schema.Event, s *schema.Session) (any, error) {
 		var currentPageNumber int64 = 0
-		var currentPage string = s.Events[0].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
+		currentPageValue, ok := s.Events[0].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
+		if !ok {
+			return nil, errors.New("invalid page location type")
+		}
+		var currentPage string = currentPageValue
 		for _, candidate := range s.Events {
-			if currentPage != candidate.Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string) {
+			candidatePageValue, ok := candidate.Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
+			if !ok {
+				return nil, errors.New("invalid page location type")
+			}
+			if currentPage != candidatePageValue {
 				currentPageNumber++
-				currentPage = candidate.Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
+				currentPage = candidatePageValue
 			}
 			if candidate == e {
 				return currentPageNumber, nil
 			}
 		}
-		return nil, nil
+		return nil, errors.New("event not found in session")
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
