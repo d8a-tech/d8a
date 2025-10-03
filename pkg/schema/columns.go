@@ -35,15 +35,22 @@ type Column interface {
 
 // Columns groups the column sources for a table layout
 type Columns struct {
-	Session []SessionColumn
-	Event   []EventColumn
+	Session            []SessionColumn
+	Event              []EventColumn
+	SessionScopedEvent []SessionScopedEventColumn
 }
 
 // NewColumns creates a new Columns struct with the given session and event columns.
 func NewColumns(session []SessionColumn, event []EventColumn) Columns {
+	return NewColumns3(session, event, nil)
+}
+
+// NewColumns3 creates a new Columns struct with session, event and session-scoped-event columns.
+func NewColumns3(session []SessionColumn, event []EventColumn, sessionScoped []SessionScopedEventColumn) Columns {
 	return Columns{
-		Session: session,
-		Event:   event,
+		Session:            session,
+		Event:              event,
+		SessionScopedEvent: sessionScoped,
 	}
 }
 

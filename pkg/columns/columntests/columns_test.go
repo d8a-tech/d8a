@@ -230,3 +230,35 @@ func TestEventColumns(t *testing.T) {
 		})
 	}
 }
+
+func TestSessionHitNumber(t *testing.T) {
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), TestHitThree()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			for i, record := range whd.WriteCalls[0].Records {
+				assert.Equal(t, int64(i), record["session_hit_number"])
+			}
+		},
+		ga4.NewGA4Protocol(),
+	)
+}
+
+func TestSessionPageNumber(t *testing.T) {
+	thThree := TestHitThree()
+	thThree.QueryParams.Set("dl", "https%3A%2F%2Fd8a-tech.github.io%2Fanalytics-playground%2Ffoobar.html")
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), thThree},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[0]["session_page_number"])
+			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[1]["session_page_number"])
+			assert.Equal(t, int64(1), whd.WriteCalls[0].Records[2]["session_page_number"])
+		},
+		ga4.NewGA4Protocol(),
+	)
+}

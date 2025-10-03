@@ -8,8 +8,9 @@ type merger struct {
 
 func (m *merger) Get(propertyID string) (Columns, error) {
 	allColumns := Columns{
-		Session: make([]SessionColumn, 0),
-		Event:   make([]EventColumn, 0),
+		Session:            make([]SessionColumn, 0),
+		Event:              make([]EventColumn, 0),
+		SessionScopedEvent: make([]SessionScopedEventColumn, 0),
 	}
 	for _, registry := range m.registries {
 		columns, err := registry.Get(propertyID)
@@ -18,6 +19,7 @@ func (m *merger) Get(propertyID string) (Columns, error) {
 		}
 		allColumns.Session = append(allColumns.Session, columns.Session...)
 		allColumns.Event = append(allColumns.Event, columns.Event...)
+		allColumns.SessionScopedEvent = append(allColumns.SessionScopedEvent, columns.SessionScopedEvent...)
 	}
 	sortedColumns, err := m.sorter.SortAllColumns(allColumns)
 	if err != nil {
