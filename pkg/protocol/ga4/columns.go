@@ -64,7 +64,10 @@ var ProtocolInterfaces = struct {
 	EventPurchaseRevenue      schema.Interface
 	EventPurchaseRevenueInUSD schema.Interface
 	EventRefundValue          schema.Interface
+	EventRefundValueInUSD     schema.Interface
 	EventShippingValue        schema.Interface
+	EventShippingValueInUSD   schema.Interface
+	EventTaxValueInUSD        schema.Interface
 	EventUniqueItems          schema.Interface
 
 	// Item list params
@@ -310,10 +313,25 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "refund_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
+	EventRefundValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/refund_value_in_usd",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "refund_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
 	EventShippingValue: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/shipping_value",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "shipping_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventShippingValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/shipping_value_in_usd",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "shipping_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventTaxValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/tax_value_in_usd",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "tax_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	EventUniqueItems: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/unique_items",

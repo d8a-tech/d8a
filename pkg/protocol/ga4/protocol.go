@@ -367,7 +367,10 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventPurchaseRevenueColumn,
 			eventPurchaseRevenueInUSDColumn(p.converter),
 			eventRefundValueColumn,
+			eventRefundValueInUSDColumn(p.converter),
 			eventShippingValueColumn,
+			eventShippingValueInUSDColumn(p.converter),
+			eventTaxValueInUSDColumn(p.converter),
 			eventUniqueItemsColumn,
 		},
 		Session: []schema.SessionColumn{
