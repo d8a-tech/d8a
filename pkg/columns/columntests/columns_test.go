@@ -4,6 +4,7 @@ package columntests
 import (
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -225,7 +226,7 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				ga4.NewGA4Protocol(),
+				ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 				EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}
@@ -242,7 +243,7 @@ func TestSessionHitNumber(t *testing.T) {
 				assert.Equal(t, int64(i), record["session_hit_number"])
 			}
 		},
-		ga4.NewGA4Protocol(),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 	)
 }
 
@@ -259,6 +260,6 @@ func TestSessionPageNumber(t *testing.T) {
 			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[1]["session_page_number"])
 			assert.Equal(t, int64(1), whd.WriteCalls[0].Records[2]["session_page_number"])
 		},
-		ga4.NewGA4Protocol(),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 	)
 }
