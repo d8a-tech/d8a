@@ -204,6 +204,8 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 		baseCurrency string
 		items        []item
 		eventName    string
+		tax          *float64
+		shipping     *float64
 		assertFunc   func(t *testing.T, record map[string]any)
 	}{
 		{
@@ -216,6 +218,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 				assert.Equal(t, 0.0, record["purchase_revenue"])
 				assert.Equal(t, 0.0, record["purchase_revenue_in_usd"])
 				assert.Equal(t, 30.03, record["refund_value"])
+				assert.Equal(t, 15.02, record["refund_value_in_usd"])
 			},
 		},
 		{
@@ -270,6 +273,81 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 				assert.Equal(t, 0.0, record["refund_value"])
 			},
 		},
+		{
+			name:         "refund value in USD conversion",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 20.0, quantity: 2.0}},
+			eventName:    "refund",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 0.0, record["purchase_revenue"])
+				assert.Equal(t, 0.0, record["purchase_revenue_in_usd"])
+				assert.Equal(t, 40.0, record["refund_value"])
+				assert.Equal(t, 20.0, record["refund_value_in_usd"])
+			},
+		},
+		{
+			name:         "shipping value in USD conversion",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
+			eventName:    "purchase",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 10.0, record["purchase_revenue"])
+				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["refund_value"])
+				// shipping_value returns 0.0 when no ep.shipping param is provided
+				assert.Equal(t, 0.0, record["shipping_value"])
+				assert.Equal(t, 0.0, record["shipping_value_in_usd"])
+			},
+		},
+		{
+			name:         "shipping value in USD conversion with shipping param",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
+			eventName:    "purchase",
+			shipping:     func() *float64 { v := 3.0; return &v }(),
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 10.0, record["purchase_revenue"])
+				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["refund_value"])
+				// shipping_value should be 3.0 EUR, shipping_value_in_usd should be 1.5 USD (3.0 * 0.5)
+				assert.Equal(t, 3.0, record["shipping_value"])
+				assert.Equal(t, 1.5, record["shipping_value_in_usd"])
+			},
+		},
+		{
+			name:         "tax value in USD conversion",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
+			eventName:    "purchase",
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 10.0, record["purchase_revenue"])
+				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["refund_value"])
+				// tax_value and tax_value_in_usd will be nil without ep.tax param
+				assert.Equal(t, nil, record["tax_value"])
+				assert.Equal(t, nil, record["tax_value_in_usd"])
+			},
+		},
+		{
+			name:         "tax value in USD conversion with tax param",
+			baseCurrency: "EUR",
+			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
+			eventName:    "purchase",
+			tax:          func() *float64 { v := 2.0; return &v }(),
+			assertFunc: func(t *testing.T, record map[string]any) {
+				assert.Equal(t, int64(1), record["unique_items"])
+				assert.Equal(t, 10.0, record["purchase_revenue"])
+				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["refund_value"])
+				// params_tax should be 2.0 EUR, tax_value_in_usd should be 1.0 USD (2.0 * 0.5)
+				assert.Equal(t, 2.0, record["params_tax"])
+				assert.Equal(t, 1.0, record["tax_value_in_usd"])
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -289,6 +367,22 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 					0,
 					"ep.currency",
 					tc.baseCurrency,
+				))
+			}
+
+			if tc.tax != nil {
+				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
+					0,
+					"ep.tax",
+					fmt.Sprintf("%.2f", *tc.tax),
+				))
+			}
+
+			if tc.shipping != nil {
+				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
+					0,
+					"ep.shipping",
+					fmt.Sprintf("%.2f", *tc.shipping),
 				))
 			}
 
