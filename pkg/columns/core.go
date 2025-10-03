@@ -43,6 +43,8 @@ var CoreInterfaces = struct {
 	SessionFirstEventTime   schema.Interface
 	SessionLastEventTime    schema.Interface
 	SessionTotalEvents      schema.Interface
+	SSESessionHitNumber     schema.Interface
+	SSESessionPageNumber    schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -217,6 +219,16 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/total_events",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSESessionHitNumber: schema.Interface{
+		ID:      "core.d8a.tech/events/session_hit_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_hit_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSESessionPageNumber: schema.Interface{
+		ID:      "core.d8a.tech/events/session_page_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 }
 

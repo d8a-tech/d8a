@@ -52,7 +52,20 @@ func (m *eventsWithEmbeddedSessionColumnsLayout) Tables(
 ) []WithName {
 	eventColumns := columns.Event
 	sessionColumns := columns.Session
-	extraFields := make([]arrow.Field, len(sessionColumns))
+	// First, include fields from session-scoped event columns as event-level fields
+	ssecExtraFields := make([]arrow.Field, len(columns.SessionScopedEvent))
+	for i, ssec := range columns.SessionScopedEvent {
+		f := ssec.Implements().Field
+		ssecExtraFields[i] = arrow.Field{
+			Name:     f.Name,
+			Type:     f.Type,
+			Nullable: f.Nullable,
+			Metadata: f.Metadata,
+		}
+	}
+
+	// Then, include prefixed session fields
+	prefixedSessionExtraFields := make([]arrow.Field, len(sessionColumns))
 	for i, sessionColumn := range sessionColumns {
 		f := sessionColumn.Implements().Field
 		fieldCopy := arrow.Field{
@@ -61,10 +74,15 @@ func (m *eventsWithEmbeddedSessionColumnsLayout) Tables(
 			Nullable: f.Nullable,
 			Metadata: f.Metadata,
 		}
-		extraFields[i] = fieldCopy
+		prefixedSessionExtraFields[i] = fieldCopy
 	}
 
-	schema := WithExtraFields(eventColumns, extraFields...)
+	// Merge SSEC fields first (as event-level), then prefixed session fields
+	allExtra := make([]arrow.Field, 0, len(ssecExtraFields)+len(prefixedSessionExtraFields))
+	allExtra = append(allExtra, ssecExtraFields...)
+	allExtra = append(allExtra, prefixedSessionExtraFields...)
+
+	schema := WithExtraFields(eventColumns, allExtra...)
 
 	return []WithName{
 		{Schema: schema, Table: m.eventsTableName},

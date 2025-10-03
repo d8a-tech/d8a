@@ -56,7 +56,7 @@ func (s *DependencySorter) SortEventColumns(columns []EventColumn) ([]EventColum
 // SortAllColumns sorts both session and event columns together, respecting cross-type dependencies.
 func (s *DependencySorter) SortAllColumns(columns Columns) (Columns, error) {
 	// Combine all columns for sorting
-	allColumns := make([]Column, 0, len(columns.Session)+len(columns.Event))
+	allColumns := make([]Column, 0, len(columns.Session)+len(columns.Event)+len(columns.SessionScopedEvent))
 
 	// Add session columns
 	for _, col := range columns.Session {
@@ -68,15 +68,21 @@ func (s *DependencySorter) SortAllColumns(columns Columns) (Columns, error) {
 		allColumns = append(allColumns, col)
 	}
 
+	// Add session-scoped event columns
+	for _, col := range columns.SessionScopedEvent {
+		allColumns = append(allColumns, col)
+	}
+
 	// Sort all columns together
 	sortedAll, err := s.sortColumns(allColumns)
 	if err != nil {
 		return Columns{}, err
 	}
 
-	// Separate back into session and event columns
+	// Separate back into slices by type
 	var sortedSessionColumns []SessionColumn
 	var sortedEventColumns []EventColumn
+	var sortedSessionScopedEventColumns []SessionScopedEventColumn
 
 	for _, col := range sortedAll {
 		switch c := col.(type) {
@@ -84,12 +90,14 @@ func (s *DependencySorter) SortAllColumns(columns Columns) (Columns, error) {
 			sortedSessionColumns = append(sortedSessionColumns, c)
 		case EventColumn:
 			sortedEventColumns = append(sortedEventColumns, c)
+		case SessionScopedEventColumn:
+			sortedSessionScopedEventColumns = append(sortedSessionScopedEventColumns, c)
 		default:
 			return Columns{}, fmt.Errorf("unknown column type: %T", col)
 		}
 	}
 
-	return NewColumns(sortedSessionColumns, sortedEventColumns), nil
+	return NewColumns3(sortedSessionColumns, sortedEventColumns, sortedSessionScopedEventColumns), nil
 }
 
 // sortColumns implements topological sort for column dependencies.

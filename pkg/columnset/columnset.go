@@ -14,7 +14,7 @@ func DefaultColumnRegistry(theProtocol protocol.Protocol) schema.ColumnsRegistry
 	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
-			schema.NewColumns(sessionColumns(), eventColumns()),
+			schema.NewColumns3(sessionColumns(), eventColumns(), sessionScopedEventColumns()),
 		),
 		protocolschema.NewFromProtocolColumnsRegistry(protocol.NewStaticRegistry(
 			map[string]protocol.Protocol{},
@@ -56,5 +56,12 @@ func sessionColumns() []schema.SessionColumn {
 		sessioncolumns.LastEventTimeColumn,
 		sessioncolumns.DurationColumn,
 		sessioncolumns.TotalEventsColumn,
+	}
+}
+
+func sessionScopedEventColumns() []schema.SessionScopedEventColumn {
+	return []schema.SessionScopedEventColumn{
+		eventcolumns.SSESessionHitNumber,
+		eventcolumns.SSESessionPageNumber,
 	}
 }

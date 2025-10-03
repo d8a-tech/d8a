@@ -451,3 +451,89 @@ func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
 		return valueStr, nil
 	}
 }
+
+type simpleSessionScopedEventColumn struct {
+	id        schema.InterfaceID
+	field     *arrow.Field
+	dependsOn []schema.DependsOnEntry
+	required  bool
+	castFunc  func(any) (any, error)
+	write     func(*simpleSessionScopedEventColumn, *schema.Event, *schema.Session) error
+}
+
+func (c *simpleSessionScopedEventColumn) Implements() schema.Interface {
+	return schema.Interface{
+		ID:      c.id,
+		Version: "1.0.0",
+		Field:   c.field,
+	}
+}
+
+func (c *simpleSessionScopedEventColumn) DependsOn() []schema.DependsOnEntry {
+	return c.dependsOn
+}
+
+func (c *simpleSessionScopedEventColumn) Write(event *schema.Event, session *schema.Session) error {
+	return c.write(c, event, session)
+}
+
+// SessionScopedEventColumnOptions configures a simple session-scoped event column
+type SessionScopedEventColumnOptions func(*simpleSessionScopedEventColumn)
+
+// WithSessionScopedEventColumnDependsOn sets the dependencies for a session-scoped event column
+func WithSessionScopedEventColumnDependsOn(dependsOn ...schema.DependsOnEntry) SessionScopedEventColumnOptions {
+	return func(c *simpleSessionScopedEventColumn) {
+		c.dependsOn = dependsOn
+	}
+}
+
+// WithSessionScopedEventColumnRequired sets whether a session-scoped event column is required
+func WithSessionScopedEventColumnRequired(required bool) SessionScopedEventColumnOptions {
+	return func(c *simpleSessionScopedEventColumn) {
+		c.required = required
+	}
+}
+
+// WithSessionScopedEventColumnCast sets the cast function for a session-scoped event column
+func WithSessionScopedEventColumnCast(castFunc func(any) (any, error)) SessionScopedEventColumnOptions {
+	return func(c *simpleSessionScopedEventColumn) {
+		c.castFunc = castFunc
+	}
+}
+
+// NewSimpleSessionScopedEventColumn creates a new session-scoped event column with the given configuration
+//
+//nolint:dupl // similar structure to other simple column builders, but types differ
+func NewSimpleSessionScopedEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	getValue func(*schema.Event, *schema.Session) (any, error),
+	options ...SessionScopedEventColumnOptions,
+) schema.SessionScopedEventColumn {
+	c := &simpleSessionScopedEventColumn{
+		id:    id,
+		field: field,
+	}
+	c.write = func(c *simpleSessionScopedEventColumn, event *schema.Event, session *schema.Session) error {
+		value, err := getValue(event, session)
+		if err != nil {
+			return err
+		}
+		casted, err := c.castFunc(value)
+		if err != nil {
+			return err
+		}
+		event.Values[field.Name] = casted
+		return nil
+	}
+	for _, option := range options {
+		option(c)
+	}
+	if c.castFunc == nil {
+		c.castFunc = func(value any) (any, error) { return value, nil }
+	}
+	if c.required {
+		field.Nullable = false
+	}
+	return c
+}
