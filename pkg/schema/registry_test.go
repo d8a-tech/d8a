@@ -145,6 +145,7 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 							field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
 						},
 					},
+					[]SessionScopedEventColumn{},
 				),
 			},
 			defaultColumns: NewColumns(
@@ -156,6 +157,7 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 					},
 				},
 				[]EventColumn{},
+				[]SessionScopedEventColumn{},
 			),
 			expectedColumns: NewColumns(
 				[]SessionColumn{
@@ -172,6 +174,7 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 						field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
 					},
 				},
+				[]SessionScopedEventColumn{},
 			),
 		},
 		{
@@ -187,6 +190,7 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 					},
 				},
 				[]EventColumn{},
+				[]SessionScopedEventColumn{},
 			),
 			expectedColumns: NewColumns(
 				[]SessionColumn{
@@ -197,6 +201,7 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 					},
 				},
 				[]EventColumn{},
+				[]SessionScopedEventColumn{},
 			),
 		},
 	}

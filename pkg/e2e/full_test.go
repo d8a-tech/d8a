@@ -170,6 +170,7 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 														sessioncolumns.TotalEventsColumn,
 													},
 													[]schema.EventColumn{},
+													[]schema.SessionScopedEventColumn{},
 												),
 											)
 										}(),
