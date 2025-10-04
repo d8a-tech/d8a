@@ -17,6 +17,7 @@ func migrate(ctx context.Context, c *cli.Context, propertyID string) error {
 	var allColumns []schema.Column
 	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Event)...)
 	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Session)...)
+	allColumns = append(allColumns, schema.ToGenericColumns(columnData.SessionScopedEvent)...)
 	err = schema.AssertAllDependenciesFulfilledWithCoreColumns(allColumns, columns.GetAllCoreColumns())
 	if err != nil {
 		return err

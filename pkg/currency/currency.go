@@ -1,9 +1,6 @@
 // Package currency provides a currency conversion interface and implementation.
 package currency
 
-// ISOCurrencyUSD is the ISO-4217 currency code for USD.
-const ISOCurrencyUSD = "USD"
-
 // Converter is an interface that converts currency amounts between different ISO currencies.
 type Converter interface {
 	Convert(isoBaseCurrency string, isoQuoteCurrency string, amount float64) (float64, error)
@@ -62,6 +59,9 @@ func DoConversion(
 	baseCurrencyStr, ok := baseCurrency.(string)
 	if !ok {
 		return nil, nil // nolint:nilnil // return nil, nil when baseCurrency is not a string
+	}
+	if baseCurrencyStr == quoteCurrency {
+		return baseValue, nil
 	}
 	baseValueFloat, ok := baseValue.(float64)
 	if !ok {

@@ -28,6 +28,7 @@ func TestWriter(t *testing.T) {
 			schema.NewColumns(
 				[]schema.SessionColumn{},
 				[]schema.EventColumn{},
+				[]schema.SessionScopedEventColumn{},
 			),
 		),
 		columnsCache: createDefaultCache[schema.Columns](),

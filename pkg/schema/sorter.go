@@ -97,7 +97,7 @@ func (s *DependencySorter) SortAllColumns(columns Columns) (Columns, error) {
 		}
 	}
 
-	return NewColumns3(sortedSessionColumns, sortedEventColumns, sortedSessionScopedEventColumns), nil
+	return NewColumns(sortedSessionColumns, sortedEventColumns, sortedSessionScopedEventColumns), nil
 }
 
 // sortColumns implements topological sort for column dependencies.
