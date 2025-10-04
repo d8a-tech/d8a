@@ -107,7 +107,10 @@ func (c *FawazAhmedConverter) backgroundRefresh() {
 	for range ticker.C {
 		bases := c.snapshotBases()
 		for _, base := range bases {
-			_ = c.fetchAndCache(base) // best-effort; errors are ignored in the background
+			err := c.fetchAndCache(base) // best-effort; errors are ignored in the background
+			if err != nil {
+				logrus.Errorf("currency: background refresh for %s failed: %v", base, err)
+			}
 		}
 	}
 }
