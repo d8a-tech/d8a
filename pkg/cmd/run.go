@@ -83,6 +83,14 @@ func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	return endFlags
 }
 
+var currencyConverter currency.Converter = func() currency.Converter {
+	converter, err := currency.NewFWAConverter(nil)
+	if err != nil {
+		logrus.Fatalf("failed to create currency converter: %v", err)
+	}
+	return converter
+}()
+
 // Run starts the tracker-api server
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,lll // it's an entrypoint
 	app := &cli.App{
@@ -242,7 +250,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						),
 						c.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+							"/g/collect": ga4.NewGA4Protocol(currencyConverter),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
 							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),
@@ -285,7 +293,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 }
 
 func columnsRegistry() schema.ColumnsRegistry {
-	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol(currency.NewDummyConverter(1)))
+	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol(currencyConverter))
 }
 
 func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {

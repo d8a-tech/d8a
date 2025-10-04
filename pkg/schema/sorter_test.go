@@ -35,6 +35,7 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 						field:   &arrow.Field{Name: "base_event", Type: arrow.BinaryTypes.String},
 					},
 				},
+				[]SessionScopedEventColumn{},
 			),
 			// Cross-type dependencies should be validated, but columns are returned grouped by type
 			expectedOrder: []InterfaceID{"session_depends_on_event", "base_event"},
@@ -59,6 +60,7 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 						},
 					},
 				},
+				[]SessionScopedEventColumn{},
 			),
 			expectedOrder: []InterfaceID{"base_session", "event_depends_on_session"},
 		},
@@ -95,6 +97,7 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 						field:   &arrow.Field{Name: "event_a", Type: arrow.BinaryTypes.String},
 					},
 				},
+				[]SessionScopedEventColumn{},
 			),
 			// Columns are grouped by type, with dependencies respected within each type
 			expectedOrder: []InterfaceID{"session_a", "session_b", "event_a", "event_b"},

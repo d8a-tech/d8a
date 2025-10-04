@@ -217,6 +217,7 @@ func TestProtosessionsWarehouse(t *testing.T) {
 						[]schema.EventColumn{
 							eventcolumns.EventIDColumn,
 						},
+						[]schema.SessionScopedEventColumn{},
 					),
 				),
 				schema.NewStaticLayoutRegistry(
