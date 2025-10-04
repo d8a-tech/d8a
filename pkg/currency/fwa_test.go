@@ -28,7 +28,7 @@ func httpJSON(status int, body string) *http.Response {
 	}
 }
 
-func TestFawazAhmedConverter_Convert_ArrayDriven(t *testing.T) {
+func TestFWAConverter_Convert_ArrayDriven(t *testing.T) {
 	// given
 	base := "usd"
 	jsURL := fmt.Sprintf("%s/%s.json", jsDelivrBase, base)
@@ -89,9 +89,9 @@ func TestFawazAhmedConverter_Convert_ArrayDriven(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// when
-			convI, err := NewFawazAhmedConverter([]string{})
+			convI, err := NewFWAConverter([]string{})
 			assert.NoError(t, err)
-			conv, ok := convI.(*FawazAhmedConverter)
+			conv, ok := convI.(*FWAConverter)
 			if !ok {
 				t.Fatalf("unexpected converter type: %T", convI)
 			}
@@ -130,13 +130,13 @@ func TestFawazAhmedConverter_Convert_ArrayDriven(t *testing.T) {
 	}
 }
 
-func TestFawazAhmedConverter_FetchRates_MalformedPayload(t *testing.T) {
+func TestFWAConverter_FetchRates_MalformedPayload(t *testing.T) {
 	// given
 	base := "usd"
 	jsURL := fmt.Sprintf("%s/%s.json", jsDelivrBase, base)
-	convI, err := NewFawazAhmedConverter([]string{})
+	convI, err := NewFWAConverter([]string{})
 	assert.NoError(t, err)
-	conv, ok := convI.(*FawazAhmedConverter)
+	conv, ok := convI.(*FWAConverter)
 	assert.True(t, ok)
 	conv.httpClient = newMockClient(func(r *http.Request) (*http.Response, error) {
 		if r.URL.String() == jsURL {

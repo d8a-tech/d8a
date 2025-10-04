@@ -84,7 +84,7 @@ func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 }
 
 var currencyConverter currency.Converter = func() currency.Converter {
-	converter, err := currency.NewFawazAhmedConverter(nil)
+	converter, err := currency.NewFWAConverter(nil)
 	if err != nil {
 		logrus.Fatalf("failed to create currency converter: %v", err)
 	}

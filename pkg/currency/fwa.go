@@ -12,12 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// FawazAhmedConverter implements Converter using the fawazahmed0/exchange-api dataset.
+// FWAConverter implements Converter using the fawazahmed0/exchange-api dataset.
+// Available here:https://github.com/fawazahmed0/exchange-api.
 // It maintains an in-memory cache of base-currency rate tables, fetched initially
 // for a provided set of currencies, then refreshed hourly in the background.
 // On-demand, when a conversion is requested for a base currency not yet cached,
 // the converter will fetch and cache that base table before serving the request.
-type FawazAhmedConverter struct {
+type FWAConverter struct {
 	httpClient   *http.Client
 	mu           sync.RWMutex
 	cache        map[string]cachedRates // key: base currency (lower-case ISO code)
@@ -30,21 +31,21 @@ type cachedRates struct {
 }
 
 const (
-	jsDelivrBase   = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies"
+	jsDelivrBase   = "https://cdn.jsdelivr.net/npm/@FWA0/currency-api@latest/v1/currencies"
 	cloudflareBase = "https://latest.currency-api.pages.dev/v1/currencies"
 )
 
-// NewFawazAhmedConverter creates a new converter backed by fawazahmed0/exchange-api.
+// NewFWAConverter creates a new converter backed by FWAConverter.
 // The constructor synchronously fetches all provided base currencies and blocks until
 // they are downloaded and cached. A background refresher updates all cached bases
 // every hour.
-func NewFawazAhmedConverter(initialBases []string) (Converter, error) {
+func NewFWAConverter(initialBases []string) (Converter, error) {
 	if initialBases == nil {
 		initialBases = defaultCurrencies()
 	}
 	// returning interface Converter is intended API for this constructor
 	client := &http.Client{Timeout: 15 * time.Second}
-	c := &FawazAhmedConverter{
+	c := &FWAConverter{
 		httpClient:   client,
 		cache:        make(map[string]cachedRates),
 		refreshEvery: time.Hour,
@@ -68,7 +69,7 @@ func NewFawazAhmedConverter(initialBases []string) (Converter, error) {
 }
 
 // Convert implements Converter.Convert.
-func (c *FawazAhmedConverter) Convert(isoBaseCurrency, isoQuoteCurrency string, amount float64) (float64, error) {
+func (c *FWAConverter) Convert(isoBaseCurrency, isoQuoteCurrency string, amount float64) (float64, error) {
 	base := strings.ToLower(strings.TrimSpace(isoBaseCurrency))
 	quote := strings.ToLower(strings.TrimSpace(isoQuoteCurrency))
 	if base == "" || quote == "" {
@@ -101,7 +102,7 @@ func (c *FawazAhmedConverter) Convert(isoBaseCurrency, isoQuoteCurrency string, 
 	return amount * rate, nil
 }
 
-func (c *FawazAhmedConverter) backgroundRefresh() {
+func (c *FWAConverter) backgroundRefresh() {
 	ticker := time.NewTicker(c.refreshEvery)
 	defer ticker.Stop()
 	for range ticker.C {
@@ -115,7 +116,7 @@ func (c *FawazAhmedConverter) backgroundRefresh() {
 	}
 }
 
-func (c *FawazAhmedConverter) snapshotBases() []string {
+func (c *FWAConverter) snapshotBases() []string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	bases := make([]string, 0, len(c.cache))
@@ -125,7 +126,7 @@ func (c *FawazAhmedConverter) snapshotBases() []string {
 	return bases
 }
 
-func (c *FawazAhmedConverter) fetchAndCache(base string) error {
+func (c *FWAConverter) fetchAndCache(base string) error {
 	rates, err := c.fetchRates(base)
 	if err != nil {
 		return err
@@ -136,7 +137,7 @@ func (c *FawazAhmedConverter) fetchAndCache(base string) error {
 	return nil
 }
 
-func (c *FawazAhmedConverter) fetchRates(base string) (map[string]float64, error) {
+func (c *FWAConverter) fetchRates(base string) (map[string]float64, error) {
 	urls := []string{
 		fmt.Sprintf("%s/%s.json", jsDelivrBase, base),
 		fmt.Sprintf("%s/%s.json", cloudflareBase, base),
@@ -155,7 +156,7 @@ func (c *FawazAhmedConverter) fetchRates(base string) (map[string]float64, error
 	return nil, lastErr
 }
 
-func (c *FawazAhmedConverter) tryFetch(url, base string) (map[string]float64, error) {
+func (c *FWAConverter) tryFetch(url, base string) (map[string]float64, error) {
 	logrus.Debugf("fetching rates for currency %s from %s", base, url)
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
