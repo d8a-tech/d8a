@@ -153,6 +153,7 @@ func (c *FawazAhmedConverter) fetchRates(base string) (map[string]float64, error
 }
 
 func (c *FawazAhmedConverter) tryFetch(url, base string) (map[string]float64, error) {
+	logrus.Debugf("fetching rates for currency %s from %s", base, url)
 	req, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
