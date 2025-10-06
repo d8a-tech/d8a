@@ -25,14 +25,16 @@ const (
 	itemKeyVariant       = "item_variant"
 	itemKeyLocationID    = "location_id"
 	itemKeyPrice         = "price"
+	itemKeyPriceInUSD    = "price_in_usd"
 	itemKeyQuantity      = "quantity"
 	itemKeyRefund        = "item_refund"
+	itemKeyRefundInUSD   = "item_refund_in_usd"
 	itemKeyRevenue       = "item_revenue"
+	itemKeyRevenueInUSD  = "item_revenue_in_usd"
 	itemKeyPromotionID   = "promotion_id"
 	itemKeyPromotionName = "promotion_name"
 	itemKeyCreativeName  = "creative_name"
 	itemKeyCreativeSlot  = "creative_slot"
-	itemKeyShipping      = "item_shipping"
 )
 
 // ProtocolInterfaces are the columns that are specific to the ga4 protocol.
@@ -429,9 +431,12 @@ var ProtocolInterfaces = struct {
 				arrow.Field{Name: itemKeyVariant, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyLocationID, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyPrice, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyPriceInUSD, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: itemKeyQuantity, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: itemKeyRefund, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyRefundInUSD, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: itemKeyRevenue, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: itemKeyRevenueInUSD, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 				arrow.Field{Name: itemKeyPromotionID, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyPromotionName, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyCreativeName, Type: arrow.BinaryTypes.String, Nullable: true},

@@ -361,7 +361,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventDisqualifiedLeadReasonColumn,
 			eventLeadSourceColumn,
 			eventLeadStatusColumn,
-			itemsColumn,
+			itemsColumn(p.converter),
 			eventFreeTrialColumn,
 			eventSubscriptionColumn,
 			eventPurchaseRevenueColumn,

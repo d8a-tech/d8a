@@ -44,17 +44,27 @@ func TestItemsColumnAllParams(t *testing.T) {
 			assert.Equal(t, "green", item["item_variant"])
 			assert.Equal(t, "ChIJIQBpAG2ahYAR_6128GcTUEo", item["location_id"])
 			assert.Equal(t, 10.01, item["price"])
+			assert.Equal(t, 20.02, item["price_in_usd"])
+			assert.Equal(t, float64(0), item["item_refund"])
+			assert.Equal(t, float64(0), item["item_refund_in_usd"])
+			assert.Equal(t, 30.03, item["item_revenue"])
+			assert.Equal(t, 60.06, item["item_revenue_in_usd"])
 			assert.Equal(t, 3.0, item["quantity"])
 			assert.Equal(t, "Summer Creative", item["creative_name"])
 			assert.Equal(t, "header-banner", item["creative_slot"])
 			assert.Equal(t, "PROMO_123", item["promotion_id"])
 			assert.Equal(t, "Summer Sale", item["promotion_name"])
 		},
-		NewGA4Protocol(currency.NewDummyConverter(1)),
+		NewGA4Protocol(currency.NewDummyConverter(2)),
 		columntests.EnsureQueryParam(
 			0,
 			"pr1",
 			"idSKU_12345~nmStan and Friends Tee~afGoogle Store~cpSUMMER_FUN~ds2.22~lp5~brGoogle~caApparel~c2Adult~c3Shirts~c4Crew~c5Short sleeve~lirelated_products~lnRelated products~vagreen~loChIJIQBpAG2ahYAR_6128GcTUEo~pr10.01~qt3~cnSummer Creative~csheader-banner~piPROMO_123~pnSummer Sale", // nolint:lll // contains all item params
+		),
+		columntests.EnsureQueryParam(
+			0,
+			"ep.currency",
+			"EUR",
 		),
 	)
 }

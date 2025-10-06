@@ -6,59 +6,96 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-var itemsColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventItems.ID,
-	ProtocolInterfaces.EventItems.Field,
-	func(event *schema.Event) (any, error) {
-		var items []any
-		for qp, values := range event.BoundHit.QueryParams {
-			if strings.HasPrefix(qp, "pr") {
-				for _, value := range values {
-					if item := parseItem(event, value); item != nil {
-						items = append(items, item)
+var itemsColumn = func(converter currency.Converter) schema.EventColumn {
+	return columns.NewSimpleEventColumn(
+		ProtocolInterfaces.EventItems.ID,
+		ProtocolInterfaces.EventItems.Field,
+		func(event *schema.Event) (any, error) {
+			var items []any
+			for qp, values := range event.BoundHit.QueryParams {
+				if strings.HasPrefix(qp, "pr") {
+					for _, value := range values {
+						if item := parseItem(event, value); item != nil {
+							if err := addCurrencyRelatedFields(converter, event, item); err != nil {
+								return nil, err
+							}
+							items = append(items, item)
+						}
 					}
 				}
 			}
+			return items, nil
+		},
+		columns.WithEventColumnDependsOn(
+			// Some props make take values from event itself, so we need to evaluate them before parsing the item
+			// Examples: item_list_id, item_list_name
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventItemListID.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventItemListID.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventItemListName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventItemListName.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventCreativeName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventCreativeName.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventCreativeSlot.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventCreativeSlot.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventPromotionID.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventPromotionID.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventPromotionName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventPromotionName.Version,
+			},
+			// We need to have event_name to calculate the refund value for items
+			schema.DependsOnEntry{
+				Interface:        columns.CoreInterfaces.EventName.ID,
+				GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+			},
+			schema.DependsOnEntry{
+				Interface:        ProtocolInterfaces.EventCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+			},
+		),
+	)
+}
+
+func addCurrencyRelatedFields(converter currency.Converter, event *schema.Event, item map[string]any) error {
+	for _, key := range [][]string{{
+		itemKeyPrice,
+		itemKeyPriceInUSD,
+	}, {
+		itemKeyRefund,
+		itemKeyRefundInUSD,
+	}, {
+		itemKeyRevenue,
+		itemKeyRevenueInUSD,
+	}} {
+		if item[key[0]] != nil {
+			var err error
+			item[key[1]], err = currency.DoConversion(
+				converter,
+				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				currency.ISOCurrencyUSD,
+				item[key[0]],
+			)
+			if err != nil {
+				return err
+			}
 		}
-		return items, nil
-	},
-	columns.WithEventColumnDependsOn(
-		// Some props make take values from event itself, so we need to evaluate them before parsing the item
-		// Examples: item_list_id, item_list_name
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventItemListID.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventItemListID.Version,
-		},
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventItemListName.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventItemListName.Version,
-		},
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventCreativeName.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventCreativeName.Version,
-		},
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventCreativeSlot.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventCreativeSlot.Version,
-		},
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventPromotionID.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventPromotionID.Version,
-		},
-		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventPromotionName.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventPromotionName.Version,
-		},
-		// We need to have event_name to calculate the refund value for items
-		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
-		},
-	),
-)
+	}
+	return nil
+}
 
 // parseItem parses a GA4 item string in format: id12345~nmProductName~pr99.99~qt1~brBrand~caCategory
 func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:funlen,gocyclo,lll // contains all item params
