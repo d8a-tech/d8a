@@ -71,6 +71,7 @@ var ProtocolInterfaces = struct {
 	EventShippingValueInUSD   schema.Interface
 	EventTaxValueInUSD        schema.Interface
 	EventUniqueItems          schema.Interface
+	EventItemsTotalQuantity   schema.Interface
 
 	// Item list params
 	EventItemListID   schema.Interface
@@ -197,6 +198,9 @@ var ProtocolInterfaces = struct {
 	ItemProductID schema.Interface
 	ItemPrice     schema.Interface
 	ItemQuantity  schema.Interface
+	// Page URL params
+	EventGtmDebug schema.Interface
+	EventGl       schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIgnoreReferrer: schema.Interface{
@@ -339,6 +343,11 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/unique_items",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "unique_items", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	EventItemsTotalQuantity: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/items_total_quantity",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionEngagement: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/engagement",
@@ -830,5 +839,16 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/params_lead_status",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_lead_status", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// Page URL params
+	EventGtmDebug: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/gtm_debug",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "gtm_debug", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventGl: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/gl",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "_gl", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }

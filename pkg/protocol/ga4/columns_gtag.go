@@ -106,3 +106,21 @@ var sessionEngagementColumn = columns.FromQueryParamSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.SessionEngagement.ID)),
 )
+
+var gtmDebugColumn = columns.FromPageURLEventColumn(
+	ProtocolInterfaces.EventGtmDebug.ID,
+	ProtocolInterfaces.EventGtmDebug.Field,
+	"gtm_debug",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventGtmDebug.ID)),
+	),
+)
+
+var glColumn = columns.FromPageURLEventColumn(
+	ProtocolInterfaces.EventGl.ID,
+	ProtocolInterfaces.EventGl.Field,
+	"_gl",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventGl.ID)),
+	),
+)

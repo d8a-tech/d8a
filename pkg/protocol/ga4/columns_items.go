@@ -355,3 +355,41 @@ var eventUniqueItemsColumn = columns.NewSimpleEventColumn(
 		},
 	),
 )
+
+var eventItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventItemsTotalQuantity.ID,
+	ProtocolInterfaces.EventItemsTotalQuantity.Field,
+	func(event *schema.Event) (any, error) {
+		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
+		if items == nil {
+			return int64(0), nil
+		}
+		itemsList, ok := items.([]any)
+		if !ok {
+			return int64(0), nil
+		}
+		totalQuantity := int64(0)
+		for _, item := range itemsList {
+			itemMap, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			q, ok := itemMap[itemKeyQuantity]
+			if !ok {
+				continue
+			}
+			qAsInt, ok := q.(float64)
+			if !ok {
+				continue
+			}
+			totalQuantity += int64(qAsInt)
+		}
+		return totalQuantity, nil
+	},
+	columns.WithEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventItems.ID,
+			GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
+		},
+	),
+)
