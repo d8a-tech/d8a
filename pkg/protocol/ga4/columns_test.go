@@ -1883,6 +1883,38 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "params_subscription",
 			description: "Subscription set to true",
 		},
+		{
+			name:        "EventGtmDebug_Valid",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar&gtm_debug=1337",
+			expected:    "1337",
+			fieldName:   "gtm_debug",
+			description: "Valid gtm debug",
+		},
+		{
+			name:        "EventGtmDebug_Empty",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar",
+			expected:    nil,
+			fieldName:   "gtm_debug",
+			description: "Empty gtm debug should be nil",
+		},
+		{
+			name:        "EventGl_Valid",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar&_gl=1337",
+			expected:    "1337",
+			fieldName:   "_gl",
+			description: "Valid gl",
+		},
+		{
+			name:        "EventGl_Empty",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar",
+			expected:    nil,
+			fieldName:   "gl",
+			description: "Empty gl should be nil",
+		},
 	}
 
 	for _, tc := range eventColumnTestCases {

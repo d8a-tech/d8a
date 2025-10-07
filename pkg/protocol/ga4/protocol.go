@@ -372,6 +372,10 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventShippingValueInUSDColumn(p.converter),
 			eventTaxValueInUSDColumn(p.converter),
 			eventUniqueItemsColumn,
+			eventItemsTotalQuantityColumn,
+			// Page URL params
+			gtmDebugColumn,
+			glColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,
