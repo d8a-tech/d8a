@@ -362,7 +362,7 @@ var eventItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
 		if items == nil {
-			return nil, nil
+			return int64(0), nil
 		}
 		itemsList, ok := items.([]any)
 		if !ok {

@@ -1915,6 +1915,14 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "gl",
 			description: "Empty gl should be nil",
 		},
+		{
+			name:        "ItemsTotalQuantity_Empty",
+			param:       "foo",
+			value:       "bar",
+			expected:    int64(0),
+			fieldName:   "items_total_quantity",
+			description: "If items are not present, items_total_quantity should be 0",
+		},
 	}
 
 	for _, tc := range eventColumnTestCases {
