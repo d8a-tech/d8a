@@ -192,6 +192,7 @@ var ProtocolInterfaces = struct {
 	SessionParamsGaSessionID     schema.Interface
 	SessionParamsGaSessionNumber schema.Interface
 	SessionNumber                schema.Interface
+
 	// Item params
 	EventItems    schema.Interface
 	ItemName      schema.Interface
@@ -201,6 +202,21 @@ var ProtocolInterfaces = struct {
 	// Page URL params
 	EventGtmDebug schema.Interface
 	EventGl       schema.Interface
+
+	// **lid params
+	EventParamGclid   schema.Interface
+	EventParamDclid   schema.Interface
+	EventParamSrsltid schema.Interface
+	EventParamAclid   schema.Interface
+	EventParamAnid    schema.Interface
+
+	// Click ids params
+	EventClickIDGclid   schema.Interface
+	EventClickIDDclid   schema.Interface
+	EventClickIDSrsltid schema.Interface
+	EventClickIDGbraid  schema.Interface
+	EventClickIDWbraid  schema.Interface
+	EventClickIDMsclkid schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIgnoreReferrer: schema.Interface{
@@ -850,5 +866,66 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/gl",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "_gl", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// **lid params
+	EventParamGclid: schema.Interface{
+		ID:      "core.d8a.tech/events/gclid",
+		Version: "1.0.0",
+		Field: &arrow.Field{
+			Name:     "params_gclid",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+		},
+	},
+	EventParamDclid: schema.Interface{
+		ID:      "core.d8a.tech/events/dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamSrsltid: schema.Interface{
+		ID:      "core.d8a.tech/events/srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamAclid: schema.Interface{
+		ID:      "core.d8a.tech/events/aclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_aclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamAnid: schema.Interface{
+		ID:      "core.d8a.tech/events/anid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// Click ids
+	EventClickIDGclid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_gclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_gclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDDclid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDSrsltid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDGbraid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_gbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_gbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDWbraid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_wbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_wbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDMsclkid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_msclkid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_msclkid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }

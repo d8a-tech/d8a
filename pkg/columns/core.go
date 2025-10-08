@@ -24,11 +24,6 @@ var CoreInterfaces = struct {
 	EventTrackingProtocol   schema.Interface
 	EventPlatform           schema.Interface
 	EventIPAddress          schema.Interface
-	EventGclid              schema.Interface
-	EventDclid              schema.Interface
-	EventSrsltid            schema.Interface
-	EventAclid              schema.Interface
-	EventAnid               schema.Interface
 	EventUtmMarketingTactic schema.Interface
 	EventUtmSourcePlatform  schema.Interface
 	EventUtmTerm            schema.Interface
@@ -120,35 +115,6 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/ip_address",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "ip_address", Type: arrow.BinaryTypes.String},
-	},
-	EventGclid: schema.Interface{
-		ID:      "core.d8a.tech/events/gclid",
-		Version: "1.0.0",
-		Field: &arrow.Field{
-			Name:     "params_gclid",
-			Type:     arrow.BinaryTypes.String,
-			Nullable: true,
-		},
-	},
-	EventDclid: schema.Interface{
-		ID:      "core.d8a.tech/events/dclid",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "params_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventSrsltid: schema.Interface{
-		ID:      "core.d8a.tech/events/srsltid",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "params_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventAclid: schema.Interface{
-		ID:      "core.d8a.tech/events/aclid",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "params_aclid", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventAnid: schema.Interface{
-		ID:      "core.d8a.tech/events/anid",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventUtmMarketingTactic: schema.Interface{
 		ID:      "core.d8a.tech/events/utm_marketing_tactic",

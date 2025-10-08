@@ -376,6 +376,19 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			// Page URL params
 			gtmDebugColumn,
 			glColumn,
+			// **lid params
+			gclidParamColumn,
+			dclidParamColumn,
+			srsltidParamColumn,
+			aclidParamColumn,
+			anidParamColumn,
+			// Click ids params
+			clickIDsGclidColumn,
+			clickIDsDclidColumn,
+			clickIDsSrsltidColumn,
+			clickIDsGbraidColumn,
+			clickIDsWbraidColumn,
+			clickIDsMsclkidColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,
