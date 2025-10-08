@@ -40,6 +40,13 @@ var CoreInterfaces = struct {
 	SessionTotalEvents      schema.Interface
 	SSESessionHitNumber     schema.Interface
 	SSESessionPageNumber    schema.Interface
+	// Click ids
+	EventClickIDGclid   schema.Interface
+	EventClickIDDclid   schema.Interface
+	EventClickIDSrsltid schema.Interface
+	EventClickIDGbraid  schema.Interface
+	EventClickIDWbraid  schema.Interface
+	EventClickIDMsclkid schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -195,6 +202,37 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/session_page_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	// Click ids
+	EventClickIDGclid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_gclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_gclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDDclid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDSrsltid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDGbraid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_gbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_gbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDWbraid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_wbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_wbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDMsclkid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_msclkid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_msclkid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 
