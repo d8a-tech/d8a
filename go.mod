@@ -14,7 +14,7 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/valyala/fasthttp v1.67.0
 	go.etcd.io/bbolt v1.4.3
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.17.0
 )
 
 require (
