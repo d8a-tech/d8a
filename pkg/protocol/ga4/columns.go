@@ -861,7 +861,7 @@ var ProtocolInterfaces = struct {
 	},
 	// **lid params
 	EventParamGclid: schema.Interface{
-		ID:      "core.d8a.tech/events/gclid",
+		ID:      "ga4.protocols.d8a.tech/events/params_gclid",
 		Version: "1.0.0",
 		Field: &arrow.Field{
 			Name:     "params_gclid",
@@ -870,22 +870,22 @@ var ProtocolInterfaces = struct {
 		},
 	},
 	EventParamDclid: schema.Interface{
-		ID:      "core.d8a.tech/events/dclid",
+		ID:      "ga4.protocols.d8a.tech/events/params_dclid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamSrsltid: schema.Interface{
-		ID:      "core.d8a.tech/events/srsltid",
+		ID:      "ga4.protocols.d8a.tech/events/params_srsltid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamAclid: schema.Interface{
-		ID:      "core.d8a.tech/events/aclid",
+		ID:      "ga4.protocols.d8a.tech/events/params_aclid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_aclid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamAnid: schema.Interface{
-		ID:      "core.d8a.tech/events/anid",
+		ID:      "ga4.protocols.d8a.tech/events/params_anid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
