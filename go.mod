@@ -12,7 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v2 v2.27.7
-	github.com/valyala/fasthttp v1.64.0
+	github.com/valyala/fasthttp v1.67.0
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sync v0.16.0
 )
@@ -40,7 +40,7 @@ require (
 	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	golang.org/x/exp v0.0.0-20250717185816-542afb5b7346 // indirect
 	golang.org/x/mod v0.26.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/tools v0.35.0 // indirect
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
