@@ -32,11 +32,6 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.DateColumn,
 		eventcolumns.PropertyIDColumn,
 		eventcolumns.TimestampColumn,
-		eventcolumns.GclidColumn,
-		eventcolumns.DclidColumn,
-		eventcolumns.SrsltidColumn,
-		eventcolumns.AclidColumn,
-		eventcolumns.AnidColumn,
 		eventcolumns.UtmMarketingTacticColumn,
 		eventcolumns.UtmSourcePlatformColumn,
 		eventcolumns.UtmTermColumn,
@@ -46,6 +41,12 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.UtmCampaignColumn,
 		eventcolumns.UtmIDColumn,
 		eventcolumns.UtmCreativeFormatColumn,
+		eventcolumns.ClickIDsGclidColumn,
+		eventcolumns.ClickIDsDclidColumn,
+		eventcolumns.ClickIDsSrsltidColumn,
+		eventcolumns.ClickIDsGbraidColumn,
+		eventcolumns.ClickIDsWbraidColumn,
+		eventcolumns.ClickIDsMsclkidColumn,
 	}
 }
 

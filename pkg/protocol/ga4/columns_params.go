@@ -954,3 +954,48 @@ var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventSubscription.ID))),
 )
+
+var gclidParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamGclid.ID,
+	ProtocolInterfaces.EventParamGclid.Field,
+	"ep.gclid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGclid.ID)),
+	),
+)
+
+var dclidParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamDclid.ID,
+	ProtocolInterfaces.EventParamDclid.Field,
+	"ep.dclid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamDclid.ID)),
+	),
+)
+
+var srsltidParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamSrsltid.ID,
+	ProtocolInterfaces.EventParamSrsltid.Field,
+	"ep.srsltid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamSrsltid.ID)),
+	),
+)
+
+var aclidParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamAclid.ID,
+	ProtocolInterfaces.EventParamAclid.Field,
+	"ep.aclid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAclid.ID)),
+	),
+)
+
+var anidParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamAnid.ID,
+	ProtocolInterfaces.EventParamAnid.Field,
+	"ep.anid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAnid.ID)),
+	),
+)

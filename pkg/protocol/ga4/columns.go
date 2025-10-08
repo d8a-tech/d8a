@@ -192,6 +192,7 @@ var ProtocolInterfaces = struct {
 	SessionParamsGaSessionID     schema.Interface
 	SessionParamsGaSessionNumber schema.Interface
 	SessionNumber                schema.Interface
+
 	// Item params
 	EventItems    schema.Interface
 	ItemName      schema.Interface
@@ -201,6 +202,13 @@ var ProtocolInterfaces = struct {
 	// Page URL params
 	EventGtmDebug schema.Interface
 	EventGl       schema.Interface
+
+	// **lid params
+	EventParamGclid   schema.Interface
+	EventParamDclid   schema.Interface
+	EventParamSrsltid schema.Interface
+	EventParamAclid   schema.Interface
+	EventParamAnid    schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIgnoreReferrer: schema.Interface{
@@ -850,5 +858,35 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/gl",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "_gl", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// **lid params
+	EventParamGclid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/events/params_gclid",
+		Version: "1.0.0",
+		Field: &arrow.Field{
+			Name:     "params_gclid",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+		},
+	},
+	EventParamDclid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/events/params_dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamSrsltid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/events/params_srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamAclid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/events/params_aclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_aclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamAnid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/events/params_anid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
