@@ -120,6 +120,9 @@ var ProtocolInterfaces = struct {
 	// Subscription params
 	EventFreeTrial         schema.Interface // used in in_app_purchase
 	EventSubscription      schema.Interface // used in in_app_purchase
+	EventProductID         schema.Interface // product_id
+	EventPrice             schema.Interface // price
+	EventQuantity          schema.Interface // quantity
 	EventIntroductoryPrice schema.Interface // used in in_app_purchase
 	EventRenewalCount      schema.Interface // used in app_store_subscription_renew
 	// Message params
@@ -624,6 +627,24 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/params_subscription",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_subscription", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	// product_id - event level product ID
+	EventProductID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_product_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_product_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// price - event level price
+	EventPrice: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_price",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	// quantity - event level quantity
+	EventQuantity: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_quantity",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "params_quantity", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	// introductory_price - used in in_app_purchase event
 	EventIntroductoryPrice: schema.Interface{
