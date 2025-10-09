@@ -955,6 +955,42 @@ var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventSubscription.ID))),
 )
 
+var eventProductIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventProductID.ID,
+	ProtocolInterfaces.EventProductID.Field,
+	"ep.product_id",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventProductID.ID)),
+	),
+)
+
+var eventPriceColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventPrice.ID,
+	ProtocolInterfaces.EventPrice.Field,
+	"ep.price",
+	columns.WithEventColumnCast(
+		columns.CastToFloat64OrNil(ProtocolInterfaces.EventPrice.ID),
+	),
+)
+
+var eventQuantityColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventQuantity.ID,
+	ProtocolInterfaces.EventQuantity.Field,
+	"ep.quantity",
+	columns.WithEventColumnCast(
+		columns.CastToFloat64OrNil(ProtocolInterfaces.EventQuantity.ID),
+	),
+)
+
+var eventIntroductoryPriceColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventIntroductoryPrice.ID,
+	ProtocolInterfaces.EventIntroductoryPrice.Field,
+	"ep.introductory_price",
+	columns.WithEventColumnCast(
+		columns.CastToFloat64OrNil(ProtocolInterfaces.EventIntroductoryPrice.ID),
+	),
+)
+
 var gclidParamColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamGclid.ID,
 	ProtocolInterfaces.EventParamGclid.Field,
