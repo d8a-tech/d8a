@@ -386,6 +386,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			srsltidParamColumn,
 			aclidParamColumn,
 			anidParamColumn,
+			renewalCountParamColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,
