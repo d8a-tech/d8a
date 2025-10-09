@@ -2091,6 +2091,30 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "params_introductory_price",
 			description: "Invalid introductory price should be nil",
 		},
+		{
+			name:        "RenewalCountParam_Valid",
+			param:       "epn.renewal_count",
+			value:       "1",
+			expected:    int64(1),
+			fieldName:   "params_renewal_count",
+			description: "Valid RenewalCount",
+		},
+		{
+			name:        "RenewalCountParam_Invalid",
+			param:       "epn.renewal_count",
+			value:       "foo",
+			expected:    nil,
+			fieldName:   "params_renewal_count",
+			description: "Valid RenewalCount",
+		},
+		{
+			name:        "ProductIDParam_Empty",
+			param:       "epn.renewal_count",
+			value:       "",
+			expected:    nil,
+			fieldName:   "params_renewal_count",
+			description: "Empty RenewalCount should be nil",
+		},
 	}
 
 	for _, tc := range eventColumnTestCases {

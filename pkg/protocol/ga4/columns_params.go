@@ -20,7 +20,9 @@ var eventContentIDColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamContentID.Field,
 	"ep.content_id",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentID.ID))),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentID.ID)),
+	),
 )
 
 var eventContentTypeColumn = columns.FromQueryParamEventColumn(
@@ -653,7 +655,9 @@ var eventUpdatedWithAnalyticsColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamUpdatedWithAnalytics.Field,
 	"ep.updated_with_analytics",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamUpdatedWithAnalytics.ID))),
+	columns.WithEventColumnCast(
+		columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamUpdatedWithAnalytics.ID)),
+	),
 )
 
 // Gaming params - used in gaming events
@@ -1034,4 +1038,11 @@ var anidParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAnid.ID)),
 	),
+)
+
+var renewalCountParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamRenewalCount.ID,
+	ProtocolInterfaces.EventParamRenewalCount.Field,
+	"epn.renewal_count",
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamRenewalCount.ID)),
 )
