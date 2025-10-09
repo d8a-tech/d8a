@@ -6,132 +6,132 @@ import (
 )
 
 var eventContentGroupColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventContentGroup.ID,
-	ProtocolInterfaces.EventContentGroup.Field,
+	ProtocolInterfaces.EventParamContentGroup.ID,
+	ProtocolInterfaces.EventParamContentGroup.Field,
 	"ep.content_group",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventContentGroup.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentGroup.ID)),
 	),
 )
 
 var eventContentIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventContentID.ID,
-	ProtocolInterfaces.EventContentID.Field,
+	ProtocolInterfaces.EventParamContentID.ID,
+	ProtocolInterfaces.EventParamContentID.Field,
 	"ep.content_id",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventContentID.ID))),
+	columns.WithEventColumnCast(columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentID.ID))),
 )
 
 var eventContentTypeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventContentType.ID,
-	ProtocolInterfaces.EventContentType.Field,
+	ProtocolInterfaces.EventParamContentType.ID,
+	ProtocolInterfaces.EventParamContentType.Field,
 	"ep.content_type",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventContentType.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentType.ID)),
 	),
 )
 
 var eventContentDescriptionColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventContentDescription.ID,
-	ProtocolInterfaces.EventContentDescription.Field,
+	ProtocolInterfaces.EventParamContentDescription.ID,
+	ProtocolInterfaces.EventParamContentDescription.Field,
 	"ep.content",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventContentDescription.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentDescription.ID)),
 	),
 )
 
 var eventCampaignColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaign.ID,
-	ProtocolInterfaces.EventCampaign.Field,
+	ProtocolInterfaces.EventParamCampaign.ID,
+	ProtocolInterfaces.EventParamCampaign.Field,
 	"ep.campaign",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaign.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaign.ID)),
 	),
 )
 
 var eventCampaignIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaignID.ID,
-	ProtocolInterfaces.EventCampaignID.Field,
+	ProtocolInterfaces.EventParamCampaignID.ID,
+	ProtocolInterfaces.EventParamCampaignID.Field,
 	"ep.campaign_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaignID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignID.ID)),
 	),
 )
 
 var eventCampaignSourceColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaignSource.ID,
-	ProtocolInterfaces.EventCampaignSource.Field,
+	ProtocolInterfaces.EventParamCampaignSource.ID,
+	ProtocolInterfaces.EventParamCampaignSource.Field,
 	"ep.campaign_source",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaignSource.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignSource.ID)),
 	),
 )
 
 var eventCampaignMediumColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaignMedium.ID,
-	ProtocolInterfaces.EventCampaignMedium.Field,
+	ProtocolInterfaces.EventParamCampaignMedium.ID,
+	ProtocolInterfaces.EventParamCampaignMedium.Field,
 	"ep.campaign_medium",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaignMedium.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignMedium.ID)),
 	),
 )
 
 var eventCampaignContentColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaignContent.ID,
-	ProtocolInterfaces.EventCampaignContent.Field,
+	ProtocolInterfaces.EventParamCampaignContent.ID,
+	ProtocolInterfaces.EventParamCampaignContent.Field,
 	"ep.campaign_content",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaignContent.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignContent.ID)),
 	),
 )
 
 var eventCampaignTermColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCampaignTerm.ID,
-	ProtocolInterfaces.EventCampaignTerm.Field,
+	ProtocolInterfaces.EventParamCampaignTerm.ID,
+	ProtocolInterfaces.EventParamCampaignTerm.Field,
 	"ep.campaign_term",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCampaignTerm.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignTerm.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventCouponColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCoupon.ID,
-	ProtocolInterfaces.EventCoupon.Field,
+	ProtocolInterfaces.EventParamCoupon.ID,
+	ProtocolInterfaces.EventParamCoupon.Field,
 	"ep.coupon",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCoupon.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCoupon.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventCurrencyColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCurrency.ID,
-	ProtocolInterfaces.EventCurrency.Field,
+	ProtocolInterfaces.EventParamCurrency.ID,
+	ProtocolInterfaces.EventParamCurrency.Field,
 	"ep.currency",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCurrency.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCurrency.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventShippingColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventShipping.ID,
-	ProtocolInterfaces.EventShipping.Field,
-	"ep.shipping",
+	ProtocolInterfaces.EventParamShipping.ID,
+	ProtocolInterfaces.EventParamShipping.Field,
+	"epn.shipping",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventShipping.ID)),
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamShipping.ID)),
 )
 
 // On surface duplicates the above - nevertheless it's in the dataform, so including it for now
@@ -141,7 +141,7 @@ var eventShippingValueColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventShippingValue.ID,
 	ProtocolInterfaces.EventShippingValue.Field,
 	func(event *schema.Event) (any, error) {
-		shipping := event.Values[ProtocolInterfaces.EventShipping.Field.Name]
+		shipping := event.Values[ProtocolInterfaces.EventParamShipping.Field.Name]
 		if shipping == nil {
 			return float64(0), nil
 		}
@@ -153,302 +153,302 @@ var eventShippingValueColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventShipping.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventShipping.Version,
+			Interface:        ProtocolInterfaces.EventParamShipping.ID,
+			GreaterOrEqualTo: ProtocolInterfaces.EventParamShipping.Version,
 		},
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventShippingTierColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventShippingTier.ID,
-	ProtocolInterfaces.EventShippingTier.Field,
+	ProtocolInterfaces.EventParamShippingTier.ID,
+	ProtocolInterfaces.EventParamShippingTier.Field,
 	"ep.shipping_tier",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventShippingTier.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamShippingTier.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventPaymentTypeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventPaymentType.ID,
-	ProtocolInterfaces.EventPaymentType.Field,
+	ProtocolInterfaces.EventParamPaymentType.ID,
+	ProtocolInterfaces.EventParamPaymentType.Field,
 	"ep.payment_type",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventPaymentType.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPaymentType.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventTaxColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventTax.ID,
-	ProtocolInterfaces.EventTax.Field,
-	"ep.tax",
+	ProtocolInterfaces.EventParamTax.ID,
+	ProtocolInterfaces.EventParamTax.Field,
+	"epn.tax",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventTax.ID)),
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventTransactionIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventTransactionID.ID,
-	ProtocolInterfaces.EventTransactionID.Field,
+	ProtocolInterfaces.EventParamTransactionID.ID,
+	ProtocolInterfaces.EventParamTransactionID.Field,
 	"ep.transaction_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventTransactionID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamTransactionID.ID)),
 	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 var eventValueColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventValue.ID,
-	ProtocolInterfaces.EventValue.Field,
-	"ep.value",
+	ProtocolInterfaces.EventParamValue.ID,
+	ProtocolInterfaces.EventParamValue.Field,
+	"epn.value",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventValue.ID)),
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamValue.ID)),
 )
 
 var eventItemListIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventItemListID.ID,
-	ProtocolInterfaces.EventItemListID.Field,
+	ProtocolInterfaces.EventParamItemListID.ID,
+	ProtocolInterfaces.EventParamItemListID.Field,
 	"ep.item_list_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventItemListID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamItemListID.ID)),
 	),
 )
 
 var eventItemListNameColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventItemListName.ID,
-	ProtocolInterfaces.EventItemListName.Field,
+	ProtocolInterfaces.EventParamItemListName.ID,
+	ProtocolInterfaces.EventParamItemListName.Field,
 	"ep.item_list_name",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventItemListName.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamItemListName.ID)),
 	),
 )
 
 var eventCreativeNameColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCreativeName.ID,
-	ProtocolInterfaces.EventCreativeName.Field,
+	ProtocolInterfaces.EventParamCreativeName.ID,
+	ProtocolInterfaces.EventParamCreativeName.Field,
 	"ep.creative_name",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCreativeName.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCreativeName.ID)),
 	),
 )
 
 var eventCreativeSlotColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCreativeSlot.ID,
-	ProtocolInterfaces.EventCreativeSlot.Field,
+	ProtocolInterfaces.EventParamCreativeSlot.ID,
+	ProtocolInterfaces.EventParamCreativeSlot.Field,
 	"ep.creative_slot",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCreativeSlot.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCreativeSlot.ID)),
 	),
 )
 
 var eventPromotionIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventPromotionID.ID,
-	ProtocolInterfaces.EventPromotionID.Field,
+	ProtocolInterfaces.EventParamPromotionID.ID,
+	ProtocolInterfaces.EventParamPromotionID.Field,
 	"ep.promotion_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventPromotionID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPromotionID.ID)),
 	),
 )
 
 var eventPromotionNameColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventPromotionName.ID,
-	ProtocolInterfaces.EventPromotionName.Field,
+	ProtocolInterfaces.EventParamPromotionName.ID,
+	ProtocolInterfaces.EventParamPromotionName.Field,
 	"ep.promotion_name",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventPromotionName.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPromotionName.ID)),
 	),
 )
 
 // Ad related params (ad_exposure, ad_query, ad_impression, ad_reward)
 var eventAdEventIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventAdEventID.ID,
-	ProtocolInterfaces.EventAdEventID.Field,
+	ProtocolInterfaces.EventParamAdEventID.ID,
+	ProtocolInterfaces.EventParamAdEventID.Field,
 	"ep.ad_event_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventAdEventID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAdEventID.ID)),
 	),
 )
 
 var eventExposureTimeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventExposureTime.ID,
-	ProtocolInterfaces.EventExposureTime.Field,
+	ProtocolInterfaces.EventParamExposureTime.ID,
+	ProtocolInterfaces.EventParamExposureTime.Field,
 	"ep.exposure_time",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventExposureTime.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamExposureTime.ID)),
 )
 
 var eventAdUnitCodeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventAdUnitCode.ID,
-	ProtocolInterfaces.EventAdUnitCode.Field,
+	ProtocolInterfaces.EventParamAdUnitCode.ID,
+	ProtocolInterfaces.EventParamAdUnitCode.Field,
 	"ep.ad_unit_code",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventAdUnitCode.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAdUnitCode.ID)),
 	),
 )
 
 var eventRewardTypeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventRewardType.ID,
-	ProtocolInterfaces.EventRewardType.Field,
+	ProtocolInterfaces.EventParamRewardType.ID,
+	ProtocolInterfaces.EventParamRewardType.Field,
 	"ep.reward_type",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventRewardType.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamRewardType.ID)),
 	),
 )
 
 var eventRewardValueColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventRewardValue.ID,
-	ProtocolInterfaces.EventRewardValue.Field,
-	"ep.reward_value",
+	ProtocolInterfaces.EventParamRewardValue.ID,
+	ProtocolInterfaces.EventParamRewardValue.Field,
+	"epn.reward_value",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventRewardValue.ID)),
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamRewardValue.ID)),
 )
 
 // Video params
 var eventVideoCurrentTimeColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoCurrentTime.ID,
-	ProtocolInterfaces.EventVideoCurrentTime.Field,
-	"ep.video_current_time",
+	ProtocolInterfaces.EventParamVideoCurrentTime.ID,
+	ProtocolInterfaces.EventParamVideoCurrentTime.Field,
+	"epn.video_current_time",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventVideoCurrentTime.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoCurrentTime.ID)),
 )
 
 var eventVideoDurationColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoDuration.ID,
-	ProtocolInterfaces.EventVideoDuration.Field,
-	"ep.video_duration",
+	ProtocolInterfaces.EventParamVideoDuration.ID,
+	ProtocolInterfaces.EventParamVideoDuration.Field,
+	"epn.video_duration",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventVideoDuration.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoDuration.ID)),
 )
 
 var eventVideoPercentColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoPercent.ID,
-	ProtocolInterfaces.EventVideoPercent.Field,
+	ProtocolInterfaces.EventParamVideoPercent.ID,
+	ProtocolInterfaces.EventParamVideoPercent.Field,
 	"ep.video_percent",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventVideoPercent.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoPercent.ID)),
 )
 
 var eventVideoProviderColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoProvider.ID,
-	ProtocolInterfaces.EventVideoProvider.Field,
+	ProtocolInterfaces.EventParamVideoProvider.ID,
+	ProtocolInterfaces.EventParamVideoProvider.Field,
 	"ep.video_provider",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventVideoProvider.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoProvider.ID)),
 	),
 )
 
 var eventVideoTitleColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoTitle.ID,
-	ProtocolInterfaces.EventVideoTitle.Field,
+	ProtocolInterfaces.EventParamVideoTitle.ID,
+	ProtocolInterfaces.EventParamVideoTitle.Field,
 	"ep.video_title",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventVideoTitle.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoTitle.ID)),
 	),
 )
 
 var eventVideoURLColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventVideoURL.ID,
-	ProtocolInterfaces.EventVideoURL.Field,
+	ProtocolInterfaces.EventParamVideoURL.ID,
+	ProtocolInterfaces.EventParamVideoURL.Field,
 	"ep.video_url",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventVideoURL.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoURL.ID)),
 	),
 )
 
 // EventLink columns for outbound click tracking
 var eventLinkClassesColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventLinkClasses.ID,
-	ProtocolInterfaces.EventLinkClasses.Field,
+	ProtocolInterfaces.EventParamLinkClasses.ID,
+	ProtocolInterfaces.EventParamLinkClasses.Field,
 	"ep.link_classes",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLinkClasses.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkClasses.ID)),
 	),
 )
 
 var eventLinkDomainColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventLinkDomain.ID,
-	ProtocolInterfaces.EventLinkDomain.Field,
+	ProtocolInterfaces.EventParamLinkDomain.ID,
+	ProtocolInterfaces.EventParamLinkDomain.Field,
 	"ep.link_domain",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLinkDomain.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkDomain.ID)),
 	),
 )
 
 var eventLinkIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventLinkID.ID,
-	ProtocolInterfaces.EventLinkID.Field,
+	ProtocolInterfaces.EventParamLinkID.ID,
+	ProtocolInterfaces.EventParamLinkID.Field,
 	"ep.link_id",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLinkID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkID.ID)),
 	),
 )
 
 var eventLinkTextColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventLinkText.ID,
-	ProtocolInterfaces.EventLinkText.Field,
+	ProtocolInterfaces.EventParamLinkText.ID,
+	ProtocolInterfaces.EventParamLinkText.Field,
 	"ep.link_text",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLinkText.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkText.ID)),
 	),
 )
 
 var eventLinkURLColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventLinkURL.ID,
-	ProtocolInterfaces.EventLinkURL.Field,
+	ProtocolInterfaces.EventParamLinkURL.ID,
+	ProtocolInterfaces.EventParamLinkURL.Field,
 	"ep.link_url",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventLinkURL.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkURL.ID)),
 	),
 )
 
 var eventOutboundColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventOutbound.ID,
-	ProtocolInterfaces.EventOutbound.Field,
+	ProtocolInterfaces.EventParamOutbound.ID,
+	ProtocolInterfaces.EventParamOutbound.Field,
 	"ep.outbound",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventOutbound.ID))),
+	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamOutbound.ID))),
 )
 
 // App params
 var eventMethodColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventMethod.ID,
-	ProtocolInterfaces.EventMethod.Field,
+	ProtocolInterfaces.EventParamMethod.ID,
+	ProtocolInterfaces.EventParamMethod.Field,
 	"ep.method",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventMethod.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamMethod.ID)),
 	),
 )
 
 var eventCancellationReasonColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventCancellationReason.ID,
-	ProtocolInterfaces.EventCancellationReason.Field,
+	ProtocolInterfaces.EventParamCancellationReason.ID,
+	ProtocolInterfaces.EventParamCancellationReason.Field,
 	"ep.cancellation_reason",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventCancellationReason.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCancellationReason.ID)),
 	),
 )
 
@@ -611,12 +611,12 @@ var eventLabelColumn = columns.FromQueryParamEventColumn(
 
 // App params - used in app events
 var eventAppVersionColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventAppVersion.ID,
-	ProtocolInterfaces.EventAppVersion.Field,
+	ProtocolInterfaces.EventParamAppVersion.ID,
+	ProtocolInterfaces.EventParamAppVersion.Field,
 	"ep.app_version",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventAppVersion.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAppVersion.ID)),
 	),
 )
 
@@ -698,7 +698,7 @@ var eventLevelNameColumn = columns.FromQueryParamEventColumn(
 var eventScoreColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventScore.ID,
 	ProtocolInterfaces.EventScore.Field,
-	"ep.score",
+	"epn.score",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventScore.ID)),
 )
@@ -967,7 +967,7 @@ var eventProductIDColumn = columns.FromQueryParamEventColumn(
 var eventPriceColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventPrice.ID,
 	ProtocolInterfaces.EventPrice.Field,
-	"ep.price",
+	"epn.price",
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventPrice.ID),
 	),
@@ -976,7 +976,7 @@ var eventPriceColumn = columns.FromQueryParamEventColumn(
 var eventQuantityColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventQuantity.ID,
 	ProtocolInterfaces.EventQuantity.Field,
-	"ep.quantity",
+	"epn.quantity",
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventQuantity.ID),
 	),
@@ -985,7 +985,7 @@ var eventQuantityColumn = columns.FromQueryParamEventColumn(
 var eventIntroductoryPriceColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventIntroductoryPrice.ID,
 	ProtocolInterfaces.EventIntroductoryPrice.Field,
-	"ep.introductory_price",
+	"epn.introductory_price",
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventIntroductoryPrice.ID),
 	),

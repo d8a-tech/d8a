@@ -17,15 +17,15 @@ func eventPurchaseRevenueInUSDColumn(converter currency.Converter) schema.EventC
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
-				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventPurchaseRevenue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
 				Interface:        ProtocolInterfaces.EventPurchaseRevenue.ID,
@@ -43,15 +43,15 @@ func eventRefundValueInUSDColumn(converter currency.Converter) schema.EventColum
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
-				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventRefundValue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
 				Interface:        ProtocolInterfaces.EventRefundValue.ID,
@@ -69,15 +69,15 @@ func eventShippingValueInUSDColumn(converter currency.Converter) schema.EventCol
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
-				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventShippingValue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
 				Interface:        ProtocolInterfaces.EventShippingValue.ID,
@@ -95,19 +95,19 @@ func eventTaxValueInUSDColumn(converter currency.Converter) schema.EventColumn {
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
-				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
-				event.Values[ProtocolInterfaces.EventTax.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamTax.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventTax.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventTax.Version,
+				Interface:        ProtocolInterfaces.EventParamTax.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamTax.Version,
 			},
 		),
 	)

@@ -34,28 +34,28 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 			// Some props make take values from event itself, so we need to evaluate them before parsing the item
 			// Examples: item_list_id, item_list_name
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventItemListID.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventItemListID.Version,
+				Interface:        ProtocolInterfaces.EventParamItemListID.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamItemListID.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventItemListName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventItemListName.Version,
+				Interface:        ProtocolInterfaces.EventParamItemListName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamItemListName.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCreativeName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCreativeName.Version,
+				Interface:        ProtocolInterfaces.EventParamCreativeName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCreativeName.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCreativeSlot.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCreativeSlot.Version,
+				Interface:        ProtocolInterfaces.EventParamCreativeSlot.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCreativeSlot.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventPromotionID.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventPromotionID.Version,
+				Interface:        ProtocolInterfaces.EventParamPromotionID.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamPromotionID.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventPromotionName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventPromotionName.Version,
+				Interface:        ProtocolInterfaces.EventParamPromotionName.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamPromotionName.Version,
 			},
 			// We need to have event_name to calculate the refund value for items
 			schema.DependsOnEntry{
@@ -63,8 +63,8 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 				GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventCurrency.Version,
+				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 		),
 	)
@@ -85,7 +85,7 @@ func addCurrencyRelatedFields(converter currency.Converter, event *schema.Event,
 			var err error
 			item[key[1]], err = currency.DoConversion(
 				converter,
-				event.Values[ProtocolInterfaces.EventCurrency.Field.Name],
+				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				item[key[0]],
 			)
@@ -187,32 +187,32 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
 	// "If set, event-level item_list_id is ignored. If not set, event-level item_list_id is used, if present. "
 	if item[itemKeyListID] == nil {
-		item[itemKeyListID] = event.Values[ProtocolInterfaces.EventItemListID.Field.Name]
+		item[itemKeyListID] = event.Values[ProtocolInterfaces.EventParamItemListID.Field.Name]
 	}
 
 	// As above
 	if item[itemKeyListName] == nil {
-		item[itemKeyListName] = event.Values[ProtocolInterfaces.EventItemListName.Field.Name]
+		item[itemKeyListName] = event.Values[ProtocolInterfaces.EventParamItemListName.Field.Name]
 	}
 
 	// As above
 	if item[itemKeyCreativeName] == nil {
-		item[itemKeyCreativeName] = event.Values[ProtocolInterfaces.EventCreativeName.Field.Name]
+		item[itemKeyCreativeName] = event.Values[ProtocolInterfaces.EventParamCreativeName.Field.Name]
 	}
 
 	// As above
 	if item[itemKeyCreativeSlot] == nil {
-		item[itemKeyCreativeSlot] = event.Values[ProtocolInterfaces.EventCreativeSlot.Field.Name]
+		item[itemKeyCreativeSlot] = event.Values[ProtocolInterfaces.EventParamCreativeSlot.Field.Name]
 	}
 
 	// As above
 	if item[itemKeyPromotionID] == nil {
-		item[itemKeyPromotionID] = event.Values[ProtocolInterfaces.EventPromotionID.Field.Name]
+		item[itemKeyPromotionID] = event.Values[ProtocolInterfaces.EventParamPromotionID.Field.Name]
 	}
 
 	// As above
 	if item[itemKeyPromotionName] == nil {
-		item[itemKeyPromotionName] = event.Values[ProtocolInterfaces.EventPromotionName.Field.Name]
+		item[itemKeyPromotionName] = event.Values[ProtocolInterfaces.EventParamPromotionName.Field.Name]
 	}
 
 	// Only return item if it has at least an ID or name

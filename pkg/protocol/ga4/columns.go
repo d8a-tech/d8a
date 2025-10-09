@@ -39,30 +39,30 @@ const (
 
 // ProtocolInterfaces are the columns that are specific to the ga4 protocol.
 var ProtocolInterfaces = struct {
-	EventIgnoreReferrer   schema.Interface
-	EventEngagementTimeMs schema.Interface
+	EventIParamgnoreReferrer   schema.Interface
+	EventParamEngagementTimeMs schema.Interface
 	// Campaign params
-	EventCampaign        schema.Interface
-	EventCampaignID      schema.Interface
-	EventCampaignSource  schema.Interface
-	EventCampaignMedium  schema.Interface
-	EventCampaignContent schema.Interface
-	EventCampaignTerm    schema.Interface
+	EventParamCampaign        schema.Interface
+	EventParamCampaignID      schema.Interface
+	EventParamCampaignSource  schema.Interface
+	EventParamCampaignMedium  schema.Interface
+	EventParamCampaignContent schema.Interface
+	EventParamCampaignTerm    schema.Interface
 	// Content params
-	EventContentGroup       schema.Interface
-	EventContentID          schema.Interface
-	EventContentType        schema.Interface
-	EventContentDescription schema.Interface
+	EventParamContentGroup       schema.Interface
+	EventParamContentID          schema.Interface
+	EventParamContentType        schema.Interface
+	EventParamContentDescription schema.Interface
 	// E-commerce params
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-	EventCoupon               schema.Interface
-	EventCurrency             schema.Interface
-	EventShipping             schema.Interface
-	EventShippingTier         schema.Interface
-	EventPaymentType          schema.Interface
-	EventTax                  schema.Interface
-	EventTransactionID        schema.Interface
-	EventValue                schema.Interface
+	EventParamCoupon          schema.Interface
+	EventParamCurrency        schema.Interface
+	EventParamShipping        schema.Interface
+	EventParamShippingTier    schema.Interface
+	EventParamPaymentType     schema.Interface
+	EventParamTax             schema.Interface
+	EventParamTransactionID   schema.Interface
+	EventParamValue           schema.Interface
 	EventPurchaseRevenue      schema.Interface
 	EventPurchaseRevenueInUSD schema.Interface
 	EventRefundValue          schema.Interface
@@ -74,39 +74,39 @@ var ProtocolInterfaces = struct {
 	EventItemsTotalQuantity   schema.Interface
 
 	// Item list params
-	EventItemListID   schema.Interface
-	EventItemListName schema.Interface
+	EventParamItemListID   schema.Interface
+	EventParamItemListName schema.Interface
 	// Creative and promotion params
-	EventCreativeName  schema.Interface
-	EventCreativeSlot  schema.Interface
-	EventPromotionID   schema.Interface
-	EventPromotionName schema.Interface
+	EventParamCreativeName  schema.Interface
+	EventParamCreativeSlot  schema.Interface
+	EventParamPromotionID   schema.Interface
+	EventParamPromotionName schema.Interface
 	// Link params
-	EventLinkClasses schema.Interface
-	EventLinkDomain  schema.Interface
-	EventLinkID      schema.Interface
-	EventLinkText    schema.Interface
-	EventLinkURL     schema.Interface
-	EventOutbound    schema.Interface
+	EventParamLinkClasses schema.Interface
+	EventParamLinkDomain  schema.Interface
+	EventParamLinkID      schema.Interface
+	EventParamLinkText    schema.Interface
+	EventParamLinkURL     schema.Interface
+	EventParamOutbound    schema.Interface
 	// Ad related params (ad_exposure, ad_query, ad_impression, ad_reward)
 	// https://support.google.com/analytics/answer/9234069?hl=en
-	EventAdEventID    schema.Interface
-	EventExposureTime schema.Interface
-	EventAdUnitCode   schema.Interface
-	EventRewardType   schema.Interface
-	EventRewardValue  schema.Interface
+	EventParamAdEventID    schema.Interface
+	EventParamExposureTime schema.Interface
+	EventParamAdUnitCode   schema.Interface
+	EventParamRewardType   schema.Interface
+	EventParamRewardValue  schema.Interface
 	// Video params
-	EventVideoCurrentTime schema.Interface
-	EventVideoDuration    schema.Interface
-	EventVideoPercent     schema.Interface
-	EventVideoProvider    schema.Interface
-	EventVideoTitle       schema.Interface
-	EventVideoURL         schema.Interface
+	EventParamVideoCurrentTime schema.Interface
+	EventParamVideoDuration    schema.Interface
+	EventParamVideoPercent     schema.Interface
+	EventParamVideoProvider    schema.Interface
+	EventParamVideoTitle       schema.Interface
+	EventParamVideoURL         schema.Interface
 	// App params
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-	EventMethod             schema.Interface // used in login, share, sign_up
-	EventCancellationReason schema.Interface // used in app_store_subscription_cancel
-	EventFatal              schema.Interface // used in app_exception
+	EventParamMethod             schema.Interface // used in login, share, sign_up
+	EventParamCancellationReason schema.Interface // used in app_store_subscription_cancel
+	EventFatal                   schema.Interface // used in app_exception
 
 	// Firebase params
 	EventFirebaseError          schema.Interface
@@ -140,7 +140,7 @@ var ProtocolInterfaces = struct {
 
 	// App params - automatically collected with app events
 	// https://support.google.com/analytics/answer/9234069?hl=en
-	EventAppVersion             schema.Interface // app_version - used in app events
+	EventParamAppVersion        schema.Interface // app_version - used in app events
 	EventPreviousAppVersion     schema.Interface // previous_app_version - used in app events
 	EventPreviousFirstOpenCount schema.Interface // previous_first_open_count - used in app events
 	EventPreviousOSVersion      schema.Interface // previous_os_version - used in app events
@@ -191,17 +191,17 @@ var ProtocolInterfaces = struct {
 	// lead_status - used in custom lead tracking events
 	EventLeadStatus schema.Interface
 	// Session params
-	SessionEngagement            schema.Interface
-	SessionParamsGaSessionID     schema.Interface
-	SessionParamsGaSessionNumber schema.Interface
-	SessionNumber                schema.Interface
+	SessionEngagement             schema.Interface
+	SessionParamParamsGaSessionID schema.Interface
+	SessionParamsGaSessionNumber  schema.Interface
+	SessionParamNumber            schema.Interface
 
 	// Item params
-	EventItems    schema.Interface
-	ItemName      schema.Interface
-	ItemProductID schema.Interface
-	ItemPrice     schema.Interface
-	ItemQuantity  schema.Interface
+	EventItems              schema.Interface
+	EventParamItemName      schema.Interface
+	EventParamItemProductID schema.Interface
+	EventParamItemPrice     schema.Interface
+	EventParamItemQuantity  schema.Interface
 	// Page URL params
 	EventGtmDebug schema.Interface
 	EventGl       schema.Interface
@@ -214,103 +214,103 @@ var ProtocolInterfaces = struct {
 	EventParamAnid    schema.Interface
 }{
 	// ignore_referrer - used in session_start event
-	EventIgnoreReferrer: schema.Interface{
+	EventIParamgnoreReferrer: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_ignore_referrer",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ignore_referrer", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	// engagement_time_msec - used in user_engagement event (automatically collected)
-	EventEngagementTimeMs: schema.Interface{
+	EventParamEngagementTimeMs: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_engagement_time_ms",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_engagement_time_ms", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventContentGroup: schema.Interface{
+	EventParamContentGroup: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_content_group",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_content_group", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventContentID: schema.Interface{
+	EventParamContentID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_content_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_content_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventContentType: schema.Interface{
+	EventParamContentType: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_content_type",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_content_type", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventContentDescription: schema.Interface{
+	EventParamContentDescription: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_content_description",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_content_description", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaign: schema.Interface{
+	EventParamCampaign: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaignID: schema.Interface{
+	EventParamCampaignID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaignSource: schema.Interface{
+	EventParamCampaignSource: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign_source",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign_source", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaignMedium: schema.Interface{
+	EventParamCampaignMedium: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign_medium",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign_medium", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaignContent: schema.Interface{
+	EventParamCampaignContent: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign_content",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign_content", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCampaignTerm: schema.Interface{
+	EventParamCampaignTerm: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_campaign_term",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_campaign_term", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCoupon: schema.Interface{
+	EventParamCoupon: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_coupon",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_coupon", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCurrency: schema.Interface{
+	EventParamCurrency: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_currency",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_currency", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventShipping: schema.Interface{
+	EventParamShipping: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_shipping",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_shipping", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventShippingTier: schema.Interface{
+	EventParamShippingTier: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_shipping_tier",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_shipping_tier", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventPaymentType: schema.Interface{
+	EventParamPaymentType: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_payment_type",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_payment_type", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventTax: schema.Interface{
+	EventParamTax: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_tax",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_tax", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventTransactionID: schema.Interface{
+	EventParamTransactionID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_transaction_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_transaction_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventValue: schema.Interface{
+	EventParamValue: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_value",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
@@ -365,65 +365,65 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "engagement", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	SessionParamsGaSessionID: schema.Interface{
+	SessionParamParamsGaSessionID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	SessionNumber: schema.Interface{
+	SessionParamNumber: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	// Item list params
-	EventItemListID: schema.Interface{
+	EventParamItemListID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_item_list_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_item_list_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventItemListName: schema.Interface{
+	EventParamItemListName: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_item_list_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_item_list_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	// Creative and promotion params
-	EventCreativeName: schema.Interface{
+	EventParamCreativeName: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_creative_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_creative_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCreativeSlot: schema.Interface{
+	EventParamCreativeSlot: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_creative_slot",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_creative_slot", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventPromotionID: schema.Interface{
+	EventParamPromotionID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_promotion_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_promotion_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventPromotionName: schema.Interface{
+	EventParamPromotionName: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_promotion_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_promotion_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	// Item params
-	ItemName: schema.Interface{
+	// app_store_refund params
+	EventParamItemName: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/item/params_item_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_item_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	ItemProductID: schema.Interface{
+	EventParamItemProductID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/item/params_product_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_product_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	ItemPrice: schema.Interface{
+	EventParamItemPrice: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/item/params_price",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	ItemQuantity: schema.Interface{
+	EventParamItemQuantity: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/item/params_quantity",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
@@ -465,106 +465,106 @@ var ProtocolInterfaces = struct {
 		},
 	},
 	// Link params
-	EventLinkClasses: schema.Interface{
+	EventParamLinkClasses: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_link_classes",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_link_classes", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventLinkDomain: schema.Interface{
+	EventParamLinkDomain: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_link_domain",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_link_domain", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventLinkID: schema.Interface{
+	EventParamLinkID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_link_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_link_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventLinkText: schema.Interface{
+	EventParamLinkText: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_link_text",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_link_text", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventLinkURL: schema.Interface{
+	EventParamLinkURL: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_link_url",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_link_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventOutbound: schema.Interface{
+	EventParamOutbound: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_outbound",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_outbound", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	// Ad params
-	EventAdUnitCode: schema.Interface{
+	EventParamAdUnitCode: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_ad_unit_code",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ad_unit_code", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventAdEventID: schema.Interface{
+	EventParamAdEventID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_ad_event_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ad_event_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventExposureTime: schema.Interface{
+	EventParamExposureTime: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_exposure_time",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_exposure_time", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	// Reward params
-	EventRewardType: schema.Interface{
+	EventParamRewardType: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_reward_type",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_reward_type", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventRewardValue: schema.Interface{
+	EventParamRewardValue: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_reward_value",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_reward_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	// Video params
-	EventVideoCurrentTime: schema.Interface{
+	EventParamVideoCurrentTime: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_current_time",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_current_time", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventVideoDuration: schema.Interface{
+	EventParamVideoDuration: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_duration",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventVideoPercent: schema.Interface{
+	EventParamVideoPercent: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_percent",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_percent", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventVideoProvider: schema.Interface{
+	EventParamVideoProvider: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_provider",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_provider", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventVideoTitle: schema.Interface{
+	EventParamVideoTitle: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_title",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventVideoURL: schema.Interface{
+	EventParamVideoURL: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_video_url",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_video_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	// App params
-	EventMethod: schema.Interface{
+	EventParamMethod: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_method",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_method", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventAppVersion: schema.Interface{
+	EventParamAppVersion: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_app_version",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_app_version", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventCancellationReason: schema.Interface{
+	EventParamCancellationReason: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_cancellation_reason",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_cancellation_reason", Type: arrow.BinaryTypes.String, Nullable: true},

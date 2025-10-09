@@ -53,11 +53,11 @@ var eventPageHostnameColumn = columns.URLElementColumn(
 )
 
 var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventIgnoreReferrer.ID,
-	ProtocolInterfaces.EventIgnoreReferrer.Field,
+	ProtocolInterfaces.EventIParamgnoreReferrer.ID,
+	ProtocolInterfaces.EventIParamgnoreReferrer.Field,
 	"ir",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventIgnoreReferrer.ID))),
+	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventIParamgnoreReferrer.ID))),
 )
 
 var eventTrackingProtocolColumn = columns.NewSimpleEventColumn(
@@ -77,26 +77,26 @@ var eventPlatformColumn = columns.NewSimpleEventColumn(
 )
 
 var eventEngagementTimeMsColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventEngagementTimeMs.ID,
-	ProtocolInterfaces.EventEngagementTimeMs.Field,
+	ProtocolInterfaces.EventParamEngagementTimeMs.ID,
+	ProtocolInterfaces.EventParamEngagementTimeMs.Field,
 	"_et",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventEngagementTimeMs.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamEngagementTimeMs.ID)),
 )
 
 var sessionGa4SessionIDColumn = columns.FromQueryParamSessionColumn(
-	ProtocolInterfaces.SessionParamsGaSessionID.ID,
-	ProtocolInterfaces.SessionParamsGaSessionID.Field,
+	ProtocolInterfaces.SessionParamParamsGaSessionID.ID,
+	ProtocolInterfaces.SessionParamParamsGaSessionID.Field,
 	"sid",
 	columns.WithSessionColumnRequired(false),
 )
 
 var sessionNumberColumn = columns.FromQueryParamSessionColumn(
-	ProtocolInterfaces.SessionNumber.ID,
-	ProtocolInterfaces.SessionNumber.Field,
+	ProtocolInterfaces.SessionParamNumber.ID,
+	ProtocolInterfaces.SessionParamNumber.Field,
 	"sct",
 	columns.WithSessionColumnRequired(false),
-	columns.WithSessionColumnCast(columns.CastToInt64OrZero(ProtocolInterfaces.SessionNumber.ID)),
+	columns.WithSessionColumnCast(columns.CastToInt64OrZero(ProtocolInterfaces.SessionParamNumber.ID)),
 )
 
 var sessionEngagementColumn = columns.FromQueryParamSessionColumn(

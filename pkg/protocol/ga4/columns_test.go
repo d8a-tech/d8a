@@ -212,7 +212,7 @@ func TestEventColumns(t *testing.T) {
 		// Video params
 		{
 			name:        "EventVideoCurrentTime_Valid",
-			param:       "ep.video_current_time",
+			param:       "epn.video_current_time",
 			value:       "123",
 			expected:    int64(123),
 			fieldName:   "params_video_current_time",
@@ -220,7 +220,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventVideoCurrentTime_Empty",
-			param:       "ep.video_current_time",
+			param:       "epn.video_current_time",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_video_current_time",
@@ -228,7 +228,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventVideoDuration_Valid",
-			param:       "ep.video_duration",
+			param:       "epn.video_duration",
 			value:       "456",
 			expected:    int64(456),
 			fieldName:   "params_video_duration",
@@ -236,7 +236,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventVideoDuration_Empty",
-			param:       "ep.video_duration",
+			param:       "epn.video_duration",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_video_duration",
@@ -373,7 +373,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventRewardValue_Valid",
-			param:       "ep.reward_value",
+			param:       "epn.reward_value",
 			value:       "9.5",
 			expected:    float64(9.5),
 			fieldName:   "params_reward_value",
@@ -381,7 +381,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventRewardValue_Empty",
-			param:       "ep.reward_value",
+			param:       "epn.reward_value",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_reward_value",
@@ -760,7 +760,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShipping_Valid",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "10.00",
 			expected:    float64(10.00),
 			fieldName:   "params_shipping",
@@ -768,7 +768,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShipping_Invalid",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_shipping",
@@ -776,7 +776,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShipping_Empty",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_shipping",
@@ -784,7 +784,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShippingValue_Valid",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "10.00",
 			expected:    float64(10.00),
 			fieldName:   "shipping_value",
@@ -792,7 +792,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShippingValue_Empty",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "",
 			expected:    float64(0),
 			fieldName:   "shipping_value",
@@ -800,7 +800,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventShippingValue_Invalid",
-			param:       "ep.shipping",
+			param:       "epn.shipping",
 			value:       "invalid",
 			expected:    float64(0),
 			fieldName:   "shipping_value",
@@ -840,7 +840,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventTax_Valid",
-			param:       "ep.tax",
+			param:       "epn.tax",
 			value:       "10.00",
 			expected:    float64(10.00),
 			fieldName:   "params_tax",
@@ -848,7 +848,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventTax_Empty",
-			param:       "ep.tax",
+			param:       "epn.tax",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_tax",
@@ -864,7 +864,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventValue_Valid",
-			param:       "ep.value",
+			param:       "epn.value",
 			value:       "10.00",
 			expected:    float64(10.00),
 			fieldName:   "params_value",
@@ -872,7 +872,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventValue_Empty",
-			param:       "ep.value",
+			param:       "epn.value",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_value",
@@ -1391,7 +1391,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventScore_Valid",
-			param:       "ep.score",
+			param:       "epn.score",
 			value:       "1500",
 			expected:    int64(1500),
 			fieldName:   "params_score",
@@ -1399,7 +1399,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventScore_Invalid",
-			param:       "ep.score",
+			param:       "epn.score",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_score",
@@ -1407,7 +1407,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventScore_Empty",
-			param:       "ep.score",
+			param:       "epn.score",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_score",
@@ -2021,7 +2021,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "PriceParam_Valid",
-			param:       "ep.price",
+			param:       "epn.price",
 			value:       "19.99",
 			expected:    19.99,
 			fieldName:   "params_price",
@@ -2029,7 +2029,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "PriceParam_Empty",
-			param:       "ep.price",
+			param:       "epn.price",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_price",
@@ -2037,7 +2037,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "PriceParam_Invalid",
-			param:       "ep.price",
+			param:       "epn.price",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_price",
@@ -2045,7 +2045,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "QuantityParam_Valid",
-			param:       "ep.quantity",
+			param:       "epn.quantity",
 			value:       "5",
 			expected:    5.0,
 			fieldName:   "params_quantity",
@@ -2053,7 +2053,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "QuantityParam_Empty",
-			param:       "ep.quantity",
+			param:       "epn.quantity",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_quantity",
@@ -2061,7 +2061,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "QuantityParam_Invalid",
-			param:       "ep.quantity",
+			param:       "epn.quantity",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_quantity",
@@ -2069,7 +2069,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "IntroductoryPriceParam_Valid",
-			param:       "ep.introductory_price",
+			param:       "epn.introductory_price",
 			value:       "9.99",
 			expected:    9.99,
 			fieldName:   "params_introductory_price",
@@ -2077,7 +2077,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "IntroductoryPriceParam_Empty",
-			param:       "ep.introductory_price",
+			param:       "epn.introductory_price",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_introductory_price",
@@ -2085,7 +2085,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "IntroductoryPriceParam_Invalid",
-			param:       "ep.introductory_price",
+			param:       "epn.introductory_price",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_introductory_price",
