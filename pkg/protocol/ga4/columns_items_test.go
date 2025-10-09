@@ -393,7 +393,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			if tc.tax != nil {
 				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
 					0,
-					"ep.tax",
+					"epn.tax",
 					fmt.Sprintf("%.2f", *tc.tax),
 				))
 			}
@@ -401,7 +401,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			if tc.shipping != nil {
 				refFuncs = append(refFuncs, columntests.EnsureQueryParam(
 					0,
-					"ep.shipping",
+					"epn.shipping",
 					fmt.Sprintf("%.2f", *tc.shipping),
 				))
 			}
