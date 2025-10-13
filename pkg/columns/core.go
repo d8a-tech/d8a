@@ -47,6 +47,18 @@ var CoreInterfaces = struct {
 	EventClickIDGbraid  schema.Interface
 	EventClickIDWbraid  schema.Interface
 	EventClickIDMsclkid schema.Interface
+
+	// Device
+	DeviceCategory               schema.Interface
+	DeviceMobileBrandName        schema.Interface
+	DeviceMobileModelName        schema.Interface
+	DeviceMobileMarketingName    schema.Interface
+	DeviceMobileOSHardwareModel  schema.Interface
+	DeviceOperatingSystem        schema.Interface
+	DeviceOperatingSystemVersion schema.Interface
+	DeviceLanguage               schema.Interface
+	DeviceWebBrowser             schema.Interface
+	DeviceWebBrowserVersion      schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -233,6 +245,57 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/click_id_msclkid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "click_id_msclkid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// Device
+	DeviceCategory: schema.Interface{
+		ID:      "core.d8a.tech/events/device_category",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_category", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceMobileBrandName: schema.Interface{
+		ID:      "core.d8a.tech/events/device_mobile_brand_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_mobile_brand_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceMobileModelName: schema.Interface{
+		ID:      "core.d8a.tech/events/device_mobile_model_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_mobile_model_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceMobileMarketingName: schema.Interface{
+		ID:      "core.d8a.tech/events/device_mobile_marketing_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_mobile_marketing_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceMobileOSHardwareModel: schema.Interface{
+		ID:      "core.d8a.tech/events/device_mobile_os_hardware_model",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_mobile_os_hardware_model", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceOperatingSystem: schema.Interface{
+		ID:      "core.d8a.tech/events/device_operating_system",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_operating_system", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceOperatingSystemVersion: schema.Interface{
+		ID:      "core.d8a.tech/events/device_operating_system_version",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_operating_system_version", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceLanguage: schema.Interface{
+		ID:      "core.d8a.tech/events/device_language",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_language", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceWebBrowser: schema.Interface{
+		ID:      "core.d8a.tech/events/device_web_browser",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_web_browser", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceWebBrowserVersion: schema.Interface{
+		ID:      "core.d8a.tech/events/device_web_browser_version",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "device_web_browser_version", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 

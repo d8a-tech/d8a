@@ -41,6 +41,7 @@ func (c *directCloser) Close(protosession []*hits.Hit) error {
 	})
 
 	session := &schema.Session{
+		Metadata:   make(map[string]any),
 		Events:     make([]*schema.Event, len(protosession)),
 		PropertyID: protosession[0].PropertyID,
 		Values:     make(map[string]any),
@@ -48,6 +49,7 @@ func (c *directCloser) Close(protosession []*hits.Hit) error {
 	for i, hit := range protosession {
 		session.Events[i] = &schema.Event{
 			BoundHit: hit,
+			Metadata: make(map[string]any),
 			Values:   make(map[string]any),
 		}
 	}

@@ -3,13 +3,12 @@ package columns
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -377,24 +376,13 @@ func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
 			return false, nil
 		}
 
-		// Normalize string: trim whitespace and convert to lowercase
-		normalized := strings.ToLower(strings.TrimSpace(valueStr))
-
-		// Handle empty string as error
-		if normalized == "" {
-			return false, fmt.Errorf("value for %s is empty", columnID)
+		// Use util.StrToBool for string conversion
+		boolVal, err := util.StrToBool(valueStr)
+		if err != nil {
+			logrus.Debugf("CastToBool: %s: %v: %v", columnID, err, value)
+			return false, err
 		}
-
-		// Check truthy values
-		switch normalized {
-		case "true", "yes", "y", "on", "1", "t":
-			return true, nil
-		case "false", "no", "n", "off", "0", "f":
-			return false, nil
-		default:
-			logrus.Debugf("CastToBool: %s: unrecognized boolean value: %v", columnID, value)
-			return false, errors.New("unrecognized boolean value")
-		}
+		return boolVal, nil
 	}
 }
 
