@@ -67,7 +67,7 @@ var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceMobileBrandName.Field,
 	"",
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
-		return di.Brand, nil
+		return di.GetBrandName(), nil
 	},
 )
 

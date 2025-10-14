@@ -40,7 +40,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
 			},
-			expected:    "AP",
+			expected:    "Apple",
 			fieldName:   "device_mobile_brand_name",
 			description: "Valid device mobile brand name",
 		},
