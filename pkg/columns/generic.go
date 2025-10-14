@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
-	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -377,36 +377,25 @@ func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
 			return false, nil
 		}
 
-		// Normalize string: trim whitespace and convert to lowercase
-		normalized := strings.ToLower(strings.TrimSpace(valueStr))
-
-		// Handle empty string as error
-		if normalized == "" {
-			return false, fmt.Errorf("value for %s is empty", columnID)
+		// Use util.StrToBool for string conversion
+		boolVal, err := util.StrToBool(valueStr)
+		if err != nil {
+			logrus.Debugf("CastToBool: %s: %v: %v", columnID, err, value)
+			return false, err
 		}
-
-		// Check truthy values
-		switch normalized {
-		case "true", "yes", "y", "on", "1", "t":
-			return true, nil
-		case "false", "no", "n", "off", "0", "f":
-			return false, nil
-		default:
-			logrus.Debugf("CastToBool: %s: unrecognized boolean value: %v", columnID, value)
-			return false, errors.New("unrecognized boolean value")
-		}
+		return boolVal, nil
 	}
 }
 
 // StrErrIfEmpty casts a value to string or returns an error if conversion fails or value is empty
-func StrErrIfEmpty(_ schema.InterfaceID) func(any) (any, error) {
+func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
 		_, ok := value.(string)
 		if !ok {
-			return nil, errors.New("value is not a string")
+			return nil, fmt.Errorf("%s: value is not a string: %v", ifID, value)
 		}
 		if value == "" {
-			return nil, errors.New("value is empty")
+			return nil, fmt.Errorf("%s: value is empty: %v", ifID, value)
 		}
 		return value, nil
 	}

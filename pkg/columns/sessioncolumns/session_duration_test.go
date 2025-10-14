@@ -19,6 +19,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "basic duration calculation",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionFirstEventTime.Field.Name: int64(1609459200),
 					columns.CoreInterfaces.SessionLastEventTime.Field.Name:  int64(1609459201),
@@ -31,6 +32,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "no prereqs met",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 			},
 			expectedError: true,
 			expected:      0,
@@ -39,6 +41,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "no last event time",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionFirstEventTime.Field.Name: int64(1609459200),
 				},
@@ -50,6 +53,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "no first event time",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionLastEventTime.Field.Name: int64(1609459201),
 				},
@@ -61,6 +65,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "last earlier than first",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionFirstEventTime.Field.Name: int64(1609459201),
 					columns.CoreInterfaces.SessionLastEventTime.Field.Name:  int64(1609459200),
@@ -73,6 +78,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "first not int64",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionFirstEventTime.Field.Name: "not an int64",
 					columns.CoreInterfaces.SessionLastEventTime.Field.Name:  int64(1609459201),
@@ -85,6 +91,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			name: "last not int64",
 			session: &schema.Session{
 				PropertyID: "1",
+				Metadata:   map[string]any{},
 				Values: map[string]any{
 					columns.CoreInterfaces.SessionFirstEventTime.Field.Name: int64(1609459200),
 					columns.CoreInterfaces.SessionLastEventTime.Field.Name:  "not an int64",

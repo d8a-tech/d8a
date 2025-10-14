@@ -598,6 +598,7 @@ func events() []*schema.Event {
 	events := make([]*schema.Event, 0, len(hits))
 	for _, hit := range hits {
 		events = append(events, &schema.Event{
+			Metadata: map[string]any{},
 			Values:   map[string]any{},
 			BoundHit: hit,
 		})

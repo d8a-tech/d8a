@@ -2,7 +2,9 @@
 package util
 
 import (
+	"errors"
 	"math"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -46,4 +48,28 @@ func SafeUintToInt(v uint) int {
 		logrus.Panicf("value %d exceeds int max value %d", v, math.MaxInt)
 	}
 	return int(v)
+}
+
+// StrToBool converts a string to bool considering various truthy representations.
+// Accepts: "true", "yes", "y", "on", "1", "t" as true
+// Accepts: "false", "no", "n", "off", "0", "f" as false
+// Returns error for empty strings or unrecognized values.
+func StrToBool(str string) (bool, error) {
+	// Normalize string: trim whitespace and convert to lowercase
+	normalized := strings.ToLower(strings.TrimSpace(str))
+
+	// Handle empty string as error
+	if normalized == "" {
+		return false, errors.New("empty string cannot be converted to bool")
+	}
+
+	// Check truthy values
+	switch normalized {
+	case "true", "yes", "y", "on", "1", "t":
+		return true, nil
+	case "false", "no", "n", "off", "0", "f":
+		return false, nil
+	default:
+		return false, errors.New("unrecognized boolean value")
+	}
 }
