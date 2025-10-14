@@ -52,8 +52,6 @@ var CoreInterfaces = struct {
 	DeviceCategory               schema.Interface
 	DeviceMobileBrandName        schema.Interface
 	DeviceMobileModelName        schema.Interface
-	DeviceMobileMarketingName    schema.Interface
-	DeviceMobileOSHardwareModel  schema.Interface
 	DeviceOperatingSystem        schema.Interface
 	DeviceOperatingSystemVersion schema.Interface
 	DeviceLanguage               schema.Interface
@@ -261,16 +259,6 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/device_mobile_model_name",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "device_mobile_model_name", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	DeviceMobileMarketingName: schema.Interface{
-		ID:      "core.d8a.tech/events/device_mobile_marketing_name",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "device_mobile_marketing_name", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	DeviceMobileOSHardwareModel: schema.Interface{
-		ID:      "core.d8a.tech/events/device_mobile_os_hardware_model",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "device_mobile_os_hardware_model", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	DeviceOperatingSystem: schema.Interface{
 		ID:      "core.d8a.tech/events/device_operating_system",

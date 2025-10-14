@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -338,26 +339,51 @@ func ColumnTestCase(
 		requirement(t, hits)
 	}
 	warehouseDriver := &warehouse.MockWarehouseDriver{}
+	warehouseRegistry := warehouse.NewStaticDriverRegistry(
+		warehouseDriver,
+	)
+	columnsRegistry := columnset.DefaultColumnRegistry(theProtocol)
+	layoutRegistry := schema.NewStaticLayoutRegistry(
+		map[string]schema.Layout{},
+		schema.NewEmbeddedSessionColumnsLayout(
+			"events",
+			"session_",
+		),
+	)
+	columnData, err := columnsRegistry.Get("1337")
+	if err != nil {
+		t.Fatalf("failed to get columns registry: %v", err)
+	}
+	var allColumns []schema.Column
+	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Event)...)
+	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Session)...)
+	allColumns = append(allColumns, schema.ToGenericColumns(columnData.SessionScopedEvent)...)
+	err = schema.AssertAllDependenciesFulfilledWithCoreColumns(allColumns, columns.GetAllCoreColumns())
+	if err != nil {
+		t.Fatalf("failed to assert all dependencies fulfilled with core columns: %v", err)
+	}
+
+	guard := schema.NewGuard(
+		warehouseRegistry,
+		columnsRegistry,
+		layoutRegistry,
+	)
+	if err := guard.EnsureTables("1337"); err != nil {
+		t.Fatalf("failed to ensure tables: %v", err)
+	}
+
 	closer := sessions.NewDirectCloser(
 		sessions.NewSessionWriter(
 			context.Background(),
-			warehouse.NewStaticDriverRegistry(
-				warehouseDriver,
-			),
-			columnset.DefaultColumnRegistry(theProtocol),
-			schema.NewStaticLayoutRegistry(
-				map[string]schema.Layout{},
-				schema.NewEmbeddedSessionColumnsLayout(
-					"events",
-					"session_",
-				),
-			),
+			warehouseRegistry,
+			columnsRegistry,
+			layoutRegistry,
 		),
 		0,
 	)
 
 	// when
-	err := closer.Close(hits)
+	err = closer.Close(hits)
 
 	// then
 	expectations(t, err, warehouseDriver)
