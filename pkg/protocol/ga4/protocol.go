@@ -387,6 +387,15 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			aclidParamColumn,
 			anidParamColumn,
 			renewalCountParamColumn,
+			// Device columns
+			deviceCategoryColumn,
+			deviceMobileBrandNameColumn,
+			deviceMobileModelNameColumn,
+			deviceOperatingSystemColumn,
+			deviceOperatingSystemVersionColumn,
+			deviceLanguageColumn,
+			deviceWebBrowserColumn,
+			deviceWebBrowserVersionColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,

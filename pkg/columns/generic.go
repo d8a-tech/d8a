@@ -3,6 +3,7 @@ package columns
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -387,14 +388,14 @@ func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
 }
 
 // StrErrIfEmpty casts a value to string or returns an error if conversion fails or value is empty
-func StrErrIfEmpty(_ schema.InterfaceID) func(any) (any, error) {
+func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
 		_, ok := value.(string)
 		if !ok {
-			return nil, errors.New("value is not a string")
+			return nil, fmt.Errorf("%s: value is not a string: %v", ifID, value)
 		}
 		if value == "" {
-			return nil, errors.New("value is empty")
+			return nil, fmt.Errorf("%s: value is empty: %v", ifID, value)
 		}
 		return value, nil
 	}
