@@ -342,7 +342,7 @@ func ColumnTestCase(
 	warehouseRegistry := warehouse.NewStaticDriverRegistry(
 		warehouseDriver,
 	)
-	columnsRegistry := columnset.DefaultColumnRegistry(theProtocol)
+	columnsRegistry := columnset.DefaultColumnRegistry(theProtocol, nil)
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},
 		schema.NewEmbeddedSessionColumnsLayout(

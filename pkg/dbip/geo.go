@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,12 @@ import (
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
+
+// MMDBCityDatabaseDownloader downloads an MMDB city database and returns the saved file path.
+type MMDBCityDatabaseDownloader interface {
+	// Download obtains the MMDB city database and returns the path to the downloaded file
+	Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error)
+}
 
 // OCIRegistryCreds contains credentials and settings for accessing an OCI registry.
 type OCIRegistryCreds struct {
@@ -26,24 +33,61 @@ type OCIRegistryCreds struct {
 	IgnoreCert bool
 }
 
-// DownloadDBIPCityLite downloads the DB-IP GeoLite2 City database from GitHub OCI registry
-func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactName, tag, destination string) error {
+type onlyOnceDownloader struct {
+	downloader MMDBCityDatabaseDownloader
+	path       string
+	err        error
+	once       sync.Once
+}
 
+// NewOnlyOnceDownloader creates a new OnlyOnceDownloader
+func NewOnlyOnceDownloader(downloader MMDBCityDatabaseDownloader) MMDBCityDatabaseDownloader {
+	return &onlyOnceDownloader{downloader: downloader}
+}
+
+// Download implements MMDBCityDatabaseDownloader
+func (d *onlyOnceDownloader) Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error) {
+	d.once.Do(func() {
+		path, err := d.downloader.Download(ctx, artifactName, tag, destinationDir)
+		if err != nil {
+			logrus.WithError(err).Error("failed to download artifact")
+			d.err = err
+			return
+		}
+		d.path = path
+	})
+	return d.path, d.err
+}
+
+// Download implements MMDBCityDatabaseDownloader
+
+// ociMMDBDownloader implements MMDBCityDatabaseDownloader using OCI registry
+type ociMMDBDownloader struct {
+	creds OCIRegistryCreds
+}
+
+// NewOCIMMDBDownloader creates a new MMDBCityDatabaseDownloader backed by an OCI registry
+func NewOCIMMDBDownloader(creds OCIRegistryCreds) MMDBCityDatabaseDownloader {
+	return &ociMMDBDownloader{creds: creds}
+}
+
+// Download implements MMDBCityDatabaseDownloader
+func (d *ociMMDBDownloader) Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error) {
 	// Construct the repository URL
-	repo := fmt.Sprintf("%s/%s", creds.Repo, artifactName)
+	repo := fmt.Sprintf("%s/%s", d.creds.Repo, artifactName)
 
 	// Initialize the remote repository
 	repository, err := remote.NewRepository(repo)
 	if err != nil {
-		return fmt.Errorf("failed to initialize repository: %w", err)
+		return "", fmt.Errorf("failed to initialize repository: %w", err)
 	}
 
 	// Set up authentication if credentials are provided
-	if creds.User != "" && creds.Password != "" {
+	if d.creds.User != "" && d.creds.Password != "" {
 		repository.Client = &auth.Client{
 			Credential: auth.StaticCredential(repo, auth.Credential{
-				Username: creds.User,
-				Password: creds.Password,
+				Username: d.creds.User,
+				Password: d.creds.Password,
 			}),
 		}
 	} else {
@@ -54,33 +98,50 @@ func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactN
 	logrus.WithFields(logrus.Fields{
 		"repository":  repo,
 		"tag":         tag,
-		"destination": destination,
+		"destination": destinationDir,
 	}).Info("starting download")
 
 	// Get remote descriptor to check the digest
 	remoteDesc, err := repository.Resolve(ctx, tag)
 	if err != nil {
-		return fmt.Errorf("failed to resolve remote artifact: %w", err)
+		return "", fmt.Errorf("failed to resolve remote artifact: %w", err)
 	}
 
 	// Prepare destination directory and check stored manifest digest
-	destDir := destination
+	destDir := destinationDir
 	if err := os.MkdirAll(destDir, 0o750); err != nil { // restrict perms to satisfy gosec
-		return fmt.Errorf("failed to create destination directory: %w", err)
+		return "", fmt.Errorf("failed to create destination directory: %w", err)
 	}
 
 	digestFilePath := filepath.Join(destDir, ".manifest.digest")
+	var mmdbPath string
+
 	// #nosec G304 - digest file path is constructed, not user-controlled traversal
 	if b, err := os.ReadFile(digestFilePath); err == nil {
 		localDigest := string(b)
 		if localDigest == remoteDesc.Digest.String() {
 			logrus.WithFields(logrus.Fields{
 				"repository":  repo,
-				"destination": destination,
+				"destination": destinationDir,
 				"tag":         tag,
 				"digest":      remoteDesc.Digest,
 			}).Info("local files are up to date, skipping download")
-			return nil
+
+			// Find existing MMDB file
+			entries, err := os.ReadDir(destDir)
+			if err != nil {
+				return "", fmt.Errorf("failed to read destination directory: %w", err)
+			}
+			for _, entry := range entries {
+				if !entry.IsDir() && filepath.Ext(entry.Name()) == ".mmdb" {
+					mmdbPath = filepath.Join(destDir, entry.Name())
+					break
+				}
+			}
+			if mmdbPath == "" {
+				return "", fmt.Errorf("no .mmdb file found in destination directory")
+			}
+			return mmdbPath, nil
 		}
 		logrus.WithFields(logrus.Fields{
 			"local_digest":  localDigest,
@@ -92,17 +153,17 @@ func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactN
 	mem := memory.New()
 	desc, err := oras.Copy(ctx, repository, tag, mem, tag, oras.DefaultCopyOptions)
 	if err != nil {
-		return fmt.Errorf("failed to copy artifact: %w", err)
+		return "", fmt.Errorf("failed to copy artifact: %w", err)
 	}
 
 	// Fetch and parse manifest
 	rc, err := mem.Fetch(ctx, desc)
 	if err != nil {
-		return fmt.Errorf("failed to fetch manifest: %w", err)
+		return "", fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 	manifestBytes, err := io.ReadAll(rc)
 	if err != nil {
-		return fmt.Errorf("failed to read manifest bytes: %w", err)
+		return "", fmt.Errorf("failed to read manifest bytes: %w", err)
 	}
 	if err := rc.Close(); err != nil {
 		logrus.WithError(err).Warn("failed to close manifest reader")
@@ -110,7 +171,7 @@ func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactN
 
 	var manifest ocispec.Manifest
 	if err := json.Unmarshal(manifestBytes, &manifest); err != nil {
-		return fmt.Errorf("failed to unmarshal manifest: %w", err)
+		return "", fmt.Errorf("failed to unmarshal manifest: %w", err)
 	}
 
 	// Write layers to destination using safe file names
@@ -124,10 +185,15 @@ func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactN
 		safeName := filepath.Base(filepath.Clean(fileName))
 		outPath := filepath.Join(destDir, safeName)
 
+		// Track the MMDB file path
+		if filepath.Ext(safeName) == ".mmdb" {
+			mmdbPath = outPath
+		}
+
 		// Fetch blob content
 		blobReader, err := mem.Fetch(ctx, layer)
 		if err != nil {
-			return fmt.Errorf("failed to fetch blob %s: %w", layer.Digest, err)
+			return "", fmt.Errorf("failed to fetch blob %s: %w", layer.Digest, err)
 		}
 		// Write atomically
 		tmpPath := outPath + ".tmp"
@@ -135,38 +201,42 @@ func DownloadDBIPCityLite(ctx context.Context, creds OCIRegistryCreds, artifactN
 		outFile, err := os.Create(tmpPath)
 		if err != nil {
 			_ = blobReader.Close()
-			return fmt.Errorf("failed to create file %s: %w", tmpPath, err)
+			return "", fmt.Errorf("failed to create file %s: %w", tmpPath, err)
 		}
 		if _, err := io.Copy(outFile, blobReader); err != nil {
 			_ = blobReader.Close()
 			_ = outFile.Close()
 			_ = os.Remove(tmpPath)
-			return fmt.Errorf("failed to write file %s: %w", tmpPath, err)
+			return "", fmt.Errorf("failed to write file %s: %w", tmpPath, err)
 		}
 		if err := blobReader.Close(); err != nil {
 			logrus.WithError(err).Warn("failed to close blob reader")
 		}
 		if err := outFile.Close(); err != nil {
 			_ = os.Remove(tmpPath)
-			return fmt.Errorf("failed to close file %s: %w", tmpPath, err)
+			return "", fmt.Errorf("failed to close file %s: %w", tmpPath, err)
 		}
 		if err := os.Rename(tmpPath, outPath); err != nil {
 			_ = os.Remove(tmpPath)
-			return fmt.Errorf("failed to move temp file into place for %s: %w", outPath, err)
+			return "", fmt.Errorf("failed to move temp file into place for %s: %w", outPath, err)
 		}
 	}
 
 	// Persist manifest digest for future checks
 	if err := os.WriteFile(digestFilePath, []byte(desc.Digest.String()), 0o600); err != nil {
-		return fmt.Errorf("failed to write digest file: %w", err)
+		return "", fmt.Errorf("failed to write digest file: %w", err)
 	}
 
 	logrus.WithFields(logrus.Fields{
 		"repository":  repo,
-		"destination": destination,
+		"destination": destinationDir,
 		"tag":         tag,
 		"digest":      desc.Digest,
 	}).Info("download completed and files saved")
 
-	return nil
+	if mmdbPath == "" {
+		return "", fmt.Errorf("no .mmdb file found in downloaded layers")
+	}
+
+	return mmdbPath, nil
 }

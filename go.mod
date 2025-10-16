@@ -8,6 +8,8 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/google/uuid v1.6.0
+	github.com/opencontainers/image-spec v1.1.1
+	github.com/oschwald/maxminddb-golang/v2 v2.0.0-beta.10
 	github.com/prometheus/client_golang v1.23.2
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slipros/devicedetector v1.2.1
@@ -16,6 +18,7 @@ require (
 	github.com/valyala/fasthttp v1.67.0
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sync v0.17.0
+	oras.land/oras-go/v2 v2.6.0
 )
 
 require (
@@ -32,7 +35,6 @@ require (
 	github.com/mcuadros/go-version v0.0.0-20190830083331-035f6764e8d2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/opencontainers/image-spec v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
@@ -51,5 +53,4 @@ require (
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	oras.land/oras-go/v2 v2.6.0 // indirect
 )

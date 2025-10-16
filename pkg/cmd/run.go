@@ -13,7 +13,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
-	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/pings"
@@ -110,20 +109,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			return nil
 		},
 		Commands: []*cli.Command{
-			{
-				Name:  "test-dbip",
-				Usage: "Test DB-IP download",
-				Action: func(c *cli.Context) error {
-					ctx := context.Background()
-					err := dbip.DownloadDBIPCityLite(ctx, dbip.OCIRegistryCreds{
-						Repo: "ghcr.io/d8a-tech",
-					}, "dbip-city-lite", "latest", "/tmp")
-					if err != nil {
-						return fmt.Errorf("failed to download DB-IP city lite: %w", err)
-					}
-					return nil
-				},
-			},
 			{
 				Name:  "server",
 				Usage: "Start d8a demo server",

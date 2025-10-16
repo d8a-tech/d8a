@@ -7,10 +7,29 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocolschema"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/sirupsen/logrus"
 )
 
+func stubGeoIPColumns() []schema.EventColumn {
+	return []schema.EventColumn{
+		eventcolumns.GeoContinentStubColumn,
+		eventcolumns.GeoCountryStubColumn,
+		eventcolumns.GeoRegionStubColumn,
+		eventcolumns.GeoCityStubColumn,
+		eventcolumns.GeoSubContinentStubColumn,
+		eventcolumns.GeoMetroStubColumn,
+	}
+}
+
 // DefaultColumnRegistry returns a default column registry for the tracker API.
-func DefaultColumnRegistry(theProtocol protocol.Protocol) schema.ColumnsRegistry {
+func DefaultColumnRegistry(
+	theProtocol protocol.Protocol,
+	geoColumns []schema.EventColumn,
+) schema.ColumnsRegistry {
+	if len(geoColumns) == 0 {
+		logrus.Info("No geo columns provided, using stub implementations")
+		geoColumns = stubGeoIPColumns()
+	}
 	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
@@ -20,6 +39,10 @@ func DefaultColumnRegistry(theProtocol protocol.Protocol) schema.ColumnsRegistry
 			map[string]protocol.Protocol{},
 			theProtocol,
 		)),
+		schema.NewStaticColumnsRegistry(
+			map[string]schema.Columns{},
+			schema.NewColumns([]schema.SessionColumn{}, geoColumns, []schema.SessionScopedEventColumn{}),
+		),
 	})
 }
 
