@@ -72,34 +72,22 @@ func NewOCIMMDBDownloader(creds OCIRegistryCreds) MMDBCityDatabaseDownloader {
 }
 
 // Download implements MMDBCityDatabaseDownloader
-func (d *ociMMDBDownloader) Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error) {
-	// Construct the repository URL
-	repo := fmt.Sprintf("%s/%s", d.creds.Repo, artifactName)
-
-	// Initialize the remote repository
-	repository, err := remote.NewRepository(repo)
+func (d *ociMMDBDownloader) Download(
+	ctx context.Context,
+	artifactName,
+	tag,
+	destinationDir string,
+) (string, error) {
+	repository, err := d.createRepository(d.creds, artifactName)
 	if err != nil {
-		return "", fmt.Errorf("failed to initialize repository: %w", err)
-	}
-
-	// Set up authentication if credentials are provided
-	if d.creds.User != "" && d.creds.Password != "" {
-		repository.Client = &auth.Client{
-			Credential: auth.StaticCredential(repo, auth.Credential{
-				Username: d.creds.User,
-				Password: d.creds.Password,
-			}),
-		}
-	} else {
-		// No authentication - use default client
-		repository.Client = &auth.Client{}
+		return "", fmt.Errorf("failed to create repository: %w", err)
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"repository":  repo,
+		"repository":  repository.Reference.Registry,
 		"tag":         tag,
 		"destination": destinationDir,
-	}).Info("starting download")
+	}).Info("OCI: validating remote artifact")
 
 	// Get remote descriptor to check the digest
 	remoteDesc, err := repository.Resolve(ctx, tag)
@@ -121,11 +109,11 @@ func (d *ociMMDBDownloader) Download(ctx context.Context, artifactName, tag, des
 		localDigest := string(b)
 		if localDigest == remoteDesc.Digest.String() {
 			logrus.WithFields(logrus.Fields{
-				"repository":  repo,
+				"repository":  repository.Reference.Registry,
 				"destination": destinationDir,
 				"tag":         tag,
 				"digest":      remoteDesc.Digest,
-			}).Info("local files are up to date, skipping download")
+			}).Info("OCI: local files are up to date, skipping download")
 
 			// Find existing MMDB file
 			entries, err := os.ReadDir(destDir)
@@ -146,7 +134,7 @@ func (d *ociMMDBDownloader) Download(ctx context.Context, artifactName, tag, des
 		logrus.WithFields(logrus.Fields{
 			"local_digest":  localDigest,
 			"remote_digest": remoteDesc.Digest.String(),
-		}).Info("local manifest digest differs from remote, downloading update")
+		}).Info("OCI: local manifest digest differs from remote, downloading update")
 	}
 
 	// Pull into memory store to avoid writing OCI layout to filesystem
@@ -228,15 +216,35 @@ func (d *ociMMDBDownloader) Download(ctx context.Context, artifactName, tag, des
 	}
 
 	logrus.WithFields(logrus.Fields{
-		"repository":  repo,
+		"repository":  repository.Reference.Registry,
 		"destination": destinationDir,
 		"tag":         tag,
 		"digest":      desc.Digest,
-	}).Info("download completed and files saved")
+	}).Info("OCI: download completed and files saved")
 
 	if mmdbPath == "" {
 		return "", fmt.Errorf("no .mmdb file found in downloaded layers")
 	}
 
 	return mmdbPath, nil
+}
+
+func (d *ociMMDBDownloader) createRepository(creds OCIRegistryCreds, artifactName string) (*remote.Repository, error) {
+	repo := fmt.Sprintf("%s/%s", creds.Repo, artifactName)
+	repository, err := remote.NewRepository(repo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
+	}
+	if creds.User != "" && creds.Password != "" {
+		repository.Client = &auth.Client{
+			Credential: auth.StaticCredential(repo, auth.Credential{
+				Username: creds.User,
+				Password: creds.Password,
+			}),
+		}
+	} else {
+		// No authentication - use default client
+		repository.Client = &auth.Client{}
+	}
+	return repository, nil
 }

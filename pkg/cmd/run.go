@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -292,8 +293,19 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	}
 }
 
+var crLock = sync.Mutex{}
+var cr schema.ColumnsRegistry
+
 func columnsRegistry() schema.ColumnsRegistry {
-	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol(currencyConverter))
+	crLock.Lock()
+	defer crLock.Unlock()
+	if cr == nil {
+		cr = columnset.DefaultColumnRegistry(
+			ga4.NewGA4Protocol(currencyConverter),
+			nil,
+		)
+	}
+	return cr
 }
 
 func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {

@@ -320,11 +320,23 @@ func (t TestHits) EnsureQueryParam(hitNum int, param string, value string) {
 	t[hitNum].QueryParams.Set(param, value)
 }
 
-type RequirememtnsFunc func(t *testing.T, hits TestHits)
+type CaseConfig struct {
+	hits              TestHits
+	warehouseRegistry warehouse.Registry
+	columnsRegistry   schema.ColumnsRegistry
+	layoutRegistry    schema.LayoutRegistry
+}
+type CaseConfigFunc func(t *testing.T, c *CaseConfig)
 
-func EnsureQueryParam(hitNum int, param string, value string) RequirememtnsFunc {
-	return func(t *testing.T, hits TestHits) {
-		hits.EnsureQueryParam(hitNum, param, value)
+func EnsureQueryParam(hitNum int, param string, value string) CaseConfigFunc {
+	return func(t *testing.T, c *CaseConfig) {
+		c.hits.EnsureQueryParam(hitNum, param, value)
+	}
+}
+
+func SetColumnsRegistry(columnsRegistry schema.ColumnsRegistry) CaseConfigFunc {
+	return func(t *testing.T, c *CaseConfig) {
+		c.columnsRegistry = columnsRegistry
 	}
 }
 
@@ -333,11 +345,8 @@ func ColumnTestCase(
 	hits TestHits,
 	expectations func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver),
 	theProtocol protocol.Protocol,
-	requirements ...RequirememtnsFunc,
+	caseConfigF ...CaseConfigFunc,
 ) {
-	for _, requirement := range requirements {
-		requirement(t, hits)
-	}
 	warehouseDriver := &warehouse.MockWarehouseDriver{}
 	warehouseRegistry := warehouse.NewStaticDriverRegistry(
 		warehouseDriver,
@@ -350,6 +359,16 @@ func ColumnTestCase(
 			"session_",
 		),
 	)
+	cc := &CaseConfig{
+		hits:              hits,
+		warehouseRegistry: warehouseRegistry,
+		columnsRegistry:   columnsRegistry,
+		layoutRegistry:    layoutRegistry,
+	}
+	for _, requirement := range caseConfigF {
+		requirement(t, cc)
+	}
+
 	columnData, err := columnsRegistry.Get("1337")
 	if err != nil {
 		t.Fatalf("failed to get columns registry: %v", err)
@@ -364,9 +383,9 @@ func ColumnTestCase(
 	}
 
 	guard := schema.NewGuard(
-		warehouseRegistry,
-		columnsRegistry,
-		layoutRegistry,
+		cc.warehouseRegistry,
+		cc.columnsRegistry,
+		cc.layoutRegistry,
 	)
 	if err := guard.EnsureTables("1337"); err != nil {
 		t.Fatalf("failed to ensure tables: %v", err)
@@ -375,9 +394,9 @@ func ColumnTestCase(
 	closer := sessions.NewDirectCloser(
 		sessions.NewSessionWriter(
 			context.Background(),
-			warehouseRegistry,
-			columnsRegistry,
-			layoutRegistry,
+			cc.warehouseRegistry,
+			cc.columnsRegistry,
+			cc.layoutRegistry,
 		),
 		0,
 	)
