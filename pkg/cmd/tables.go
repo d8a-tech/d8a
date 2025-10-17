@@ -2,7 +2,14 @@ package cmd
 
 import (
 	"fmt"
+	"sync"
 	"time"
+
+	"github.com/d8a-tech/d8a/pkg/columnset"
+	"github.com/d8a-tech/d8a/pkg/dbip"
+	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
+	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/urfave/cli/v2"
 )
 
 type tables struct {
@@ -33,4 +40,33 @@ func getTableNames() tables {
 		events:               fmt.Sprintf("events_%s", id),
 		sessionsColumnPrefix: "",
 	}
+}
+
+var crLock = sync.Mutex{}
+var cr schema.ColumnsRegistry
+
+func columnsRegistry(c *cli.Context) schema.ColumnsRegistry {
+	crLock.Lock()
+	defer crLock.Unlock()
+	if cr == nil {
+		var geoColumns []schema.EventColumn
+		if c.Bool(dbipEnabled.Name) {
+			geoColumns = dbip.GeoColumns(
+				dbip.NewExtensionBasedOCIDownloader(
+					dbip.OCIRegistryCreds{
+						Repo:       "ghcr.io/d8a-tech",
+						IgnoreCert: false,
+					},
+					".mmdb",
+				),
+				c.String(dbipDestinationDirectory.Name),
+				c.Duration(dbipDownloadTimeoutFlag.Name),
+			)
+		}
+		cr = columnset.DefaultColumnRegistry(
+			ga4.NewGA4Protocol(currencyConverter),
+			geoColumns,
+		)
+	}
+	return cr
 }

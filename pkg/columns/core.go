@@ -57,6 +57,14 @@ var CoreInterfaces = struct {
 	DeviceLanguage               schema.Interface
 	DeviceWebBrowser             schema.Interface
 	DeviceWebBrowserVersion      schema.Interface
+
+	// Geo
+	GeoContinent    schema.Interface
+	GeoCountry      schema.Interface
+	GeoRegion       schema.Interface
+	GeoCity         schema.Interface
+	GeoSubContinent schema.Interface
+	GeoMetro        schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -284,6 +292,37 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/device_web_browser_version",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "device_web_browser_version", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// Geo
+	GeoContinent: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_continent",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_continent", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GeoCountry: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_country",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_country", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GeoRegion: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_region",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_region", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GeoCity: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_city",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_city", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GeoSubContinent: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_sub_continent",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_sub_continent", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GeoMetro: schema.Interface{
+		ID:      "core.d8a.tech/events/geo_metro",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "geo_metro", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 

@@ -374,7 +374,7 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 
-			refFuncs := []columntests.RequirememtnsFunc{
+			refFuncs := []columntests.CaseConfigFunc{
 				columntests.EnsureQueryParam(
 					0,
 					"en",

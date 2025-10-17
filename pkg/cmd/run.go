@@ -7,11 +7,11 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/bolt"
-	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -75,6 +75,27 @@ var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   1 * time.Second,
 }
 
+var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "dbip-enabled",
+	Usage:   "Use DBIP columns",
+	EnvVars: []string{"DBIP_ENABLED"},
+	Value:   false,
+}
+
+var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
+	Name:    "dbip-destination-directory",
+	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
+	EnvVars: []string{"DBIP_DESTINATION_DIRECTORY"},
+	Value:   filepath.Join(os.TempDir(), "dbip"),
+}
+
+var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "dbip-download-timeout",
+	Usage:   "Timeout for the DBIP download",
+	EnvVars: []string{"DBIP_DOWNLOAD_TIMEOUT"},
+	Value:   60 * time.Second,
+}
+
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	var endFlags []cli.Flag
 	for _, singleFlagCollection := range allFlags {
@@ -119,6 +140,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						batcherBatchTimeoutFlag,
 						closerSessionDurationFlag,
 						closerTickIntervalFlag,
+						dbipEnabled,
+						dbipDestinationDirectory,
+						dbipDownloadTimeoutFlag,
 					},
 				),
 				Action: func(c *cli.Context) error {
@@ -198,7 +222,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 													sessions.NewSessionWriter(
 														ctx,
 														warehouseRegistry(ctx, c),
-														columnsRegistry(),
+														columnsRegistry(c), // nolint:contextcheck // false positive
 														schema.NewStaticLayoutRegistry(
 															map[string]schema.Layout{},
 															schema.NewEmbeddedSessionColumnsLayout(
@@ -290,10 +314,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	if err := app.Run(append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func columnsRegistry() schema.ColumnsRegistry {
-	return columnset.DefaultColumnRegistry(ga4.NewGA4Protocol(currencyConverter))
 }
 
 func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {

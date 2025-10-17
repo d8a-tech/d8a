@@ -250,6 +250,17 @@ func FromQueryParamEventColumn(
 	}, options...)
 }
 
+// AlwaysNilEventColumn creates a new event column that always returns nil
+func AlwaysNilEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	options ...EventColumnOptions,
+) schema.EventColumn {
+	return NewSimpleEventColumn(id, field, func(_ *schema.Event) (any, error) {
+		return nil, nil // nolint:nilnil // nil is valid
+	}, options...)
+}
+
 // FromPageURLEventColumn creates a new event column from a UTM tag
 func FromPageURLEventColumn(
 	id schema.InterfaceID,
