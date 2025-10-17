@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -85,7 +86,7 @@ var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 	Name:    "dbip-destination-directory",
 	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
 	EnvVars: []string{"DBIP_DESTINATION_DIRECTORY"},
-	Value:   "/tmp/dbip",
+	Value:   filepath.Join(os.TempDir(), "dbip"),
 }
 
 var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
