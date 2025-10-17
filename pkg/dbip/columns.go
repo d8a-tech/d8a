@@ -103,7 +103,11 @@ func RegionColumn(mmdbPath string) schema.EventColumn {
 }
 
 // GeoColumns creates a set of geo columns from a downloader.
-func GeoColumns(downloader Downloader, destinationDirectory string, downloadTimeout time.Duration) []schema.EventColumn {
+func GeoColumns(
+	downloader Downloader,
+	destinationDirectory string,
+	downloadTimeout time.Duration,
+) []schema.EventColumn {
 	if destinationDirectory == "" {
 		destinationDirectory = "/tmp"
 	}
