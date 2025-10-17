@@ -149,14 +149,17 @@ func RegionColumn(mmdbPath string) schema.EventColumn {
 }
 
 // GeoColumns creates a set of geo columns from a downloader.
-func GeoColumns(downloader MMDBCityDatabaseDownloader) []schema.EventColumn {
+func GeoColumns(downloader MMDBCityDatabaseDownloader, destinationDirectory string) []schema.EventColumn {
+	if destinationDirectory == "" {
+		destinationDirectory = "/tmp"
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	mmdbPath, err := downloader.Download(
 		ctx,
 		"dbip-city-lite",
 		"latest",
-		"/tmp",
+		destinationDirectory,
 	)
 	if err != nil {
 		logrus.WithError(err).Panic("failed to download MMDB city database")

@@ -10,7 +10,7 @@ import (
 )
 
 func migrate(ctx context.Context, c *cli.Context, propertyID string) error {
-	columnData, err := columnsRegistry().Get(propertyID)
+	columnData, err := columnsRegistry(c).Get(propertyID) // nolint:contextcheck // false positive
 	if err != nil {
 		return err
 	}

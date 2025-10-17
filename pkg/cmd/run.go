@@ -7,12 +7,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/bolt"
-	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -76,6 +74,20 @@ var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   1 * time.Second,
 }
 
+var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "dbip-enabled",
+	Usage:   "Use DBIP columns",
+	EnvVars: []string{"DBIP_ENABLED"},
+	Value:   false,
+}
+
+var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
+	Name:    "dbip-destination-directory",
+	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
+	EnvVars: []string{"DBIP_DESTINATION_DIRECTORY"},
+	Value:   "/tmp/dbip",
+}
+
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	var endFlags []cli.Flag
 	for _, singleFlagCollection := range allFlags {
@@ -120,6 +132,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						batcherBatchTimeoutFlag,
 						closerSessionDurationFlag,
 						closerTickIntervalFlag,
+						dbipEnabled,
+						dbipDestinationDirectory,
 					},
 				),
 				Action: func(c *cli.Context) error {
@@ -199,7 +213,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 													sessions.NewSessionWriter(
 														ctx,
 														warehouseRegistry(ctx, c),
-														columnsRegistry(),
+														columnsRegistry(c), // nolint:contextcheck // false positive
 														schema.NewStaticLayoutRegistry(
 															map[string]schema.Layout{},
 															schema.NewEmbeddedSessionColumnsLayout(
@@ -291,21 +305,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	if err := app.Run(append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
-}
-
-var crLock = sync.Mutex{}
-var cr schema.ColumnsRegistry
-
-func columnsRegistry() schema.ColumnsRegistry {
-	crLock.Lock()
-	defer crLock.Unlock()
-	if cr == nil {
-		cr = columnset.DefaultColumnRegistry(
-			ga4.NewGA4Protocol(currencyConverter),
-			nil,
-		)
-	}
-	return cr
 }
 
 func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {

@@ -13,7 +13,7 @@ import (
 )
 
 func TestDBIPColumns(t *testing.T) {
-	t.Skip("Skipping test until we have a way to download the MMDB database")
+	t.Skip("Skipping test as it has external dependencies - run it only on demand")
 	th1 := columntests.TestHitOne()
 	th1.IP = "80.68.239.25"
 	columntests.ColumnTestCase(
@@ -35,13 +35,15 @@ func TestDBIPColumns(t *testing.T) {
 				),
 				GeoColumns(
 					NewOnlyOnceDownloader(
-						NewOCIMMDBDownloader(
+						NewExtensionBasedOCIDownloader(
 							OCIRegistryCreds{
 								Repo:       "ghcr.io/d8a-tech",
 								IgnoreCert: false,
 							},
+							".mmdb",
 						),
 					),
+					"/tmp",
 				),
 			),
 		),
