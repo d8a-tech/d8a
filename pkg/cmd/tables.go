@@ -60,6 +60,7 @@ func columnsRegistry(c *cli.Context) schema.ColumnsRegistry {
 					".mmdb",
 				),
 				c.String(dbipDestinationDirectory.Name),
+				c.Duration(dbipDownloadTimeoutFlag.Name),
 			)
 		}
 		cr = columnset.DefaultColumnRegistry(

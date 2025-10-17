@@ -88,6 +88,13 @@ var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 	Value:   "/tmp/dbip",
 }
 
+var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "dbip-download-timeout",
+	Usage:   "Timeout for the DBIP download",
+	EnvVars: []string{"DBIP_DOWNLOAD_TIMEOUT"},
+	Value:   60 * time.Second,
+}
+
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	var endFlags []cli.Flag
 	for _, singleFlagCollection := range allFlags {
@@ -134,6 +141,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						closerTickIntervalFlag,
 						dbipEnabled,
 						dbipDestinationDirectory,
+						dbipDownloadTimeoutFlag,
 					},
 				),
 				Action: func(c *cli.Context) error {

@@ -12,56 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type resultCityNames struct {
-	English string `maxminddb:"en"`
-}
-
-type resultCity struct {
-	Names resultCityNames `maxminddb:"names"`
-}
-
-type resultContinentNames struct {
-	English string `maxminddb:"en"`
-}
-
-type resultContinent struct {
-	Code      string               `maxminddb:"code"`
-	GeonameID uint32               `maxminddb:"geoname_id"`
-	Names     resultContinentNames `maxminddb:"names"`
-}
-
-type resultCountryNames struct {
-	English string `maxminddb:"en"`
-}
-
-type resultCountry struct {
-	GeonameID         uint32             `maxminddb:"geoname_id"`
-	IsInEuropeanUnion bool               `maxminddb:"is_in_european_union"`
-	ISOCode           string             `maxminddb:"iso_code"`
-	Names             resultCountryNames `maxminddb:"names"`
-}
-
-type resultLocation struct {
-	Latitude  float64 `maxminddb:"latitude"`
-	Longitude float64 `maxminddb:"longitude"`
-}
-
-type resultSubdivisionNames struct {
-	English string `maxminddb:"en"`
-}
-
-type resultSubdivision struct {
-	Names resultSubdivisionNames `maxminddb:"names"`
-}
-
-type result struct {
-	City         resultCity          `maxminddb:"city"`
-	Continent    resultContinent     `maxminddb:"continent"`
-	Country      resultCountry       `maxminddb:"country"`
-	Location     resultLocation      `maxminddb:"location"`
-	Subdivisions []resultSubdivision `maxminddb:"subdivisions"`
-}
-
 const geoRecordMetadataKey = "geo_record"
 
 func geoColumn(
@@ -81,8 +31,12 @@ func geoColumn(
 					return getValue(event, typedCachedRecord)
 				}
 			}
-			ipAddress := netip.MustParseAddr(event.BoundHit.IP)
-			db, err := GetMMDB(mmdbPath)
+			ipAddress, err := netip.ParseAddr(event.BoundHit.IP)
+			if err != nil {
+				logrus.WithError(err).Warn("failed to parse IP address in dbip column")
+				return nil, nil //nolint:nilnil // nil is valid
+			}
+			db, err := GetMaxmindReader(mmdbPath)
 			if err != nil {
 				return nil, err
 			}
@@ -149,11 +103,11 @@ func RegionColumn(mmdbPath string) schema.EventColumn {
 }
 
 // GeoColumns creates a set of geo columns from a downloader.
-func GeoColumns(downloader MMDBCityDatabaseDownloader, destinationDirectory string) []schema.EventColumn {
+func GeoColumns(downloader Downloader, destinationDirectory string, downloadTimeout time.Duration) []schema.EventColumn {
 	if destinationDirectory == "" {
 		destinationDirectory = "/tmp"
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 	defer cancel()
 	mmdbPath, err := downloader.Download(
 		ctx,

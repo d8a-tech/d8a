@@ -2,6 +2,7 @@ package dbip
 
 import (
 	"testing"
+	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/columnset"
@@ -44,6 +45,7 @@ func TestDBIPColumns(t *testing.T) {
 						),
 					),
 					"/tmp",
+					60*time.Second,
 				),
 			),
 		),

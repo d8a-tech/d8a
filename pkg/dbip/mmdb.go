@@ -21,8 +21,8 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
 
-// MMDBCityDatabaseDownloader downloads an MMDB city database and returns the saved file path.
-type MMDBCityDatabaseDownloader interface {
+// Downloader downloads an MMDB city database and returns the saved file path.
+type Downloader interface {
 	// Download obtains the MMDB city database and returns the path to the downloaded file
 	Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error)
 }
@@ -37,14 +37,14 @@ type OCIRegistryCreds struct {
 }
 
 type onlyOnceDownloader struct {
-	downloader MMDBCityDatabaseDownloader
+	downloader Downloader
 	path       string
 	err        error
 	once       sync.Once
 }
 
 // NewOnlyOnceDownloader creates a new OnlyOnceDownloader
-func NewOnlyOnceDownloader(downloader MMDBCityDatabaseDownloader) MMDBCityDatabaseDownloader {
+func NewOnlyOnceDownloader(downloader Downloader) Downloader {
 	return &onlyOnceDownloader{downloader: downloader}
 }
 
@@ -62,17 +62,15 @@ func (d *onlyOnceDownloader) Download(ctx context.Context, artifactName, tag, de
 	return d.path, d.err
 }
 
-// Download implements MMDBCityDatabaseDownloader
-
 // extensionBasedOCIDownloader implements MMDBCityDatabaseDownloader using OCI registry, downloading first file with
-// given extension from the artifact.
+// given extension from the registry.
 type extensionBasedOCIDownloader struct {
 	creds             OCIRegistryCreds
 	searchedExtension string
 }
 
 // NewExtensionBasedOCIDownloader creates a new MMDBCityDatabaseDownloader backed by an OCI registry
-func NewExtensionBasedOCIDownloader(creds OCIRegistryCreds, extension string) MMDBCityDatabaseDownloader {
+func NewExtensionBasedOCIDownloader(creds OCIRegistryCreds, extension string) Downloader {
 	return &extensionBasedOCIDownloader{creds: creds, searchedExtension: func() string {
 		if strings.HasPrefix(extension, ".") {
 			return extension

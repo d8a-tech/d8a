@@ -9,8 +9,8 @@ import (
 var registry = map[string]*maxminddb.Reader{}
 var registryMutex = sync.Mutex{}
 
-// GetMMDB returns a cached maxminddb.Reader for the given MMDB path.
-func GetMMDB(mmdbPath string) (*maxminddb.Reader, error) {
+// GetMaxmindReader returns a cached maxminddb.Reader for the given MMDB path.
+func GetMaxmindReader(mmdbPath string) (*maxminddb.Reader, error) {
 	var err error
 	mmdb, ok := registry[mmdbPath]
 	if ok {
