@@ -1,3 +1,4 @@
+// Package dbip provides columns for the DBIP database.
 package dbip
 
 import (
@@ -9,13 +10,36 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
 )
 
+// GeoColumnFactory is a template for creating geo columns.
+type GeoColumnFactory struct {
+	mmdbPath    string
+	cache       *ristretto.Cache[string, *result]
+	cacheConfig CacheConfig
+}
+
+// NewGeoColumnFactory creates a new GeoColumnTemplate.
+func NewGeoColumnFactory(mmdbPath string, cacheConfig CacheConfig) (*GeoColumnFactory, error) {
+	cache, err := ristretto.NewCache(&ristretto.Config[string, *result]{
+		MaxCost: cacheConfig.MaxCost,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &GeoColumnFactory{
+		mmdbPath:    mmdbPath,
+		cache:       cache,
+		cacheConfig: cacheConfig,
+	}, nil
+}
+
 const geoRecordMetadataKey = "geo_record"
 
-func geoColumn(
-	mmdbPath string,
+// Column creates a new event column from a GeoColumnTemplate.
+func (t *GeoColumnFactory) Column(
 	column schema.InterfaceID,
 	field *arrow.Field,
 	getValue func(event *schema.Event, record *result) (any, error),
@@ -24,19 +48,26 @@ func geoColumn(
 		column,
 		field,
 		func(event *schema.Event) (any, error) {
-			cachedRecord, ok := event.Metadata[geoRecordMetadataKey]
+			// Check if the value was computed for other column in this event
+			computedRecord, ok := event.Metadata[geoRecordMetadataKey]
 			if ok {
-				typedCachedRecord, ok := cachedRecord.(*result)
+				typedComputedRecord, ok := computedRecord.(*result)
 				if ok {
-					return getValue(event, typedCachedRecord)
+					return getValue(event, typedComputedRecord)
 				}
+			}
+			// Check if for given IP there is a cache hit (calculated for other event)
+			cacheHit, ok := t.cache.Get(event.BoundHit.IP)
+			if ok {
+				event.Metadata[geoRecordMetadataKey] = cacheHit
+				return getValue(event, cacheHit)
 			}
 			ipAddress, err := netip.ParseAddr(event.BoundHit.IP)
 			if err != nil {
 				logrus.WithError(err).Warn("failed to parse IP address in dbip column")
 				return nil, nil //nolint:nilnil // nil is valid
 			}
-			db, err := GetMaxmindReader(mmdbPath)
+			db, err := GetMaxmindReader(t.mmdbPath)
 			if err != nil {
 				return nil, err
 			}
@@ -46,51 +77,42 @@ func geoColumn(
 				return nil, err
 			}
 			event.Metadata[geoRecordMetadataKey] = &record
+			t.cache.SetWithTTL(event.BoundHit.IP, &record, 1, t.cacheConfig.TTL)
 			return getValue(event, &record)
 		},
 	)
 }
 
 // CityColumn creates a city column from a MMDB path.
-func CityColumn(mmdbPath string) schema.EventColumn {
-	return geoColumn(
-		mmdbPath,
+func CityColumn(t *GeoColumnFactory) schema.EventColumn {
+	return t.Column(
 		columns.CoreInterfaces.GeoCity.ID,
 		columns.CoreInterfaces.GeoCity.Field,
-		func(_ *schema.Event, record *result) (any, error) {
-			return record.City.Names.English, nil
-		},
+		func(_ *schema.Event, record *result) (any, error) { return record.City.Names.English, nil },
 	)
 }
 
 // CountryColumn creates a country column from a MMDB path.
-func CountryColumn(mmdbPath string) schema.EventColumn {
-	return geoColumn(
-		mmdbPath,
+func CountryColumn(t *GeoColumnFactory) schema.EventColumn {
+	return t.Column(
 		columns.CoreInterfaces.GeoCountry.ID,
 		columns.CoreInterfaces.GeoCountry.Field,
-		func(_ *schema.Event, record *result) (any, error) {
-			return record.Country.Names.English, nil
-		},
+		func(_ *schema.Event, record *result) (any, error) { return record.Country.Names.English, nil },
 	)
 }
 
 // ContinentColumn creates a continent column from a MMDB path.
-func ContinentColumn(mmdbPath string) schema.EventColumn {
-	return geoColumn(
-		mmdbPath,
+func ContinentColumn(t *GeoColumnFactory) schema.EventColumn {
+	return t.Column(
 		columns.CoreInterfaces.GeoContinent.ID,
 		columns.CoreInterfaces.GeoContinent.Field,
-		func(_ *schema.Event, record *result) (any, error) {
-			return record.Continent.Names.English, nil
-		},
+		func(_ *schema.Event, record *result) (any, error) { return record.Continent.Names.English, nil },
 	)
 }
 
 // RegionColumn creates a region column from a MMDB path.
-func RegionColumn(mmdbPath string) schema.EventColumn {
-	return geoColumn(
-		mmdbPath,
+func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
+	return t.Column(
 		columns.CoreInterfaces.GeoRegion.ID,
 		columns.CoreInterfaces.GeoRegion.Field,
 		func(_ *schema.Event, record *result) (any, error) {
@@ -102,11 +124,18 @@ func RegionColumn(mmdbPath string) schema.EventColumn {
 	)
 }
 
+// CacheConfig is the configuration for the cache.
+type CacheConfig struct {
+	MaxCost int64
+	TTL     time.Duration
+}
+
 // GeoColumns creates a set of geo columns from a downloader.
 func GeoColumns(
 	downloader Downloader,
 	destinationDirectory string,
 	downloadTimeout time.Duration,
+	cacheConfig CacheConfig,
 ) []schema.EventColumn {
 	if destinationDirectory == "" {
 		destinationDirectory = "/tmp"
@@ -122,11 +151,15 @@ func GeoColumns(
 	if err != nil {
 		logrus.WithError(err).Panic("failed to download MMDB city database")
 	}
+	t, err := NewGeoColumnFactory(mmdbPath, cacheConfig)
+	if err != nil {
+		logrus.WithError(err).Panic("failed to create geo column template")
+	}
 	return []schema.EventColumn{
-		ContinentColumn(mmdbPath),
-		CityColumn(mmdbPath),
-		CountryColumn(mmdbPath),
-		RegionColumn(mmdbPath),
+		ContinentColumn(t),
+		CityColumn(t),
+		CountryColumn(t),
+		RegionColumn(t),
 		eventcolumns.GeoSubContinentStubColumn,
 		eventcolumns.GeoMetroStubColumn,
 	}
