@@ -46,6 +46,10 @@ func TestDBIPColumns(t *testing.T) {
 					),
 					"/tmp",
 					60*time.Second,
+					CacheConfig{
+						MaxEntries: 2137,
+						TTL:        30 * time.Second,
+					},
 				),
 			),
 		),
