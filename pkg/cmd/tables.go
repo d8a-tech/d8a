@@ -62,8 +62,8 @@ func columnsRegistry(c *cli.Context) schema.ColumnsRegistry {
 				c.String(dbipDestinationDirectory.Name),
 				c.Duration(dbipDownloadTimeoutFlag.Name),
 				dbip.CacheConfig{
-					MaxCost: 1024,
-					TTL:     30 * time.Second,
+					MaxEntries: 1024,
+					TTL:        30 * time.Second,
 				},
 			)
 		}

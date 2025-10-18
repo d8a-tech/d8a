@@ -24,7 +24,7 @@ type GeoColumnFactory struct {
 // NewGeoColumnFactory creates a new GeoColumnTemplate.
 func NewGeoColumnFactory(mmdbPath string, cacheConfig CacheConfig) (*GeoColumnFactory, error) {
 	cache, err := ristretto.NewCache(&ristretto.Config[string, *result]{
-		MaxCost: cacheConfig.MaxCost,
+		MaxCost: cacheConfig.MaxEntries,
 	})
 	if err != nil {
 		return nil, err
@@ -126,8 +126,8 @@ func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
 
 // CacheConfig is the configuration for the cache.
 type CacheConfig struct {
-	MaxCost int64
-	TTL     time.Duration
+	MaxEntries int64
+	TTL        time.Duration
 }
 
 // GeoColumns creates a set of geo columns from a downloader.
