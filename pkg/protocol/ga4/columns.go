@@ -211,6 +211,20 @@ var ProtocolInterfaces = struct {
 	EventParamSrsltid schema.Interface
 	EventParamAclid   schema.Interface
 	EventParamAnid    schema.Interface
+
+	// Source columns extracted from page URL
+	EventSourceManualCampaignID      schema.Interface
+	EventSourceManualCampaignName    schema.Interface
+	EventSourceManualSource          schema.Interface
+	EventSourceManualMedium          schema.Interface
+	EventSourceManualTerm            schema.Interface
+	EventSourceManualContent         schema.Interface
+	EventSourceManualSourcePlatform  schema.Interface
+	EventSourceManualCreativeFormat  schema.Interface
+	EventSourceManualMarketingTactic schema.Interface
+	EventSourceGclid                 schema.Interface
+	EventSourceDclid                 schema.Interface
+	EventSourceSrsltid               schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIParamgnoreReferrer: schema.Interface{
@@ -902,5 +916,66 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/events/params_anid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_anid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	// Source columns extracted from page URL
+	EventSourceManualCampaignID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_campaign_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_campaign_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualCampaignName: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_campaign_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_campaign_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualSource: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_source",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_source", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualMedium: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_medium",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_medium", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualTerm: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_term",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_term", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualContent: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_content",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_content", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualSourcePlatform: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_source_platform",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_source_platform", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualCreativeFormat: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_creative_format",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_creative_format", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceManualMarketingTactic: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_manual_marketing_tactic",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_manual_marketing_tactic", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceGclid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_gclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_gclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceDclid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventSourceSrsltid: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/source_srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "source_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
