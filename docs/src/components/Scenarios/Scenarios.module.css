@@ -1,0 +1,197 @@
+.scenario {
+  margin-bottom: 2rem;
+}
+
+.subScenario {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.subScenario h4 {
+  margin-top: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+table th, 
+table td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  text-align: left;
+}
+
+table th {
+  background-color: #f5f5f5;
+}
+
+ul {
+  padding-left: 1.5rem;
+}
+
+.sessionsContainer p {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.scenarioList {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  height: 100%;
+}
+
+.scenarioList ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.scenarioList li {
+  margin-bottom: 0.5rem;
+}
+
+.scenarioList li ul {
+  margin-left: 1rem;
+}
+
+.scenarioButton,
+.subScenarioButton {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.scenarioButton:hover,
+.subScenarioButton:hover {
+  background-color: #e9ecef;
+}
+
+.scenarioButton.active,
+.subScenarioButton.active {
+  background-color: #e9ecef;
+  font-weight: bold;
+}
+
+.scenarioButton {
+  font-weight: bold;
+}
+
+.subScenarioButton {
+  font-size: 0.9rem;
+}
+
+/* New styles for interactive components */
+.interactiveScenario {
+  margin-bottom: 2rem;
+}
+
+.scenarioContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.settingsContainer {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.settingsTable select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+}
+
+/* Checkbox styles */
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.checkboxLabel input[type="checkbox"] {
+  margin-right: 10px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.checkboxText {
+  font-weight: 500;
+}
+
+.noResultContainer {
+  padding: 2rem;
+  text-align: center;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  color: #6c757d;
+}
+
+.resultContainer {
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.deviceTable {
+  margin-bottom: 1.5rem;
+}
+
+/* Legend styles */
+.legendContainer {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.legendItems {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  margin-right: 1rem;
+}
+
+.colorSwatch {
+  width: 16px;
+  height: 16px;
+  border: 1px solid #ccc;
+  margin-right: 6px;
+  border-radius: 3px;
+}
+
+@media (min-width: 768px) {
+  .scenarioContent {
+    flex-direction: row;
+  }
+  
+  .settingsContainer {
+    flex: 1;
+    margin-right: 1rem;
+  }
+  
+  .resultContainer,
+  .noResultContainer {
+    flex: 2;
+  }
+} 
