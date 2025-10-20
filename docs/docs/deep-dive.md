@@ -90,7 +90,7 @@ type Hit struct {
 
 Basically it wraps all the HTTP request fields with some additional info, usable with next pipeline steps, namely:
 
-* `ClientID`, which is deeply described in [idenifiers](../identifiers.mdx). Basically it's a unique, anonymous (by itself) identifier of a client, stored on the client side (for example using cookies) and used to identify the client across multiple requests. The `ClientID` is later used to connect individual hits into proto-sessions and also for partitioning (in d8a cloud).
+* `ClientID`, which is deeply described in [idenifiers](identifiers.mdx). Basically it's a unique, anonymous (by itself) identifier of a client, stored on the client side (for example using cookies) and used to identify the client across multiple requests. The `ClientID` is later used to connect individual hits into proto-sessions and also for partitioning (in d8a cloud).
 * `PropertyID`, which is a unique identifier of a property, as GA4 understands it. Other protocols are forced to use GA4 nomenclature, but are free to store the analogous indentifiers in this field (like `Matomo` uses `idSite`). Later pipeline steps configuration, use the `PropertyID` to get the entities, that may be configured for given property, like:
 	* table layout (single merged table or separate tables for sessions and events)
 	* table columns
