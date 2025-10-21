@@ -40,6 +40,7 @@ var CoreInterfaces = struct {
 	SessionTotalEvents      schema.Interface
 	SSESessionHitNumber     schema.Interface
 	SSESessionPageNumber    schema.Interface
+	SSEIsEntry              schema.Interface
 	// Click ids
 	EventClickIDGclid   schema.Interface
 	EventClickIDDclid   schema.Interface
@@ -220,6 +221,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/session_page_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSEIsEntry: schema.Interface{
+		ID:      "core.d8a.tech/events/session_is_entry",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_is_entry", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	// Click ids
 	EventClickIDGclid: schema.Interface{

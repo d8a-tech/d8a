@@ -9,17 +9,17 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// eventPurchaseRevenueInUSDColumn creates a new event column that converts the purchase revenue to USD.
-func eventPurchaseRevenueInUSDColumn(converter currency.Converter) schema.EventColumn {
+// eventEcommercePurchaseRevenueInUSDColumn creates a new event column that converts the purchase revenue to USD.
+func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
-		ProtocolInterfaces.EventPurchaseRevenueInUSD.ID,
-		ProtocolInterfaces.EventPurchaseRevenueInUSD.Field,
+		ProtocolInterfaces.EventEcommercePurchaseRevenueInUSD.ID,
+		ProtocolInterfaces.EventEcommercePurchaseRevenueInUSD.Field,
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
-				event.Values[ProtocolInterfaces.EventPurchaseRevenue.Field.Name],
+				event.Values[ProtocolInterfaces.EventEcommercePurchaseRevenue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
@@ -28,24 +28,24 @@ func eventPurchaseRevenueInUSDColumn(converter currency.Converter) schema.EventC
 				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventPurchaseRevenue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventPurchaseRevenue.Version,
+				Interface:        ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventEcommercePurchaseRevenue.Version,
 			},
 		),
 	)
 }
 
-// eventRefundValueInUSDColumn creates a new event column that converts the refund value to USD.
-func eventRefundValueInUSDColumn(converter currency.Converter) schema.EventColumn {
+// eventEcommerceRefundValueInUSDColumn creates a new event column that converts the refund value to USD.
+func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
-		ProtocolInterfaces.EventRefundValueInUSD.ID,
-		ProtocolInterfaces.EventRefundValueInUSD.Field,
+		ProtocolInterfaces.EventEcommerceRefundValueInUSD.ID,
+		ProtocolInterfaces.EventEcommerceRefundValueInUSD.Field,
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
-				event.Values[ProtocolInterfaces.EventRefundValue.Field.Name],
+				event.Values[ProtocolInterfaces.EventEcommerceRefundValue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
@@ -54,24 +54,24 @@ func eventRefundValueInUSDColumn(converter currency.Converter) schema.EventColum
 				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventRefundValue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventRefundValue.Version,
+				Interface:        ProtocolInterfaces.EventEcommerceRefundValue.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceRefundValue.Version,
 			},
 		),
 	)
 }
 
-// eventShippingValueInUSDColumn creates a new event column that converts the shipping value to USD.
-func eventShippingValueInUSDColumn(converter currency.Converter) schema.EventColumn {
+// eventEcommerceShippingValueInUSDColumn creates a new event column that converts the shipping value to USD.
+func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
-		ProtocolInterfaces.EventShippingValueInUSD.ID,
-		ProtocolInterfaces.EventShippingValueInUSD.Field,
+		ProtocolInterfaces.EventEcommerceShippingValueInUSD.ID,
+		ProtocolInterfaces.EventEcommerceShippingValueInUSD.Field,
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
-				event.Values[ProtocolInterfaces.EventShippingValue.Field.Name],
+				event.Values[ProtocolInterfaces.EventEcommerceShippingValue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
@@ -80,24 +80,33 @@ func eventShippingValueInUSDColumn(converter currency.Converter) schema.EventCol
 				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventShippingValue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventShippingValue.Version,
+				Interface:        ProtocolInterfaces.EventEcommerceShippingValue.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceShippingValue.Version,
 			},
 		),
 	)
 }
 
-// eventTaxValueInUSDColumn creates a new event column that converts the tax value to USD.
-func eventTaxValueInUSDColumn(converter currency.Converter) schema.EventColumn {
+// This is taken from parameter
+var eventEcommerceTaxValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceTaxValue.ID,
+	ProtocolInterfaces.EventEcommerceTaxValue.Field,
+	"epn.tax",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
+)
+
+// eventEcommerceTaxValueInUSDColumn creates a new event column that converts the tax value to USD.
+func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
-		ProtocolInterfaces.EventTaxValueInUSD.ID,
-		ProtocolInterfaces.EventTaxValueInUSD.Field,
+		ProtocolInterfaces.EventEcommerceTaxValueInUSD.ID,
+		ProtocolInterfaces.EventEcommerceTaxValueInUSD.Field,
 		func(event *schema.Event) (any, error) {
 			return currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
-				event.Values[ProtocolInterfaces.EventParamTax.Field.Name],
+				event.Values[ProtocolInterfaces.EventEcommerceTaxValue.Field.Name],
 			)
 		},
 		columns.WithEventColumnDependsOn(
@@ -106,8 +115,8 @@ func eventTaxValueInUSDColumn(converter currency.Converter) schema.EventColumn {
 				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamTax.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamTax.Version,
+				Interface:        ProtocolInterfaces.EventEcommerceTaxValue.ID,
+				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceTaxValue.Version,
 			},
 		),
 	)

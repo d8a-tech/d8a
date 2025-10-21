@@ -139,9 +139,9 @@ var eventShippingColumn = columns.FromQueryParamEventColumn(
 // On surface duplicates the above - nevertheless it's in the dataform, so including it for now
 // I guess the reasoning that is the former contains raw param value, while the latter
 // draws some conclusions, like using zero value if the param is empty
-var eventShippingValueColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventShippingValue.ID,
-	ProtocolInterfaces.EventShippingValue.Field,
+var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventEcommerceShippingValue.ID,
+	ProtocolInterfaces.EventEcommerceShippingValue.Field,
 	func(event *schema.Event) (any, error) {
 		shipping := event.Values[ProtocolInterfaces.EventParamShipping.Field.Name]
 		if shipping == nil {
@@ -184,7 +184,7 @@ var eventPaymentTypeColumn = columns.FromQueryParamEventColumn(
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-var eventTaxColumn = columns.FromQueryParamEventColumn(
+var eventParamTaxColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamTax.ID,
 	ProtocolInterfaces.EventParamTax.Field,
 	"epn.tax",

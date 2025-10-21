@@ -787,7 +787,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "epn.shipping",
 			value:       "10.00",
 			expected:    float64(10.00),
-			fieldName:   "shipping_value",
+			fieldName:   "ecommerce_shipping_value",
 			description: "Valid shipping value",
 		},
 		{
@@ -795,7 +795,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "epn.shipping",
 			value:       "",
 			expected:    float64(0),
-			fieldName:   "shipping_value",
+			fieldName:   "ecommerce_shipping_value",
 			description: "Empty shipping value should be nil",
 		},
 		{
@@ -803,7 +803,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "epn.shipping",
 			value:       "invalid",
 			expected:    float64(0),
-			fieldName:   "shipping_value",
+			fieldName:   "ecommerce_shipping_value",
 			description: "Invalid shipping value should be nil",
 		},
 		{
@@ -1920,8 +1920,8 @@ func TestEventColumns(t *testing.T) {
 			param:       "foo",
 			value:       "bar",
 			expected:    int64(0),
-			fieldName:   "items_total_quantity",
-			description: "If items are not present, items_total_quantity should be 0",
+			fieldName:   "ecommerce_items_total_quantity",
+			description: "If items are not present, ecommerce_items_total_quantity should be 0",
 		},
 		{
 			name:        "GclidParam_Valid",
