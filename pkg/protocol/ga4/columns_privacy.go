@@ -1,0 +1,61 @@
+package ga4
+
+import (
+	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/util"
+	"github.com/sirupsen/logrus"
+)
+
+func parseBooleanFromQueryParamOrNilColumn(
+	interfaceID schema.InterfaceID,
+	field *arrow.Field,
+	queryParam string,
+	index int,
+) schema.EventColumn {
+	return columns.NewSimpleEventColumn(
+		interfaceID,
+		field,
+		func(event *schema.Event) (any, error) {
+			p := event.BoundHit.QueryParams.Get(queryParam)
+			if p == "" {
+				return nil, nil // nolint:nilnil // nil is valid
+			}
+			if len(p) < index {
+				logrus.Warnf(
+					"%s: %s: index %d is out of bounds",
+					interfaceID,
+					p,
+					index,
+				)
+				return nil, nil // nolint:nilnil // nil is valid
+			}
+			char := string(p[index])
+			boolVal, err := util.StrToBool(char)
+			if err != nil {
+				logrus.Warnf(
+					"%s: %v",
+					interfaceID,
+					err,
+				)
+				return nil, nil // nolint:nilnil // nil is valid
+			}
+			return boolVal, nil
+		},
+	)
+}
+
+var eventPrivacyAnalyticsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
+	ProtocolInterfaces.EventPrivacyAnalyticsStorage.ID,
+	ProtocolInterfaces.EventPrivacyAnalyticsStorage.Field,
+	"gcs",
+	3,
+)
+
+var eventPrivacyAdsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
+	ProtocolInterfaces.EventPrivacyAdsStorage.ID,
+	ProtocolInterfaces.EventPrivacyAdsStorage.Field,
+	"gcs",
+	2,
+)

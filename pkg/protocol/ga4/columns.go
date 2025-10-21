@@ -230,6 +230,10 @@ var ProtocolInterfaces = struct {
 
 	// _p parameter (page load hash, usually contains a timestamp in milliseconds. If not - returns nil)
 	EventPageLoadHash schema.Interface
+
+	// Privacy
+	EventPrivacyAnalyticsStorage schema.Interface
+	EventPrivacyAdsStorage       schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIParamgnoreReferrer: schema.Interface{
@@ -992,5 +996,15 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/page_load_hash",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "page_load_hash", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+	},
+	EventPrivacyAnalyticsStorage: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/privacy_analytics_storage",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "privacy_analytics_storage", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	EventPrivacyAdsStorage: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/privacy_ads_storage",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "privacy_ads_storage", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 }
