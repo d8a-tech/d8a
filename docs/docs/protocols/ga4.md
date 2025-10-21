@@ -6,6 +6,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
     3rd party references used:
         * https://datajournal.datakyu.co/ga4-api-reference/
         * https://www.thyngster.com/ga4-measurement-protocol-cheatsheet/
+        * https://medium.com/@mssvarma06/ga4-measurement-protocol-parameter-reference-b63d87bbe0eb
 :::
 
 ## Method
@@ -57,7 +58,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `_dbg` | bool | is Debug - indicates debug mode | No |
 | `ir` | bool | Ignore Referrer - if present and true, referrer is ignored. [GA4 docs](https://support.google.com/analytics/answer/10327750?hl=en) | No |
 | `tt` | string | Traffic Type | No |
-| `gcs` | string | Google Consent Status | No |
+| `gcs` | string | Encodes the current google consent status in the format `G<FunctionalStorageStatus><AdStorageStatus><AnalyticsStorageStatus>` | No |
 | `gcu` | string | Google Consent Update | No |
 | `gcut` | string | Google Consent Update Type | No |
 | `gcd` | string | Google Consent Default | No |

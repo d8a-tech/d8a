@@ -391,6 +391,9 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventTimestampUTCColumn,
 			eventDateUTCColumn,
 			eventPageLoadHashColumn,
+			// Privacy columns
+			eventPrivacyAnalyticsStorageColumn,
+			eventPrivacyAdsStorageColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,
