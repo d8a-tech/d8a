@@ -151,14 +151,6 @@ func handlePing(md map[string]string, c *Context, middlewares []Middleware) (boo
 // sortHitsByTime sorts hits by their ServerReceivedTime in chronological order.
 func sortHitsByTime(hits []*hits.Hit) {
 	sort.Slice(hits, func(i, j int) bool {
-		timeI, errI := time.Parse(time.RFC3339, hits[i].ServerReceivedTime)
-		if errI != nil {
-			return false
-		}
-		timeJ, errJ := time.Parse(time.RFC3339, hits[j].ServerReceivedTime)
-		if errJ != nil {
-			return false
-		}
-		return timeI.Before(timeJ)
+		return hits[i].ServerReceivedTime.Before(hits[j].ServerReceivedTime)
 	})
 }

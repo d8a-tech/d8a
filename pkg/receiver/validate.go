@@ -63,14 +63,6 @@ var PropertyIDNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 	return nil
 })
 
-// TimestampNotZero validates that Timestamp is not zero.
-var TimestampNotZero = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.Timestamp.IsZero() {
-		return fmt.Errorf("hit.Timestamp can not be zero")
-	}
-	return nil
-})
-
 // HitHeadersNotEmpty validates that Headers are not empty.
 var HitHeadersNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 	if len(hit.Headers) == 0 {
@@ -124,7 +116,6 @@ func HitValidatingRuleSet() HitValidatingRule {
 	return NewMultipleHitValidatingRule(
 		ClientIDNotEmpty,
 		PropertyIDNotEmpty,
-		TimestampNotZero,
 		HitHeadersNotEmpty,
 		HitQueryParamsNotNil,
 		HitHostNotEmpty,

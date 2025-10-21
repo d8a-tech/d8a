@@ -27,14 +27,13 @@ type Hit struct {
 	PropertyID         string            `cbor:"pi"`
 	IP                 string            `cbor:"ip"`
 	Host               string            `cbor:"h"`
-	ServerReceivedTime string            `cbor:"srt"`
+	ServerReceivedTime time.Time         `cbor:"srt"`
 	QueryParams        url.Values        `cbor:"qp"`
 	Body               []byte            `cbor:"bd"`
 	Path               string            `cbor:"p"`
 	Method             string            `cbor:"m"`
 	Headers            url.Values        `cbor:"he"`
 	Metadata           map[string]string `cbor:"md"`
-	Timestamp          time.Time         `cbor:"ts"`
 	UserID             *string           `cbor:"uid"`
 }
 
@@ -57,8 +56,7 @@ func New() *Hit {
 		ID:                    uuid.New().String(),
 		ClientID:              ClientID(clientID),
 		AuthoritativeClientID: ClientID(clientID),
-		Timestamp:             time.Unix(0, 0).UTC(),
-		ServerReceivedTime:    time.Now().Format(time.RFC3339),
+		ServerReceivedTime:    time.Now(),
 	}
 }
 
@@ -72,7 +70,7 @@ func (h *Hit) Size() uint32 {
 	size += util.SafeIntToUint32(len(h.ClientID))
 	size += util.SafeIntToUint32(len(h.IP))
 	size += util.SafeIntToUint32(len(h.Host))
-	size += util.SafeIntToUint32(len(h.ServerReceivedTime))
+	size += 256 // Estimated size of time.Time
 	size += util.SafeIntToUint32(len(h.Body))
 	size += util.SafeIntToUint32(len(h.Path))
 	size += util.SafeIntToUint32(len(h.Method))

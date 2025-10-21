@@ -11,8 +11,8 @@ import (
 var CoreInterfaces = struct {
 	EventID                 schema.Interface
 	EventName               schema.Interface
-	EventTimestamp          schema.Interface
-	EventDate               schema.Interface
+	EventTimestampUTC       schema.Interface
+	EventDateUTC            schema.Interface
 	EventPageTitle          schema.Interface
 	EventPageReferrer       schema.Interface
 	EventPagePath           schema.Interface
@@ -77,15 +77,15 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "event_name", Type: arrow.BinaryTypes.String},
 	},
-	EventTimestamp: schema.Interface{
-		ID:      "core.d8a.tech/events/timestamp",
+	EventTimestampUTC: schema.Interface{
+		ID:      "core.d8a.tech/events/event_timestamp_utc",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s},
+		Field:   &arrow.Field{Name: "event_timestamp_utc", Type: arrow.FixedWidthTypes.Timestamp_s},
 	},
-	EventDate: schema.Interface{
-		ID:      "core.d8a.tech/events/date",
+	EventDateUTC: schema.Interface{
+		ID:      "core.d8a.tech/events/event_date_utc",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "event_date", Type: arrow.FixedWidthTypes.Date32},
+		Field:   &arrow.Field{Name: "event_date_utc", Type: arrow.FixedWidthTypes.Date32},
 	},
 	EventPageTitle: schema.Interface{
 		ID:      "core.d8a.tech/events/page_title",

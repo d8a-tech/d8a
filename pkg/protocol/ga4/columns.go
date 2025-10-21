@@ -227,6 +227,9 @@ var ProtocolInterfaces = struct {
 	EventSourceGclid                 schema.Interface
 	EventSourceDclid                 schema.Interface
 	EventSourceSrsltid               schema.Interface
+
+	// _p parameter (page load hash, usually contains a timestamp in milliseconds. If not - returns nil)
+	EventPageLoadHash schema.Interface
 }{
 	// ignore_referrer - used in session_start event
 	EventIParamgnoreReferrer: schema.Interface{
@@ -984,5 +987,10 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/source_srsltid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "source_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPageLoadHash: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/page_load_hash",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "page_load_hash", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 	},
 }

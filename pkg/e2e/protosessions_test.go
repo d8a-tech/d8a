@@ -92,7 +92,7 @@ func TestProtosessions(t *testing.T) {
 	// First hit
 	firstHit := hits.New()
 	firstHit.IP = "127.0.0.1"
-	firstHit.ServerReceivedTime = "2025-01-01T00:00:00Z"
+	firstHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{
 			firstHit,
@@ -118,7 +118,7 @@ func TestProtosessions(t *testing.T) {
 	// Second hit
 	secondHit := hits.New()
 	secondHit.IP = "127.0.0.1"
-	secondHit.ServerReceivedTime = "2025-01-01T00:00:02Z"
+	secondHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).Add(2 * time.Second)
 	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{secondHit},
 	}))
@@ -138,7 +138,7 @@ func TestProtosessions(t *testing.T) {
 	// to a point where the first and second hit are closed
 	thirdHit := hits.New()
 	thirdHit.IP = "127.0.0.2"
-	thirdHit.ServerReceivedTime = "2025-01-01T00:00:10Z"
+	thirdHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).Add(10 * time.Second)
 	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{thirdHit},
 	}))
@@ -282,6 +282,6 @@ var now = time.Now()
 func newHitAfter(d time.Duration) *hits.Hit {
 	h := hits.New()
 	h.PropertyID = "1337"
-	h.ServerReceivedTime = now.Add(d).Format(time.RFC3339)
+	h.ServerReceivedTime = now.Add(d)
 	return h
 }

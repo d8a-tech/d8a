@@ -29,15 +29,7 @@ func (c *directCloser) Close(protosession []*hits.Hit) error {
 
 	// Sort events by server received time
 	sort.Slice(protosession, func(i, j int) bool {
-		timeI, errI := time.Parse(time.RFC3339, protosession[i].ServerReceivedTime)
-		timeJ, errJ := time.Parse(time.RFC3339, protosession[j].ServerReceivedTime)
-
-		// If parsing fails, keep original order for those items
-		if errI != nil || errJ != nil {
-			return false
-		}
-
-		return timeI.Before(timeJ)
+		return protosession[i].ServerReceivedTime.Before(protosession[j].ServerReceivedTime)
 	})
 
 	session := &schema.Session{
