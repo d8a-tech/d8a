@@ -224,12 +224,12 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			items:        []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
 			eventName:    "refund",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(3), record["items_total_quantity"])
-				assert.Equal(t, 0.0, record["purchase_revenue"])
-				assert.Equal(t, 0.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 30.03, record["refund_value"])
-				assert.Equal(t, 15.02, record["refund_value_in_usd"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(3), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 0.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 0.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 30.03, record["ecommerce_refund_value"])
+				assert.Equal(t, 15.02, record["ecommerce_refund_value_in_usd"])
 			},
 		},
 		{
@@ -238,11 +238,11 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			items:        []item{{itemID: "SKU_12345", price: 10.01, quantity: 3.0}},
 			eventName:    "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(3), record["items_total_quantity"])
-				assert.Equal(t, 30.03, record["purchase_revenue"])
-				assert.Equal(t, 15.02, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(3), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 30.03, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 15.02, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 			},
 		},
 		{
@@ -253,11 +253,11 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			},
 			eventName: "refund",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(2), record["unique_items"])
-				assert.Equal(t, int64(7), record["items_total_quantity"])
-				assert.Equal(t, 0.0, record["purchase_revenue"])
-				assert.Equal(t, nil, record["purchase_revenue_in_usd"]) // no currency defined
-				assert.Equal(t, 70.11, record["refund_value"])
+				assert.Equal(t, int64(2), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(7), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 0.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, nil, record["ecommerce_purchase_revenue_in_usd"]) // no currency defined
+				assert.Equal(t, 70.11, record["ecommerce_refund_value"])
 			},
 		},
 		{
@@ -268,10 +268,10 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			},
 			eventName: "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(2), record["unique_items"])
-				assert.Equal(t, int64(7), record["items_total_quantity"])
-				assert.Equal(t, 70.11, record["purchase_revenue"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(2), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(7), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 70.11, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 			},
 		},
 		{
@@ -282,10 +282,10 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			},
 			eventName: "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(7), record["items_total_quantity"])
-				assert.Equal(t, 70.11, record["purchase_revenue"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(7), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 70.11, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 			},
 		},
 		{
@@ -294,12 +294,12 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			items:        []item{{itemID: "SKU_12345", price: 20.0, quantity: 2.0}},
 			eventName:    "refund",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(2), record["items_total_quantity"])
-				assert.Equal(t, 0.0, record["purchase_revenue"])
-				assert.Equal(t, 0.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 40.0, record["refund_value"])
-				assert.Equal(t, 20.0, record["refund_value_in_usd"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(2), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 0.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 0.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 40.0, record["ecommerce_refund_value"])
+				assert.Equal(t, 20.0, record["ecommerce_refund_value_in_usd"])
 			},
 		},
 		{
@@ -308,14 +308,14 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
 			eventName:    "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(1), record["items_total_quantity"])
-				assert.Equal(t, 10.0, record["purchase_revenue"])
-				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(1), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 10.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 5.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 				// shipping_value returns 0.0 when no ep.shipping param is provided
-				assert.Equal(t, 0.0, record["shipping_value"])
-				assert.Equal(t, 0.0, record["shipping_value_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_shipping_value"])
+				assert.Equal(t, 0.0, record["ecommerce_shipping_value_in_usd"])
 			},
 		},
 		{
@@ -325,14 +325,14 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			eventName:    "purchase",
 			shipping:     func() *float64 { v := 3.0; return &v }(),
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(1), record["items_total_quantity"])
-				assert.Equal(t, 10.0, record["purchase_revenue"])
-				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(1), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 10.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 5.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 				// shipping_value should be 3.0 EUR, shipping_value_in_usd should be 1.5 USD (3.0 * 0.5)
-				assert.Equal(t, 3.0, record["shipping_value"])
-				assert.Equal(t, 1.5, record["shipping_value_in_usd"])
+				assert.Equal(t, 3.0, record["ecommerce_shipping_value"])
+				assert.Equal(t, 1.5, record["ecommerce_shipping_value_in_usd"])
 			},
 		},
 		{
@@ -341,14 +341,14 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			items:        []item{{itemID: "SKU_12345", price: 10.0, quantity: 1.0}},
 			eventName:    "purchase",
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(1), record["items_total_quantity"])
-				assert.Equal(t, 10.0, record["purchase_revenue"])
-				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(1), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 10.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 5.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 				// tax_value and tax_value_in_usd will be nil without ep.tax param
-				assert.Equal(t, nil, record["tax_value"])
-				assert.Equal(t, nil, record["tax_value_in_usd"])
+				assert.Equal(t, nil, record["ecommerce_tax_value"])
+				assert.Equal(t, nil, record["ecommerce_tax_value_in_usd"])
 			},
 		},
 		{
@@ -358,14 +358,14 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			eventName:    "purchase",
 			tax:          func() *float64 { v := 2.0; return &v }(),
 			assertFunc: func(t *testing.T, record map[string]any) {
-				assert.Equal(t, int64(1), record["unique_items"])
-				assert.Equal(t, int64(1), record["items_total_quantity"])
-				assert.Equal(t, 10.0, record["purchase_revenue"])
-				assert.Equal(t, 5.0, record["purchase_revenue_in_usd"])
-				assert.Equal(t, 0.0, record["refund_value"])
+				assert.Equal(t, int64(1), record["ecommerce_unique_items"])
+				assert.Equal(t, int64(1), record["ecommerce_items_total_quantity"])
+				assert.Equal(t, 10.0, record["ecommerce_purchase_revenue"])
+				assert.Equal(t, 5.0, record["ecommerce_purchase_revenue_in_usd"])
+				assert.Equal(t, 0.0, record["ecommerce_refund_value"])
 				// params_tax should be 2.0 EUR, tax_value_in_usd should be 1.0 USD (2.0 * 0.5)
-				assert.Equal(t, 2.0, record["params_tax"])
-				assert.Equal(t, 1.0, record["tax_value_in_usd"])
+				assert.Equal(t, 2.0, record["ecommerce_tax_value"])
+				assert.Equal(t, 1.0, record["ecommerce_tax_value_in_usd"])
 			},
 		},
 	}

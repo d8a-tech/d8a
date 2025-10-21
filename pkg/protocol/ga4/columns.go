@@ -55,23 +55,25 @@ var ProtocolInterfaces = struct {
 	EventParamContentDescription schema.Interface
 	// E-commerce params
 	// https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
-	EventParamCoupon          schema.Interface
-	EventParamCurrency        schema.Interface
-	EventParamShipping        schema.Interface
-	EventParamShippingTier    schema.Interface
-	EventParamPaymentType     schema.Interface
-	EventParamTax             schema.Interface
-	EventParamTransactionID   schema.Interface
-	EventParamValue           schema.Interface
-	EventPurchaseRevenue      schema.Interface
-	EventPurchaseRevenueInUSD schema.Interface
-	EventRefundValue          schema.Interface
-	EventRefundValueInUSD     schema.Interface
-	EventShippingValue        schema.Interface
-	EventShippingValueInUSD   schema.Interface
-	EventTaxValueInUSD        schema.Interface
-	EventUniqueItems          schema.Interface
-	EventItemsTotalQuantity   schema.Interface
+	EventParamCoupon        schema.Interface
+	EventParamCurrency      schema.Interface
+	EventParamShipping      schema.Interface
+	EventParamShippingTier  schema.Interface
+	EventParamPaymentType   schema.Interface
+	EventParamTax           schema.Interface
+	EventParamTransactionID schema.Interface
+	EventParamValue         schema.Interface
+	// E-commerce columns
+	EventEcommercePurchaseRevenue      schema.Interface
+	EventEcommercePurchaseRevenueInUSD schema.Interface
+	EventEcommerceRefundValue          schema.Interface
+	EventEcommerceRefundValueInUSD     schema.Interface
+	EventEcommerceShippingValue        schema.Interface
+	EventEcommerceShippingValueInUSD   schema.Interface
+	EventEcommerceTaxValue             schema.Interface
+	EventEcommerceTaxValueInUSD        schema.Interface
+	EventEcommerceUniqueItems          schema.Interface
+	EventEcommerceItemsTotalQuantity   schema.Interface
 
 	// Item list params
 	EventParamItemListID   schema.Interface
@@ -328,50 +330,55 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventPurchaseRevenue: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/purchase_revenue",
+	EventEcommercePurchaseRevenue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_purchase_revenue",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "purchase_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_purchase_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventPurchaseRevenueInUSD: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/purchase_revenue_in_usd",
+	EventEcommercePurchaseRevenueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_purchase_revenue_in_usd",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "purchase_revenue_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_purchase_revenue_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventRefundValue: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/refund_value",
+	EventEcommerceRefundValue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_refund_value",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "refund_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_refund_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventRefundValueInUSD: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/refund_value_in_usd",
+	EventEcommerceRefundValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_refund_value_in_usd",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "refund_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_refund_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventShippingValue: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/shipping_value",
+	EventEcommerceShippingValue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_shipping_value",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "shipping_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_shipping_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventShippingValueInUSD: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/shipping_value_in_usd",
+	EventEcommerceShippingValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_shipping_value_in_usd",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "shipping_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_shipping_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventTaxValueInUSD: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/tax_value_in_usd",
+	EventEcommerceTaxValue: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_tax_value",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "tax_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_tax_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventUniqueItems: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/unique_items",
+	EventEcommerceTaxValueInUSD: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_tax_value_in_usd",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "unique_items", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_tax_value_in_usd", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
-	EventItemsTotalQuantity: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/items_total_quantity",
+	EventEcommerceUniqueItems: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_unique_items",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "ecommerce_unique_items", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	EventEcommerceItemsTotalQuantity: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ecommerce_items_total_quantity",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionEngagement: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/engagement",

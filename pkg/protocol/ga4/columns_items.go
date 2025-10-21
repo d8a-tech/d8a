@@ -270,9 +270,9 @@ func NewItemsBasedEventColumn[T int64 | float64](
 	)
 }
 
-var eventPurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
-	ProtocolInterfaces.EventPurchaseRevenue.ID,
-	ProtocolInterfaces.EventPurchaseRevenue.Field,
+var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
+	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
+	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
 	func(event *schema.Event, item map[string]any) (float64, error) {
 		if event.Values[columns.CoreInterfaces.EventName.Field.Name] == RefundEventType {
 			return float64(0), nil
@@ -288,9 +288,9 @@ var eventPurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 	},
 )
 
-var eventRefundValueColumn = NewItemsBasedEventColumn[float64](
-	ProtocolInterfaces.EventRefundValue.ID,
-	ProtocolInterfaces.EventRefundValue.Field,
+var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn[float64](
+	ProtocolInterfaces.EventEcommerceRefundValue.ID,
+	ProtocolInterfaces.EventEcommerceRefundValue.Field,
 	func(event *schema.Event, item map[string]any) (float64, error) {
 		if event.Values[columns.CoreInterfaces.EventName.Field.Name] != RefundEventType {
 			return float64(0), nil
@@ -306,9 +306,9 @@ var eventRefundValueColumn = NewItemsBasedEventColumn[float64](
 	},
 )
 
-var eventUniqueItemsColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventUniqueItems.ID,
-	ProtocolInterfaces.EventUniqueItems.Field,
+var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventEcommerceUniqueItems.ID,
+	ProtocolInterfaces.EventEcommerceUniqueItems.Field,
 	func(event *schema.Event) (any, error) {
 
 		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
@@ -356,9 +356,9 @@ var eventUniqueItemsColumn = columns.NewSimpleEventColumn(
 	),
 )
 
-var eventItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventItemsTotalQuantity.ID,
-	ProtocolInterfaces.EventItemsTotalQuantity.Field,
+var eventEcommerceItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.ID,
+	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field,
 	func(event *schema.Event) (any, error) {
 		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
 		if items == nil {
