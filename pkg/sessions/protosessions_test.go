@@ -28,15 +28,15 @@ var _ SessionWriter = (*mockSessionWriter)(nil)
 
 func TestDirectCloser_Close(t *testing.T) {
 	// Test times in RFC3339 format
-	time1 := "2023-01-01T10:00:00Z"
-	time2 := "2023-01-01T11:00:00Z"
-	time3 := "2023-01-01T12:00:00Z"
-	time4 := "2023-01-01T13:00:00Z"
+	time1 := time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC)
+	time3 := time.Date(2023, 1, 1, 12, 0, 0, 0, time.UTC)
+	time4 := time.Date(2023, 1, 1, 13, 0, 0, 0, time.UTC)
 
 	tests := []struct {
 		name          string
 		protosession  []*hits.Hit
-		expectedOrder []string // expected order of ServerReceivedTime
+		expectedOrder []time.Time // expected order of ServerReceivedTime
 		writerError   error
 		expectedError bool
 		expectedCalls int
@@ -49,7 +49,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				{ID: "hit4", PropertyID: "prop1", ServerReceivedTime: time4},
 				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
 			},
-			expectedOrder: []string{time1, time2, time3, time4},
+			expectedOrder: []time.Time{time1, time2, time3, time4},
 			expectedCalls: 1,
 		},
 		{
@@ -59,7 +59,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
 				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time3},
 			},
-			expectedOrder: []string{time1, time2, time3},
+			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
 		},
 		{
@@ -69,7 +69,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
 				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
 			},
-			expectedOrder: []string{time1, time2, time3},
+			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
 		},
 		{
@@ -77,13 +77,13 @@ func TestDirectCloser_Close(t *testing.T) {
 			protosession: []*hits.Hit{
 				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
 			},
-			expectedOrder: []string{time1},
+			expectedOrder: []time.Time{time1},
 			expectedCalls: 1,
 		},
 		{
 			name:          "empty protosession",
 			protosession:  []*hits.Hit{},
-			expectedOrder: []string{},
+			expectedOrder: []time.Time{},
 			expectedCalls: 0,
 		},
 		{
@@ -93,19 +93,19 @@ func TestDirectCloser_Close(t *testing.T) {
 				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time1},
 				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time2},
 			},
-			expectedOrder: []string{time1, time1, time2},
+			expectedOrder: []time.Time{time1, time1, time2},
 			expectedCalls: 1,
 		},
 		{
 			name: "events with invalid time format - should not crash",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: "invalid-time"},
+				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)},
 				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
 				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time1},
 			},
 			// Invalid times should maintain original order relative to each other
 			// Valid times should be sorted
-			expectedOrder: []string{"invalid-time", time1, time2},
+			expectedOrder: []time.Time{time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC), time1, time2},
 			expectedCalls: 1,
 		},
 		{
@@ -113,7 +113,7 @@ func TestDirectCloser_Close(t *testing.T) {
 			protosession: []*hits.Hit{
 				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
 			},
-			expectedOrder: []string{time1},
+			expectedOrder: []time.Time{time1},
 			writerError:   assert.AnError,
 			expectedError: true,
 			expectedCalls: 1,
@@ -150,7 +150,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				assert.NotNil(t, session.Values)
 
 				// Verify events are sorted by ServerReceivedTime
-				actualOrder := make([]string, len(session.Events))
+				actualOrder := make([]time.Time, len(session.Events))
 				for i, event := range session.Events {
 					actualOrder[i] = event.BoundHit.ServerReceivedTime
 				}
@@ -187,13 +187,12 @@ func TestDirectCloser_Close_EmptyProtosession(t *testing.T) {
 func TestDirectCloser_SortingStability(t *testing.T) {
 	// Test that the sorting is stable for events with same timestamps
 	baseTime := time.Now()
-	sameTimeStr := baseTime.Format(time.RFC3339)
 
 	// given
 	protosession := []*hits.Hit{
-		{ID: "first", PropertyID: "prop1", ServerReceivedTime: sameTimeStr},
-		{ID: "second", PropertyID: "prop1", ServerReceivedTime: sameTimeStr},
-		{ID: "third", PropertyID: "prop1", ServerReceivedTime: sameTimeStr},
+		{ID: "first", PropertyID: "prop1", ServerReceivedTime: baseTime},
+		{ID: "second", PropertyID: "prop1", ServerReceivedTime: baseTime},
+		{ID: "third", PropertyID: "prop1", ServerReceivedTime: baseTime},
 	}
 
 	mockWriter := &mockSessionWriter{}
@@ -212,7 +211,7 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 
 	// All events should have the same timestamp
 	for _, event := range session.Events {
-		assert.Equal(t, sameTimeStr, event.BoundHit.ServerReceivedTime)
+		assert.Equal(t, baseTime, event.BoundHit.ServerReceivedTime)
 	}
 }
 

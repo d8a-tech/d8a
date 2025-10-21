@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/url"
 	"testing"
-	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -61,7 +60,6 @@ func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 		}
 	}
 	theHit.Body = body
-	theHit.Timestamp = time.Now()
 	return []*hits.Hit{theHit}, m.err
 }
 

@@ -37,9 +37,7 @@ func TestCloserTick(t *testing.T) {
 
 	firstHit := hits.New()
 	firstHit.AuthoritativeClientID = "1337"
-	firstHit.ServerReceivedTime = "2020-01-01T00:00:00Z"
-	startTime, err := time.Parse(time.RFC3339, firstHit.ServerReceivedTime)
-	require.NoError(t, err)
+	firstHit.ServerReceivedTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	ctx := &Context{
 		StorageKV:      kv,
@@ -64,7 +62,7 @@ func TestCloserTick(t *testing.T) {
 
 	// and: simulate the first hit being stored (worker logic)
 	b := bytes.NewBuffer(nil)
-	_, err = ctx.Encoder(b, firstHit)
+	_, err := ctx.Encoder(b, firstHit)
 	require.NoError(t, err)
 	err = ctx.StorageSet.Add([]byte(ProtoSessionHitsKey(firstHit.AuthoritativeClientID)), b.Bytes())
 	require.NoError(t, err)
@@ -72,7 +70,7 @@ func TestCloserTick(t *testing.T) {
 	// and: a second hit arrives after expiration window
 	secondHit := hits.New()
 	secondHit.AuthoritativeClientID = "1338"
-	secondHit.ServerReceivedTime = startTime.Add(2 * time.Second).Format(time.RFC3339)
+	secondHit.ServerReceivedTime = firstHit.ServerReceivedTime.Add(2 * time.Second)
 
 	// when: handling the second hit
 	nextCalled = false
@@ -115,15 +113,15 @@ func TestCloseTriggerMiddleware_Sorted(t *testing.T) {
 	// Create hits with different server received times (intentionally out of order)
 	hit1 := hits.New()
 	hit1.ID = "hit1"
-	hit1.ServerReceivedTime = "2020-01-01T00:00:03Z" // Latest
+	hit1.ServerReceivedTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Add(3 * time.Second)
 
 	hit2 := hits.New()
 	hit2.ID = "hit2"
-	hit2.ServerReceivedTime = "2020-01-01T00:00:01Z" // Earliest
+	hit2.ServerReceivedTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Add(1 * time.Second)
 
 	hit3 := hits.New()
 	hit3.ID = "hit3"
-	hit3.ServerReceivedTime = "2020-01-01T00:00:02Z" // Middle
+	hit3.ServerReceivedTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Add(2 * time.Second)
 
 	unsortedHits := []*hits.Hit{hit1, hit2, hit3}
 
@@ -172,7 +170,7 @@ func TestCloseTriggerMiddleware_SortedEmptyAndSingle(t *testing.T) {
 	// when: single hit
 	singleHit := hits.New()
 	singleHit.ID = "single"
-	singleHit.ServerReceivedTime = "2020-01-01T00:00:00Z"
+	singleHit.ServerReceivedTime = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	sortedSingle, err := mw.sorted([]*hits.Hit{singleHit})
 

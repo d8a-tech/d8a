@@ -27,10 +27,7 @@ type closeTriggerMiddleware struct {
 }
 
 func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() error) error {
-	serverReceivedTime, err := time.Parse(time.RFC3339, hit.ServerReceivedTime)
-	if err != nil {
-		return err
-	}
+	serverReceivedTime := hit.ServerReceivedTime
 	m.lastCtx = ctx
 	logrus.Debugf("Handling hit: %s/%s", hit.AuthoritativeClientID, hit.ID)
 	m.lastHandledHitTime = serverReceivedTime
@@ -39,7 +36,7 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 	// We are setting the bucket calculated for serverReceivedTime as the bucket when the
 	// proto-session will expire. This is overridden with every consecutive hit with the same
 	// client ID.
-	_, err = m.kv.Set([]byte(ExpirationKey(string(hit.AuthoritativeClientID))), []byte(
+	_, err := m.kv.Set([]byte(ExpirationKey(string(hit.AuthoritativeClientID))), []byte(
 		fmt.Sprintf("%d", expirationTimeBucket),
 	))
 	if err != nil {
@@ -229,17 +226,7 @@ func (m *closeTriggerMiddleware) sorted(allHits []*hits.Hit) ([]*hits.Hit, error
 
 	// Sort by ServerReceivedTime
 	sort.Slice(sorted, func(i, j int) bool {
-		timeI, err := time.Parse(time.RFC3339, sorted[i].ServerReceivedTime)
-		if err != nil {
-			logrus.Errorf("Failed to parse ServerReceivedTime for hit %s: %v", sorted[i].ID, err)
-			return false
-		}
-		timeJ, err := time.Parse(time.RFC3339, sorted[j].ServerReceivedTime)
-		if err != nil {
-			logrus.Errorf("Failed to parse ServerReceivedTime for hit %s: %v", sorted[j].ID, err)
-			return false
-		}
-		return timeI.Before(timeJ)
+		return sorted[i].ServerReceivedTime.Before(sorted[j].ServerReceivedTime)
 	})
 
 	return sorted, nil

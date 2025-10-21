@@ -24,7 +24,7 @@ var testHitOne = &hits.Hit{
 	PropertyID:            "G-5T0Z13HKP4",
 	IP:                    "127.0.0.1",
 	Host:                  "localhost.d8astage.xyz",
-	ServerReceivedTime:    time.Now().Format(time.RFC3339),
+	ServerReceivedTime:    time.Now(),
 	QueryParams: url.Values{
 		"v":                []string{"2"},
 		"tid":              []string{"G-5T0Z13HKP4"},
@@ -81,8 +81,7 @@ var testHitOne = &hits.Hit{
 		"sec-fetch-site":     []string{"cross-site"},
 		"user-agent":         []string{"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36"}, //nolint:lll // long user agent string
 	},
-	Metadata:  map[string]string{},
-	Timestamp: time.Unix(0, 0).UTC(),
+	Metadata: map[string]string{},
 }
 
 // testHitTwo represents the second test hit from partition 2, request 1 (CID=ag8, SESSION_STAMP=127.0.0.2)
@@ -93,7 +92,7 @@ var testHitTwo = &hits.Hit{
 	PropertyID:            "G-5T0Z13HKP4",
 	IP:                    "127.0.0.2",
 	Host:                  "localhost.d8astage.xyz",
-	ServerReceivedTime:    time.Now().Format(time.RFC3339),
+	ServerReceivedTime:    time.Now(),
 	QueryParams: url.Values{
 		"v":                    []string{"2"},
 		"tid":                  []string{"G-5T0Z13HKP4"},
@@ -151,8 +150,7 @@ var testHitTwo = &hits.Hit{
 		"sec-fetch-site":     []string{"cross-site"},
 		"user-agent":         []string{"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36"}, //nolint:lll // long user agent string
 	},
-	Metadata:  map[string]string{},
-	Timestamp: time.Unix(0, 0).UTC(),
+	Metadata: map[string]string{},
 }
 
 // testHitThree represents the third test hit from partition 4, request 1 (CID=ag7, SESSION_STAMP=127.0.0.1)
@@ -163,7 +161,7 @@ var testHitThree = &hits.Hit{
 	PropertyID:            "G-5T0Z13HKP4",
 	IP:                    "127.0.0.1",
 	Host:                  "localhost.d8astage.xyz",
-	ServerReceivedTime:    time.Now().Format(time.RFC3339),
+	ServerReceivedTime:    time.Now(),
 	QueryParams: url.Values{
 		"v":            []string{"2"},
 		"tid":          []string{"G-5T0Z13HKP4"},
@@ -218,8 +216,7 @@ var testHitThree = &hits.Hit{
 		"sec-fetch-site":     []string{"cross-site"},
 		"user-agent":         []string{"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36"}, //nolint:lll // long user agent string
 	},
-	Metadata:  map[string]string{},
-	Timestamp: time.Unix(0, 0).UTC(),
+	Metadata: map[string]string{},
 }
 
 // testHitFour represents the fourth test hit from partition 1, request 2 (CID=ai7, SESSION_STAMP=127.0.0.3)
@@ -230,7 +227,7 @@ var testHitFour = &hits.Hit{
 	PropertyID:            "G-5T0Z13HKP4",
 	IP:                    "127.0.0.11", // From X-Forwarded-For header
 	Host:                  "localhost.d8astage.xyz",
-	ServerReceivedTime:    time.Now().Format(time.RFC3339),
+	ServerReceivedTime:    time.Now(),
 	QueryParams: url.Values{
 		"v":            []string{"2"},
 		"tid":          []string{"G-5T0Z13HKP4"},
@@ -286,8 +283,7 @@ var testHitFour = &hits.Hit{
 		"sec-fetch-site":     []string{"cross-site"},
 		"user-agent":         []string{"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36"}, //nolint:lll // long user agent string
 	},
-	Metadata:  map[string]string{},
-	Timestamp: time.Unix(0, 0).UTC(),
+	Metadata: map[string]string{},
 }
 
 // TestHitOne returns a copy of the first test hit

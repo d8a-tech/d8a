@@ -4,9 +4,7 @@ import (
 	"errors"
 	"io"
 	"net/url"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -80,12 +78,6 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 	if err != nil {
 		return nil, err
 	}
-
-	timestamp, err := p.Timestamp(request)
-	if err != nil {
-		return nil, err
-	}
-	hit.Timestamp = timestamp
 
 	hit.UserID, err = p.UserID(request)
 	if err != nil {
@@ -188,12 +180,6 @@ func (p *ga4Protocol) createHitFromMergedParams(
 		return nil, err
 	}
 
-	timestamp, err := p.Timestamp(request)
-	if err != nil {
-		return nil, err
-	}
-	hit.Timestamp = timestamp
-
 	hit.UserID, err = p.UserID(request)
 	if err != nil {
 		return nil, err
@@ -231,18 +217,6 @@ func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
 		return "", errors.New("`tid` is a required query parameter for ga4 protocol")
 	}
 	return propertyID, nil
-}
-
-func (p *ga4Protocol) Timestamp(request *protocol.Request) (time.Time, error) {
-	timestamp := request.QueryParams.Get("_p")
-	if timestamp == "" {
-		return time.Time{}, errors.New("`_p` is a required query parameter for ga4 protocol")
-	}
-	timestampInt, err := strconv.ParseInt(timestamp, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(timestampInt/1000, (timestampInt%1000)*1000000), nil
 }
 
 func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
@@ -413,6 +387,10 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			sourceGclidColumn,
 			sourceDclidColumn,
 			sourceSrsltidColumn,
+			// Date columns
+			eventTimestampUTCColumn,
+			eventDateUTCColumn,
+			eventPageLoadHashColumn,
 		},
 		Session: []schema.SessionColumn{
 			sessionGa4SessionIDColumn,
