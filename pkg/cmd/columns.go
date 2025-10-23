@@ -7,17 +7,16 @@ import (
 	"fmt"
 
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/sirupsen/logrus"
 )
 
 type columnsFormatter interface {
-	Format(columns schema.Columns) string
+	Format(columns schema.Columns) (string, error)
 }
 
 type consoleColumnsFormatter struct {
 }
 
-func (f *consoleColumnsFormatter) Format(columns schema.Columns) string {
+func (f *consoleColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	result := ""
 	result += "Event columns:\n"
 	for _, col := range columns.Event {
@@ -44,7 +43,7 @@ func (f *consoleColumnsFormatter) Format(columns schema.Columns) string {
 			result += fmt.Sprintf("%s (%s): %s\n", col.Docs().DisplayName, col.Docs().ColumnName, col.Docs().Description)
 		}
 	}
-	return result
+	return result, nil
 }
 
 func newConsoleColumnsFormatter() columnsFormatter {
@@ -54,7 +53,7 @@ func newConsoleColumnsFormatter() columnsFormatter {
 type jsonColumnsFormatter struct {
 }
 
-func (f *jsonColumnsFormatter) Format(columns schema.Columns) string {
+func (f *jsonColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	columnsJSON := []map[string]any{}
 	for _, col := range columns.Event {
 		docs := col.Docs()
@@ -88,10 +87,9 @@ func (f *jsonColumnsFormatter) Format(columns schema.Columns) string {
 	}
 	jsonBytes, err := json.MarshalIndent(columnsJSON, "", "  ")
 	if err != nil {
-		logrus.Errorf("failed to marshal columns to JSON: %v", err)
-		return fmt.Sprintf("failed to marshal columns to JSON: %v", err)
+		return "", fmt.Errorf("failed to marshal columns to JSON: %w", err)
 	}
-	return string(jsonBytes)
+	return string(jsonBytes), nil
 }
 
 func newJSONColumnsFormatter() columnsFormatter {
@@ -101,14 +99,13 @@ func newJSONColumnsFormatter() columnsFormatter {
 type csvColumnsFormatter struct {
 }
 
-func (f *csvColumnsFormatter) Format(columns schema.Columns) string {
+func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
 
 	// Write header
 	if err := writer.Write([]string{"scope", "interface_id", "name", "display_name", "description"}); err != nil {
-		logrus.Errorf("failed to write CSV header: %v", err)
-		return fmt.Sprintf("failed to write CSV header: %v", err)
+		return "", fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
 	// Write event columns
@@ -117,8 +114,7 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) string {
 		if err := writer.Write([]string{
 			"event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
 		}); err != nil {
-			logrus.Errorf("failed to write CSV row: %v", err)
-			return fmt.Sprintf("failed to write CSV row: %v", err)
+			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
 	}
 
@@ -129,8 +125,7 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) string {
 			"session-scoped-event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
 		}
 		if err := writer.Write(row); err != nil {
-			logrus.Errorf("failed to write CSV row: %v", err)
-			return fmt.Sprintf("failed to write CSV row: %v", err)
+			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
 	}
 
@@ -140,18 +135,16 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) string {
 		if err := writer.Write([]string{
 			"session", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
 		}); err != nil {
-			logrus.Errorf("failed to write CSV row: %v", err)
-			return fmt.Sprintf("failed to write CSV row: %v", err)
+			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
 	}
 
 	writer.Flush()
 	if err := writer.Error(); err != nil {
-		logrus.Errorf("failed to flush CSV writer: %v", err)
-		return fmt.Sprintf("failed to flush CSV writer: %v", err)
+		return "", fmt.Errorf("failed to flush CSV writer: %w", err)
 	}
 
-	return buf.String()
+	return buf.String(), nil
 }
 
 func newCSVColumnsFormatter() columnsFormatter {

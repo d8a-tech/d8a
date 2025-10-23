@@ -235,7 +235,6 @@ func NewSimpleEventColumn(
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
 			InterfaceID: string(id),
-			Description: "",
 		},
 	}
 	c.write = func(c *simpleEventColumn, event *schema.Event) error {
@@ -561,7 +560,6 @@ func NewSimpleSessionScopedEventColumn(
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
 			InterfaceID: string(id),
-			Description: "",
 		},
 	}
 	c.write = func(c *simpleSessionScopedEventColumn, event *schema.Event, session *schema.Session) error {

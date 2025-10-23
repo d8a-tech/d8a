@@ -166,7 +166,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if !ok {
 						return fmt.Errorf("invalid output format: %s, possible options are %#v", c.String("output"), formatters)
 					}
-					fmt.Println(formatter.Format(columnData))
+					output, err := formatter.Format(columnData)
+					if err != nil {
+						return err
+					}
+					fmt.Println(output)
 					return nil
 				},
 			},
