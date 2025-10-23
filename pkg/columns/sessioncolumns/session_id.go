@@ -28,4 +28,8 @@ var SessionIDColumn = columns.NewSimpleSessionColumn(
 			GreaterOrEqualTo: "1.0.0",
 		},
 	),
+	columns.WithSessionColumnDocs(
+		"Session ID",
+		"A unique identifier for the session. Derived from the first event's ID in the session. Used to group all events that belong to the same user session together.", // nolint:lll // it's a description
+	),
 )

@@ -119,7 +119,17 @@ func URLElementColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
 	getValue func(e *schema.Event, url *url.URL) (any, error),
+	options ...EventColumnOptions,
 ) schema.EventColumn {
+	options = append(options,
+		WithEventColumnRequired(false),
+		WithEventColumnDependsOn(
+			schema.DependsOnEntry{
+				Interface:        CoreInterfaces.EventPageLocation.ID,
+				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
+			},
+		),
+	)
 	return NewSimpleEventColumn(
 		id,
 		field,
@@ -138,13 +148,7 @@ func URLElementColumn(
 			}
 			return getValue(e, parsed)
 		},
-		WithEventColumnRequired(false),
-		WithEventColumnDependsOn(
-			schema.DependsOnEntry{
-				Interface:        CoreInterfaces.EventPageLocation.ID,
-				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
-			},
-		),
+		options...,
 	)
 }
 

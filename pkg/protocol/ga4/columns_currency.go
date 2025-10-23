@@ -32,6 +32,10 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 				GreaterOrEqualTo: ProtocolInterfaces.EventEcommercePurchaseRevenue.Version,
 			},
 		),
+		columns.WithEventColumnDocs(
+			"Purchase Revenue (USD)",
+			"Total purchase revenue converted to USD. Calculated from ecommerce_purchase_revenue using the currency converter.", // nolint:lll // it's a description
+		),
 	)
 }
 
@@ -57,6 +61,10 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 				Interface:        ProtocolInterfaces.EventEcommerceRefundValue.ID,
 				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceRefundValue.Version,
 			},
+		),
+		columns.WithEventColumnDocs(
+			"Refund Value (USD)",
+			"Total refund value converted to USD. Calculated from ecommerce_refund_value using the currency converter.",
 		),
 	)
 }
@@ -84,6 +92,10 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceShippingValue.Version,
 			},
 		),
+		columns.WithEventColumnDocs(
+			"Shipping Value (USD)",
+			"Total shipping cost converted to USD. Calculated from ecommerce_shipping_value using the currency converter.", // nolint:lll // it's a description
+		),
 	)
 }
 
@@ -94,6 +106,10 @@ var eventEcommerceTaxValueColumn = columns.FromQueryParamEventColumn(
 	"epn.tax",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
+	columns.WithEventColumnDocs(
+		"Tax Value",
+		"Tax value for the transaction. Flattened event parameter from GA4 built-in ecommerce events.",
+	),
 )
 
 // eventEcommerceTaxValueInUSDColumn creates a new event column that converts the tax value to USD.
@@ -118,6 +134,10 @@ func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.Even
 				Interface:        ProtocolInterfaces.EventEcommerceTaxValue.ID,
 				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceTaxValue.Version,
 			},
+		),
+		columns.WithEventColumnDocs(
+			"Tax Value (USD)",
+			"Tax value converted to USD. Calculated from ecommerce_tax_value using the currency converter.",
 		),
 	)
 }

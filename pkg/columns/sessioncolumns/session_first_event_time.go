@@ -14,4 +14,9 @@ var FirstEventTimeColumn = columns.NewSimpleSessionColumn(
 			return nil, columns.NewBrokenSessionError("session has no events")
 		}
 		return session.Events[0].BoundHit.ServerReceivedTime.Unix(), nil
-	})
+	},
+	columns.WithSessionColumnDocs(
+		"Session First Event Time",
+		"The timestamp of the first event in the session. Marks the beginning of the user's session and is used as the baseline for calculating session duration.", // nolint:lll // it's a description
+	),
+)

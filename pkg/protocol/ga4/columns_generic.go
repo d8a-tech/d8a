@@ -15,6 +15,7 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 	field *arrow.Field,
 	queryParam string,
 	deviceInfoFunc func(event *schema.Event, di *devicedetector.DeviceInfo) (any, error),
+	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		interfaceID,
@@ -40,5 +41,6 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 			}
 			return deviceInfoFunc(event, ua)
 		},
+		options...,
 	)
 }
