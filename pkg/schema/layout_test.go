@@ -19,6 +19,13 @@ type mockEventColumn struct {
 	writeErr  error
 }
 
+func (m *mockEventColumn) Docs() Documentation {
+	return Documentation{
+		ColumnName:  "Mock event column",
+		Description: "Mock event column description",
+	}
+}
+
 func (m *mockEventColumn) Implements() Interface {
 	return Interface{
 		ID:      m.id,
@@ -43,6 +50,13 @@ type mockSessionColumn struct {
 	field     *arrow.Field
 	dependsOn []DependsOnEntry
 	writeErr  error
+}
+
+func (m *mockSessionColumn) Docs() Documentation {
+	return Documentation{
+		ColumnName:  "Mock session column",
+		Description: "Mock session column description",
+	}
 }
 
 func (m *mockSessionColumn) Implements() Interface {
@@ -370,6 +384,13 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_SessionValuesPropagation(t 
 type exampleEventColumn struct {
 }
 
+func (c *exampleEventColumn) Docs() Documentation {
+	return Documentation{
+		ColumnName:  "Example event column",
+		Description: "Example event column description",
+	}
+}
+
 func (c *exampleEventColumn) Implements() Interface {
 	return Interface{
 		ID:      "example_event_id",
@@ -388,6 +409,13 @@ func (c *exampleEventColumn) DependsOn() []DependsOnEntry {
 }
 
 type exampleSessionColumn struct {
+}
+
+func (c *exampleSessionColumn) Docs() Documentation {
+	return Documentation{
+		ColumnName:  "Example session column",
+		Description: "Example session column description",
+	}
 }
 
 func (c *exampleSessionColumn) Implements() Interface {

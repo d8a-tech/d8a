@@ -15,6 +15,13 @@ type mockColumn struct {
 	dependsOn []DependsOnEntry
 }
 
+func (m *mockColumn) Docs() Documentation {
+	return Documentation{
+		ColumnName:  "Mock column",
+		Description: "Mock column description",
+	}
+}
+
 func (m *mockColumn) Implements() Interface {
 	return Interface{
 		ID:      m.id,
