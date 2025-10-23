@@ -22,6 +22,10 @@ var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 		return nil, errors.New("event not found in session")
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Hit Number",
+		"The sequential number of this event within its session, starting from 0. This is the index position of the event in the chronological sequence of all events in the same session.", // nolint:lll // it's a description
+	),
 )
 
 // SSESessionPageNumber is a session-scoped event column that tells of which
@@ -57,5 +61,9 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
 			GreaterOrEqualTo: columns.CoreInterfaces.EventPageLocation.Version,
 		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Page Number",
+		"The sequential page number within the session, starting from 0. Increments when the page location changes. Tracks which page view in the session this event occurred on.", // nolint:lll // it's a description
 	),
 )

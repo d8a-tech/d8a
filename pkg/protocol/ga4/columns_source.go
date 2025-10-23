@@ -9,6 +9,10 @@ var sourceManualCampaignIDColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualCampaignID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source Manual Campaign ID",
+		"Campaign ID from URL parameters. Extracted from 'utm_id' in the page URL. Part of manual traffic source attribution.",
+	),
 )
 
 var sourceManualCampaignNameColumn = columns.FromPageURLEventColumn(
@@ -17,6 +21,10 @@ var sourceManualCampaignNameColumn = columns.FromPageURLEventColumn(
 	"utm_campaign",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualCampaignName.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source Manual Campaign Name",
+		"Campaign name from URL parameters. Extracted from 'utm_campaign' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -27,6 +35,10 @@ var sourceManualSourceColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualSource.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source Manual Source",
+		"Traffic source from URL parameters. Extracted from 'utm_source' in the page URL. Part of manual traffic source attribution.",
+	),
 )
 
 var sourceManualMediumColumn = columns.FromPageURLEventColumn(
@@ -35,6 +47,10 @@ var sourceManualMediumColumn = columns.FromPageURLEventColumn(
 	"utm_medium",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualMedium.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source Manual Medium",
+		"Traffic medium from URL parameters. Extracted from 'utm_medium' in the page URL. Part of manual traffic source attribution.",
 	),
 )
 
@@ -45,6 +61,10 @@ var sourceManualTermColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualTerm.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source Manual Term",
+		"Campaign term from URL parameters. Extracted from 'utm_term' in the page URL. Part of manual traffic source attribution.",
+	),
 )
 
 var sourceManualContentColumn = columns.FromPageURLEventColumn(
@@ -53,6 +73,10 @@ var sourceManualContentColumn = columns.FromPageURLEventColumn(
 	"utm_content",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualContent.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source Manual Content",
+		"Campaign content from URL parameters. Extracted from 'utm_content' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -63,6 +87,10 @@ var sourceManualSourcePlatformColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualSourcePlatform.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source Manual Source Platform",
+		"Source platform from URL parameters. Extracted from 'utm_source_platform' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
+	),
 )
 
 var sourceManualCreativeFormatColumn = columns.FromPageURLEventColumn(
@@ -71,6 +99,10 @@ var sourceManualCreativeFormatColumn = columns.FromPageURLEventColumn(
 	"utm_creative_format",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualCreativeFormat.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source Manual Creative Format",
+		"Creative format from URL parameters. Extracted from 'utm_creative_format' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -81,6 +113,10 @@ var sourceManualMarketingTacticColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceManualMarketingTactic.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source Manual Marketing Tactic",
+		"Marketing tactic from URL parameters. Extracted from 'utm_marketing_tactic' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
+	),
 )
 
 var sourceGclidColumn = columns.FromPageURLEventColumn(
@@ -89,6 +125,10 @@ var sourceGclidColumn = columns.FromPageURLEventColumn(
 	"gclid",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceGclid.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source GCLID",
+		"Google Click ID from URL parameters. Extracted from 'gclid' in the page URL. Used for traffic source attribution from Google Ads.", // nolint:lll // it's a description
 	),
 )
 
@@ -99,6 +139,10 @@ var sourceDclidColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceDclid.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Source DCLID",
+		"Display Click ID from URL parameters. Extracted from 'dclid' in the page URL. Used for traffic source attribution from Google Display & Video 360.", // nolint:lll // it's a description
+	),
 )
 
 var sourceSrsltidColumn = columns.FromPageURLEventColumn(
@@ -107,5 +151,9 @@ var sourceSrsltidColumn = columns.FromPageURLEventColumn(
 	"srsltid",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventSourceSrsltid.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Source SRSLTID",
+		"Google Shopping Result ID from URL parameters. Extracted from 'srsltid' in the page URL. Used for traffic source attribution from Google Shopping.", // nolint:lll // it's a description
 	),
 )

@@ -14,4 +14,9 @@ var LastEventTimeColumn = columns.NewSimpleSessionColumn(
 			return nil, columns.NewBrokenSessionError("session has no events")
 		}
 		return session.Events[len(session.Events)-1].BoundHit.ServerReceivedTime.Unix(), nil
-	})
+	},
+	columns.WithSessionColumnDocs(
+		"Session Last Event Time",
+		"The timestamp of the last event in the session. Marks the end of the user's session and is used along with first_event_time to calculate session duration.", // nolint:lll // it's a description
+	),
+)

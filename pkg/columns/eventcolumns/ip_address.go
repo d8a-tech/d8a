@@ -13,4 +13,8 @@ var IPAddressColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		return event.BoundHit.IP, nil
 	},
+	columns.WithEventColumnDocs(
+		"IP Address",
+		"The IP address from which the tracking request originated. Used as the source for geolocation data and can be used for fraud detection or analytics filtering.", // nolint:lll // it's a description
+	),
 )

@@ -13,4 +13,8 @@ var EventIDColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		return event.BoundHit.ID, nil
 	},
+	columns.WithEventColumnDocs(
+		"Event ID",
+		"A unique identifier for this specific event. Generated server-side when the hit is received. Used to deduplicate events and track individual occurrences.", // nolint:lll // it's a description
+	),
 )

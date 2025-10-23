@@ -14,6 +14,10 @@ var eventTimestampUTCColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		return event.BoundHit.ServerReceivedTime.UTC().Format(time.RFC3339), nil
 	},
+	columns.WithEventColumnDocs(
+		"Event Timestamp (UTC)",
+		"The precise timestamp when the event occurred, in UTC timezone with second-level precision. This is the server-received time recorded when the hit arrives.", // nolint:lll // it's a description
+	),
 )
 
 var eventDateUTCColumn = columns.NewSimpleEventColumn(
@@ -22,6 +26,10 @@ var eventDateUTCColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		return event.BoundHit.ServerReceivedTime.UTC().Format("2006-01-02"), nil
 	},
+	columns.WithEventColumnDocs(
+		"Event Date (UTC)",
+		"The date when the event occurred, in UTC timezone, formatted as YYYY-MM-DD.",
+	),
 )
 
 var eventPageLoadHashColumn = columns.NewSimpleEventColumn(
@@ -38,4 +46,8 @@ var eventPageLoadHashColumn = columns.NewSimpleEventColumn(
 		}
 		return time.UnixMilli(pageLoadHash).UTC().Format(time.RFC3339), nil
 	},
+	columns.WithEventColumnDocs(
+		"Page Load Hash",
+		"Timestamp when the page was loaded, extracted from the _p parameter. Usually contains a millisecond-precision Unix timestamp. Used to correlate events from the same page load.", // nolint:lll // it's a description
+	),
 )
