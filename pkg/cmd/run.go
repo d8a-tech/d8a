@@ -131,6 +131,50 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 		},
 		Commands: []*cli.Command{
 			{
+				Name:  "columns",
+				Usage: "Display all the columns for given property ID",
+				Flags: mergeFlags(
+					[]cli.Flag{
+						&cli.StringFlag{
+							Name:     "property-id",
+							Usage:    "Property ID to display columns for",
+							EnvVars:  []string{"PROPERTY_ID"},
+							Required: true,
+						},
+						&cli.StringFlag{
+							Name:     "output",
+							Usage:    "Output format",
+							Aliases:  []string{"o"},
+							EnvVars:  []string{"OUTPUT"},
+							Value:    "console",
+							Required: false,
+						},
+					},
+				),
+				Action: func(c *cli.Context) error {
+					cr := columnsRegistry(c)
+					columnData, err := cr.Get(c.String("property-id"))
+					if err != nil {
+						return err
+					}
+					formatters := map[string]columnsFormatter{
+						"console": newConsoleColumnsFormatter(),
+						"json":    newJSONColumnsFormatter(),
+						"csv":     newCSVColumnsFormatter(),
+					}
+					formatter, ok := formatters[c.String("output")]
+					if !ok {
+						return fmt.Errorf("invalid output format: %s, possible options are %#v", c.String("output"), formatters)
+					}
+					output, err := formatter.Format(columnData)
+					if err != nil {
+						return err
+					}
+					fmt.Println(output)
+					return nil
+				},
+			},
+			{
 				Name:  "server",
 				Usage: "Start d8a demo server",
 				Flags: mergeFlags(

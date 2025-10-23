@@ -27,8 +27,17 @@ type Interface struct {
 	Field   *arrow.Field
 }
 
+// Documentation represents the documentation for a column.
+type Documentation struct {
+	ColumnName  string
+	DisplayName string
+	InterfaceID string
+	Description string
+}
+
 // Column represents a column with metadata and dependencies.
 type Column interface {
+	Docs() Documentation
 	Implements() Interface
 	DependsOn() []DependsOnEntry
 }

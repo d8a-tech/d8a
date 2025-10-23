@@ -16,10 +16,15 @@ import (
 type simpleSessionColumn struct {
 	id        schema.InterfaceID
 	field     *arrow.Field
+	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
 	castFunc  func(any) (any, error)
 	write     func(*simpleSessionColumn, *schema.Session) error
+}
+
+func (c *simpleSessionColumn) Docs() schema.Documentation {
+	return c.docs
 }
 
 func (c *simpleSessionColumn) Implements() schema.Interface {
@@ -61,6 +66,10 @@ func NewSimpleSessionColumn(
 	c := &simpleSessionColumn{
 		id:    id,
 		field: field,
+		docs: schema.Documentation{
+			ColumnName:  field.Name,
+			InterfaceID: string(id),
+		},
 	}
 	c.write = func(c *simpleSessionColumn, session *schema.Session) error {
 		value, err := getValue(session)
@@ -163,13 +172,25 @@ func WithSessionColumnCast(castFunc func(any) (any, error)) SessionColumnOptions
 	}
 }
 
+// WithSessionColumnDocs sets the documentation for a session column
+func WithSessionColumnDocs(displayName, description string) SessionColumnOptions {
+	return func(c *simpleSessionColumn) {
+		c.docs = defaultDocumentation(c.Implements(), displayName, description)
+	}
+}
+
 type simpleEventColumn struct {
 	id        schema.InterfaceID
 	field     *arrow.Field
+	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
 	castFunc  func(any) (any, error)
 	write     func(*simpleEventColumn, *schema.Event) error
+}
+
+func (c *simpleEventColumn) Docs() schema.Documentation {
+	return c.docs
 }
 
 func (c *simpleEventColumn) Implements() schema.Interface {
@@ -211,6 +232,10 @@ func NewSimpleEventColumn(
 	c := &simpleEventColumn{
 		id:    id,
 		field: field,
+		docs: schema.Documentation{
+			ColumnName:  field.Name,
+			InterfaceID: string(id),
+		},
 	}
 	c.write = func(c *simpleEventColumn, event *schema.Event) error {
 		value, err := getValue(event)
@@ -310,6 +335,13 @@ func WithEventColumnRequired(required bool) EventColumnOptions {
 func WithEventColumnCast(castFunc func(any) (any, error)) EventColumnOptions {
 	return func(c *simpleEventColumn) {
 		c.castFunc = castFunc
+	}
+}
+
+// WithEventColumnDocs sets the documentation for an event column
+func WithEventColumnDocs(displayName, description string) EventColumnOptions {
+	return func(c *simpleEventColumn) {
+		c.docs = defaultDocumentation(c.Implements(), displayName, description)
 	}
 }
 
@@ -455,10 +487,15 @@ func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
 type simpleSessionScopedEventColumn struct {
 	id        schema.InterfaceID
 	field     *arrow.Field
+	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
 	castFunc  func(any) (any, error)
 	write     func(*simpleSessionScopedEventColumn, *schema.Event, *schema.Session) error
+}
+
+func (c *simpleSessionScopedEventColumn) Docs() schema.Documentation {
+	return c.docs
 }
 
 func (c *simpleSessionScopedEventColumn) Implements() schema.Interface {
@@ -501,6 +538,13 @@ func WithSessionScopedEventColumnCast(castFunc func(any) (any, error)) SessionSc
 	}
 }
 
+// WithSessionScopedEventColumnDocs sets the documentation for a session-scoped event column
+func WithSessionScopedEventColumnDocs(displayName, description string) SessionScopedEventColumnOptions {
+	return func(c *simpleSessionScopedEventColumn) {
+		c.docs = defaultDocumentation(c.Implements(), displayName, description)
+	}
+}
+
 // NewSimpleSessionScopedEventColumn creates a new session-scoped event column with the given configuration
 //
 //nolint:dupl // similar structure to other simple column builders, but types differ
@@ -513,6 +557,10 @@ func NewSimpleSessionScopedEventColumn(
 	c := &simpleSessionScopedEventColumn{
 		id:    id,
 		field: field,
+		docs: schema.Documentation{
+			ColumnName:  field.Name,
+			InterfaceID: string(id),
+		},
 	}
 	c.write = func(c *simpleSessionScopedEventColumn, event *schema.Event, session *schema.Session) error {
 		value, err := getValue(event, session)
@@ -536,4 +584,13 @@ func NewSimpleSessionScopedEventColumn(
 		field.Nullable = false
 	}
 	return c
+}
+
+func defaultDocumentation(intf schema.Interface, displayName, description string) schema.Documentation {
+	return schema.Documentation{
+		ColumnName:  intf.Field.Name,
+		DisplayName: displayName,
+		Description: description,
+		InterfaceID: string(intf.ID),
+	}
 }

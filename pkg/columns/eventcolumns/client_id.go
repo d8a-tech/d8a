@@ -13,4 +13,8 @@ var ClientIDColumn = columns.NewSimpleEventColumn(
 	func(event *schema.Event) (any, error) {
 		return event.BoundHit.ClientID, nil
 	},
+	columns.WithEventColumnDocs(
+		"Client ID",
+		"The Client ID is a unique, randomly generated identifier for the device/browser combination. It's stored client-side and is transferred with each event. It's used to distinguish between new/returning visitors.", // nolint:lll // it's a description
+	),
 )
