@@ -276,6 +276,7 @@ func NewItemsBasedEventColumn[T int64 | float64](
 	)
 }
 
+//nolint:dupl // similar structure but different logic
 var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
@@ -298,6 +299,7 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 	),
 )
 
+//nolint:dupl // similar structure but different logic
 var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn[float64](
 	ProtocolInterfaces.EventEcommerceRefundValue.ID,
 	ProtocolInterfaces.EventEcommerceRefundValue.Field,
