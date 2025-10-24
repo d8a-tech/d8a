@@ -11,7 +11,7 @@ var sourceManualCampaignIDColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Source Manual Campaign ID",
-		"Campaign ID from URL parameters. Extracted from 'utm_id' in the page URL. Part of manual traffic source attribution.",
+		"Campaign ID from URL parameters. Extracted from 'utm_id' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -37,7 +37,7 @@ var sourceManualSourceColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Source Manual Source",
-		"Traffic source from URL parameters. Extracted from 'utm_source' in the page URL. Part of manual traffic source attribution.",
+		"Traffic source from URL parameters. Extracted from 'utm_source' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -50,7 +50,7 @@ var sourceManualMediumColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Source Manual Medium",
-		"Traffic medium from URL parameters. Extracted from 'utm_medium' in the page URL. Part of manual traffic source attribution.",
+		"Traffic medium from URL parameters. Extracted from 'utm_medium' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 
@@ -63,7 +63,7 @@ var sourceManualTermColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Source Manual Term",
-		"Campaign term from URL parameters. Extracted from 'utm_term' in the page URL. Part of manual traffic source attribution.",
+		"Campaign term from URL parameters. Extracted from 'utm_term' in the page URL. Part of manual traffic source attribution.", // nolint:lll // it's a description
 	),
 )
 

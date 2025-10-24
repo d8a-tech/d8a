@@ -95,7 +95,7 @@ func CityColumn(t *GeoColumnFactory) schema.EventColumn {
 		func(_ *schema.Event, record *result) (any, error) { return record.City.Names.English, nil },
 		columns.WithEventColumnDocs(
 			"City (Provided by DBIP)",
-			"The city of the IP address (e.g., 'New York', 'London').",
+			"Geolocated city name (e.g., 'New York', 'London').",
 		),
 	)
 }
@@ -108,7 +108,7 @@ func CountryColumn(t *GeoColumnFactory) schema.EventColumn {
 		func(_ *schema.Event, record *result) (any, error) { return record.Country.Names.English, nil },
 		columns.WithEventColumnDocs(
 			"Country (Provided by DBIP)",
-			"The country of the IP address (e.g., 'United States', 'United Kingdom').",
+			"Geolocated country name (e.g., 'United States', 'United Kingdom').",
 		),
 	)
 }
@@ -121,7 +121,7 @@ func ContinentColumn(t *GeoColumnFactory) schema.EventColumn {
 		func(_ *schema.Event, record *result) (any, error) { return record.Continent.Names.English, nil },
 		columns.WithEventColumnDocs(
 			"Continent (Provided by DBIP)",
-			"The continent of the IP address (e.g., 'Europe', 'America').",
+			"Geolocated continent name (e.g., 'Europe', 'North America').",
 		),
 	)
 }
@@ -139,7 +139,7 @@ func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
 		},
 		columns.WithEventColumnDocs(
 			"Region (Provided by DBIP)",
-			"The region of the IP (from a country) (e.g., 'California', 'England').",
+			"Geolocated region or state name (e.g., 'California', 'England').",
 		),
 	)
 }
