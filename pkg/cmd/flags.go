@@ -5,9 +5,6 @@ import (
 	"path/filepath"
 	"time"
 
-	altsrc "github.com/urfave/cli-altsrc/v3"
-	"github.com/urfave/cli-altsrc/v3/yaml"
-
 	"github.com/urfave/cli/v3"
 )
 
@@ -72,19 +69,4 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Usage:   "Timeout for the DBIP download",
 	Sources: defaultSourceChain("DBIP_DOWNLOAD_TIMEOUT", "dbip.download_timeout"),
 	Value:   60 * time.Second,
-}
-
-var configFile = func() *string {
-	f := "config.yaml"
-	return &f
-}()
-
-func defaultSourceChain(envVar, yamlPath string) cli.ValueSourceChain {
-	return cli.NewValueSourceChain(
-		func() cli.ValueSource {
-			f := cli.EnvVars(envVar)
-			return &f
-		}(),
-		yaml.YAML(yamlPath, altsrc.StringSourcer(*configFile)),
-	)
 }
