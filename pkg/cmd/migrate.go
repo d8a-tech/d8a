@@ -6,11 +6,11 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
-func migrate(ctx context.Context, c *cli.Context, propertyID string) error {
-	columnData, err := columnsRegistry(c).Get(propertyID) // nolint:contextcheck // false positive
+func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
+	columnData, err := columnsRegistry(cmd).Get(propertyID) // nolint:contextcheck // false positive
 	if err != nil {
 		return err
 	}
@@ -24,7 +24,7 @@ func migrate(ctx context.Context, c *cli.Context, propertyID string) error {
 	}
 	logrus.Infof("all dependencies fulfilled for property %s", propertyID)
 	guard := schema.NewGuard(
-		warehouseRegistry(ctx, c),
+		warehouseRegistry(ctx, cmd),
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
 			columnData,

@@ -28,7 +28,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 	"github.com/valyala/fasthttp"
 	"go.etcd.io/bbolt"
 )
@@ -36,63 +36,63 @@ import (
 var debugFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "debug",
 	Usage:   "Enable debug mode",
-	EnvVars: []string{"DEBUG"},
+	Sources: cli.EnvVars("DEBUG"),
 	Value:   false,
 }
 
 var serverPortFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "server-port",
 	Usage:   "Port to listen on for HTTP server",
-	EnvVars: []string{"SERVER_PORT"},
+	Sources: cli.EnvVars("SERVER_PORT"),
 	Value:   8080,
 }
 
 var batcherBatchSizeFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "batcher-batch-size",
 	Usage:   "Batch size for the batcher",
-	EnvVars: []string{"BATCHER_BATCH_SIZE"},
+	Sources: cli.EnvVars("BATCHER_BATCH_SIZE"),
 	Value:   5000,
 }
 
 var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "batcher-batch-timeout",
 	Usage:   "Batch timeout for the batcher",
-	EnvVars: []string{"BATCHER_BATCH_TIMEOUT"},
+	Sources: cli.EnvVars("BATCHER_BATCH_TIMEOUT"),
 	Value:   5 * time.Second,
 }
 
 var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "closer-session-duration",
 	Usage:   "Session duration for the closer",
-	EnvVars: []string{"CLOSER_SESSION_DURATION"},
+	Sources: cli.EnvVars("CLOSER_SESSION_DURATION"),
 	Value:   1 * time.Minute,
 }
 
 var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "closer-tick-interval",
 	Usage:   "Tick interval for the closer",
-	EnvVars: []string{"CLOSER_TICK_INTERVAL"},
+	Sources: cli.EnvVars("CLOSER_TICK_INTERVAL"),
 	Value:   1 * time.Second,
 }
 
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
 	Usage:   "Use DBIP columns",
-	EnvVars: []string{"DBIP_ENABLED"},
+	Sources: cli.EnvVars("DBIP_ENABLED"),
 	Value:   false,
 }
 
 var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 	Name:    "dbip-destination-directory",
 	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
-	EnvVars: []string{"DBIP_DESTINATION_DIRECTORY"},
+	Sources: cli.EnvVars("DBIP_DESTINATION_DIRECTORY"),
 	Value:   filepath.Join(os.TempDir(), "dbip"),
 }
 
 var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "dbip-download-timeout",
 	Usage:   "Timeout for the DBIP download",
-	EnvVars: []string{"DBIP_DOWNLOAD_TIMEOUT"},
+	Sources: cli.EnvVars("DBIP_DOWNLOAD_TIMEOUT"),
 	Value:   60 * time.Second,
 }
 
@@ -114,20 +114,20 @@ var currencyConverter currency.Converter = func() currency.Converter {
 
 // Run starts the tracker-api server
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,lll // it's an entrypoint
-	app := &cli.App{
+	app := &cli.Command{
 		Name:  "d8a",
 		Usage: "D8a.tech - GA4-compatible analytics platform",
-		Action: func(*cli.Context) error {
+		Action: func(context.Context, *cli.Command) error {
 			return nil
 		},
 		Flags: []cli.Flag{
 			debugFlag,
 		},
-		Before: func(c *cli.Context) error {
-			if c.Bool(debugFlag.Name) {
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			if cmd.Bool(debugFlag.Name) {
 				logrus.SetLevel(logrus.DebugLevel)
 			}
-			return nil
+			return ctx, nil
 		},
 		Commands: []*cli.Command{
 			{
@@ -138,22 +138,22 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						&cli.StringFlag{
 							Name:     "property-id",
 							Usage:    "Property ID to display columns for",
-							EnvVars:  []string{"PROPERTY_ID"},
+							Sources:  cli.EnvVars("PROPERTY_ID"),
 							Required: true,
 						},
 						&cli.StringFlag{
 							Name:     "output",
 							Usage:    "Output format",
 							Aliases:  []string{"o"},
-							EnvVars:  []string{"OUTPUT"},
+							Sources:  cli.EnvVars("OUTPUT"),
 							Value:    "console",
 							Required: false,
 						},
 					},
 				),
-				Action: func(c *cli.Context) error {
-					cr := columnsRegistry(c)
-					columnData, err := cr.Get(c.String("property-id"))
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
+					columnData, err := cr.Get(cmd.String("property-id"))
 					if err != nil {
 						return err
 					}
@@ -162,9 +162,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						"json":    newJSONColumnsFormatter(),
 						"csv":     newCSVColumnsFormatter(),
 					}
-					formatter, ok := formatters[c.String("output")]
+					formatter, ok := formatters[cmd.String("output")]
 					if !ok {
-						return fmt.Errorf("invalid output format: %s, possible options are %#v", c.String("output"), formatters)
+						return fmt.Errorf("invalid output format: %s, possible options are %#v", cmd.String("output"), formatters)
 					}
 					output, err := formatter.Format(columnData)
 					if err != nil {
@@ -189,14 +189,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						dbipDownloadTimeoutFlag,
 					},
 				),
-				Action: func(c *cli.Context) error {
+				Action: func(_ context.Context, cmd *cli.Command) error {
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
 						ctx, cancel = context.WithCancel(context.Background())
 						defer cancel()
 					}
 
-					if err := migrate(ctx, c, "1337"); err != nil {
+					if err := migrate(ctx, cmd, "1337"); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
@@ -260,13 +260,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											protosessions.NewCloseTriggerMiddleware(
 												storage.NewMonitoringKV(kv),
 												storage.NewMonitoringSet(set),
-												c.Duration(closerSessionDurationFlag.Name),
-												c.Duration(closerTickIntervalFlag.Name),
+												cmd.Duration(closerSessionDurationFlag.Name),
+												cmd.Duration(closerTickIntervalFlag.Name),
 												sessions.NewDirectCloser(
 													sessions.NewSessionWriter(
 														ctx,
-														warehouseRegistry(ctx, c),
-														columnsRegistry(c), // nolint:contextcheck // false positive
+														warehouseRegistry(ctx, cmd),
+														columnsRegistry(cmd), // nolint:contextcheck // false positive
 														schema.NewStaticLayoutRegistry(
 															map[string]schema.Layout{},
 															schema.NewEmbeddedSessionColumnsLayout(
@@ -313,10 +313,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						serverStorage,
 						receiver.NewBatchingRawlogStorage(
 							rawLogStorage,
-							c.Int(batcherBatchSizeFlag.Name),
-							c.Duration(batcherBatchTimeoutFlag.Name),
+							cmd.Int(batcherBatchSizeFlag.Name),
+							cmd.Duration(batcherBatchTimeoutFlag.Name),
 						),
-						c.Int(serverPortFlag.Name),
+						cmd.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
 							"/g/collect": ga4.NewGA4Protocol(currencyConverter),
 						},
@@ -342,25 +342,25 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						&cli.StringFlag{
 							Name:     "property-id",
 							Usage:    "Property ID to migrate",
-							EnvVars:  []string{"PROPERTY_ID"},
+							Sources:  cli.EnvVars("PROPERTY_ID"),
 							Required: true,
 						},
 					},
 				),
-				Action: func(c *cli.Context) error {
-					return migrate(ctx, c, c.String("property-id"))
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					return migrate(ctx, cmd, cmd.String("property-id"))
 				},
 			},
 			createRawlogDebuggerCommand(),
 		},
 	}
 
-	if err := app.Run(append([]string{os.Args[0]}, args...)); err != nil {
+	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func warehouseRegistry(_ context.Context, _ *cli.Context) warehouse.Registry {
+func warehouseRegistry(_ context.Context, _ *cli.Command) warehouse.Registry {
 	return warehouse.NewStaticDriverRegistry(
 		warehouse.NewConsoleDriver(),
 	)

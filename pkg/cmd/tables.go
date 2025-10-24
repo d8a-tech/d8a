@@ -9,7 +9,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 type tables struct {
@@ -45,12 +45,12 @@ func getTableNames() tables {
 var crLock = sync.Mutex{}
 var cr schema.ColumnsRegistry
 
-func columnsRegistry(c *cli.Context) schema.ColumnsRegistry {
+func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 	crLock.Lock()
 	defer crLock.Unlock()
 	if cr == nil {
 		var geoColumns []schema.EventColumn
-		if c.Bool(dbipEnabled.Name) {
+		if cmd.Bool(dbipEnabled.Name) {
 			geoColumns = dbip.GeoColumns(
 				dbip.NewExtensionBasedOCIDownloader(
 					dbip.OCIRegistryCreds{
@@ -59,8 +59,8 @@ func columnsRegistry(c *cli.Context) schema.ColumnsRegistry {
 					},
 					".mmdb",
 				),
-				c.String(dbipDestinationDirectory.Name),
-				c.Duration(dbipDownloadTimeoutFlag.Name),
+				cmd.String(dbipDestinationDirectory.Name),
+				cmd.Duration(dbipDownloadTimeoutFlag.Name),
 				dbip.CacheConfig{
 					MaxEntries: 1024,
 					TTL:        30 * time.Second,
