@@ -14,6 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slipros/devicedetector v1.2.1
 	github.com/stretchr/testify v1.11.1
+	github.com/urfave/cli-altsrc/v3 v3.1.0
 	github.com/urfave/cli/v3 v3.5.0
 	github.com/valyala/fasthttp v1.68.0
 	go.etcd.io/bbolt v1.4.3

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -32,69 +31,6 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.etcd.io/bbolt"
 )
-
-var debugFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "debug",
-	Usage:   "Enable debug mode",
-	Sources: cli.EnvVars("DEBUG"),
-	Value:   false,
-}
-
-var serverPortFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "server-port",
-	Usage:   "Port to listen on for HTTP server",
-	Sources: cli.EnvVars("SERVER_PORT"),
-	Value:   8080,
-}
-
-var batcherBatchSizeFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "batcher-batch-size",
-	Usage:   "Batch size for the batcher",
-	Sources: cli.EnvVars("BATCHER_BATCH_SIZE"),
-	Value:   5000,
-}
-
-var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "batcher-batch-timeout",
-	Usage:   "Batch timeout for the batcher",
-	Sources: cli.EnvVars("BATCHER_BATCH_TIMEOUT"),
-	Value:   5 * time.Second,
-}
-
-var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "closer-session-duration",
-	Usage:   "Session duration for the closer",
-	Sources: cli.EnvVars("CLOSER_SESSION_DURATION"),
-	Value:   1 * time.Minute,
-}
-
-var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "closer-tick-interval",
-	Usage:   "Tick interval for the closer",
-	Sources: cli.EnvVars("CLOSER_TICK_INTERVAL"),
-	Value:   1 * time.Second,
-}
-
-var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "dbip-enabled",
-	Usage:   "Use DBIP columns",
-	Sources: cli.EnvVars("DBIP_ENABLED"),
-	Value:   false,
-}
-
-var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
-	Name:    "dbip-destination-directory",
-	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
-	Sources: cli.EnvVars("DBIP_DESTINATION_DIRECTORY"),
-	Value:   filepath.Join(os.TempDir(), "dbip"),
-}
-
-var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "dbip-download-timeout",
-	Usage:   "Timeout for the DBIP download",
-	Sources: cli.EnvVars("DBIP_DOWNLOAD_TIMEOUT"),
-	Value:   60 * time.Second,
-}
 
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	var endFlags []cli.Flag
