@@ -58,6 +58,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 		},
 		Flags: []cli.Flag{
 			debugFlag,
+			configFlag,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			if cmd.Bool(debugFlag.Name) {
@@ -242,6 +243,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						storage.NewInMemorySet(),
 						storage.NewInMemorySet(),
 					)
+
+					logrus.Warnf("batch size: %d", cmd.Int(batcherBatchSizeFlag.Name))
 
 					// Start server and handle its error
 					serverErr := receiver.Serve(
