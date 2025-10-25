@@ -2,12 +2,14 @@ package ga4
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/sirupsen/logrus"
 	"github.com/slipros/devicedetector"
+	"github.com/slipros/devicedetector/parser/device"
 )
 
 // DeviceCategorySmartphone is a const value for core.d8a.tech/events/device_category for smartphone devices
@@ -62,7 +64,7 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Device Category",
-		"The type of device used to access the site. Parsed from the User-Agent header or query parameters. Common values include 'smartphone', 'desktop', 'tablet', etc.", // nolint:lll // it's a description
+		fmt.Sprintf("The type of device used to access the site, extracted from the User-Agent header or query parameters (e.g., %s).", strings.Join([]string{device.ParserNameCamera, device.ParserNameCar, device.ParserNameConsole, device.ParserNameHbbTv, device.ParserNameMobile, device.ParserNamePortableMediaPlayer}, ", ")), // nolint:lll // it's a description
 	),
 )
 
@@ -74,8 +76,8 @@ var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 		return di.GetBrandName(), nil
 	},
 	columns.WithEventColumnDocs(
-		"Device Mobile Brand",
-		"The brand name of the mobile device (e.g., 'Apple', 'Samsung', 'Google'). Populated only for mobile devices, extracted from User-Agent parsing.", // nolint:lll // it's a description
+		"Device Brand (mobile)",
+		"The brand name of the mobile device, populated only for mobile devices, extracted from User-Agent header (e.g., 'Apple', 'Samsung', 'Google'). ", // nolint:lll // it's a description
 	),
 )
 
@@ -87,8 +89,8 @@ var deviceMobileModelNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 		return di.Model, nil
 	},
 	columns.WithEventColumnDocs(
-		"Device Mobile Model",
-		"The model name of the mobile device (e.g., 'iPhone 13', 'Galaxy S21'). Populated only for mobile devices, extracted from User-Agent parsing.", // nolint:lll // it's a description
+		"Device Model (mobile)",
+		"The model name of the mobile device, populated only for mobile devices, extracted from User-Agent header (e.g.,  'iPhone 13', 'Galaxy S21').", // nolint:lll // it's a description
 	),
 )
 
@@ -101,7 +103,7 @@ var deviceOperatingSystemColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	},
 	columns.WithEventColumnDocs(
 		"Operating System",
-		"The operating system running on the user's device (e.g., 'iOS', 'Android', 'Windows', 'macOS'). Detected from the User-Agent header.", // nolint:lll // it's a description
+		"The operating system running on the user's device, extracted from the User-Agent header (e.g., 'iOS', 'Android', 'Windows', 'macOS', 'GNU/Linux').", // nolint:lll // it's a description
 	),
 )
 
@@ -114,7 +116,7 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	},
 	columns.WithEventColumnDocs(
 		"OS Version",
-		"The version of the operating system running on the user's device (e.g., '15.0', '11.0'). Detected from the User-Agent header.", // nolint:lll // it's a description
+		"The version of the operating system running on the user's device, extracted from the User-Agent header (e.g., '26.0.1', '18.7').", // nolint:lll // it's a description
 	),
 )
 
@@ -134,7 +136,7 @@ var deviceLanguageColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Device Language",
-		"The language setting of the user's device. Extracted from the User-Agent or device information.",
+		"The language setting of the user's device, extracted from the User-Agent header or device information, based on ISO 639 standard for languages and ISO 3166 for country codes (e.g., 'en-us', 'en-gb', 'de-de').", // nolint:lll // it's a description
 	),
 )
 
@@ -147,7 +149,7 @@ var deviceWebBrowserColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	},
 	columns.WithEventColumnDocs(
 		"Web Browser",
-		"The browser used to access the site (e.g., 'Chrome', 'Safari', 'Firefox', 'Edge'). Detected from the User-Agent header.", // nolint:lll // it's a description
+		"The browser used to access the site, extracted from the User-Agent header (e.g., 'Chrome', 'Safari', 'Firefox', 'Mobile Safari').", // nolint:lll // it's a description
 	),
 )
 
@@ -160,6 +162,6 @@ var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	},
 	columns.WithEventColumnDocs(
 		"Browser Version",
-		"The version of the browser used to access the site. Detected from the User-Agent header.",
+		"The version of the browser used to access the site, extracted from the User-Agent header (e.g., '141.0.0.0', '26.0.1').", // nolint:lll // it's a description
 	),
 )

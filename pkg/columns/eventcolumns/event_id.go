@@ -15,6 +15,6 @@ var EventIDColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Event ID",
-		"A unique identifier for this specific event. Generated server-side when the hit is received. Used to deduplicate events and track individual occurrences.", // nolint:lll // it's a description
+		"A unique event identifier, generated server-side when the hit is received, used to deduplicate events and track individual occurrences.", // nolint:lll // it's a description
 	),
 )
