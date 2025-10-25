@@ -14,6 +14,6 @@ var PropertyIDColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Property ID",
-		"The unique identifier for the property (website or app) that sent this event. Used to distinguish between different tracked properties and route data to appropriate destinations.", // nolint:lll // it's a description
+		"The unique identifier for the property (website or app) that sent this event, used to distinguish between different tracked properties and route data to appropriate destinations.", // nolint:lll // it's a description
 	),
 )

@@ -2,7 +2,7 @@ package eventcolumns
 
 import "github.com/d8a-tech/d8a/pkg/columns"
 
-var stubDescription = "Stub column, contains null. Your geolocation provider does not implement this yet." // nolint:lll // it's a description
+var stubDescription = "Stub column, always returns null, since your geolocation provider does not implement this column." // nolint:lll // it's a description
 
 // GeoContinentStubColumn is the column for the geo continent of an event
 var GeoContinentStubColumn = columns.AlwaysNilEventColumn(

@@ -15,7 +15,7 @@ var eventNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.StrErrIfEmpty(columns.CoreInterfaces.EventName.ID)),
 	columns.WithEventColumnDocs(
 		"Event Name",
-		"The name or type of the event (e.g., 'page_view', 'click', 'purchase', 'sign_up'). This identifies what action the user performed.", // nolint:lll // it's a description
+		"The name or type of the event. This identifies the action the user performed (e.g., 'page_view', 'click', 'purchase', 'sign_up').", // nolint:lll // it's a description
 	),
 )
 
@@ -37,7 +37,7 @@ var eventPageReferrerColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnDocs(
 		"Page Referrer",
-		"The URL of the page that referred the user to the current page. Empty string for direct traffic or when referrer information is not available.", // nolint:lll // it's a description
+		"The URL of the page that referred the user to the current page, set to empty string for direct traffic or when referrer information is not available.", // nolint:lll // it's a description
 	),
 )
 
@@ -96,7 +96,7 @@ var eventTrackingProtocolColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Tracking Protocol",
-		"The tracking protocol implementation used to send this event (e.g., 'ga4_gtag', 'ga4_firebase'). Identifies which protocol parser processed the incoming hit.", // nolint:lll // it's a description
+		"The tracking protocol implementation used to send this event. Identifies which protocol parser processed the incoming hit (e.g., 'ga4_gtag', 'ga4_firebase').", // nolint:lll // it's a description
 	),
 )
 
@@ -108,7 +108,7 @@ var eventPlatformColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Platform",
-		"The platform from which the event was sent (e.g., 'web', 'ios', 'android'). Identifies whether the event came from a website, mobile app, or other source.", // nolint:lll // it's a description
+		"The platform from which the event was sent. Identifies whether the event originated from a website, mobile app, or another source (e.g., 'web', 'ios', or 'android').", // nolint:lll // it's a description
 	),
 )
 
@@ -131,7 +131,7 @@ var sessionGa4SessionIDColumn = columns.FromQueryParamSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"GA Session ID",
-		"The Google Analytics 4 session identifier. A unique identifier for the current session, used to group events into sessions.", // nolint:lll // it's a description
+		"The Google Analytics 4 session identifier. A unique identifier for the current session, used to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column. ", // nolint:lll // it's a description
 	),
 )
 
@@ -143,7 +143,7 @@ var sessionNumberColumn = columns.FromQueryParamSessionColumn(
 	columns.WithSessionColumnCast(columns.CastToInt64OrZero(ProtocolInterfaces.SessionParamNumber.ID)),
 	columns.WithSessionColumnDocs(
 		"Session Number",
-		"The sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second).", // nolint:lll // it's a description
+		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie. ", // nolint:lll // it's a description
 	),
 )
 
@@ -168,7 +168,7 @@ var gtmDebugColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"GTM Debug",
-		"Google Tag Manager debug mode identifier. Present when GTM is running in debug/preview mode for testing.",
+		"The Tag Manager debug mode identifier, present when the Tag Manager is running in debug/preview mode for testing.",
 	),
 )
 

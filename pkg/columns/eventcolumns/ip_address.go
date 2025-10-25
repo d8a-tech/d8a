@@ -15,6 +15,6 @@ var IPAddressColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"IP Address",
-		"The IP address from which the tracking request originated. Used as the source for geolocation data and can be used for fraud detection or analytics filtering.", // nolint:lll // it's a description
+		"The IP address from which the tracking request originates, used as the source for geolocation data.", // nolint:lll // it's a description
 	),
 )
