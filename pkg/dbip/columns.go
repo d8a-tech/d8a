@@ -45,6 +45,7 @@ func (t *GeoColumnFactory) Column(
 	column schema.InterfaceID,
 	field *arrow.Field,
 	getValue func(event *schema.Event, record *result) (any, error),
+	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		column,
@@ -82,6 +83,7 @@ func (t *GeoColumnFactory) Column(
 			t.cache.SetWithTTL(event.BoundHit.IP, &record, 1, t.cacheConfig.TTL)
 			return getValue(event, &record)
 		},
+		options...,
 	)
 }
 
@@ -91,6 +93,10 @@ func CityColumn(t *GeoColumnFactory) schema.EventColumn {
 		columns.CoreInterfaces.GeoCity.ID,
 		columns.CoreInterfaces.GeoCity.Field,
 		func(_ *schema.Event, record *result) (any, error) { return record.City.Names.English, nil },
+		columns.WithEventColumnDocs(
+			"City (Provided by DBIP)",
+			"Geolocated city name (e.g., 'New York', 'London').",
+		),
 	)
 }
 
@@ -100,6 +106,10 @@ func CountryColumn(t *GeoColumnFactory) schema.EventColumn {
 		columns.CoreInterfaces.GeoCountry.ID,
 		columns.CoreInterfaces.GeoCountry.Field,
 		func(_ *schema.Event, record *result) (any, error) { return record.Country.Names.English, nil },
+		columns.WithEventColumnDocs(
+			"Country (Provided by DBIP)",
+			"Geolocated country name (e.g., 'United States', 'United Kingdom').",
+		),
 	)
 }
 
@@ -109,6 +119,10 @@ func ContinentColumn(t *GeoColumnFactory) schema.EventColumn {
 		columns.CoreInterfaces.GeoContinent.ID,
 		columns.CoreInterfaces.GeoContinent.Field,
 		func(_ *schema.Event, record *result) (any, error) { return record.Continent.Names.English, nil },
+		columns.WithEventColumnDocs(
+			"Continent (Provided by DBIP)",
+			"Geolocated continent name (e.g., 'Europe', 'North America').",
+		),
 	)
 }
 
@@ -123,6 +137,10 @@ func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
 			}
 			return record.Subdivisions[0].Names.English, nil
 		},
+		columns.WithEventColumnDocs(
+			"Region (Provided by DBIP)",
+			"Geolocated region or state name (e.g., 'California', 'England').",
+		),
 	)
 }
 

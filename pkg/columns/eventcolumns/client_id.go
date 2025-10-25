@@ -15,6 +15,6 @@ var ClientIDColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Client ID",
-		"The Client ID is a unique, randomly generated identifier for the device/browser combination. It's stored client-side and is transferred with each event. It's used to distinguish between new/returning visitors.", // nolint:lll // it's a description
+		"The Client ID is a unique, randomly generated identifier assigned to each device-browser pair or app installation. It is stored client-side and sent with every event, enabling the analytics system to calculate the number of unique visitors. It is also used as one of the identifiers that merge events into a session.", // nolint:lll // it's a description
 	),
 )

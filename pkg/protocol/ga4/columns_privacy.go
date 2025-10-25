@@ -13,6 +13,7 @@ func parseBooleanFromQueryParamOrNilColumn(
 	field *arrow.Field,
 	queryParam string,
 	index int,
+	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		interfaceID,
@@ -43,6 +44,7 @@ func parseBooleanFromQueryParamOrNilColumn(
 			}
 			return boolVal, nil
 		},
+		options...,
 	)
 }
 
@@ -51,6 +53,10 @@ var eventPrivacyAnalyticsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
 	ProtocolInterfaces.EventPrivacyAnalyticsStorage.Field,
 	"gcs",
 	3,
+	columns.WithEventColumnDocs(
+		"Privacy Analytics Storage",
+		"Indicates whether the user has consented to analytics. Extracted from the Google Consent Settings (gcs) parameter. ", // nolint:lll // it's a description
+	),
 )
 
 var eventPrivacyAdsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
@@ -58,4 +64,8 @@ var eventPrivacyAdsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
 	ProtocolInterfaces.EventPrivacyAdsStorage.Field,
 	"gcs",
 	2,
+	columns.WithEventColumnDocs(
+		"Privacy Ads Storage",
+		"Indicates whether the user has consented to advertising. Extracted from the Google Consent Settings (gcs) parameter.", // nolint:lll // it's a description
+	),
 )

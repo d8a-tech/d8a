@@ -39,4 +39,8 @@ var DurationColumn = columns.NewSimpleSessionColumn(
 			Interface:        columns.CoreInterfaces.SessionFirstEventTime.ID,
 			GreaterOrEqualTo: "1.0.0",
 		}),
+	columns.WithSessionColumnDocs(
+		"Session Duration",
+		"The duration of the session in seconds, calculated as the difference between the last event time and the first event time. Zero for single-event sessions.", // nolint:lll // it's a description
+	),
 )

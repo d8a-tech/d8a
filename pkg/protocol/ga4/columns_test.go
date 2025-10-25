@@ -1900,22 +1900,6 @@ func TestEventColumns(t *testing.T) {
 			description: "Empty gtm debug should be nil",
 		},
 		{
-			name:        "EventGl_Valid",
-			param:       "dl",
-			value:       "https://example.com/page?foo=bar&_gl=1337",
-			expected:    "1337",
-			fieldName:   "_gl",
-			description: "Valid gl",
-		},
-		{
-			name:        "EventGl_Empty",
-			param:       "dl",
-			value:       "https://example.com/page?foo=bar",
-			expected:    nil,
-			fieldName:   "gl",
-			description: "Empty gl should be nil",
-		},
-		{
 			name:        "ItemsTotalQuantity_Empty",
 			param:       "foo",
 			value:       "bar",
@@ -2155,7 +2139,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "sid",
 			value:       "session123",
 			expected:    "session123",
-			fieldName:   "session_params_ga_session_id",
+			fieldName:   "params_ga_session_id",
 			description: "Valid GA4 session ID",
 		},
 		{
@@ -2163,7 +2147,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "sid",
 			value:       "",
 			expected:    "",
-			fieldName:   "session_params_ga_session_id",
+			fieldName:   "params_ga_session_id",
 			description: "Empty GA4 session ID",
 		},
 		{
@@ -2171,7 +2155,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "sct",
 			value:       "5",
 			expected:    int64(5),
-			fieldName:   "session_params_ga_session_number",
+			fieldName:   "params_ga_session_number",
 			description: "Valid session number",
 		},
 		{
@@ -2179,7 +2163,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "sct",
 			value:       "",
 			expected:    0,
-			fieldName:   "session_params_ga_session_number",
+			fieldName:   "params_ga_session_number",
 			description: "Empty session number should be 0",
 		},
 		{
@@ -2187,7 +2171,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "sct",
 			value:       "invalid",
 			expected:    0,
-			fieldName:   "session_params_ga_session_number",
+			fieldName:   "params_ga_session_number",
 			description: "Invalid session number should be 0",
 		},
 		{
@@ -2195,7 +2179,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "seg",
 			value:       "1",
 			expected:    int64(1),
-			fieldName:   "session_engagement",
+			fieldName:   "session_is_engaged",
 			description: "Valid session engagement",
 		},
 		{
@@ -2203,7 +2187,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "seg",
 			value:       "",
 			expected:    nil,
-			fieldName:   "session_engagement",
+			fieldName:   "session_is_engaged",
 			description: "Empty session engagement should be nil",
 		},
 		{
@@ -2211,7 +2195,7 @@ func TestSessionColumns(t *testing.T) {
 			param:       "seg",
 			value:       "invalid",
 			expected:    nil,
-			fieldName:   "session_engagement",
+			fieldName:   "session_is_engaged",
 			description: "Invalid session engagement should be nil",
 		},
 	}

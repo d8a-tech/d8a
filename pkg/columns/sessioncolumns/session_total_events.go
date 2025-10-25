@@ -13,4 +13,8 @@ var TotalEventsColumn = columns.NewSimpleSessionColumn(
 	func(session *schema.Session) (any, error) {
 		return len(session.Events), nil
 	},
+	columns.WithSessionColumnDocs(
+		"Session Total Events",
+		"The total number of events that occurred during this session. Includes all event types (page views, clicks, custom events, etc.).", // nolint:lll // it's a description
+	),
 )
