@@ -15,6 +15,6 @@ var UserIDColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"User ID",
-		"An optional user-provided identifier for authenticated users. This is set by the tracking implementation when a user is logged in and allows tracking across devices and sessions for the same user.", // nolint:lll // it's a description
+		"An optional, user-provided identifier for authenticated users. It is set by the tracking implementation when a user is logged in (and can be identified) and enables tracking across devices and sessions for the same user.", // nolint:lll // it's a description
 	),
 )

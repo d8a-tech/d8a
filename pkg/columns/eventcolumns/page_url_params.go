@@ -14,7 +14,7 @@ var UtmMarketingTacticColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Marketing Tactic",
-		"The marketing tactic from the 'utm_marketing_tactic' URL parameter. Part of the enhanced Google Analytics measurement protocol, describes the targeting criteria (e.g., 'remarketing', 'prospecting').", // nolint:lll // it's a description
+		"The marketing tactic from the 'utm_marketing_tactic' URL parameter, describes the targeting criteria (e.g., 'remarketing', 'prospecting').", // nolint:lll // it's a description
 	),
 )
 
@@ -28,7 +28,7 @@ var UtmSourcePlatformColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Source Platform",
-		"The source platform from the 'utm_source_platform' URL parameter. Part of the enhanced Google Analytics measurement protocol, identifies the platform of the traffic source (e.g., 'Google Ads', 'Display & Video 360').", // nolint:lll // it's a description
+		"The source platform from the 'utm_source_platform' URL parameter, identifies the platform of the traffic source (e.g., 'Google Ads', 'Display & Video 360', 'Meta Ads').", // nolint:lll // it's a description
 	),
 )
 
@@ -42,7 +42,7 @@ var UtmTermColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Term",
-		"The search term from the 'utm_term' URL parameter. Used primarily for paid search campaigns to identify the keywords that triggered the ad.", // nolint:lll // it's a description
+		"The search term from the 'utm_term' URL parameter, used primarily for paid search campaigns to identify the keywords that triggered the ad.", // nolint:lll // it's a description
 	),
 )
 
@@ -56,7 +56,7 @@ var UtmContentColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Content",
-		"The content identifier from the 'utm_content' URL parameter. Used to differentiate similar content or links within the same campaign (e.g., 'banner_top', 'button_cta').", // nolint:lll // it's a description
+		"The content identifier from the 'utm_content' URL parameter, used to differentiate similar content or links within the same campaign (e.g., 'banner_top', 'button_cta').", // nolint:lll // it's a description
 	),
 )
 
@@ -70,7 +70,7 @@ var UtmSourceColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Source",
-		"The traffic source from the 'utm_source' URL parameter. Identifies where the traffic originated (e.g., 'google', 'facebook', 'newsletter').", // nolint:lll // it's a description
+		"The traffic source from the 'utm_source' URL parameter, identifies where the traffic originated (e.g., 'google', 'facebook', 'newsletter').", // nolint:lll // it's a description
 	),
 )
 
@@ -84,7 +84,7 @@ var UtmMediumColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Medium",
-		"The traffic medium from the 'utm_medium' URL parameter. Identifies the marketing medium (e.g., 'cpc', 'email', 'social', 'organic').", // nolint:lll // it's a description
+		"The traffic medium from the 'utm_medium' URL parameter, identifies the marketing medium (e.g., 'cpc', 'email', 'social', 'organic').", // nolint:lll // it's a description
 	),
 )
 
@@ -98,7 +98,7 @@ var UtmCampaignColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Campaign",
-		"The campaign name from the 'utm_campaign' URL parameter. Used to identify specific marketing campaigns (e.g., 'summer_sale', 'product_launch_2024').", // nolint:lll // it's a description
+		"The campaign name from the 'utm_campaign' URL parameter, used to identify specific marketing campaigns (e.g., 'summer_sale', 'product_launch_2024').", // nolint:lll // it's a description
 	),
 )
 
@@ -112,7 +112,7 @@ var UtmIDColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM ID",
-		"The campaign ID from the 'utm_id' URL parameter. Used to identify a specific campaign with a unique identifier for integration with advertising platforms.", // nolint:lll // it's a description
+		"The campaign ID from the 'utm_id' URL parameter, used to identify a specific campaign with a unique identifier for integration with advertising platforms.", // nolint:lll // it's a description
 	),
 )
 
@@ -126,6 +126,6 @@ var UtmCreativeFormatColumn = columns.FromPageURLEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"UTM Creative Format",
-		"The creative format from the 'utm_creative_format' URL parameter. Part of the enhanced Google Analytics measurement protocol, identifies the format of the creative asset.", // nolint:lll // it's a description
+		"The creative format from the 'utm_creative_format' URL parameter, identifies the format of the creative asset.", // nolint:lll // it's a description
 	),
 )

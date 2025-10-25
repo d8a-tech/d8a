@@ -55,7 +55,7 @@ var eventPrivacyAnalyticsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
 	3,
 	columns.WithEventColumnDocs(
 		"Privacy Analytics Storage",
-		"Indicates whether analytics storage consent has been granted. Extracted from the Google Consent Settings (gcs) parameter. True if user has consented to analytics cookies.", // nolint:lll // it's a description
+		"Indicates whether the user has consented to analytics. Extracted from the Google Consent Settings (gcs) parameter. ", // nolint:lll // it's a description
 	),
 )
 
@@ -66,6 +66,6 @@ var eventPrivacyAdsStorageColumn = parseBooleanFromQueryParamOrNilColumn(
 	2,
 	columns.WithEventColumnDocs(
 		"Privacy Ads Storage",
-		"Indicates whether ads storage consent has been granted. Extracted from the Google Consent Settings (gcs) parameter. True if user has consented to advertising cookies.", // nolint:lll // it's a description
+		"Indicates whether the user has consented to advertising. Extracted from the Google Consent Settings (gcs) parameter.", // nolint:lll // it's a description
 	),
 )

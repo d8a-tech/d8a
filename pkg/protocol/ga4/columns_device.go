@@ -2,14 +2,12 @@ package ga4
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/sirupsen/logrus"
 	"github.com/slipros/devicedetector"
-	"github.com/slipros/devicedetector/parser/device"
 )
 
 // DeviceCategorySmartphone is a const value for core.d8a.tech/events/device_category for smartphone devices
@@ -64,7 +62,7 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Device Category",
-		fmt.Sprintf("The type of device used to access the site, extracted from the User-Agent header or query parameters (e.g., %s).", strings.Join([]string{device.ParserNameCamera, device.ParserNameCar, device.ParserNameConsole, device.ParserNameHbbTv, device.ParserNameMobile, device.ParserNamePortableMediaPlayer}, ", ")), // nolint:lll // it's a description
+		"The type of device used to access the site, extracted from the User-Agent header or query parameters (e.g., 'smartphone', 'desktop', 'tablet', ...).", // nolint:lll // it's a description
 	),
 )
 

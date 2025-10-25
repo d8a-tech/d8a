@@ -34,7 +34,7 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 		),
 		columns.WithEventColumnDocs(
 			"Purchase Revenue (USD)",
-			"Total purchase revenue converted to USD. Calculated from ecommerce_purchase_revenue using the currency converter.", // nolint:lll // it's a description
+			"The total purchase revenue converted to USD, calculated from ecommerce_purchase_revenue using the currency converter.", // nolint:lll // it's a description
 		),
 	)
 }
@@ -64,7 +64,7 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 		),
 		columns.WithEventColumnDocs(
 			"Refund Value (USD)",
-			"Total refund value converted to USD. Calculated from ecommerce_refund_value using the currency converter.",
+			"The total refund value converted to USD, calculated from ecommerce_refund_value using the currency converter.",
 		),
 	)
 }
@@ -94,7 +94,7 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 		),
 		columns.WithEventColumnDocs(
 			"Shipping Value (USD)",
-			"Total shipping cost converted to USD. Calculated from ecommerce_shipping_value using the currency converter.", // nolint:lll // it's a description
+			"The total shipping cost converted to USD, calculated from ecommerce_shipping_value using the currency converter.", // nolint:lll // it's a description
 		),
 	)
 }
@@ -108,7 +108,7 @@ var eventEcommerceTaxValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
 	columns.WithEventColumnDocs(
 		"Tax Value",
-		"Tax value for the transaction. Flattened event parameter from GA4 built-in ecommerce events.",
+		"The ecommerce tax value for the transaction.",
 	),
 )
 
@@ -137,7 +137,7 @@ func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.Even
 		),
 		columns.WithEventColumnDocs(
 			"Tax Value (USD)",
-			"Tax value converted to USD. Calculated from ecommerce_tax_value using the currency converter.",
+			"The ecommerce tax value converted to USD, calculated from ecommerce_tax_value using the currency converter.",
 		),
 	)
 }

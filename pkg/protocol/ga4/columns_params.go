@@ -255,7 +255,7 @@ var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Shipping Value",
-		"Shipping cost associated with the transaction. Extracted from the params_shipping parameter, with zero as default if not present.", // nolint:lll // it's a description
+		"The shipping cost associated with the transaction, extracted from the params_shipping parameter, with zero as default if not present.", // nolint:lll // it's a description
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{

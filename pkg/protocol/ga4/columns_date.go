@@ -16,7 +16,7 @@ var eventTimestampUTCColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Event Timestamp (UTC)",
-		"The precise timestamp when the event occurred, in UTC timezone with second-level precision. This is the server-received time recorded when the hit arrives.", // nolint:lll // it's a description
+		"The precise UTC timestamp of when the event occurred, with second-level precision. This represents the time recorded when the hit is received by the server.", // nolint:lll // it's a description
 	),
 )
 
@@ -28,7 +28,7 @@ var eventDateUTCColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Event Date (UTC)",
-		"The date when the event occurred, in UTC timezone, formatted as YYYY-MM-DD.",
+		"The date when the event occurred in the UTC timezone, formatted as YYYY-MM-DD.",
 	),
 )
 
@@ -48,6 +48,6 @@ var eventPageLoadHashColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Page Load Hash",
-		"Timestamp when the page was loaded, extracted from the _p parameter. Usually contains a millisecond-precision Unix timestamp. Used to correlate events from the same page load.", // nolint:lll // it's a description
+		"Timestamp when the page was loaded. Usually contains a millisecond-precision Unix timestamp. Used to correlate events from the same page load. For ga4_gtag tracking protocol, extracted from the _p parameter.", // nolint:lll // it's a description
 	),
 )

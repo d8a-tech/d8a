@@ -32,7 +32,7 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 		},
 		columns.WithEventColumnDocs(
 			"Items",
-			"Array of ecommerce items associated with the event. Each item contains detailed product information including: item_id, item_name, affiliation, coupon, discount, index, item_brand, item_category (1-5 levels), item_list_id, item_list_name, item_variant, location_id, price, price_in_usd, quantity, item_refund, item_refund_in_usd, item_revenue, item_revenue_in_usd, promotion_id, promotion_name, creative_name, and creative_slot. Used in ecommerce events like purchase, add_to_cart, view_item, etc.", // nolint:lll // it's a description
+			"An array of ecommerce items associated with the event. Each item contains detailed product information including: item_id, item_name, affiliation, coupon, discount, index, item_brand, item_category (1-5 levels), item_list_id, item_list_name, item_variant, location_id, price, price_in_usd, quantity, item_refund, item_refund_in_usd, item_revenue, item_revenue_in_usd, promotion_id, promotion_name, creative_name, and creative_slot. Used in ecommerce events like purchase, add_to_cart, view_item, etc.", // nolint:lll // it's a description
 		),
 		columns.WithEventColumnDependsOn(
 			// Some props make take values from event itself, so we need to evaluate them before parsing the item
@@ -295,7 +295,7 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Purchase Revenue",
-		"Total purchase revenue calculated by summing item_revenue across all items in the event. Zero for refund events. Represents the total transaction value from purchased items.", // nolint:lll // it's a description
+		"The total purchase revenue calculated by summing item_revenue across all items in the event. Zero for refund events. Represents the total transaction value from purchased items.", // nolint:lll // it's a description
 	),
 )
 
@@ -318,7 +318,7 @@ var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn[float64](
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Refund Value",
-		"Total refund value calculated by summing item_refund across all items in the event. Only populated for refund events, zero otherwise. Represents the total value refunded.", // nolint:lll // it's a description
+		"The total refund value calculated by summing item_refund across all items in the event. Only populated for refund events, zero otherwise. Represents the total value refunded.", // nolint:lll // it's a description
 	),
 )
 
@@ -366,7 +366,7 @@ var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Unique Items",
-		"Count of unique items in the event, determined by distinct item_id or item_name values. Useful for understanding product variety in transactions.", // nolint:lll // it's a description
+		"The count of unique items in the event, determined by distinct item_id or item_name values. Useful for understanding product variety in transactions.", // nolint:lll // it's a description
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{

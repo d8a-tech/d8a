@@ -30,6 +30,6 @@ var SessionIDColumn = columns.NewSimpleSessionColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session ID",
-		"A unique identifier for the session. Derived from the first event's ID in the session. Used to group all events that belong to the same user session together.", // nolint:lll // it's a description
+		"A unique identifier for the session, derived from the first event's ID in the session, used to group all events that belong to the same user session.", // nolint:lll // it's a description
 	),
 )
