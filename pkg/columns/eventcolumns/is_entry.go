@@ -19,7 +19,7 @@ var SSEIsEntry = columns.NewSimpleSessionScopedEventColumn(
 		return false, nil
 	},
 	columns.WithSessionScopedEventColumnDocs(
-		"Is Entry Event",
+		"Session Is Entry Event",
 		"A boolean flag indicating whether this event is the first event (entry point) of the session. True for the first event in the session, false for all subsequent events.", // nolint:lll // it's a description
 	),
 )

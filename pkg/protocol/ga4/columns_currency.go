@@ -33,7 +33,7 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 			},
 		),
 		columns.WithEventColumnDocs(
-			"Purchase Revenue (USD)",
+			"Ecommerce Purchase Revenue (USD)",
 			"The total purchase revenue converted to USD, calculated from ecommerce_purchase_revenue using the currency converter.", // nolint:lll // it's a description
 		),
 	)
@@ -63,7 +63,7 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 			},
 		),
 		columns.WithEventColumnDocs(
-			"Refund Value (USD)",
+			"Ecommerce Refund Value (USD)",
 			"The total refund value converted to USD, calculated from ecommerce_refund_value using the currency converter.",
 		),
 	)
@@ -93,7 +93,7 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 			},
 		),
 		columns.WithEventColumnDocs(
-			"Shipping Value (USD)",
+			"Ecommerce Shipping Value (USD)",
 			"The total shipping cost converted to USD, calculated from ecommerce_shipping_value using the currency converter.", // nolint:lll // it's a description
 		),
 	)

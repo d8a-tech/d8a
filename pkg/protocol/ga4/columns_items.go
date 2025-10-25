@@ -31,7 +31,7 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 			return items, nil
 		},
 		columns.WithEventColumnDocs(
-			"Items",
+			"Ecommerce Items",
 			"An array of ecommerce items associated with the event. Each item contains detailed product information including: item_id, item_name, affiliation, coupon, discount, index, item_brand, item_category (1-5 levels), item_list_id, item_list_name, item_variant, location_id, price, price_in_usd, quantity, item_refund, item_refund_in_usd, item_revenue, item_revenue_in_usd, promotion_id, promotion_name, creative_name, and creative_slot. Used in ecommerce events like purchase, add_to_cart, view_item, etc.", // nolint:lll // it's a description
 		),
 		columns.WithEventColumnDependsOn(

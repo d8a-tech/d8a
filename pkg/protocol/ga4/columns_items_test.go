@@ -21,7 +21,7 @@ func TestItemsColumnAllParams(t *testing.T) {
 			require.NoError(t, closeErr)
 			record := whd.WriteCalls[0].Records[0]
 
-			items, ok := record["items"].([]any)
+			items, ok := record["ecommerce_items"].([]any)
 			require.True(t, ok, "items should be of type []any")
 			assert.Len(t, items, 1)
 
@@ -111,7 +111,7 @@ func TestItemsColumnRefund(t *testing.T) {
 					require.NoError(t, closeErr)
 					record := whd.WriteCalls[0].Records[0]
 
-					items, ok := record["items"].([]any)
+					items, ok := record["ecommerce_items"].([]any)
 					require.True(t, ok, "items should be of type []any")
 					assert.Len(t, items, 1)
 
@@ -149,7 +149,7 @@ func TestItemsColumnTakeFromEvent(t *testing.T) {
 			require.NoError(t, closeErr)
 			record := whd.WriteCalls[0].Records[0]
 
-			items, ok := record["items"].([]any)
+			items, ok := record["ecommerce_items"].([]any)
 			require.True(t, ok, "items should be of type []any")
 			assert.Len(t, items, 1)
 
