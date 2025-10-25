@@ -113,7 +113,7 @@ func TestSessionDurationColumn(t *testing.T) {
 			// then
 			assert.Equal(t, tt.expectedError, err != nil)
 			if !tt.expectedError {
-				assert.Equal(t, tt.expected, session.Values[columns.CoreInterfaces.SessionDuration.Field.Name])
+				assert.Equal(t, tt.expected, session.Values["session_duration"])
 			}
 		})
 	}

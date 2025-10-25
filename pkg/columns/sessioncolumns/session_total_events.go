@@ -14,7 +14,7 @@ var TotalEventsColumn = columns.NewSimpleSessionColumn(
 		return len(session.Events), nil
 	},
 	columns.WithSessionColumnDocs(
-		"Total Events",
+		"Session Total Events",
 		"The total number of events that occurred during this session. Includes all event types (page views, clicks, custom events, etc.).", // nolint:lll // it's a description
 	),
 )

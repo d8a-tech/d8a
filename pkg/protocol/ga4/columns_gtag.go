@@ -142,19 +142,19 @@ var sessionNumberColumn = columns.FromQueryParamSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnCast(columns.CastToInt64OrZero(ProtocolInterfaces.SessionParamNumber.ID)),
 	columns.WithSessionColumnDocs(
-		"Session Number",
+		"GA Session Number",
 		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie. ", // nolint:lll // it's a description
 	),
 )
 
 var sessionEngagementColumn = columns.FromQueryParamSessionColumn(
-	ProtocolInterfaces.SessionEngagement.ID,
-	ProtocolInterfaces.SessionEngagement.Field,
+	ProtocolInterfaces.SessionIsEngaged.ID,
+	ProtocolInterfaces.SessionIsEngaged.Field,
 	"seg",
 	columns.WithSessionColumnRequired(false),
-	columns.WithSessionColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.SessionEngagement.ID)),
+	columns.WithSessionColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.SessionIsEngaged.ID)),
 	columns.WithSessionColumnDocs(
-		"Engagement",
+		"Session Is Engaged",
 		"Session engagement indicator. Typically set to 1 for engaged sessions (sessions with meaningful user interaction).", // nolint:lll // it's a description
 	),
 )
@@ -169,18 +169,5 @@ var gtmDebugColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnDocs(
 		"GTM Debug",
 		"The Tag Manager debug mode identifier, present when the Tag Manager is running in debug/preview mode for testing.",
-	),
-)
-
-var glColumn = columns.FromPageURLEventColumn(
-	ProtocolInterfaces.EventGl.ID,
-	ProtocolInterfaces.EventGl.Field,
-	"_gl",
-	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventGl.ID)),
-	),
-	columns.WithEventColumnDocs(
-		"Google Linker",
-		"Google linker parameter used for cross-domain tracking. Contains encoded client ID and session information for maintaining user identity across domains.", // nolint:lll // it's a description
 	),
 )
