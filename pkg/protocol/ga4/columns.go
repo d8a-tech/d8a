@@ -456,7 +456,7 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field: &arrow.Field{
 			Nullable: true,
-			Name:     "items", Type: arrow.ListOf(arrow.StructOf(
+			Name:     "ecommerce_items", Type: arrow.ListOf(arrow.StructOf(
 				arrow.Field{Name: itemKeyID, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyName, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyAffiliation, Type: arrow.BinaryTypes.String, Nullable: true},

@@ -11,7 +11,7 @@ var ClickIDsGclidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGclid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"GCLID",
+		"Google Ads Click ID",
 		"Google Click ID from Google Ads campaigns, extracted from the 'gclid' parameter in the page URL, used for tracking ad clicks and linking conversions to Google Ads.", // nolint:lll // it's a description
 	),
 )
@@ -25,7 +25,7 @@ var ClickIDsDclidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDDclid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"DCLID",
+		"Google DV360 Click ID",
 		"Google Click ID from Google Display & Video 360 campaigns, extracted from the 'dclid' parameter in the page URL, used for tracking display ad clicks and conversions.", // nolint:lll // it's a description
 	),
 )
@@ -39,7 +39,7 @@ var ClickIDsSrsltidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDSrsltid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"SRSLTID",
+		"Google Shopping Results Click ID",
 		"Google Shopping Result Click ID, extracted from the 'srsltid' parameter in the page URL, used for tracking clicks from Google Shopping results.", // nolint:lll // it's a description
 	),
 )
@@ -53,7 +53,7 @@ var ClickIDsGbraidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGbraid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"GBRAID",
+		"Google iOS app-to-web Click ID",
 		"Google Click ID for iOS app-to-web conversions, extracted from the 'gbraid' parameter in the page URL, used for privacy-preserving attribution from iOS apps.", // nolint:lll // it's a description
 	),
 )
@@ -67,7 +67,7 @@ var ClickIDsWbraidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDWbraid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"WBRAID",
+		"Google iOS web-to-app Click ID",
 		"Google Click ID for iOS web-to-app conversions, extracted from the 'wbraid' parameter in the page URL, used for privacy-preserving attribution to iOS apps.", // nolint:lll // it's a description
 	),
 )
@@ -81,7 +81,7 @@ var ClickIDsMsclkidColumn = columns.FromPageURLEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDMsclkid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"MSCLKID",
+		"Microsoft Click ID",
 		"Microsoft Click ID from Microsoft Advertising campaigns, extracted from the 'msclkid' parameter in the page URL, used for tracking Bing/Microsoft ad clicks and conversions.", // nolint:lll // it's a description
 	),
 )
