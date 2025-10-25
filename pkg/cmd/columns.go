@@ -21,26 +21,40 @@ func (f *consoleColumnsFormatter) Format(columns schema.Columns) (string, error)
 	result += "Event columns:\n"
 	for _, col := range columns.Event {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		if docs.DisplayName == "" {
-			result += fmt.Sprintf("%s: %s\n", docs.ColumnName, docs.Description)
+			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 		} else {
-			result += fmt.Sprintf("%s (%s): %s\n", docs.DisplayName, docs.ColumnName, docs.Description)
+			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
 		}
 	}
 	result += "Session-scoped event columns:\n"
 	for _, col := range columns.SessionScopedEvent {
-		if col.Docs().DisplayName == "" {
-			result += fmt.Sprintf("%s: %s\n", col.Docs().ColumnName, col.Docs().Description)
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		if docs.DisplayName == "" {
+			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 		} else {
-			result += fmt.Sprintf("%s (%s): %s\n", col.Docs().DisplayName, col.Docs().ColumnName, col.Docs().Description)
+			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
 		}
 	}
 	result += "Session columns:\n"
 	for _, col := range columns.Session {
-		if col.Docs().DisplayName == "" {
-			result += fmt.Sprintf("%s: %s\n", col.Docs().ColumnName, col.Docs().Description)
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		if docs.DisplayName == "" {
+			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 		} else {
-			result += fmt.Sprintf("%s (%s): %s\n", col.Docs().DisplayName, col.Docs().ColumnName, col.Docs().Description)
+			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
 		}
 	}
 	return result, nil
@@ -57,32 +71,47 @@ func (f *jsonColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	columnsJSON := []map[string]any{}
 	for _, col := range columns.Event {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		columnsJSON = append(columnsJSON, map[string]any{
 			"scope":        "event",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
+			"type":         typeName,
 		})
 	}
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		columnsJSON = append(columnsJSON, map[string]any{
 			"scope":        "session-scoped-event",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
+			"type":         typeName,
 		})
 	}
 	for _, col := range columns.Session {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		columnsJSON = append(columnsJSON, map[string]any{
 			"scope":        "session",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
+			"type":         typeName,
 		})
 	}
 	jsonBytes, err := json.MarshalIndent(columnsJSON, "", "  ")
@@ -104,15 +133,19 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	if err := writer.Write([]string{"scope", "interface_id", "name", "display_name", "description"}); err != nil {
+	if err := writer.Write([]string{"scope", "interface_id", "name", "display_name", "type", "description"}); err != nil {
 		return "", fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
 	// Write event columns
 	for _, col := range columns.Event {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		if err := writer.Write([]string{
-			"event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
+			"event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
 		}); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
@@ -121,8 +154,12 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	// Write session-scoped event columns
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		row := []string{
-			"session-scoped-event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
+			"session-scoped-event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
 		}
 		if err := writer.Write(row); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
@@ -132,8 +169,12 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	// Write session columns
 	for _, col := range columns.Session {
 		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
 		if err := writer.Write([]string{
-			"session", docs.InterfaceID, docs.ColumnName, docs.DisplayName, docs.Description,
+			"session", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
 		}); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}

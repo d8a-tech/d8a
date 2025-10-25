@@ -68,6 +68,7 @@ func NewSimpleSessionColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -238,6 +239,7 @@ func NewSimpleEventColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -563,6 +565,7 @@ func NewSimpleSessionScopedEventColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -595,6 +598,7 @@ func defaultDocumentation(intf schema.Interface, displayName, description string
 		ColumnName:  intf.Field.Name,
 		DisplayName: displayName,
 		Description: description,
+		Type:        intf.Field,
 		InterfaceID: string(intf.ID),
 	}
 }
