@@ -193,7 +193,7 @@ var ProtocolInterfaces = struct {
 	// lead_status - used in custom lead tracking events
 	EventParamLeadStatus schema.Interface
 	// Session params
-	SessionEngagement             schema.Interface
+	SessionIsEngaged              schema.Interface
 	SessionParamParamsGaSessionID schema.Interface
 	SessionParamsGaSessionNumber  schema.Interface
 	SessionParamNumber            schema.Interface
@@ -389,10 +389,10 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	SessionEngagement: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/engagement",
+	SessionIsEngaged: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/session/is_engaged",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "engagement", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionParamParamsGaSessionID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_id",
@@ -909,11 +909,6 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/gtm_debug",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "gtm_debug", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventGl: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/gl",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "_gl", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	// **lid params
 	EventParamGclid: schema.Interface{

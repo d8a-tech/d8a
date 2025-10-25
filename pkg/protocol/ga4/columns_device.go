@@ -113,7 +113,7 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 		return di.GetOs().Version, nil
 	},
 	columns.WithEventColumnDocs(
-		"OS Version",
+		"Operating System Version",
 		"The version of the operating system running on the user's device, extracted from the User-Agent header (e.g., '26.0.1', '18.7').", // nolint:lll // it's a description
 	),
 )
@@ -159,7 +159,7 @@ var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 		return di.GetClient().Version, nil
 	},
 	columns.WithEventColumnDocs(
-		"Browser Version",
+		"Web Browser Version",
 		"The version of the browser used to access the site, extracted from the User-Agent header (e.g., '141.0.0.0', '26.0.1').", // nolint:lll // it's a description
 	),
 )

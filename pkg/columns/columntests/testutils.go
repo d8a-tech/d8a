@@ -352,7 +352,7 @@ func ColumnTestCase(
 		map[string]schema.Layout{},
 		schema.NewEmbeddedSessionColumnsLayout(
 			"events",
-			"session_",
+			"",
 		),
 	)
 	cc := &CaseConfig{

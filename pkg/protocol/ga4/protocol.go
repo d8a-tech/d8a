@@ -358,7 +358,6 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventEcommerceItemsTotalQuantityColumn,
 			// Page URL params
 			gtmDebugColumn,
-			glColumn,
 			// **lid params
 			gclidParamColumn,
 			dclidParamColumn,
@@ -375,19 +374,6 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			deviceLanguageColumn,
 			deviceWebBrowserColumn,
 			deviceWebBrowserVersionColumn,
-			// Source columns
-			sourceManualCampaignIDColumn,
-			sourceManualCampaignNameColumn,
-			sourceManualSourceColumn,
-			sourceManualMediumColumn,
-			sourceManualTermColumn,
-			sourceManualContentColumn,
-			sourceManualSourcePlatformColumn,
-			sourceManualCreativeFormatColumn,
-			sourceManualMarketingTacticColumn,
-			sourceGclidColumn,
-			sourceDclidColumn,
-			sourceSrsltidColumn,
 			// Date columns
 			eventTimestampUTCColumn,
 			eventDateUTCColumn,

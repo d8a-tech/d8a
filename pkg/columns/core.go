@@ -195,22 +195,22 @@ var CoreInterfaces = struct {
 	SessionDuration: schema.Interface{
 		ID:      "core.d8a.tech/sessions/duration",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionFirstEventTime: schema.Interface{
 		ID:      "core.d8a.tech/sessions/first_event_time",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+		Field:   &arrow.Field{Name: "session_first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 	},
 	SessionLastEventTime: schema.Interface{
 		ID:      "core.d8a.tech/sessions/last_event_time",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+		Field:   &arrow.Field{Name: "session_last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 	},
 	SessionTotalEvents: schema.Interface{
 		ID:      "core.d8a.tech/sessions/total_events",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SSESessionHitNumber: schema.Interface{
 		ID:      "core.d8a.tech/events/session_hit_number",
