@@ -15,7 +15,7 @@ var eventNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.StrErrIfEmpty(columns.CoreInterfaces.EventName.ID)),
 	columns.WithEventColumnDocs(
 		"Event Name",
-		"The name or type of the event. This identifies the action the user performed (e.g., 'page_view', 'click', 'purchase', 'sign_up').", // nolint:lll // it's a description
+		"The name of the event. This identifies the action the user performed (e.g., 'page_view', 'click', 'purchase', 'sign_up').", // nolint:lll // it's a description
 	),
 )
 

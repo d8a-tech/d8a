@@ -394,7 +394,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "en",
 			value:       "page_view",
 			expected:    "page_view",
-			fieldName:   "event_name",
+			fieldName:   "name",
 			description: "Required event name field",
 		},
 		{
@@ -403,7 +403,7 @@ func TestEventColumns(t *testing.T) {
 			value:       "",
 			expected:    nil,
 			expectedErr: true,
-			fieldName:   "event_name",
+			fieldName:   "name",
 			description: "Empty event name should be nil",
 		},
 

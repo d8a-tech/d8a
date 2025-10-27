@@ -19,7 +19,7 @@ import (
 // TestSchema is a test schema for testing the query mapper.
 func TestSchema() *arrow.Schema {
 	fields := []arrow.Field{
-		{Name: "event_id", Type: arrow.BinaryTypes.String, Nullable: false},
+		{Name: "id", Type: arrow.BinaryTypes.String, Nullable: false},
 		{Name: "user_id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},
 		{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 		{Name: "event_type", Type: arrow.BinaryTypes.String, Nullable: false},
@@ -569,8 +569,8 @@ func TestMissingColumns( //nolint:funlen // It's a test function
 	t.Run("incompatible_column_types", func(t *testing.T) {
 		// Create table with a column that has the same name but different type
 		incompatibleFields := []arrow.Field{
-			{Name: "event_id", Type: arrow.PrimitiveTypes.Int64, Nullable: false}, // Different type than test schema
-			{Name: "user_id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},  // Same type as test schema
+			{Name: "id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},      // Different type than test schema
+			{Name: "user_id", Type: arrow.PrimitiveTypes.Int64, Nullable: false}, // Same type as test schema
 		}
 		incompatibleSchema := arrow.NewSchema(incompatibleFields, nil)
 		createErr := driver.CreateTable(tableName+"_incompatible", incompatibleSchema)
@@ -584,7 +584,7 @@ func TestMissingColumns( //nolint:funlen // It's a test function
 		var multiTypeErr *warehouse.ErrMultipleTypeIncompatible
 		require.True(t, errors.As(err, &multiTypeErr), "error should be of type ErrMultipleTypeIncompatible")
 		require.Len(t, multiTypeErr.Errors, 1, "should have exactly one type error")
-		assert.Equal(t, "event_id", multiTypeErr.Errors[0].ColumnName,
+		assert.Equal(t, "id", multiTypeErr.Errors[0].ColumnName,
 			"should return the column name of the incompatible type")
 	})
 }
@@ -609,7 +609,7 @@ func events() []*schema.Event {
 // generateSampleTestData creates a map with sample test data for all test schema fields.
 func generateSampleTestData() map[string]any {
 	return map[string]any{
-		"event_id":   "evt_12345",
+		"id":         "evt_12345",
 		"user_id":    int64(42),
 		"timestamp":  time.Now(),
 		"event_type": "page_view",
