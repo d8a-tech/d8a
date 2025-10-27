@@ -193,10 +193,11 @@ var ProtocolInterfaces = struct {
 	// lead_status - used in custom lead tracking events
 	EventParamLeadStatus schema.Interface
 	// Session params
-	SessionIsEngaged              schema.Interface
-	SessionParamParamsGaSessionID schema.Interface
-	SessionParamsGaSessionNumber  schema.Interface
-	SessionParamNumber            schema.Interface
+	SessionIsEngaged          schema.Interface
+	EventParamGaSessionID     schema.Interface
+	EventParamGaSessionNumber schema.Interface
+	GaSessionID               schema.Interface
+	GaSessionNumber           schema.Interface
 
 	// Item params
 	EventItems              schema.Interface
@@ -394,12 +395,12 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	SessionParamParamsGaSessionID: schema.Interface{
+	EventParamGaSessionID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	SessionParamNumber: schema.Interface{
+	EventParamGaSessionNumber: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
@@ -1015,5 +1016,16 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/privacy_ads_storage",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "privacy_ads_storage", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	// GA Session columns
+	GaSessionID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ga_session_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GaSessionNumber: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ga_session_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 }

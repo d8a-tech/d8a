@@ -323,6 +323,8 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventFileExtensionColumn,
 			eventFileNameColumn,
 			eventFormDestinationColumn,
+			eventGa4SessionIDColumn,
+			eventGa4SessionNumberColumn,
 			eventFormIDColumn,
 			eventFormNameColumn,
 			eventFormSubmitTextColumn,
@@ -381,10 +383,11 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			// Privacy columns
 			eventPrivacyAnalyticsStorageColumn,
 			eventPrivacyAdsStorageColumn,
+			// GA Session columns
+			gaSessionIDParamColumn,
+			gaSessionNumberParamColumn,
 		},
 		Session: []schema.SessionColumn{
-			sessionGa4SessionIDColumn,
-			sessionNumberColumn,
 			sessionEngagementColumn,
 		},
 	}

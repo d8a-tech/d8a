@@ -124,24 +124,27 @@ var eventEngagementTimeMsColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var sessionGa4SessionIDColumn = columns.FromQueryParamSessionColumn(
-	ProtocolInterfaces.SessionParamParamsGaSessionID.ID,
-	ProtocolInterfaces.SessionParamParamsGaSessionID.Field,
+var eventGa4SessionIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.GaSessionID.ID,
+	ProtocolInterfaces.GaSessionID.Field,
 	"sid",
-	columns.WithSessionColumnRequired(false),
-	columns.WithSessionColumnDocs(
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.GaSessionID.ID)),
+	),
+	columns.WithEventColumnDocs(
 		"GA Session ID",
-		"The Google Analytics 4 session identifier. A unique identifier for the current session, used to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column. ", // nolint:lll // it's a description
+		"The Google Analytics 4 session identifier. A unique identifier for the current session, used by GA4 to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column. ", // nolint:lll // it's a description
 	),
 )
 
-var sessionNumberColumn = columns.FromQueryParamSessionColumn(
-	ProtocolInterfaces.SessionParamNumber.ID,
-	ProtocolInterfaces.SessionParamNumber.Field,
+var eventGa4SessionNumberColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.GaSessionNumber.ID,
+	ProtocolInterfaces.GaSessionNumber.Field,
 	"sct",
-	columns.WithSessionColumnRequired(false),
-	columns.WithSessionColumnCast(columns.CastToInt64OrZero(ProtocolInterfaces.SessionParamNumber.ID)),
-	columns.WithSessionColumnDocs(
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.GaSessionNumber.ID)),
+	columns.WithEventColumnDocs(
 		"GA Session Number",
 		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie. ", // nolint:lll // it's a description
 	),

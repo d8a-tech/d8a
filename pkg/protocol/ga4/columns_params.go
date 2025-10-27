@@ -1508,6 +1508,30 @@ var anidParamColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
+var gaSessionIDParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamGaSessionID.ID,
+	ProtocolInterfaces.EventParamGaSessionID.Field,
+	"ep.ga_session_id",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGaSessionID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"GA Session ID",
+		"Flattened GA4 event parameter from built-in/recommended events: Google Analytics session ID.",
+	),
+)
+
+var gaSessionNumberParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamGaSessionNumber.ID,
+	ProtocolInterfaces.EventParamGaSessionNumber.Field,
+	"epn.ga_session_number",
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamGaSessionNumber.ID)),
+	columns.WithEventColumnDocs(
+		"GA Session Number",
+		"Flattened GA4 event parameter from built-in/recommended events: Google Analytics session number.",
+	),
+)
+
 var renewalCountParamColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamRenewalCount.ID,
 	ProtocolInterfaces.EventParamRenewalCount.Field,
