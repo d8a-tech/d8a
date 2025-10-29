@@ -3,6 +3,7 @@ package columntests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
@@ -316,6 +317,71 @@ func TestSessionPageNumber(t *testing.T) {
 			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[0]["session_page_number"])
 			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[1]["session_page_number"])
 			assert.Equal(t, int64(1), whd.WriteCalls[0].Records[2]["session_page_number"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+	)
+}
+
+func TestSessionFirstEventTime(t *testing.T) {
+	// given
+	th1 := TestHitOne()
+	th2 := TestHitTwo()
+	th3 := TestHitThree()
+	baseTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	th1.ServerReceivedTime = baseTime
+	th2.ServerReceivedTime = baseTime.Add(5 * time.Second)
+	th3.ServerReceivedTime = baseTime.Add(10 * time.Second)
+
+	ColumnTestCase(
+		t,
+		TestHits{th1, th2, th3},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			expectedFirstTime := baseTime.Unix()
+			assert.Equal(t, expectedFirstTime, whd.WriteCalls[0].Records[0]["session_first_event_time"])
+			assert.Equal(t, expectedFirstTime, whd.WriteCalls[0].Records[1]["session_first_event_time"])
+			assert.Equal(t, expectedFirstTime, whd.WriteCalls[0].Records[2]["session_first_event_time"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+	)
+}
+
+func TestSessionLastEventTime(t *testing.T) {
+	// given
+	th1 := TestHitOne()
+	th2 := TestHitTwo()
+	th3 := TestHitThree()
+	baseTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+	th1.ServerReceivedTime = baseTime
+	th2.ServerReceivedTime = baseTime.Add(5 * time.Second)
+	th3.ServerReceivedTime = baseTime.Add(10 * time.Second)
+
+	ColumnTestCase(
+		t,
+		TestHits{th1, th2, th3},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			expectedLastTime := baseTime.Add(10 * time.Second).Unix()
+			assert.Equal(t, expectedLastTime, whd.WriteCalls[0].Records[0]["session_last_event_time"])
+			assert.Equal(t, expectedLastTime, whd.WriteCalls[0].Records[1]["session_last_event_time"])
+			assert.Equal(t, expectedLastTime, whd.WriteCalls[0].Records[2]["session_last_event_time"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+	)
+}
+
+func TestSessionTotalEvents(t *testing.T) {
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), TestHitThree()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			assert.Equal(t, 3, whd.WriteCalls[0].Records[0]["session_total_events"])
+			assert.Equal(t, 3, whd.WriteCalls[0].Records[1]["session_total_events"])
+			assert.Equal(t, 3, whd.WriteCalls[0].Records[2]["session_total_events"])
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 	)
