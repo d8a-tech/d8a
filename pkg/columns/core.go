@@ -33,6 +33,7 @@ var CoreInterfaces = struct {
 	EventUtmCampaign        schema.Interface
 	EventUtmID              schema.Interface
 	EventUtmCreativeFormat  schema.Interface
+	EventUtmSourceMedium    schema.Interface
 	SessionID               schema.Interface
 	SessionDuration         schema.Interface
 	SessionFirstEventTime   schema.Interface
@@ -186,6 +187,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/utm_creative_format",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "utm_creative_format", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventUtmSourceMedium: schema.Interface{
+		ID:      "core.d8a.tech/events/utm_source_medium",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "utm_source_medium", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionID: schema.Interface{
 		ID:      "core.d8a.tech/sessions/id",

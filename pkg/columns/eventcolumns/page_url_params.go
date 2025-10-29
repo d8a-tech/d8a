@@ -1,7 +1,10 @@
 package eventcolumns
 
 import (
+	"fmt"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 // UtmMarketingTacticColumn is the column for the UTM marketing tactic of an event
@@ -92,4 +95,43 @@ var UtmCreativeFormatColumn = columns.FromPageURLEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmCreativeFormat.ID)),
 	),
+)
+
+// UtmSourceMediumColumn is the column for the UTM source medium of an event
+var UtmSourceMediumColumn = columns.NewSimpleEventColumn(
+	columns.CoreInterfaces.EventUtmSourceMedium.ID,
+	columns.CoreInterfaces.EventUtmSourceMedium.Field,
+	func(e *schema.Event) (any, error) {
+		utmSource, ok := e.Values[columns.CoreInterfaces.EventUtmSource.Field.Name]
+		if !ok {
+			return "", nil
+		}
+		utmSourceStr, ok := utmSource.(string)
+		if !ok {
+			return "", nil
+		}
+		utmMedium, ok := e.Values[columns.CoreInterfaces.EventUtmMedium.Field.Name]
+		if !ok {
+			return "", nil
+		}
+		utmMediumStr, ok := utmMedium.(string)
+		if !ok {
+			return "", nil
+		}
+		return fmt.Sprintf("%s/%s", utmSourceStr, utmMediumStr), nil
+	},
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmSourceMedium.ID)),
+	),
+	columns.WithEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmSource.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmMedium.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithEventColumnDocs("UTM source / medium", "Combined traffic source and medium in 'source/medium' format (e.g., 'google/cpc', 'newsletter/email'). Standard analytics dimension for attribution reporting."), //nolint:lll // it's a description
 )
