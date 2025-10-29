@@ -14,7 +14,8 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/slipros/devicedetector v1.2.1
 	github.com/stretchr/testify v1.11.1
-	github.com/urfave/cli/v2 v2.27.7
+	github.com/urfave/cli-altsrc/v3 v3.1.0
+	github.com/urfave/cli/v3 v3.5.0
 	github.com/valyala/fasthttp v1.68.0
 	go.etcd.io/bbolt v1.4.3
 	golang.org/x/sync v0.17.0
@@ -25,7 +26,6 @@ require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -40,10 +40,8 @@ require (
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.17.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
-	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
-	github.com/xrash/smetrics v0.0.0-20250705151800-55b8f293f342 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/exp v0.0.0-20250717185816-542afb5b7346 // indirect
 	golang.org/x/mod v0.27.0 // indirect

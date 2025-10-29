@@ -14,7 +14,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/debugger"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli/v2"
+	"github.com/urfave/cli/v3"
 )
 
 const debuggerPort = 8090
@@ -70,15 +70,15 @@ func createRawlogDebuggerCommand() *cli.Command {
 				Name:     "url",
 				Usage:    "Base URL to the rawlog storage (e.g., horhezio.d8astage.xyz)",
 				Required: true,
-				EnvVars:  []string{"RAWLOG_STORAGE_URL"},
+				Sources:  cli.EnvVars("RAWLOG_STORAGE_URL"),
 			},
 		},
-		Action: func(c *cli.Context) error {
-			ctx, cancel := context.WithCancel(c.Context)
+		Action: func(cmdCtx context.Context, cmd *cli.Command) error {
+			ctx, cancel := context.WithCancel(cmdCtx)
 			defer cancel()
 
 			// Validate and normalize URL parameter
-			rawStorageURL := c.String("url")
+			rawStorageURL := cmd.String("url")
 			storageURL, err := validateAndNormalizeURL(rawStorageURL)
 			if err != nil {
 				return fmt.Errorf("invalid storage URL: %w", err)
