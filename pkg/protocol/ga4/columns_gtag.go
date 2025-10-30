@@ -84,7 +84,7 @@ var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventIParamgnoreReferrer.ID))),
 	columns.WithEventColumnDocs(
 		"Ignore Referrer",
-		"Indicates whether the referrer should be ignored for attribution. Used in session_start events to control referrer tracking behavior.", // nolint:lll // it's a description
+		"Indicates whether to ignore the referrer information.", // nolint:lll // it's a description
 	),
 )
 
@@ -120,7 +120,7 @@ var eventEngagementTimeMsColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamEngagementTimeMs.ID)),
 	columns.WithEventColumnDocs(
 		"Engagement Time (ms)",
-		"The amount of time in milliseconds that the user was engaged with the page/app. Used in user_engagement events to track active usage time.", // nolint:lll // it's a description
+		"The time in milliseconds a user was engaged with the app or page.", // nolint:lll // it's a description
 	),
 )
 

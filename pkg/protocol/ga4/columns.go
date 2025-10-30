@@ -396,12 +396,12 @@ var ProtocolInterfaces = struct {
 		Field:   &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventParamGaSessionID: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_id",
+		ID:      "ga4.protocols.d8a.tech/event/params_ga_session_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamGaSessionNumber: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_number",
+		ID:      "ga4.protocols.d8a.tech/event/params_ga_session_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},

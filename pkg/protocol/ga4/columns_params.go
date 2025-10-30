@@ -63,7 +63,7 @@ var eventContentGroupColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content Group",
-		"Flattened GA4 event parameter from built-in/recommended events: content group.",
+		"A category grouping for content (e.g., 'blog', 'videos', 'products').",
 	),
 )
 
@@ -77,7 +77,7 @@ var eventContentIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content ID",
-		"Flattened GA4 event parameter from built-in/recommended events: content identifier.",
+		"The unique identifier for a piece of content (e.g., 'article_001', 'video_xyz').",
 	),
 )
 
@@ -91,7 +91,7 @@ var eventContentTypeColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content Type",
-		"Flattened GA4 event parameter from built-in/recommended events: content type.",
+		"The type of content viewed or interacted with (e.g., 'article', 'video', 'product').",
 	),
 )
 
@@ -105,7 +105,7 @@ var eventContentDescriptionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content Description",
-		"Flattened GA4 event parameter from built-in/recommended events: content description.",
+		"A description of the content viewed or interacted with (e.g., 'product review', 'how-to guide').",
 	),
 )
 
@@ -119,7 +119,7 @@ var eventCampaignColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign name.",
+		"The campaign name associated with the traffic source (e.g., 'summer_sale', 'brand_awareness').",
 	),
 )
 
@@ -133,7 +133,7 @@ var eventCampaignIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign ID",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign identifier.",
+		"The unique identifier for the campaign (e.g., 'camp_12345', 'Q1_2024_001').",
 	),
 )
 
@@ -147,7 +147,7 @@ var eventCampaignSourceColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign Source",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign source.",
+		"The source of the campaign traffic (e.g., 'google', 'newsletter', 'facebook').",
 	),
 )
 
@@ -161,7 +161,7 @@ var eventCampaignMediumColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign Medium",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign medium.",
+		"The medium of the campaign traffic (e.g., 'cpc', 'email', 'social').",
 	),
 )
 
@@ -175,7 +175,7 @@ var eventCampaignContentColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign Content",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign content.",
+		"Used to differentiate ads or links within the same campaign (e.g., 'banner_blue', 'textlink_red').",
 	),
 )
 
@@ -189,7 +189,7 @@ var eventCampaignTermColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Campaign Term",
-		"Flattened GA4 event parameter from built-in/recommended events: campaign term (keyword).",
+		"The paid search keywords for the campaign (e.g., 'running shoes', 'best laptop').",
 	),
 )
 
@@ -204,7 +204,7 @@ var eventCouponColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Coupon",
-		"Flattened GA4 event parameter from built-in/recommended events: coupon code.",
+		"The coupon code applied to a transaction (e.g., 'SAVE20', 'FREESHIP').",
 	),
 )
 
@@ -219,7 +219,7 @@ var eventCurrencyColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Currency",
-		"Flattened GA4 event parameter from built-in/recommended events: ISO currency code.",
+		"The currency code for monetary values (e.g., 'USD', 'EUR', 'GBP').",
 	),
 )
 
@@ -232,7 +232,7 @@ var eventShippingColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamShipping.ID)),
 	columns.WithEventColumnDocs(
 		"Shipping",
-		"Flattened GA4 event parameter from built-in/recommended events: shipping amount.",
+		"The shipping cost for a transaction.",
 	),
 )
 
@@ -276,7 +276,7 @@ var eventShippingTierColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Shipping Tier",
-		"Flattened GA4 event parameter from built-in/recommended events: shipping tier.",
+		"The shipping tier or method selected (e.g., 'standard', 'express', 'overnight').",
 	),
 )
 
@@ -291,7 +291,7 @@ var eventPaymentTypeColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Payment Type",
-		"Flattened GA4 event parameter from built-in/recommended events: payment type.",
+		"The payment method used for a transaction (e.g., 'credit_card', 'paypal', 'apple_pay').",
 	),
 )
 
@@ -304,7 +304,7 @@ var eventParamTaxColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
 	columns.WithEventColumnDocs(
 		"Tax",
-		"Flattened GA4 event parameter from built-in/recommended events: tax amount.",
+		"The tax amount for a transaction.",
 	),
 )
 
@@ -319,7 +319,7 @@ var eventTransactionIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Transaction ID",
-		"Flattened GA4 event parameter from built-in/recommended events: transaction identifier.",
+		"The unique identifier for a transaction (e.g., 'T12345', 'order_abc123').",
 	),
 )
 
@@ -332,7 +332,7 @@ var eventValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamValue.ID)),
 	columns.WithEventColumnDocs(
 		"Value",
-		"Flattened GA4 event parameter from built-in/recommended events: numeric value associated with the event.",
+		"The monetary value associated with an event.",
 	),
 )
 
@@ -346,7 +346,7 @@ var eventItemListIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Item List ID",
-		"Flattened GA4 event parameter from built-in/recommended events: item list ID.",
+		"The identifier for a list of items (e.g., 'related_products', 'search_results').",
 	),
 )
 
@@ -360,7 +360,7 @@ var eventItemListNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Item List Name",
-		"Flattened GA4 event parameter from built-in/recommended events: item list name.",
+		"The name of a list of items (e.g., 'Related Products', 'Search Results').",
 	),
 )
 
@@ -374,7 +374,7 @@ var eventCreativeNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Creative Name",
-		"Flattened GA4 event parameter from built-in/recommended events: creative name.",
+		"The name of the creative used in advertising (e.g., 'summer_banner_v2', 'product_showcase').",
 	),
 )
 
@@ -388,7 +388,7 @@ var eventCreativeSlotColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Creative Slot",
-		"Flattened GA4 event parameter from built-in/recommended events: creative slot.",
+		"The position or slot where the creative was displayed (e.g., 'slot_1', 'homepage_hero').",
 	),
 )
 
@@ -402,7 +402,7 @@ var eventPromotionIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Promotion ID",
-		"Flattened GA4 event parameter from built-in/recommended events: promotion ID.",
+		"The unique identifier for a promotion (e.g., 'promo_001', 'summer_sale_2024').",
 	),
 )
 
@@ -416,7 +416,7 @@ var eventPromotionNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Promotion Name",
-		"Flattened GA4 event parameter from built-in/recommended events: promotion name.",
+		"The name of a promotion (e.g., 'Summer Sale', 'BOGO Deal').",
 	),
 )
 
@@ -431,7 +431,7 @@ var eventAdEventIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Ad Event ID",
-		"Flattened GA4 event parameter from built-in/recommended events: ad event identifier.",
+		"A unique identifier for an ad event (e.g., 'ad_click_001', 'impression_xyz').",
 	),
 )
 
@@ -443,7 +443,7 @@ var eventExposureTimeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamExposureTime.ID)),
 	columns.WithEventColumnDocs(
 		"Exposure Time",
-		"Flattened GA4 event parameter from built-in/recommended events: ad exposure time in milliseconds.",
+		"The time a promotion or element was visible to the user.",
 	),
 )
 
@@ -457,7 +457,7 @@ var eventAdUnitCodeColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Ad Unit Code",
-		"Flattened GA4 event parameter from built-in/recommended events: ad unit code.",
+		"The code or name of the ad unit where an ad is displayed (e.g., 'banner_top', 'sidebar_300x250').",
 	),
 )
 
@@ -471,7 +471,7 @@ var eventRewardTypeColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Reward Type",
-		"Flattened GA4 event parameter from built-in/recommended events: reward type.",
+		"The type of reward earned (e.g., 'coins', 'badge', 'power_up').",
 	),
 )
 
@@ -483,7 +483,7 @@ var eventRewardValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamRewardValue.ID)),
 	columns.WithEventColumnDocs(
 		"Reward Value",
-		"Flattened GA4 event parameter from built-in/recommended events: reward value.",
+		"The value or amount of the reward earned.",
 	),
 )
 
@@ -496,7 +496,7 @@ var eventVideoCurrentTimeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoCurrentTime.ID)),
 	columns.WithEventColumnDocs(
 		"Video Current Time",
-		"Flattened GA4 event parameter from built-in/recommended events: video current time in seconds.",
+		"The current playback time of a video in seconds.",
 	),
 )
 
@@ -508,7 +508,7 @@ var eventVideoDurationColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoDuration.ID)),
 	columns.WithEventColumnDocs(
 		"Video Duration",
-		"Flattened GA4 event parameter from built-in/recommended events: video duration in seconds.",
+		"The total duration of a video in seconds.",
 	),
 )
 
@@ -520,7 +520,7 @@ var eventVideoPercentColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoPercent.ID)),
 	columns.WithEventColumnDocs(
 		"Video Percent",
-		"Flattened GA4 event parameter from built-in/recommended events: video completion percentage.",
+		"The percentage of a video watched.",
 	),
 )
 
@@ -534,7 +534,7 @@ var eventVideoProviderColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Video Provider",
-		"Flattened GA4 event parameter from built-in/recommended events: video provider name.",
+		"The provider or platform hosting the video (e.g., 'youtube', 'vimeo', 'self-hosted').",
 	),
 )
 
@@ -548,7 +548,7 @@ var eventVideoTitleColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Video Title",
-		"Flattened GA4 event parameter from built-in/recommended events: video title.",
+		"The title of the video (e.g., 'Product Demo', 'How-To Tutorial').",
 	),
 )
 
@@ -562,7 +562,7 @@ var eventVideoURLColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Video URL",
-		"Flattened GA4 event parameter from built-in/recommended events: video URL.",
+		"The URL of the video (e.g., 'https://youtube.com/watch?v=abc').",
 	),
 )
 
@@ -577,7 +577,7 @@ var eventLinkClassesColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Link Classes",
-		"Flattened GA4 event parameter from built-in/recommended events: CSS classes of clicked link.",
+		"The CSS classes of a clicked link (e.g., 'btn btn-primary', 'nav-link').",
 	),
 )
 
@@ -591,7 +591,7 @@ var eventLinkDomainColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Link Domain",
-		"Flattened GA4 event parameter from built-in/recommended events: domain of clicked link.",
+		"The domain of a clicked link (e.g., 'example.com', 'partner-site.org').",
 	),
 )
 
@@ -605,7 +605,7 @@ var eventLinkIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Link ID",
-		"Flattened GA4 event parameter from built-in/recommended events: ID attribute of clicked link.",
+		"The ID attribute of a clicked link (e.g., 'cta_button', 'footer_link_1').",
 	),
 )
 
@@ -619,7 +619,7 @@ var eventLinkTextColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Link Text",
-		"Flattened GA4 event parameter from built-in/recommended events: text content of clicked link.",
+		"The visible text of a clicked link (e.g., 'Learn More', 'Download Now').",
 	),
 )
 
@@ -633,7 +633,7 @@ var eventLinkURLColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Link URL",
-		"Flattened GA4 event parameter from built-in/recommended events: href URL of clicked link.",
+		"The full URL of a clicked link (e.g., 'https://example.com/page').",
 	),
 )
 
@@ -645,7 +645,7 @@ var eventOutboundColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamOutbound.ID))),
 	columns.WithEventColumnDocs(
 		"Outbound",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if link is outbound (external).",
+		"Indicates if a link click is outbound.",
 	),
 )
 
@@ -660,7 +660,7 @@ var eventMethodColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Method",
-		"Flattened GA4 event parameter from built-in/recommended events: method name.",
+		"The method used for an action like signup, login or share events (e.g., 'Google', 'Facebook', 'Email').",
 	),
 )
 
@@ -674,7 +674,7 @@ var eventCancellationReasonColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Cancellation Reason",
-		"Flattened GA4 event parameter from built-in/recommended events: reason for cancellation.",
+		"The reason a user canceled a subscription or service (e.g., 'too_expensive', 'not_using_enough').",
 	),
 )
 
@@ -686,7 +686,7 @@ var eventFatalColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamFatal.ID))),
 	columns.WithEventColumnDocs(
 		"Fatal",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if error was fatal.",
+		"Indicates if an error or exception was fatal.",
 	),
 )
 
@@ -701,7 +701,7 @@ var eventFirebaseErrorColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Error",
-		"Flattened GA4 event parameter from built-in/recommended events: Firebase error message.",
+		"The type or code of a Firebase error (e.g., 'auth_failed', 'network_timeout').",
 	),
 )
 
@@ -715,7 +715,7 @@ var eventFirebaseErrorValueColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Error Value",
-		"Flattened GA4 event parameter from built-in/recommended events: Firebase error value.",
+		"The specific value or message of a Firebase error (e.g., 'invalid_credentials', 'connection_lost').",
 	),
 )
 
@@ -729,7 +729,7 @@ var eventFirebaseScreenColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Screen",
-		"Flattened GA4 event parameter from built-in/recommended events: Firebase screen name.",
+		"The name of the current screen viewed in the app (e.g., 'Home', 'Checkout').",
 	),
 )
 
@@ -743,7 +743,7 @@ var eventFirebaseScreenClassColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Screen Class",
-		"Flattened GA4 event parameter from built-in/recommended events: Firebase screen class.",
+		"The class name of the current screen in the app (e.g., 'MainActivity', 'CheckoutActivity').",
 	),
 )
 
@@ -757,7 +757,7 @@ var eventFirebaseScreenIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Screen ID",
-		"Flattened GA4 event parameter from built-in/recommended events: Firebase screen ID.",
+		"The identifier of the current screen in the app (e.g., 'screen_home', 'screen_checkout').",
 	),
 )
 
@@ -771,7 +771,7 @@ var eventFirebasePreviousScreenColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Previous Screen",
-		"Flattened GA4 event parameter from built-in/recommended events: previous Firebase screen name.",
+		"The name of the previous screen viewed in the app (e.g., 'Home', 'Product Detail').",
 	),
 )
 
@@ -785,7 +785,7 @@ var eventFirebasePreviousClassColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Previous Class",
-		"Flattened GA4 event parameter from built-in/recommended events: previous Firebase screen class.",
+		"The class name of the previous screen in the app (e.g., 'MainActivity', 'ProfileActivity').",
 	),
 )
 
@@ -799,7 +799,7 @@ var eventFirebasePreviousIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Firebase Previous ID",
-		"Flattened GA4 event parameter from built-in/recommended events: previous Firebase screen ID.",
+		"The identifier of the previous screen in the app (e.g., 'screen_home', 'screen_profile').",
 	),
 )
 
@@ -813,7 +813,7 @@ var eventMessageDeviceTimeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamMessageDeviceTime.ID)),
 	columns.WithEventColumnDocs(
 		"Message Device Time",
-		"Flattened GA4 event parameter from built-in/recommended events: message device time timestamp.",
+		"The device time when a message was sent or received.",
 	),
 )
 
@@ -827,7 +827,7 @@ var eventMessageIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Message ID",
-		"Flattened GA4 event parameter from built-in/recommended events: message identifier.",
+		"The unique identifier for a message (e.g., 'msg_12345', 'notification_abc').",
 	),
 )
 
@@ -841,7 +841,7 @@ var eventMessageNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Message Name",
-		"Flattened GA4 event parameter from built-in/recommended events: message name.",
+		"The name or title of a message or notification (e.g., 'Welcome Email', 'Promotion Alert').",
 	),
 )
 
@@ -853,7 +853,7 @@ var eventMessageTimeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamMessageTime.ID)),
 	columns.WithEventColumnDocs(
 		"Message Time",
-		"Flattened GA4 event parameter from built-in/recommended events: message time timestamp.",
+		"The server time when a message was sent or received.",
 	),
 )
 
@@ -867,7 +867,7 @@ var eventMessageTypeColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Message Type",
-		"Flattened GA4 event parameter from built-in/recommended events: message type.",
+		"The type of message sent or received (e.g., 'notification', 'in-app_message', 'email').",
 	),
 )
 
@@ -881,7 +881,7 @@ var eventTopicColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Topic",
-		"Flattened GA4 event parameter from built-in/recommended events: topic.",
+		"The topic or category of content (e.g., 'technology', 'sports', 'finance').",
 	),
 )
 
@@ -895,7 +895,7 @@ var eventLabelColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Label",
-		"Flattened GA4 event parameter from built-in/recommended events: label.",
+		"A custom label for categorization or tracking (e.g., 'promo_click', 'special_offer').",
 	),
 )
 
@@ -910,7 +910,7 @@ var eventAppVersionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"App Version",
-		"Flattened GA4 event parameter from built-in/recommended events: app version.",
+		"The version number of the application (e.g., '1.2.3', '2.0.1').",
 	),
 )
 
@@ -924,7 +924,7 @@ var eventPreviousAppVersionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Previous App Version",
-		"Flattened GA4 event parameter from built-in/recommended events: previous app version.",
+		"The previous version of the app before an update (e.g., '1.1.0', '2.3.5').",
 	),
 )
 
@@ -936,7 +936,7 @@ var eventPreviousFirstOpenCountColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamPreviousFirstOpenCount.ID)),
 	columns.WithEventColumnDocs(
 		"Previous First Open Count",
-		"Flattened GA4 event parameter from built-in/recommended events: previous first open count.",
+		"The count of first opens before the current session.",
 	),
 )
 
@@ -950,7 +950,7 @@ var eventPreviousOSVersionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Previous OS Version",
-		"Flattened GA4 event parameter from built-in/recommended events: previous OS version.",
+		"The previous operating system version before an update (e.g., 'iOS 14.0', 'Android 10').",
 	),
 )
 
@@ -964,7 +964,7 @@ var eventUpdatedWithAnalyticsColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Updated with Analytics",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if updated with analytics.",
+		"Indicates if analytics was updated.",
 	),
 )
 
@@ -979,7 +979,7 @@ var eventAchievementIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Achievement ID",
-		"Flattened GA4 event parameter from built-in/recommended events: game achievement identifier.",
+		"The ID of the achievement unlocked (e.g., 'A_12345', 'first_win').",
 	),
 )
 
@@ -993,7 +993,7 @@ var eventCharacterColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Character",
-		"Flattened GA4 event parameter from built-in/recommended events: game character name.",
+		"The character selected or used by the player (e.g., 'warrior', 'Player 1').",
 	),
 )
 
@@ -1005,7 +1005,7 @@ var eventLevelColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamLevel.ID)),
 	columns.WithEventColumnDocs(
 		"Level",
-		"Flattened GA4 event parameter from built-in/recommended events: game level number.",
+		"The level number in a game or progression system.",
 	),
 )
 
@@ -1019,7 +1019,7 @@ var eventLevelNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Level Name",
-		"Flattened GA4 event parameter from built-in/recommended events: game level name.",
+		"The name of a level in a game or progression system (e.g., 'Tutorial Island', 'Boss Battle 3').",
 	),
 )
 
@@ -1031,7 +1031,7 @@ var eventScoreColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamScore.ID)),
 	columns.WithEventColumnDocs(
 		"Score",
-		"Flattened GA4 event parameter from built-in/recommended events: game score.",
+		"The score achieved in a game or activity.",
 	),
 )
 
@@ -1045,7 +1045,7 @@ var eventVirtualCurrencyNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Virtual Currency Name",
-		"Flattened GA4 event parameter from built-in/recommended events: virtual currency name in games.",
+		"The name of the virtual currency used (e.g., 'coins', 'gems', 'credits').",
 	),
 )
 
@@ -1059,7 +1059,7 @@ var eventItemNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Item Name",
-		"Flattened GA4 event parameter from built-in/recommended events: item name.",
+		"The name of an item or product (e.g., 'Blue Running Shoes', 'Wireless Headphones').",
 	),
 )
 
@@ -1071,7 +1071,7 @@ var eventSuccessColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSuccess.ID))),
 	columns.WithEventColumnDocs(
 		"Success",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates success status.",
+		"Indicates if an action was successful.",
 	),
 )
 
@@ -1084,7 +1084,7 @@ var eventVisibleColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamVisible.ID))),
 	columns.WithEventColumnDocs(
 		"Visible",
-		"Flattened GA4 event parameter from built-in/recommended events: visibility status.",
+		"Indicates if an element was visible to the user.",
 	),
 )
 
@@ -1098,7 +1098,7 @@ var eventScreenResolutionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Screen Resolution",
-		"Flattened GA4 event parameter from built-in/recommended events: screen resolution.",
+		"The screen resolution of the user's device (e.g., '1920x1080', '375x667').",
 	),
 )
 
@@ -1110,7 +1110,7 @@ var eventSystemAppColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSystemApp.ID))),
 	columns.WithEventColumnDocs(
 		"System App",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if app is a system app.",
+		"Indicates if an app is a system app.",
 	),
 )
 
@@ -1122,7 +1122,7 @@ var eventSystemAppUpdateColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSystemAppUpdate.ID))),
 	columns.WithEventColumnDocs(
 		"System App Update",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if this is a system app update.",
+		"Indicates if a system app was updated.",
 	),
 )
 
@@ -1136,7 +1136,7 @@ var eventDeferredAnalyticsCollectionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Deferred Analytics Collection",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates deferred analytics collection status.", // nolint:lll // it's a description
+		"Indicates if analytics collection was deferred.", // nolint:lll // it's a description
 	),
 )
 
@@ -1150,7 +1150,7 @@ var eventResetAnalyticsCauseColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Reset Analytics Cause",
-		"Flattened GA4 event parameter from built-in/recommended events: cause for analytics reset.",
+		"The reason analytics data was reset (e.g., 'user_request', 'app_reinstall').",
 	),
 )
 
@@ -1164,7 +1164,7 @@ var eventPreviousGmpAppIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Previous GMP App ID",
-		"Flattened GA4 event parameter from built-in/recommended events: previous Google Marketing Platform app ID.",
+		"The previous Google Mobile Platform app identifier (e.g., 'app_id_123', 'old_app_456').",
 	),
 )
 
@@ -1179,7 +1179,7 @@ var eventFileExtensionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"File Extension",
-		"Flattened GA4 event parameter from built-in/recommended events: file extension.",
+		"The extension of a downloaded or interacted file (e.g., 'pdf', 'jpg', 'xlsx').",
 	),
 )
 
@@ -1193,7 +1193,7 @@ var eventFileNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"File Name",
-		"Flattened GA4 event parameter from built-in/recommended events: file name.",
+		"The name of a downloaded or interacted file (e.g., 'whitepaper.pdf', 'product_catalog.xlsx').",
 	),
 )
 
@@ -1207,7 +1207,7 @@ var eventFormDestinationColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Form Destination",
-		"Flattened GA4 event parameter from built-in/recommended events: form destination URL.",
+		"The destination URL or page after form submission (e.g., '/thank-you', '/confirmation').",
 	),
 )
 
@@ -1221,7 +1221,7 @@ var eventFormIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Form ID",
-		"Flattened GA4 event parameter from built-in/recommended events: form ID.",
+		"The unique identifier of the form (e.g., 'contact_form_01', 'newsletter_signup').",
 	),
 )
 
@@ -1235,7 +1235,7 @@ var eventFormNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Form Name",
-		"Flattened GA4 event parameter from built-in/recommended events: form name.",
+		"The name of the form (e.g., 'Contact Us', 'Newsletter Subscription').",
 	),
 )
 
@@ -1249,7 +1249,7 @@ var eventFormSubmitTextColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Form Submit Text",
-		"Flattened GA4 event parameter from built-in/recommended events: form submit button text.",
+		"The text on the form submit button (e.g., 'Submit', 'Send Message', 'Subscribe').",
 	),
 )
 
@@ -1265,7 +1265,7 @@ var eventGroupIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Group ID",
-		"Flattened GA4 event parameter from built-in/recommended events: group identifier.",
+		"The identifier for a group or cohort (e.g., 'group_a', 'beta_testers').",
 	),
 )
 
@@ -1279,7 +1279,7 @@ var eventLanguageColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Language",
-		"Flattened GA4 event parameter from built-in/recommended events: language code.",
+		"The language code of the content or interface (e.g., 'en', 'es', 'fr').",
 	),
 )
 
@@ -1291,7 +1291,7 @@ var eventPercentScrolledColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamPercentScrolled.ID)),
 	columns.WithEventColumnDocs(
 		"Percent Scrolled",
-		"Flattened GA4 event parameter from built-in/recommended events: percent of page scrolled.",
+		"The percentage of a page scrolled by the user.",
 	),
 )
 
@@ -1305,7 +1305,7 @@ var eventSearchTermColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Search Term",
-		"Flattened GA4 event parameter from built-in/recommended events: search term query.",
+		"The search query entered by the user (e.g., 'running shoes', 'best laptop 2024').",
 	),
 )
 
@@ -1321,7 +1321,7 @@ var eventUnconvertLeadReasonColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Unconvert Lead Reason",
-		"Flattened GA4 event parameter from built-in/recommended events: reason for lead unconversion.",
+		"The reason a lead was unconverted or lost (e.g., 'no_response', 'chose_competitor').",
 	),
 )
 
@@ -1335,7 +1335,7 @@ var eventDisqualifiedLeadReasonColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Disqualified Lead Reason",
-		"Flattened GA4 event parameter from built-in/recommended events: reason for lead disqualification.",
+		"The reason a lead was disqualified (e.g., 'out_of_territory', 'invalid_contact').",
 	),
 )
 
@@ -1349,7 +1349,7 @@ var eventLeadSourceColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Lead Source",
-		"Flattened GA4 event parameter from built-in/recommended events: lead source.",
+		"The source from which a lead originated (e.g., 'website_form', 'trade_show', 'referral').",
 	),
 )
 
@@ -1363,7 +1363,7 @@ var eventLeadStatusColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Lead Status",
-		"Flattened GA4 event parameter from built-in/recommended events: lead status.",
+		"The status of a lead in the sales process (e.g., 'qualified', 'contacted', 'converted').",
 	),
 )
 
@@ -1375,7 +1375,7 @@ var eventFreeTrialColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamFreeTrial.ID))),
 	columns.WithEventColumnDocs(
 		"Free Trial",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if product has free trial.",
+		"Indicates if a subscription or in app purchase includes a free trial.",
 	),
 )
 
@@ -1387,7 +1387,7 @@ var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSubscription.ID))),
 	columns.WithEventColumnDocs(
 		"Subscription",
-		"Flattened GA4 event parameter from built-in/recommended events: indicates if product is a subscription.",
+		"Indicates if a purchase is a subscription.",
 	),
 )
 
@@ -1400,7 +1400,7 @@ var eventProductIDColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Product ID",
-		"Flattened GA4 event parameter from built-in/recommended events: product identifier.",
+		"The unique identifier for a product (e.g., 'SKU12345', 'prod_abc').",
 	),
 )
 
@@ -1413,7 +1413,7 @@ var eventPriceColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Price",
-		"Flattened GA4 event parameter from built-in/recommended events: product price.",
+		"The price of an item or product.",
 	),
 )
 
@@ -1426,7 +1426,7 @@ var eventQuantityColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Quantity",
-		"Flattened GA4 event parameter from built-in/recommended events: product quantity.",
+		"The quantity of items in a transaction or action.",
 	),
 )
 
@@ -1439,7 +1439,7 @@ var eventIntroductoryPriceColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Introductory Price",
-		"Flattened GA4 event parameter from built-in/recommended events: introductory product price.",
+		"The introductory or promotional price for a product or subscription.",
 	),
 )
 
@@ -1451,8 +1451,8 @@ var gclidParamColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGclid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"GCLID (Param)",
-		"Flattened GA4 event parameter from built-in/recommended events: Google Click ID.",
+		"Google gclid (Param)",
+		"The Google Click Identifier for attribution from Google Ads (e.g., 'gclid_abc123def').",
 	),
 )
 
@@ -1464,8 +1464,8 @@ var dclidParamColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamDclid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"DCLID (Param)",
-		"Flattened GA4 event parameter from built-in/recommended events: DoubleClick Click ID.",
+		"Google dclid (Param)",
+		"The DoubleClick Click Identifier for attribution (e.g., 'dclid_xyz789').",
 	),
 )
 
@@ -1477,8 +1477,8 @@ var srsltidParamColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamSrsltid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"SRSLTID (Param)",
-		"Flattened GA4 event parameter from built-in/recommended events: Google Merchant Center click ID.",
+		"Google srsltid (Param)",
+		"The Shopping Ads result ID for attribution (e.g., 'srsltid_12345').",
 	),
 )
 
@@ -1490,8 +1490,8 @@ var aclidParamColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAclid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"ACLID (Param)",
-		"Flattened GA4 event parameter from built-in/recommended events: Apple Search Ads click ID.",
+		"Apple aclid (Param)",
+		"The Apple Search Ads campaign ID for attribution (e.g., 'aclid_12345').",
 	),
 )
 
@@ -1503,8 +1503,8 @@ var anidParamColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAnid.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"ANID (Param)",
-		"Flattened GA4 event parameter from built-in/recommended events: Apple Search Ads network ID.",
+		"Android anid (Param)",
+		"The Android Advertising ID for attribution (e.g., 'anid_abc123').",
 	),
 )
 
@@ -1517,7 +1517,7 @@ var gaSessionIDParamColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"GA Session ID",
-		"Flattened GA4 event parameter from built-in/recommended events: Google Analytics session ID.",
+		"The Google Analytics 4 session identifier. A unique identifier for the current session, used to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column.", // nolint:lll // it's a description
 	),
 )
 
@@ -1528,7 +1528,7 @@ var gaSessionNumberParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamGaSessionNumber.ID)),
 	columns.WithEventColumnDocs(
 		"GA Session Number",
-		"Flattened GA4 event parameter from built-in/recommended events: Google Analytics session number.",
+		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie.", // nolint:lll // it's a description
 	),
 )
 
@@ -1539,6 +1539,6 @@ var renewalCountParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamRenewalCount.ID)),
 	columns.WithEventColumnDocs(
 		"Renewal Count",
-		"Flattened GA4 event parameter from built-in/recommended events: subscription renewal count.",
+		"The number of times a subscription has been renewed.",
 	),
 )
