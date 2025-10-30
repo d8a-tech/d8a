@@ -203,6 +203,8 @@ var ProtocolInterfaces = struct {
 	EventParamItemProductID schema.Interface
 	EventParamItemPrice     schema.Interface
 	EventParamItemQuantity  schema.Interface
+	// Generic event params (catch-all for params present in the event)
+	EventParams schema.Interface
 	// Page URL params
 	EventGtmDebug schema.Interface
 	EventGl       schema.Interface
@@ -482,6 +484,18 @@ var ProtocolInterfaces = struct {
 				arrow.Field{Name: itemKeyPromotionName, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyCreativeName, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyCreativeSlot, Type: arrow.BinaryTypes.String, Nullable: true},
+			)),
+		},
+	},
+	EventParams: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params",
+		Version: "1.0.0",
+		Field: &arrow.Field{
+			Nullable: true,
+			Name:     "params", Type: arrow.ListOf(arrow.StructOf(
+				arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: "value_string", Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: "value_number", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 			)),
 		},
 	},
