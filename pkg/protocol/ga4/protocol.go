@@ -243,6 +243,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventMethodColumn,
 			eventCancellationReasonColumn,
 			eventFatalColumn,
+			genericEventParamsColumn,
 			eventVideoCurrentTimeColumn,
 			eventVideoDurationColumn,
 			eventVideoPercentColumn,

@@ -1,8 +1,56 @@
 package ga4
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
+)
+
+var genericEventParamsColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParams.ID,
+	ProtocolInterfaces.EventParams.Field,
+	func(event *schema.Event) (any, error) {
+		params := make([]any, 0)
+		for qpName, qpValues := range event.BoundHit.QueryParams {
+			if name, ok := strings.CutPrefix(qpName, "ep."); ok {
+				for _, qpValue := range qpValues {
+					params = append(params, map[string]any{
+						"name":         name,
+						"value_string": qpValue,
+						"value_number": nil,
+					})
+				}
+			} else if name, ok := strings.CutPrefix(qpName, "epn."); ok {
+				for _, qpValue := range qpValues {
+					numValue, err := columns.CastToFloat64OrNil(ProtocolInterfaces.EventParams.ID)(qpValue)
+					if err != nil || numValue == nil {
+						continue
+					}
+					params = append(params, map[string]any{
+						"name":         name,
+						"value_string": nil,
+						"value_number": numValue,
+					})
+				}
+			}
+		}
+		slices.SortFunc(params, func(a, b any) int {
+			aMap, ok := a.(map[string]any)
+			if !ok {
+				return 0
+			}
+			bMap, ok := b.(map[string]any)
+			if !ok {
+				return 0
+			}
+			aName, _ := aMap["name"].(string)
+			bName, _ := bMap["name"].(string)
+			return strings.Compare(aName, bName)
+		})
+		return params, nil
+	},
 )
 
 var eventContentGroupColumn = columns.FromQueryParamEventColumn(

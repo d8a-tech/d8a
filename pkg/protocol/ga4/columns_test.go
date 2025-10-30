@@ -6,6 +6,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +22,7 @@ func TestEventColumns(t *testing.T) {
 		expectedErr bool
 		fieldName   string
 		description string
+		hits        columntests.TestHits
 	}{
 		// App params
 		{
@@ -2115,14 +2117,60 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "params_renewal_count",
 			description: "Empty RenewalCount should be nil",
 		},
+		{
+			name:      "GenericEventParamsString_Valid",
+			param:     "ep.foo",
+			value:     "bar",
+			expected:  []any{map[string]any{"name": "foo", "value_string": "bar", "value_number": nil}},
+			fieldName: "params",
+			hits: columntests.TestHits{func() *hits.Hit {
+				hit := hits.New()
+				hit.QueryParams.Set("en", "page_view")
+				return hit
+			}(),
+			},
+			description: "Valid generic event params",
+		},
+		{
+			name:      "GenericEventParamsNumber_Valid",
+			param:     "epn.foo",
+			value:     "123",
+			expected:  []any{map[string]any{"name": "foo", "value_string": nil, "value_number": 123.0}},
+			fieldName: "params",
+			hits: columntests.TestHits{func() *hits.Hit {
+				hit := hits.New()
+				hit.QueryParams.Set("en", "page_view")
+				return hit
+			}(),
+			},
+			description: "Valid generic event params",
+		},
+		{
+			name:      "GenericEventParamsNumber_Invalid",
+			param:     "epn.foo",
+			value:     "invalid",
+			expected:  []any{},
+			fieldName: "params",
+			hits: columntests.TestHits{func() *hits.Hit {
+				hit := hits.New()
+				hit.QueryParams.Set("en", "page_view")
+				return hit
+			}(),
+			},
+			description: "Invalid generic event params should be nil",
+		},
 	}
 
 	for _, tc := range eventColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+			hits := tc.hits
+			if hits == nil {
+				hits = columntests.TestHits{columntests.TestHitOne()}
+			}
 			columntests.ColumnTestCase(
 				t,
-				columntests.TestHits{columntests.TestHitOne()},
+				hits,
 				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
 					// when + then
 					if tc.expectedErr {
