@@ -1,7 +1,8 @@
-name: Deploy documentation
+name: Documentation
 
 on:
   push:
+    branches: [ master ]
 
 permissions:
   id-token: write
