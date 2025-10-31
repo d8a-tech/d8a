@@ -29,3 +29,6 @@ go.work.sum
 
 # Editor/IDE
 .idea/
+
+# System related
+.DS_Store

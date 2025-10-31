@@ -1,16 +1,45 @@
-# D8A
+<img src="./public/logo.svg" alt="Open Mercato logo" width="1200" />
 
-This is the in-progress tracker for D8a.tech - GA4-compatible analytics platform.
+# Divine Data (d8a)
 
-## Setup
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-d8a-1F7AE0.svg)](https://d8a-tech.github.io/d8a/docs/getting-started)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
-run
+Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, has clean schema, can be deployed anywhere, including your cloud or on-premises. 
+
+## Highlights
+
+- **GA4 tracking protocol compatibility** - Seamlessly integrates with the Google Analytics 4 tracking protocol, allowing you to implement advanced web, server-side, or mobile tracking plans in just minutes
+- **Flat data model for visualization** - Data is stored in a flat, analytics-ready format - perfect as a source for reporting and data warehouses, with even custom events stored in dedicated columns
+- **Open source codebase** - Transparent, auditable, and community-driven. Fork, contribute, or self-host as you wish
+- **Works alongside GA4** - Can run in parallel with GA4 for a smooth transition or as a reliable backup
+- **Full session scope support** - Sessions are calculated on the backend for accuracy and flexibility - no reliance on client-side hacks
+- **BigQuery & ClickHouse support** - Export and analyze your data in Google BigQuery or ClickHouse for advanced analytics. Scales to billions of events with no upper limit
+
+## Core Use Cases
+
+- **Perfect for healthcare** - Collect traffic on healthcare websites under HIPAA requirements
+- **Well-suited for gov** - Collect traffic on gov't websites under FedRAMP requirements
+- **Europe & GDPR?** - Supports EU's independence from Bigtech
+
+
+## Screenshots
+
+
+
+## Architecture Overview
+
+
+## Getting Started
+
+1. Run it.
 
 ```bash
 go run main.go server
 ```
 
-make a request and wait a minute for the session to be closed.
+2. Make a request and wait a minute for the session to be closed.
 
 ```bash
 BASE_URL=http://localhost:8080
@@ -36,8 +65,19 @@ curl "${BASE_URL}/g/collect?v=2&tid=G-5T0Z13HKP4&gtm=45je5580h2v9219555710za200&
   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36' ;
 ```
 
-## Test
+## Testing
 
 ```bash
 go test ./...
 ```
+
+## Contributing
+
+
+## Documentation
+
+
+## License
+
+MIT — see `LICENSE` for details.
+
