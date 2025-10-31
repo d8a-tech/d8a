@@ -95,9 +95,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						return err
 					}
 					formatters := map[string]columnsFormatter{
-						"console": newConsoleColumnsFormatter(),
-						"json":    newJSONColumnsFormatter(),
-						"csv":     newCSVColumnsFormatter(),
+						"console":  newConsoleColumnsFormatter(),
+						"json":     newJSONColumnsFormatter(),
+						"csv":      newCSVColumnsFormatter(),
+						"markdown": newMarkdownColumnsFormatter(),
 					}
 					formatter, ok := formatters[cmd.String("output")]
 					if !ok {

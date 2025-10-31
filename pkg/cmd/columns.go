@@ -191,3 +191,132 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 func newCSVColumnsFormatter() columnsFormatter {
 	return &csvColumnsFormatter{}
 }
+
+type markdownColumnsFormatter struct {
+}
+
+// nolint // this is a documentation generator, does not need to meet production code quality standards
+func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error) {
+	var buf bytes.Buffer
+
+	// Write table header
+	buf.WriteString("| Name | Display Name | Type | Description |\n")
+	buf.WriteString("|------|--------------|------|-------------|\n")
+
+	// Write event columns
+	for _, col := range columns.Event {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		typeDisplay := ""
+		if typeName != "" {
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+		}
+		description := docs.Description
+		if description != "" {
+			description += fmt.Sprintf(" Column scope: `event`, Column interface: `%s`.", docs.InterfaceID)
+		} else {
+			description = fmt.Sprintf("Column scope: `event`, Column interface:`%s`.", docs.InterfaceID)
+		}
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			typeDisplay,
+			escapeMarkdownCell(description)))
+	}
+
+	// Write session-scoped event columns
+	for _, col := range columns.SessionScopedEvent {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		typeDisplay := ""
+		if typeName != "" {
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+		}
+		description := docs.Description
+		if description != "" {
+			description += fmt.Sprintf(" Column scope: `session-scoped-event`, Column interface: `%s`.", docs.InterfaceID)
+		} else {
+			description = fmt.Sprintf("Column scope: `session-scoped-event`, Column interface: `%s`.", docs.InterfaceID)
+		}
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			typeDisplay,
+			escapeMarkdownCell(description)))
+	}
+
+	// Write session columns
+	for _, col := range columns.Session {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		typeDisplay := ""
+		if typeName != "" {
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+		}
+		description := docs.Description
+		if description != "" {
+			description += fmt.Sprintf(" Column scope: `session`, Column interface: `%s`.", docs.InterfaceID)
+		} else {
+			description = fmt.Sprintf("Column scope: `session`, Column interface: `%s`.", docs.InterfaceID)
+		}
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			typeDisplay,
+			escapeMarkdownCell(description)))
+	}
+
+	return buf.String(), nil
+}
+
+func escapeMarkdownType(text string) string {
+	// Escape types while keeping angle brackets (for generic types like List<T>)
+	result := ""
+	for _, r := range text {
+		switch r {
+		case '|':
+			result += "\\|"
+		case '\n':
+			result += " "
+		case '\r':
+			// Skip carriage return
+		default:
+			result += string(r)
+		}
+	}
+	return result
+}
+
+func escapeMarkdownCell(text string) string {
+	// Replace pipe characters, newlines, and angle brackets that could break the table or Docusaurus rendering
+	result := ""
+	for _, r := range text {
+		switch r {
+		case '|':
+			result += "\\|"
+		case '<', '>':
+			// Remove angle brackets for Docusaurus compatibility
+			continue
+		case '\n':
+			result += " "
+		case '\r':
+			// Skip carriage return
+		default:
+			result += string(r)
+		}
+	}
+	return result
+}
+
+func newMarkdownColumnsFormatter() columnsFormatter {
+	return &markdownColumnsFormatter{}
+}
