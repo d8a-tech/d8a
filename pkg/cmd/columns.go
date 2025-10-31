@@ -199,18 +199,6 @@ type markdownColumnsFormatter struct {
 func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	var buf bytes.Buffer
 
-	// Write frontmatter
-	buf.WriteString("---\n")
-	buf.WriteString("hide_table_of_contents: true\n")
-	buf.WriteString("---\n\n")
-
-	// Write title
-	buf.WriteString("# Columns\n\n")
-
-	// Write description
-	buf.WriteString("This document describes all available columns organized by scope: " +
-		"event, session-scoped-event, and session.\n\n")
-
 	// Write table header
 	buf.WriteString("| Name | Display Name | Type | Description |\n")
 	buf.WriteString("|------|--------------|------|-------------|\n")
