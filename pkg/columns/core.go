@@ -70,22 +70,22 @@ var CoreInterfaces = struct {
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 	},
 	EventName: schema.Interface{
 		ID:      "core.d8a.tech/events/name",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "event_name", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "name", Type: arrow.BinaryTypes.String},
 	},
 	EventTimestampUTC: schema.Interface{
-		ID:      "core.d8a.tech/events/event_timestamp_utc",
+		ID:      "core.d8a.tech/events/timestamp_utc",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "event_timestamp_utc", Type: arrow.FixedWidthTypes.Timestamp_s},
+		Field:   &arrow.Field{Name: "timestamp_utc", Type: arrow.FixedWidthTypes.Timestamp_s},
 	},
 	EventDateUTC: schema.Interface{
-		ID:      "core.d8a.tech/events/event_date_utc",
+		ID:      "core.d8a.tech/events/date_utc",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "event_date_utc", Type: arrow.FixedWidthTypes.Date32},
+		Field:   &arrow.Field{Name: "date_utc", Type: arrow.FixedWidthTypes.Date32},
 	},
 	EventPageTitle: schema.Interface{
 		ID:      "core.d8a.tech/events/page_title",
@@ -195,22 +195,22 @@ var CoreInterfaces = struct {
 	SessionDuration: schema.Interface{
 		ID:      "core.d8a.tech/sessions/duration",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionFirstEventTime: schema.Interface{
 		ID:      "core.d8a.tech/sessions/first_event_time",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+		Field:   &arrow.Field{Name: "session_first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 	},
 	SessionLastEventTime: schema.Interface{
 		ID:      "core.d8a.tech/sessions/last_event_time",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+		Field:   &arrow.Field{Name: "session_last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
 	},
 	SessionTotalEvents: schema.Interface{
 		ID:      "core.d8a.tech/sessions/total_events",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SSESessionHitNumber: schema.Interface{
 		ID:      "core.d8a.tech/events/session_hit_number",

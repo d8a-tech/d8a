@@ -68,6 +68,7 @@ func NewSimpleSessionColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -119,7 +120,17 @@ func URLElementColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
 	getValue func(e *schema.Event, url *url.URL) (any, error),
+	options ...EventColumnOptions,
 ) schema.EventColumn {
+	options = append(options,
+		WithEventColumnRequired(false),
+		WithEventColumnDependsOn(
+			schema.DependsOnEntry{
+				Interface:        CoreInterfaces.EventPageLocation.ID,
+				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
+			},
+		),
+	)
 	return NewSimpleEventColumn(
 		id,
 		field,
@@ -138,13 +149,7 @@ func URLElementColumn(
 			}
 			return getValue(e, parsed)
 		},
-		WithEventColumnRequired(false),
-		WithEventColumnDependsOn(
-			schema.DependsOnEntry{
-				Interface:        CoreInterfaces.EventPageLocation.ID,
-				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
-			},
-		),
+		options...,
 	)
 }
 
@@ -234,6 +239,7 @@ func NewSimpleEventColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -559,6 +565,7 @@ func NewSimpleSessionScopedEventColumn(
 		field: field,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
+			Type:        field,
 			InterfaceID: string(id),
 		},
 	}
@@ -591,6 +598,7 @@ func defaultDocumentation(intf schema.Interface, displayName, description string
 		ColumnName:  intf.Field.Name,
 		DisplayName: displayName,
 		Description: description,
+		Type:        intf.Field,
 		InterfaceID: string(intf.ID),
 	}
 }

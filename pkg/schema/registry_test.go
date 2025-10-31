@@ -24,20 +24,20 @@ func TestDependencySorter_sortColumns(t *testing.T) {
 			name: "single column",
 			columns: []Column{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
-			expectedOrder: []InterfaceID{"event_id"},
+			expectedOrder: []InterfaceID{"id"},
 		},
 		{
 			name: "multiple independent columns maintain order",
 			columns: []Column{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 				&mockSessionColumn{
 					id:      "session_id",
@@ -45,7 +45,7 @@ func TestDependencySorter_sortColumns(t *testing.T) {
 					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 			},
-			expectedOrder: []InterfaceID{"event_id", "session_id"},
+			expectedOrder: []InterfaceID{"id", "session_id"},
 		},
 		{
 			name: "mixed column types with dependencies",
@@ -140,9 +140,9 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 					},
 					[]EventColumn{
 						&mockEventColumn{
-							id:      "event_id",
+							id:      "id",
 							version: "1.0.0",
-							field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+							field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 						},
 					},
 					[]SessionScopedEventColumn{},
@@ -169,9 +169,9 @@ func TestStaticColumnsRegistry_Get(t *testing.T) {
 				},
 				[]EventColumn{
 					&mockEventColumn{
-						id:      "event_id",
+						id:      "id",
 						version: "1.0.0",
-						field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+						field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 					},
 				},
 				[]SessionScopedEventColumn{},

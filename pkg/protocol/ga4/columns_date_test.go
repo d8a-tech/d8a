@@ -26,13 +26,13 @@ func TestEventDateColumns(t *testing.T) {
 		{
 			name:        "Valid EventDateUTC",
 			expected:    "2025-01-01",
-			fieldName:   "event_date_utc",
+			fieldName:   "date_utc",
 			description: "Valid event date UTC",
 		},
 		{
 			name:        "Valid EventTimestampUTC",
 			expected:    "2025-01-01T00:00:00Z",
-			fieldName:   "event_timestamp_utc",
+			fieldName:   "timestamp_utc",
 			description: "Valid event timestamp UTC",
 		},
 		{

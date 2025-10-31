@@ -30,6 +30,7 @@ type Interface struct {
 // Documentation represents the documentation for a column.
 type Documentation struct {
 	ColumnName  string
+	Type        *arrow.Field
 	DisplayName string
 	InterfaceID string
 	Description string

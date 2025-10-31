@@ -60,6 +60,10 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 		}
 		return nil, nil // nolint:nilnil // nil is valid
 	},
+	columns.WithEventColumnDocs(
+		"Device Category",
+		"The type of device used to access the site, extracted from the User-Agent header or query parameters (e.g., 'smartphone', 'desktop', 'tablet', ...).", // nolint:lll // it's a description
+	),
 )
 
 var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -69,6 +73,10 @@ var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.GetBrandName(), nil
 	},
+	columns.WithEventColumnDocs(
+		"Device Brand (mobile)",
+		"The brand name of the mobile device, populated only for mobile devices, extracted from User-Agent header (e.g., 'Apple', 'Samsung', 'Google'). ", // nolint:lll // it's a description
+	),
 )
 
 var deviceMobileModelNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -78,6 +86,10 @@ var deviceMobileModelNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.Model, nil
 	},
+	columns.WithEventColumnDocs(
+		"Device Model (mobile)",
+		"The model name of the mobile device, populated only for mobile devices, extracted from User-Agent header (e.g.,  'iPhone 13', 'Galaxy S21').", // nolint:lll // it's a description
+	),
 )
 
 var deviceOperatingSystemColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -87,6 +99,10 @@ var deviceOperatingSystemColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.GetOs().Name, nil
 	},
+	columns.WithEventColumnDocs(
+		"Operating System",
+		"The operating system running on the user's device, extracted from the User-Agent header (e.g., 'iOS', 'Android', 'Windows', 'macOS', 'GNU/Linux').", // nolint:lll // it's a description
+	),
 )
 
 var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -96,6 +112,10 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.GetOs().Version, nil
 	},
+	columns.WithEventColumnDocs(
+		"Operating System Version",
+		"The version of the operating system running on the user's device, extracted from the User-Agent header (e.g., '26.0.1', '18.7').", // nolint:lll // it's a description
+	),
 )
 
 var deviceLanguageColumn = columns.NewSimpleEventColumn(
@@ -112,6 +132,10 @@ var deviceLanguageColumn = columns.NewSimpleEventColumn(
 		}
 		return nil, nil // nolint:nilnil // nil is valid
 	},
+	columns.WithEventColumnDocs(
+		"Device Language",
+		"The language setting of the user's device, extracted from the User-Agent header or device information, based on ISO 639 standard for languages and ISO 3166 for country codes (e.g., 'en-us', 'en-gb', 'de-de').", // nolint:lll // it's a description
+	),
 )
 
 var deviceWebBrowserColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -121,6 +145,10 @@ var deviceWebBrowserColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.GetClient().Name, nil
 	},
+	columns.WithEventColumnDocs(
+		"Web Browser",
+		"The browser used to access the site, extracted from the User-Agent header (e.g., 'Chrome', 'Safari', 'Firefox', 'Mobile Safari').", // nolint:lll // it's a description
+	),
 )
 
 var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
@@ -130,4 +158,8 @@ var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
 		return di.GetClient().Version, nil
 	},
+	columns.WithEventColumnDocs(
+		"Web Browser Version",
+		"The version of the browser used to access the site, extracted from the User-Agent header (e.g., '141.0.0.0', '26.0.1').", // nolint:lll // it's a description
+	),
 )

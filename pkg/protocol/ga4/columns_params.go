@@ -61,6 +61,10 @@ var eventContentGroupColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentGroup.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Content Group",
+		"A category grouping for content (e.g., 'blog', 'videos', 'products').",
+	),
 )
 
 var eventContentIDColumn = columns.FromQueryParamEventColumn(
@@ -70,6 +74,10 @@ var eventContentIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Content ID",
+		"The unique identifier for a piece of content (e.g., 'article_001', 'video_xyz').",
 	),
 )
 
@@ -81,6 +89,10 @@ var eventContentTypeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentType.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Content Type",
+		"The type of content viewed or interacted with (e.g., 'article', 'video', 'product').",
+	),
 )
 
 var eventContentDescriptionColumn = columns.FromQueryParamEventColumn(
@@ -90,6 +102,10 @@ var eventContentDescriptionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamContentDescription.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Content Description",
+		"A description of the content viewed or interacted with (e.g., 'product review', 'how-to guide').",
 	),
 )
 
@@ -101,6 +117,10 @@ var eventCampaignColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaign.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Campaign",
+		"The campaign name associated with the traffic source (e.g., 'summer_sale', 'brand_awareness').",
+	),
 )
 
 var eventCampaignIDColumn = columns.FromQueryParamEventColumn(
@@ -110,6 +130,10 @@ var eventCampaignIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Campaign ID",
+		"The unique identifier for the campaign (e.g., 'camp_12345', 'Q1_2024_001').",
 	),
 )
 
@@ -121,6 +145,10 @@ var eventCampaignSourceColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignSource.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Campaign Source",
+		"The source of the campaign traffic (e.g., 'google', 'newsletter', 'facebook').",
+	),
 )
 
 var eventCampaignMediumColumn = columns.FromQueryParamEventColumn(
@@ -130,6 +158,10 @@ var eventCampaignMediumColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignMedium.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Campaign Medium",
+		"The medium of the campaign traffic (e.g., 'cpc', 'email', 'social').",
 	),
 )
 
@@ -141,6 +173,10 @@ var eventCampaignContentColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignContent.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Campaign Content",
+		"Used to differentiate ads or links within the same campaign (e.g., 'banner_blue', 'textlink_red').",
+	),
 )
 
 var eventCampaignTermColumn = columns.FromQueryParamEventColumn(
@@ -150,6 +186,10 @@ var eventCampaignTermColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCampaignTerm.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Campaign Term",
+		"The paid search keywords for the campaign (e.g., 'running shoes', 'best laptop').",
 	),
 )
 
@@ -162,6 +202,10 @@ var eventCouponColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCoupon.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Coupon",
+		"The coupon code applied to a transaction (e.g., 'SAVE20', 'FREESHIP').",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -173,6 +217,10 @@ var eventCurrencyColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCurrency.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Currency",
+		"The currency code for monetary values (e.g., 'USD', 'EUR', 'GBP').",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -182,6 +230,10 @@ var eventShippingColumn = columns.FromQueryParamEventColumn(
 	"epn.shipping",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamShipping.ID)),
+	columns.WithEventColumnDocs(
+		"Shipping",
+		"The shipping cost for a transaction.",
+	),
 )
 
 // On surface duplicates the above - nevertheless it's in the dataform, so including it for now
@@ -201,6 +253,10 @@ var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 		}
 		return shippingAsFloat, nil
 	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Shipping Value",
+		"The shipping cost associated with the transaction, extracted from the params_shipping parameter, with zero as default if not present.", // nolint:lll // it's a description
+	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
 			Interface:        ProtocolInterfaces.EventParamShipping.ID,
@@ -218,6 +274,10 @@ var eventShippingTierColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamShippingTier.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Shipping Tier",
+		"The shipping tier or method selected (e.g., 'standard', 'express', 'overnight').",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -229,6 +289,10 @@ var eventPaymentTypeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPaymentType.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Payment Type",
+		"The payment method used for a transaction (e.g., 'credit_card', 'paypal', 'apple_pay').",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -238,6 +302,10 @@ var eventParamTaxColumn = columns.FromQueryParamEventColumn(
 	"epn.tax",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamTax.ID)),
+	columns.WithEventColumnDocs(
+		"Tax",
+		"The tax amount for a transaction.",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -249,6 +317,10 @@ var eventTransactionIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamTransactionID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Transaction ID",
+		"The unique identifier for a transaction (e.g., 'T12345', 'order_abc123').",
+	),
 )
 
 // https://developers.google.com/analytics/devguides/collection/ga4/reference/events?client_type=gtag#add_payment_info
@@ -258,6 +330,10 @@ var eventValueColumn = columns.FromQueryParamEventColumn(
 	"epn.value",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamValue.ID)),
+	columns.WithEventColumnDocs(
+		"Value",
+		"The monetary value associated with an event.",
+	),
 )
 
 var eventItemListIDColumn = columns.FromQueryParamEventColumn(
@@ -267,6 +343,10 @@ var eventItemListIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamItemListID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Item List ID",
+		"The identifier for a list of items (e.g., 'related_products', 'search_results').",
 	),
 )
 
@@ -278,6 +358,10 @@ var eventItemListNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamItemListName.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Item List Name",
+		"The name of a list of items (e.g., 'Related Products', 'Search Results').",
+	),
 )
 
 var eventCreativeNameColumn = columns.FromQueryParamEventColumn(
@@ -287,6 +371,10 @@ var eventCreativeNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCreativeName.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Creative Name",
+		"The name of the creative used in advertising (e.g., 'summer_banner_v2', 'product_showcase').",
 	),
 )
 
@@ -298,6 +386,10 @@ var eventCreativeSlotColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCreativeSlot.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Creative Slot",
+		"The position or slot where the creative was displayed (e.g., 'slot_1', 'homepage_hero').",
+	),
 )
 
 var eventPromotionIDColumn = columns.FromQueryParamEventColumn(
@@ -308,6 +400,10 @@ var eventPromotionIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPromotionID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Promotion ID",
+		"The unique identifier for a promotion (e.g., 'promo_001', 'summer_sale_2024').",
+	),
 )
 
 var eventPromotionNameColumn = columns.FromQueryParamEventColumn(
@@ -317,6 +413,10 @@ var eventPromotionNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPromotionName.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Promotion Name",
+		"The name of a promotion (e.g., 'Summer Sale', 'BOGO Deal').",
 	),
 )
 
@@ -329,6 +429,10 @@ var eventAdEventIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAdEventID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Ad Event ID",
+		"A unique identifier for an ad event (e.g., 'ad_click_001', 'impression_xyz').",
+	),
 )
 
 var eventExposureTimeColumn = columns.FromQueryParamEventColumn(
@@ -337,6 +441,10 @@ var eventExposureTimeColumn = columns.FromQueryParamEventColumn(
 	"ep.exposure_time",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamExposureTime.ID)),
+	columns.WithEventColumnDocs(
+		"Exposure Time",
+		"The time a promotion or element was visible to the user.",
+	),
 )
 
 var eventAdUnitCodeColumn = columns.FromQueryParamEventColumn(
@@ -346,6 +454,10 @@ var eventAdUnitCodeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAdUnitCode.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Ad Unit Code",
+		"The code or name of the ad unit where an ad is displayed (e.g., 'banner_top', 'sidebar_300x250').",
 	),
 )
 
@@ -357,6 +469,10 @@ var eventRewardTypeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamRewardType.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Reward Type",
+		"The type of reward earned (e.g., 'coins', 'badge', 'power_up').",
+	),
 )
 
 var eventRewardValueColumn = columns.FromQueryParamEventColumn(
@@ -365,6 +481,10 @@ var eventRewardValueColumn = columns.FromQueryParamEventColumn(
 	"epn.reward_value",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamRewardValue.ID)),
+	columns.WithEventColumnDocs(
+		"Reward Value",
+		"The value or amount of the reward earned.",
+	),
 )
 
 // Video params
@@ -374,6 +494,10 @@ var eventVideoCurrentTimeColumn = columns.FromQueryParamEventColumn(
 	"epn.video_current_time",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoCurrentTime.ID)),
+	columns.WithEventColumnDocs(
+		"Video Current Time",
+		"The current playback time of a video in seconds.",
+	),
 )
 
 var eventVideoDurationColumn = columns.FromQueryParamEventColumn(
@@ -382,6 +506,10 @@ var eventVideoDurationColumn = columns.FromQueryParamEventColumn(
 	"epn.video_duration",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoDuration.ID)),
+	columns.WithEventColumnDocs(
+		"Video Duration",
+		"The total duration of a video in seconds.",
+	),
 )
 
 var eventVideoPercentColumn = columns.FromQueryParamEventColumn(
@@ -390,6 +518,10 @@ var eventVideoPercentColumn = columns.FromQueryParamEventColumn(
 	"ep.video_percent",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamVideoPercent.ID)),
+	columns.WithEventColumnDocs(
+		"Video Percent",
+		"The percentage of a video watched.",
+	),
 )
 
 var eventVideoProviderColumn = columns.FromQueryParamEventColumn(
@@ -399,6 +531,10 @@ var eventVideoProviderColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoProvider.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Video Provider",
+		"The provider or platform hosting the video (e.g., 'youtube', 'vimeo', 'self-hosted').",
 	),
 )
 
@@ -410,6 +546,10 @@ var eventVideoTitleColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoTitle.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Video Title",
+		"The title of the video (e.g., 'Product Demo', 'How-To Tutorial').",
+	),
 )
 
 var eventVideoURLColumn = columns.FromQueryParamEventColumn(
@@ -419,6 +559,10 @@ var eventVideoURLColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVideoURL.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Video URL",
+		"The URL of the video (e.g., 'https://youtube.com/watch?v=abc').",
 	),
 )
 
@@ -431,6 +575,10 @@ var eventLinkClassesColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkClasses.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Link Classes",
+		"The CSS classes of a clicked link (e.g., 'btn btn-primary', 'nav-link').",
+	),
 )
 
 var eventLinkDomainColumn = columns.FromQueryParamEventColumn(
@@ -440,6 +588,10 @@ var eventLinkDomainColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkDomain.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Link Domain",
+		"The domain of a clicked link (e.g., 'example.com', 'partner-site.org').",
 	),
 )
 
@@ -451,6 +603,10 @@ var eventLinkIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Link ID",
+		"The ID attribute of a clicked link (e.g., 'cta_button', 'footer_link_1').",
+	),
 )
 
 var eventLinkTextColumn = columns.FromQueryParamEventColumn(
@@ -460,6 +616,10 @@ var eventLinkTextColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkText.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Link Text",
+		"The visible text of a clicked link (e.g., 'Learn More', 'Download Now').",
 	),
 )
 
@@ -471,6 +631,10 @@ var eventLinkURLColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLinkURL.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Link URL",
+		"The full URL of a clicked link (e.g., 'https://example.com/page').",
+	),
 )
 
 var eventOutboundColumn = columns.FromQueryParamEventColumn(
@@ -479,6 +643,10 @@ var eventOutboundColumn = columns.FromQueryParamEventColumn(
 	"ep.outbound",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamOutbound.ID))),
+	columns.WithEventColumnDocs(
+		"Outbound",
+		"Indicates if a link click is outbound.",
+	),
 )
 
 // App params
@@ -490,6 +658,10 @@ var eventMethodColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamMethod.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Method",
+		"The method used for an action like signup, login or share events (e.g., 'Google', 'Facebook', 'Email').",
+	),
 )
 
 var eventCancellationReasonColumn = columns.FromQueryParamEventColumn(
@@ -500,6 +672,10 @@ var eventCancellationReasonColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCancellationReason.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Cancellation Reason",
+		"The reason a user canceled a subscription or service (e.g., 'too_expensive', 'not_using_enough').",
+	),
 )
 
 var eventFatalColumn = columns.FromQueryParamEventColumn(
@@ -508,6 +684,10 @@ var eventFatalColumn = columns.FromQueryParamEventColumn(
 	"ep.fatal",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamFatal.ID))),
+	columns.WithEventColumnDocs(
+		"Fatal",
+		"Indicates if an error or exception was fatal.",
+	),
 )
 
 // Firebase params
@@ -519,6 +699,10 @@ var eventFirebaseErrorColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebaseError.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Firebase Error",
+		"The type or code of a Firebase error (e.g., 'auth_failed', 'network_timeout').",
+	),
 )
 
 var eventFirebaseErrorValueColumn = columns.FromQueryParamEventColumn(
@@ -528,6 +712,10 @@ var eventFirebaseErrorValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebaseErrorValue.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Firebase Error Value",
+		"The specific value or message of a Firebase error (e.g., 'invalid_credentials', 'connection_lost').",
 	),
 )
 
@@ -539,6 +727,10 @@ var eventFirebaseScreenColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebaseScreen.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Firebase Screen",
+		"The name of the current screen viewed in the app (e.g., 'Home', 'Checkout').",
+	),
 )
 
 var eventFirebaseScreenClassColumn = columns.FromQueryParamEventColumn(
@@ -548,6 +740,10 @@ var eventFirebaseScreenClassColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebaseScreenClass.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Firebase Screen Class",
+		"The class name of the current screen in the app (e.g., 'MainActivity', 'CheckoutActivity').",
 	),
 )
 
@@ -559,6 +755,10 @@ var eventFirebaseScreenIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebaseScreenID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Firebase Screen ID",
+		"The identifier of the current screen in the app (e.g., 'screen_home', 'screen_checkout').",
+	),
 )
 
 var eventFirebasePreviousScreenColumn = columns.FromQueryParamEventColumn(
@@ -568,6 +768,10 @@ var eventFirebasePreviousScreenColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebasePreviousScreen.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Firebase Previous Screen",
+		"The name of the previous screen viewed in the app (e.g., 'Home', 'Product Detail').",
 	),
 )
 
@@ -579,6 +783,10 @@ var eventFirebasePreviousClassColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebasePreviousClass.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Firebase Previous Class",
+		"The class name of the previous screen in the app (e.g., 'MainActivity', 'ProfileActivity').",
+	),
 )
 
 var eventFirebasePreviousIDColumn = columns.FromQueryParamEventColumn(
@@ -588,6 +796,10 @@ var eventFirebasePreviousIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFirebasePreviousID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Firebase Previous ID",
+		"The identifier of the previous screen in the app (e.g., 'screen_home', 'screen_profile').",
 	),
 )
 
@@ -599,6 +811,10 @@ var eventMessageDeviceTimeColumn = columns.FromQueryParamEventColumn(
 	"ep.message_device_time",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamMessageDeviceTime.ID)),
+	columns.WithEventColumnDocs(
+		"Message Device Time",
+		"The device time when a message was sent or received.",
+	),
 )
 
 var eventMessageIDColumn = columns.FromQueryParamEventColumn(
@@ -608,6 +824,10 @@ var eventMessageIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamMessageID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Message ID",
+		"The unique identifier for a message (e.g., 'msg_12345', 'notification_abc').",
 	),
 )
 
@@ -619,6 +839,10 @@ var eventMessageNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamMessageName.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Message Name",
+		"The name or title of a message or notification (e.g., 'Welcome Email', 'Promotion Alert').",
+	),
 )
 
 var eventMessageTimeColumn = columns.FromQueryParamEventColumn(
@@ -627,6 +851,10 @@ var eventMessageTimeColumn = columns.FromQueryParamEventColumn(
 	"ep.message_time",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamMessageTime.ID)),
+	columns.WithEventColumnDocs(
+		"Message Time",
+		"The server time when a message was sent or received.",
+	),
 )
 
 var eventMessageTypeColumn = columns.FromQueryParamEventColumn(
@@ -636,6 +864,10 @@ var eventMessageTypeColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamMessageType.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Message Type",
+		"The type of message sent or received (e.g., 'notification', 'in-app_message', 'email').",
 	),
 )
 
@@ -647,6 +879,10 @@ var eventTopicColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamTopic.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Topic",
+		"The topic or category of content (e.g., 'technology', 'sports', 'finance').",
+	),
 )
 
 var eventLabelColumn = columns.FromQueryParamEventColumn(
@@ -656,6 +892,10 @@ var eventLabelColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLabel.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Label",
+		"A custom label for categorization or tracking (e.g., 'promo_click', 'special_offer').",
 	),
 )
 
@@ -668,6 +908,10 @@ var eventAppVersionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAppVersion.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"App Version",
+		"The version number of the application (e.g., '1.2.3', '2.0.1').",
+	),
 )
 
 var eventPreviousAppVersionColumn = columns.FromQueryParamEventColumn(
@@ -678,6 +922,10 @@ var eventPreviousAppVersionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPreviousAppVersion.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Previous App Version",
+		"The previous version of the app before an update (e.g., '1.1.0', '2.3.5').",
+	),
 )
 
 var eventPreviousFirstOpenCountColumn = columns.FromQueryParamEventColumn(
@@ -686,6 +934,10 @@ var eventPreviousFirstOpenCountColumn = columns.FromQueryParamEventColumn(
 	"ep.previous_first_open_count",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamPreviousFirstOpenCount.ID)),
+	columns.WithEventColumnDocs(
+		"Previous First Open Count",
+		"The count of first opens before the current session.",
+	),
 )
 
 var eventPreviousOSVersionColumn = columns.FromQueryParamEventColumn(
@@ -696,6 +948,10 @@ var eventPreviousOSVersionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPreviousOSVersion.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Previous OS Version",
+		"The previous operating system version before an update (e.g., 'iOS 14.0', 'Android 10').",
+	),
 )
 
 var eventUpdatedWithAnalyticsColumn = columns.FromQueryParamEventColumn(
@@ -705,6 +961,10 @@ var eventUpdatedWithAnalyticsColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamUpdatedWithAnalytics.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Updated with Analytics",
+		"Indicates if analytics was updated.",
 	),
 )
 
@@ -717,6 +977,10 @@ var eventAchievementIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAchievementID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Achievement ID",
+		"The ID of the achievement unlocked (e.g., 'A_12345', 'first_win').",
+	),
 )
 
 var eventCharacterColumn = columns.FromQueryParamEventColumn(
@@ -727,6 +991,10 @@ var eventCharacterColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamCharacter.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Character",
+		"The character selected or used by the player (e.g., 'warrior', 'Player 1').",
+	),
 )
 
 var eventLevelColumn = columns.FromQueryParamEventColumn(
@@ -735,6 +1003,10 @@ var eventLevelColumn = columns.FromQueryParamEventColumn(
 	"ep.level",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamLevel.ID)),
+	columns.WithEventColumnDocs(
+		"Level",
+		"The level number in a game or progression system.",
+	),
 )
 
 var eventLevelNameColumn = columns.FromQueryParamEventColumn(
@@ -745,6 +1017,10 @@ var eventLevelNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLevelName.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Level Name",
+		"The name of a level in a game or progression system (e.g., 'Tutorial Island', 'Boss Battle 3').",
+	),
 )
 
 var eventScoreColumn = columns.FromQueryParamEventColumn(
@@ -753,6 +1029,10 @@ var eventScoreColumn = columns.FromQueryParamEventColumn(
 	"epn.score",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamScore.ID)),
+	columns.WithEventColumnDocs(
+		"Score",
+		"The score achieved in a game or activity.",
+	),
 )
 
 var eventVirtualCurrencyNameColumn = columns.FromQueryParamEventColumn(
@@ -762,6 +1042,10 @@ var eventVirtualCurrencyNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamVirtualCurrencyName.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Virtual Currency Name",
+		"The name of the virtual currency used (e.g., 'coins', 'gems', 'credits').",
 	),
 )
 
@@ -773,6 +1057,10 @@ var eventItemNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamItemName.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Item Name",
+		"The name of an item or product (e.g., 'Blue Running Shoes', 'Wireless Headphones').",
+	),
 )
 
 var eventSuccessColumn = columns.FromQueryParamEventColumn(
@@ -781,6 +1069,10 @@ var eventSuccessColumn = columns.FromQueryParamEventColumn(
 	"ep.success",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSuccess.ID))),
+	columns.WithEventColumnDocs(
+		"Success",
+		"Indicates if an action was successful.",
+	),
 )
 
 // System params - automatically collected with app events
@@ -790,6 +1082,10 @@ var eventVisibleColumn = columns.FromQueryParamEventColumn(
 	"ep.visible",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamVisible.ID))),
+	columns.WithEventColumnDocs(
+		"Visible",
+		"Indicates if an element was visible to the user.",
+	),
 )
 
 var eventScreenResolutionColumn = columns.FromQueryParamEventColumn(
@@ -800,6 +1096,10 @@ var eventScreenResolutionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamScreenResolution.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Screen Resolution",
+		"The screen resolution of the user's device (e.g., '1920x1080', '375x667').",
+	),
 )
 
 var eventSystemAppColumn = columns.FromQueryParamEventColumn(
@@ -808,6 +1108,10 @@ var eventSystemAppColumn = columns.FromQueryParamEventColumn(
 	"ep.system_app",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSystemApp.ID))),
+	columns.WithEventColumnDocs(
+		"System App",
+		"Indicates if an app is a system app.",
+	),
 )
 
 var eventSystemAppUpdateColumn = columns.FromQueryParamEventColumn(
@@ -816,6 +1120,10 @@ var eventSystemAppUpdateColumn = columns.FromQueryParamEventColumn(
 	"ep.system_app_update",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSystemAppUpdate.ID))),
+	columns.WithEventColumnDocs(
+		"System App Update",
+		"Indicates if a system app was updated.",
+	),
 )
 
 var eventDeferredAnalyticsCollectionColumn = columns.FromQueryParamEventColumn(
@@ -825,6 +1133,10 @@ var eventDeferredAnalyticsCollectionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamDeferredAnalyticsCollection.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Deferred Analytics Collection",
+		"Indicates if analytics collection was deferred.", // nolint:lll // it's a description
 	),
 )
 
@@ -836,6 +1148,10 @@ var eventResetAnalyticsCauseColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamResetAnalyticsCause.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Reset Analytics Cause",
+		"The reason analytics data was reset (e.g., 'user_request', 'app_reinstall').",
+	),
 )
 
 var eventPreviousGmpAppIDColumn = columns.FromQueryParamEventColumn(
@@ -845,6 +1161,10 @@ var eventPreviousGmpAppIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamPreviousGmpAppID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Previous GMP App ID",
+		"The previous Google Mobile Platform app identifier (e.g., 'app_id_123', 'old_app_456').",
 	),
 )
 
@@ -857,6 +1177,10 @@ var eventFileExtensionColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFileExtension.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"File Extension",
+		"The extension of a downloaded or interacted file (e.g., 'pdf', 'jpg', 'xlsx').",
+	),
 )
 
 var eventFileNameColumn = columns.FromQueryParamEventColumn(
@@ -866,6 +1190,10 @@ var eventFileNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFileName.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"File Name",
+		"The name of a downloaded or interacted file (e.g., 'whitepaper.pdf', 'product_catalog.xlsx').",
 	),
 )
 
@@ -877,6 +1205,10 @@ var eventFormDestinationColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFormDestination.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Form Destination",
+		"The destination URL or page after form submission (e.g., '/thank-you', '/confirmation').",
+	),
 )
 
 var eventFormIDColumn = columns.FromQueryParamEventColumn(
@@ -886,6 +1218,10 @@ var eventFormIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFormID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Form ID",
+		"The unique identifier of the form (e.g., 'contact_form_01', 'newsletter_signup').",
 	),
 )
 
@@ -897,6 +1233,10 @@ var eventFormNameColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFormName.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Form Name",
+		"The name of the form (e.g., 'Contact Us', 'Newsletter Subscription').",
+	),
 )
 
 var eventFormSubmitTextColumn = columns.FromQueryParamEventColumn(
@@ -906,6 +1246,10 @@ var eventFormSubmitTextColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamFormSubmitText.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Form Submit Text",
+		"The text on the form submit button (e.g., 'Submit', 'Send Message', 'Subscribe').",
 	),
 )
 
@@ -919,6 +1263,10 @@ var eventGroupIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGroupID.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Group ID",
+		"The identifier for a group or cohort (e.g., 'group_a', 'beta_testers').",
+	),
 )
 
 var eventLanguageColumn = columns.FromQueryParamEventColumn(
@@ -929,6 +1277,10 @@ var eventLanguageColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLanguage.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Language",
+		"The language code of the content or interface (e.g., 'en', 'es', 'fr').",
+	),
 )
 
 var eventPercentScrolledColumn = columns.FromQueryParamEventColumn(
@@ -937,6 +1289,10 @@ var eventPercentScrolledColumn = columns.FromQueryParamEventColumn(
 	"ep.percent_scrolled",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamPercentScrolled.ID)),
+	columns.WithEventColumnDocs(
+		"Percent Scrolled",
+		"The percentage of a page scrolled by the user.",
+	),
 )
 
 var eventSearchTermColumn = columns.FromQueryParamEventColumn(
@@ -946,6 +1302,10 @@ var eventSearchTermColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamSearchTerm.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Search Term",
+		"The search query entered by the user (e.g., 'running shoes', 'best laptop 2024').",
 	),
 )
 
@@ -959,6 +1319,10 @@ var eventUnconvertLeadReasonColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamUnconvertLeadReason.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Unconvert Lead Reason",
+		"The reason a lead was unconverted or lost (e.g., 'no_response', 'chose_competitor').",
+	),
 )
 
 var eventDisqualifiedLeadReasonColumn = columns.FromQueryParamEventColumn(
@@ -968,6 +1332,10 @@ var eventDisqualifiedLeadReasonColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamDisqualifiedLeadReason.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Disqualified Lead Reason",
+		"The reason a lead was disqualified (e.g., 'out_of_territory', 'invalid_contact').",
 	),
 )
 
@@ -979,6 +1347,10 @@ var eventLeadSourceColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLeadSource.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Lead Source",
+		"The source from which a lead originated (e.g., 'website_form', 'trade_show', 'referral').",
+	),
 )
 
 var eventLeadStatusColumn = columns.FromQueryParamEventColumn(
@@ -989,6 +1361,10 @@ var eventLeadStatusColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamLeadStatus.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Lead Status",
+		"The status of a lead in the sales process (e.g., 'qualified', 'contacted', 'converted').",
+	),
 )
 
 var eventFreeTrialColumn = columns.FromQueryParamEventColumn(
@@ -997,6 +1373,10 @@ var eventFreeTrialColumn = columns.FromQueryParamEventColumn(
 	"ep.free_trial",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamFreeTrial.ID))),
+	columns.WithEventColumnDocs(
+		"Free Trial",
+		"Indicates if a subscription or in app purchase includes a free trial.",
+	),
 )
 
 var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
@@ -1005,6 +1385,10 @@ var eventSubscriptionColumn = columns.FromQueryParamEventColumn(
 	"ep.subscription",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(ProtocolInterfaces.EventParamSubscription.ID))),
+	columns.WithEventColumnDocs(
+		"Subscription",
+		"Indicates if a purchase is a subscription.",
+	),
 )
 
 var eventProductIDColumn = columns.FromQueryParamEventColumn(
@@ -1013,6 +1397,10 @@ var eventProductIDColumn = columns.FromQueryParamEventColumn(
 	"ep.product_id",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamProductID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Product ID",
+		"The unique identifier for a product (e.g., 'SKU12345', 'prod_abc').",
 	),
 )
 
@@ -1023,6 +1411,10 @@ var eventPriceColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamPrice.ID),
 	),
+	columns.WithEventColumnDocs(
+		"Price",
+		"The price of an item or product.",
+	),
 )
 
 var eventQuantityColumn = columns.FromQueryParamEventColumn(
@@ -1031,6 +1423,10 @@ var eventQuantityColumn = columns.FromQueryParamEventColumn(
 	"epn.quantity",
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamQuantity.ID),
+	),
+	columns.WithEventColumnDocs(
+		"Quantity",
+		"The quantity of items in a transaction or action.",
 	),
 )
 
@@ -1041,6 +1437,10 @@ var eventIntroductoryPriceColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamIntroductoryPrice.ID),
 	),
+	columns.WithEventColumnDocs(
+		"Introductory Price",
+		"The introductory or promotional price for a product or subscription.",
+	),
 )
 
 var gclidParamColumn = columns.FromQueryParamEventColumn(
@@ -1049,6 +1449,10 @@ var gclidParamColumn = columns.FromQueryParamEventColumn(
 	"ep.gclid",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGclid.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Google gclid (Param)",
+		"The Google Click Identifier for attribution from Google Ads (e.g., 'gclid_abc123def').",
 	),
 )
 
@@ -1059,6 +1463,10 @@ var dclidParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamDclid.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Google dclid (Param)",
+		"The DoubleClick Click Identifier for attribution (e.g., 'dclid_xyz789').",
+	),
 )
 
 var srsltidParamColumn = columns.FromQueryParamEventColumn(
@@ -1067,6 +1475,10 @@ var srsltidParamColumn = columns.FromQueryParamEventColumn(
 	"ep.srsltid",
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamSrsltid.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Google srsltid (Param)",
+		"The Shopping Ads result ID for attribution (e.g., 'srsltid_12345').",
 	),
 )
 
@@ -1077,6 +1489,10 @@ var aclidParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAclid.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Apple aclid (Param)",
+		"The Apple Search Ads campaign ID for attribution (e.g., 'aclid_12345').",
+	),
 )
 
 var anidParamColumn = columns.FromQueryParamEventColumn(
@@ -1086,6 +1502,34 @@ var anidParamColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamAnid.ID)),
 	),
+	columns.WithEventColumnDocs(
+		"Android anid (Param)",
+		"The Android Advertising ID for attribution (e.g., 'anid_abc123').",
+	),
+)
+
+var gaSessionIDParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamGaSessionID.ID,
+	ProtocolInterfaces.EventParamGaSessionID.Field,
+	"ep.ga_session_id",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamGaSessionID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"GA Session ID",
+		"The Google Analytics 4 session identifier. A unique identifier for the current session, used to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column.", // nolint:lll // it's a description
+	),
+)
+
+var gaSessionNumberParamColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamGaSessionNumber.ID,
+	ProtocolInterfaces.EventParamGaSessionNumber.Field,
+	"epn.ga_session_number",
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamGaSessionNumber.ID)),
+	columns.WithEventColumnDocs(
+		"GA Session Number",
+		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie.", // nolint:lll // it's a description
+	),
 )
 
 var renewalCountParamColumn = columns.FromQueryParamEventColumn(
@@ -1093,4 +1537,8 @@ var renewalCountParamColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamRenewalCount.Field,
 	"epn.renewal_count",
 	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.EventParamRenewalCount.ID)),
+	columns.WithEventColumnDocs(
+		"Renewal Count",
+		"The number of times a subscription has been renewed.",
+	),
 )

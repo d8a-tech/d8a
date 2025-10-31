@@ -30,6 +30,10 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 			}
 			return items, nil
 		},
+		columns.WithEventColumnDocs(
+			"Ecommerce Items",
+			"An array of ecommerce items associated with the event. Each item contains detailed product information including: item_id, item_name, affiliation, coupon, discount, index, item_brand, item_category (1-5 levels), item_list_id, item_list_name, item_variant, location_id, price, price_in_usd, quantity, item_refund, item_refund_in_usd, item_revenue, item_revenue_in_usd, promotion_id, promotion_name, creative_name, and creative_slot. Used in ecommerce events like purchase, add_to_cart, view_item, etc.", // nolint:lll // it's a description
+		),
 		columns.WithEventColumnDependsOn(
 			// Some props make take values from event itself, so we need to evaluate them before parsing the item
 			// Examples: item_list_id, item_list_name
@@ -234,7 +238,14 @@ func NewItemsBasedEventColumn[T int64 | float64](
 	interfaceID schema.InterfaceID,
 	interfaceField *arrow.Field,
 	valueFunc ItemValueFunc[T],
+	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
+	options = append(options, columns.WithEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventItems.ID,
+			GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
+		},
+	))
 	return columns.NewSimpleEventColumn(
 		interfaceID,
 		interfaceField,
@@ -261,15 +272,11 @@ func NewItemsBasedEventColumn[T int64 | float64](
 			}
 			return value, nil
 		},
-		columns.WithEventColumnDependsOn(
-			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventItems.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
-			},
-		),
+		options...,
 	)
 }
 
+//nolint:dupl // similar structure but different logic
 var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
@@ -286,8 +293,13 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn[float64](
 		}
 		return reveAsFloat, nil
 	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Purchase Revenue",
+		"The total purchase revenue calculated by summing item_revenue across all items in the event. Zero for refund events. Represents the total transaction value from purchased items.", // nolint:lll // it's a description
+	),
 )
 
+//nolint:dupl // similar structure but different logic
 var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn[float64](
 	ProtocolInterfaces.EventEcommerceRefundValue.ID,
 	ProtocolInterfaces.EventEcommerceRefundValue.Field,
@@ -304,6 +316,10 @@ var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn[float64](
 		}
 		return refundAsFloat, nil
 	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Refund Value",
+		"The total refund value calculated by summing item_refund across all items in the event. Only populated for refund events, zero otherwise. Represents the total value refunded.", // nolint:lll // it's a description
+	),
 )
 
 var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
@@ -348,6 +364,10 @@ var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
 		}
 		return int64(len(uniques)), nil
 	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Unique Items",
+		"The count of unique items in the event, determined by distinct item_id or item_name values. Useful for understanding product variety in transactions.", // nolint:lll // it's a description
+	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
 			Interface:        ProtocolInterfaces.EventItems.ID,
@@ -386,6 +406,10 @@ var eventEcommerceItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
 		}
 		return totalQuantity, nil
 	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Items Total Quantity",
+		"Total quantity of all items in the event, calculated by summing the quantity field across all items. Represents the total number of product units in the transaction.", // nolint:lll // it's a description
+	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
 			Interface:        ProtocolInterfaces.EventItems.ID,

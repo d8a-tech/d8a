@@ -93,9 +93,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
@@ -107,7 +107,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			},
 			expectedTableNum: 1,
 			expectedName:     "events",
-			expectedFields:   []string{"event_id", "session_session_id"},
+			expectedFields:   []string{"id", "session_session_id"},
 		},
 		{
 			name:            "multiple columns with custom prefix",
@@ -115,9 +115,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			sessionPrefix:   "sess_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 				&mockEventColumn{
 					id:      "event_type",
@@ -139,7 +139,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			},
 			expectedTableNum: 1,
 			expectedName:     "custom_events",
-			expectedFields:   []string{"event_id", "event_type", "sess_session_id", "sess_user_id"},
+			expectedFields:   []string{"id", "event_type", "sess_session_id", "sess_user_id"},
 		},
 		{
 			name:             "no columns",
@@ -203,9 +203,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
@@ -219,8 +219,8 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 				{
 					PropertyID: "prop1",
 					Events: []*Event{
-						{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"event_id": "test_value"}},
-						{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"event_id": "test_value"}},
+						{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"id": "test_value"}},
+						{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"id": "test_value"}},
 					},
 					Values: map[string]any{"session_id": "session_value"},
 				},
@@ -236,9 +236,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "sess_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
@@ -252,15 +252,15 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 				{
 					PropertyID: "prop1",
 					Events: []*Event{
-						{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"event_id": "test_value"}},
+						{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"id": "test_value"}},
 					},
 					Values: map[string]any{"session_id": "session_value"},
 				},
 				{
 					PropertyID: "prop2",
 					Events: []*Event{
-						{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"event_id": "test_value"}},
-						{BoundHit: &hits.Hit{ID: "hit3"}, Values: map[string]any{"event_id": "test_value"}},
+						{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"id": "test_value"}},
+						{BoundHit: &hits.Hit{ID: "hit3"}, Values: map[string]any{"id": "test_value"}},
 					},
 					Values: map[string]any{"session_id": "session_value"},
 				},
@@ -276,9 +276,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "event_id",
+					id:      "id",
 					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
@@ -335,9 +335,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_SessionValuesPropagation(t 
 	}
 
 	eventCol := &mockEventColumn{
-		id:      "event_id",
+		id:      "id",
 		version: "1.0.0",
-		field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+		field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 	}
 	sessionCol := &mockSessionColumn{
 		id:      "session_id",
@@ -353,8 +353,8 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_SessionValuesPropagation(t 
 	session := &Session{
 		PropertyID: "prop1",
 		Events: []*Event{
-			{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"event_id": "test_value"}},
-			{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"event_id": "test_value"}},
+			{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"id": "test_value"}},
+			{BoundHit: &hits.Hit{ID: "hit2"}, Values: map[string]any{"id": "test_value"}},
 		},
 		Values: map[string]any{
 			"user_id":    "test_user",     // This should be copied to events
@@ -377,7 +377,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_SessionValuesPropagation(t 
 		// The session_id should be copied with prefix
 		assert.Equal(t, "session_value", row["session_session_id"])
 		// Event values should remain unchanged
-		assert.Equal(t, "test_value", row["event_id"])
+		assert.Equal(t, "test_value", row["id"])
 	}
 }
 
@@ -519,9 +519,9 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_IdempotentCalls(t *testing.
 
 	eventColumns := []EventColumn{
 		&mockEventColumn{
-			id:      "event_id",
+			id:      "id",
 			version: "1.0.0",
-			field:   &arrow.Field{Name: "event_id", Type: arrow.BinaryTypes.String},
+			field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 		},
 	}
 	sessionColumns := []SessionColumn{
@@ -540,7 +540,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_IdempotentCalls(t *testing.
 	session := &Session{
 		PropertyID: "test_property",
 		Events: []*Event{
-			{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"event_id": "test_event"}},
+			{BoundHit: &hits.Hit{ID: "hit1"}, Values: map[string]any{"id": "test_event"}},
 		},
 		Values: map[string]any{
 			"duration": int64(12345),
@@ -571,7 +571,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_IdempotentCalls(t *testing.
 		fieldNames3[i] = field.Name
 	}
 
-	expectedFieldNames := []string{"event_id", "session_duration"}
+	expectedFieldNames := []string{"id", "session_duration"}
 	assert.ElementsMatch(t, expectedFieldNames, fieldNames1)
 	assert.ElementsMatch(t, expectedFieldNames, fieldNames2)
 	assert.ElementsMatch(t, expectedFieldNames, fieldNames3)
@@ -624,7 +624,7 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_IdempotentCalls(t *testing.
 	assert.NotContains(t, row3, "session_session_duration")
 
 	// Verify original field values are preserved
-	assert.Equal(t, "test_event", row1["event_id"])
-	assert.Equal(t, "test_event", row2["event_id"])
-	assert.Equal(t, "test_event", row3["event_id"])
+	assert.Equal(t, "test_event", row1["id"])
+	assert.Equal(t, "test_event", row2["id"])
+	assert.Equal(t, "test_event", row3["id"])
 }

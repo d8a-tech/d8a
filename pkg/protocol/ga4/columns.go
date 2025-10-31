@@ -193,10 +193,11 @@ var ProtocolInterfaces = struct {
 	// lead_status - used in custom lead tracking events
 	EventParamLeadStatus schema.Interface
 	// Session params
-	SessionEngagement             schema.Interface
-	SessionParamParamsGaSessionID schema.Interface
-	SessionParamsGaSessionNumber  schema.Interface
-	SessionParamNumber            schema.Interface
+	SessionIsEngaged          schema.Interface
+	EventParamGaSessionID     schema.Interface
+	EventParamGaSessionNumber schema.Interface
+	GaSessionID               schema.Interface
+	GaSessionNumber           schema.Interface
 
 	// Item params
 	EventItems              schema.Interface
@@ -389,18 +390,18 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	SessionEngagement: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/engagement",
+	SessionIsEngaged: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/session/is_engaged",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "engagement", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	SessionParamParamsGaSessionID: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_id",
+	EventParamGaSessionID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_ga_session_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	SessionParamNumber: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/session/params_ga_session_number",
+	EventParamGaSessionNumber: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/params_ga_session_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "params_ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
@@ -456,7 +457,7 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field: &arrow.Field{
 			Nullable: true,
-			Name:     "items", Type: arrow.ListOf(arrow.StructOf(
+			Name:     "ecommerce_items", Type: arrow.ListOf(arrow.StructOf(
 				arrow.Field{Name: itemKeyID, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyName, Type: arrow.BinaryTypes.String, Nullable: true},
 				arrow.Field{Name: itemKeyAffiliation, Type: arrow.BinaryTypes.String, Nullable: true},
@@ -910,11 +911,6 @@ var ProtocolInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "gtm_debug", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventGl: schema.Interface{
-		ID:      "ga4.protocols.d8a.tech/event/gl",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "_gl", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
 	// **lid params
 	EventParamGclid: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/events/params_gclid",
@@ -1020,5 +1016,16 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/privacy_ads_storage",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "privacy_ads_storage", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	// GA Session columns
+	GaSessionID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ga_session_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	GaSessionNumber: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/ga_session_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 }
