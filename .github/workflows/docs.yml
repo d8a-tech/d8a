@@ -37,7 +37,7 @@ jobs:
           go-version: '1.24'
 
       - name: Generate column documentation
-        run: go run main.go columns --property-id=1337 --output=markdown > docs/docs/columns.md
+        run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/columns.md
       
       - name: Build docs
         working-directory: docs
@@ -49,21 +49,10 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'docs/build'
-
-  deploy:
-    if: github.ref == 'refs/heads/master'
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
+      
       - name: Setup Pages
         uses: actions/configure-pages@v5
-      
-      - name: Download artifact
-        uses: actions/download-pages-artifact@v4
-      
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
