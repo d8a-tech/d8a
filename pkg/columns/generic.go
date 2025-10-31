@@ -497,7 +497,7 @@ type simpleSessionScopedEventColumn struct {
 	dependsOn []schema.DependsOnEntry
 	required  bool
 	castFunc  func(any) (any, error)
-	write     func(*simpleSessionScopedEventColumn, *schema.Event, *schema.Session) error
+	write     func(*simpleSessionScopedEventColumn, *schema.Session, int) error
 }
 
 func (c *simpleSessionScopedEventColumn) Docs() schema.Documentation {
@@ -516,8 +516,8 @@ func (c *simpleSessionScopedEventColumn) DependsOn() []schema.DependsOnEntry {
 	return c.dependsOn
 }
 
-func (c *simpleSessionScopedEventColumn) Write(event *schema.Event, session *schema.Session) error {
-	return c.write(c, event, session)
+func (c *simpleSessionScopedEventColumn) Write(session *schema.Session, i int) error {
+	return c.write(c, session, i)
 }
 
 // SessionScopedEventColumnOptions configures a simple session-scoped event column
@@ -557,7 +557,7 @@ func WithSessionScopedEventColumnDocs(displayName, description string) SessionSc
 func NewSimpleSessionScopedEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(*schema.Event, *schema.Session) (any, error),
+	getValue func(*schema.Session, int) (any, error),
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
 	c := &simpleSessionScopedEventColumn{
@@ -569,8 +569,8 @@ func NewSimpleSessionScopedEventColumn(
 			InterfaceID: string(id),
 		},
 	}
-	c.write = func(c *simpleSessionScopedEventColumn, event *schema.Event, session *schema.Session) error {
-		value, err := getValue(event, session)
+	c.write = func(c *simpleSessionScopedEventColumn, session *schema.Session, i int) error {
+		value, err := getValue(session, i)
 		if err != nil {
 			return err
 		}
@@ -578,7 +578,7 @@ func NewSimpleSessionScopedEventColumn(
 		if err != nil {
 			return err
 		}
-		event.Values[field.Name] = casted
+		session.Events[i].Values[field.Name] = casted
 		return nil
 	}
 	for _, option := range options {

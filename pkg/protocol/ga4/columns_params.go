@@ -51,6 +51,10 @@ var genericEventParamsColumn = columns.NewSimpleEventColumn(
 		})
 		return params, nil
 	},
+	columns.WithEventColumnDocs(
+		"Event Params",
+		"All the parameters associated with the event.",
+	),
 )
 
 var eventContentGroupColumn = columns.FromQueryParamEventColumn(
