@@ -62,6 +62,7 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.UtmCampaignColumn,
 		eventcolumns.UtmIDColumn,
 		eventcolumns.UtmCreativeFormatColumn,
+		eventcolumns.UtmSourceMediumColumn,
 		eventcolumns.ClickIDsGclidColumn,
 		eventcolumns.ClickIDsDclidColumn,
 		eventcolumns.ClickIDsSrsltidColumn,
