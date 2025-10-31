@@ -191,3 +191,90 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 func newCSVColumnsFormatter() columnsFormatter {
 	return &csvColumnsFormatter{}
 }
+
+type markdownColumnsFormatter struct {
+}
+
+func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error) {
+	var buf bytes.Buffer
+
+	// Write title
+	buf.WriteString("# Columns\n\n")
+
+	// Write description
+	buf.WriteString("This document describes all available columns organized by scope: " +
+		"event, session-scoped-event, and session.\n\n")
+
+	// Write table header
+	buf.WriteString("| Scope | Interface ID | Name | Display Name | Type | Description |\n")
+	buf.WriteString("|-------|--------------|------|--------------|------|-------------|\n")
+
+	// Write event columns
+	for _, col := range columns.Event {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		buf.WriteString(fmt.Sprintf("| event | %s | %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.InterfaceID),
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			escapeMarkdownCell(typeName),
+			escapeMarkdownCell(docs.Description)))
+	}
+
+	// Write session-scoped event columns
+	for _, col := range columns.SessionScopedEvent {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		buf.WriteString(fmt.Sprintf("| session-scoped-event | %s | %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.InterfaceID),
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			escapeMarkdownCell(typeName),
+			escapeMarkdownCell(docs.Description)))
+	}
+
+	// Write session columns
+	for _, col := range columns.Session {
+		docs := col.Docs()
+		typeName := ""
+		if docs.Type != nil {
+			typeName = docs.Type.Type.String()
+		}
+		buf.WriteString(fmt.Sprintf("| session | %s | %s | %s | %s | %s |\n",
+			escapeMarkdownCell(docs.InterfaceID),
+			escapeMarkdownCell(docs.ColumnName),
+			escapeMarkdownCell(docs.DisplayName),
+			escapeMarkdownCell(typeName),
+			escapeMarkdownCell(docs.Description)))
+	}
+
+	return buf.String(), nil
+}
+
+func escapeMarkdownCell(text string) string {
+	// Replace pipe characters and newlines that could break the table
+	result := ""
+	for _, r := range text {
+		switch r {
+		case '|':
+			result += "\\|"
+		case '\n':
+			result += " "
+		case '\r':
+			// Skip carriage return
+		default:
+			result += string(r)
+		}
+	}
+	return result
+}
+
+func newMarkdownColumnsFormatter() columnsFormatter {
+	return &markdownColumnsFormatter{}
+}

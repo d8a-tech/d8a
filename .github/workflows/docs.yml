@@ -2,7 +2,6 @@ name: Deploy documentation
 
 on:
   push:
-    branches: [ master ]
 
 permissions:
   id-token: write
@@ -33,6 +32,14 @@ jobs:
       - name: Install dependencies
         working-directory: docs
         run: npm ci
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      - name: Generate column documentation
+        run: go run main.go columns --property-id=1337 --output=markdown > docs/docs/columns.md
       
       - name: Build docs
         working-directory: docs
@@ -41,13 +48,16 @@ jobs:
           NODE_ENV: production
         
       - name: Setup Pages
+        if: github.ref == 'refs/heads/master'
         uses: actions/configure-pages@v5
       
       - name: Upload artifact
+        if: github.ref == 'refs/heads/master'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'docs/build'
       
       - name: Deploy to GitHub Pages
         id: deployment
+        if: github.ref == 'refs/heads/master'
         uses: actions/deploy-pages@v4
