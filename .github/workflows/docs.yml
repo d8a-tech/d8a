@@ -13,10 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -46,18 +43,26 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
-        
-      - name: Setup Pages
-        if: github.ref == 'refs/heads/master'
-        uses: actions/configure-pages@v5
       
       - name: Upload artifact
-        if: github.ref == 'refs/heads/master'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'docs/build'
+
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      
+      - name: Download artifact
+        uses: actions/download-pages-artifact@v4
       
       - name: Deploy to GitHub Pages
         id: deployment
-        if: github.ref == 'refs/heads/master'
         uses: actions/deploy-pages@v4
