@@ -50,7 +50,7 @@ const config: Config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/d8a-tech/d8a/tree/master/',
+            'https://github.com/d8a-tech/d8a/tree/master/docs/',
         },
         theme: {
           customCss: './src/css/custom.css',
