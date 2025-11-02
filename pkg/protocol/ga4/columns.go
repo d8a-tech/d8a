@@ -231,6 +231,12 @@ var ProtocolInterfaces = struct {
 	EventSourceDclid                 schema.Interface
 	EventSourceSrsltid               schema.Interface
 
+	// Session-scoped event dimensions
+	EventPreviousPageLocation schema.Interface
+	EventPreviousPageTitle    schema.Interface
+	EventNextPageLocation     schema.Interface
+	EventNextPageTitle        schema.Interface
+
 	// _p parameter (page load hash, usually contains a timestamp in milliseconds. If not - returns nil)
 	EventPageLoadHash schema.Interface
 
@@ -1001,6 +1007,26 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/event/source_srsltid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "source_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageLocation: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/previous_page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageTitle: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/previous_page_title",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageLocation: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/next_page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageTitle: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/next_page_title",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventPageLoadHash: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/page_load_hash",

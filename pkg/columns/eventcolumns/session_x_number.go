@@ -13,13 +13,8 @@ import (
 var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSESessionHitNumber.ID,
 	columns.CoreInterfaces.SSESessionHitNumber.Field,
-	func(e *schema.Event, s *schema.Session) (any, error) {
-		for i, candidate := range s.Events {
-			if candidate == e {
-				return int64(i), nil
-			}
-		}
-		return nil, errors.New("event not found in session")
+	func(_ *schema.Session, i int) (any, error) {
+		return int64(i), nil
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDocs(
@@ -33,15 +28,15 @@ var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSESessionPageNumber.ID,
 	columns.CoreInterfaces.SSESessionPageNumber.Field,
-	func(e *schema.Event, s *schema.Session) (any, error) {
+	func(s *schema.Session, i int) (any, error) {
 		var currentPageNumber int64 = 0
 		currentPageValue, ok := s.Events[0].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
 		if !ok {
 			return nil, errors.New("invalid page location type")
 		}
 		var currentPage string = currentPageValue
-		for _, candidate := range s.Events {
-			candidatePageValue, ok := candidate.Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
+		for idx := 0; idx <= i; idx++ {
+			candidatePageValue, ok := s.Events[idx].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
 			if !ok {
 				return nil, errors.New("invalid page location type")
 			}
@@ -49,7 +44,7 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 				currentPageNumber++
 				currentPage = candidatePageValue
 			}
-			if candidate == e {
+			if idx == i {
 				return currentPageNumber, nil
 			}
 		}

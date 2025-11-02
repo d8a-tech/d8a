@@ -168,8 +168,8 @@ func (m *sessionWriterImpl) writeColumns(columns schema.Columns, session *schema
 		}
 	}
 	for _, column := range columns.SessionScopedEvent {
-		for _, event := range session.Events {
-			if err := column.Write(event, session); err != nil {
+		for i := range session.Events {
+			if err := column.Write(session, i); err != nil {
 				return err
 			}
 		}

@@ -5,5 +5,5 @@ package schema
 // It complements EventColumn and SessionColumn without changing their semantics.
 type SessionScopedEventColumn interface {
 	Column
-	Write(event *Event, session *Session) error
+	Write(session *Session, i int) error
 }
