@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strconv"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -601,4 +602,108 @@ func defaultDocumentation(intf schema.Interface, displayName, description string
 		Type:        intf.Field,
 		InterfaceID: string(intf.ID),
 	}
+}
+
+// TransitionAdvanceFunction allows setting constraints for TransitionColumns
+type TransitionAdvanceFunction func(event *schema.Event) bool
+
+// TransitionTransformerFunction allows transforming the consecutive values chain
+type TransitionTransformerFunction func([]string)
+
+// TransitionAdvanceWhenEventNameIs returns a function that checks if an event has the specified event name.
+func TransitionAdvanceWhenEventNameIs(targetEventName string) func(event *schema.Event) bool {
+	return func(event *schema.Event) bool {
+		eventName, ok := event.Values[CoreInterfaces.EventName.Field.Name]
+		if !ok {
+			return false
+		}
+		eventNameStr, ok := eventName.(string)
+		if !ok {
+			return false
+		}
+		return eventNameStr == targetEventName
+	}
+}
+
+// TransitionDirection specifies the direction of the transition
+type TransitionDirection bool
+
+const (
+	// TransitionDirectionForward specifies the forward direction of the transition
+	TransitionDirectionForward TransitionDirection = false
+	// TransitionDirectionBackward specifies the backward direction of the transition
+	TransitionDirectionBackward TransitionDirection = true
+)
+
+// NewValueTransitionColumn creates a session-scoped event column that calculates
+// values by looking to find the closest event where the value differs from
+// the current one. For example, previous_page_url or previous_page_title: if multiple
+// consecutive events have the same page URL/title, it returns the value from the closest
+// previous event that had a different value, not the immediately previous event.
+func NewValueTransitionColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	chainFieldName string,
+	advance TransitionAdvanceFunction,
+	direction TransitionDirection,
+	options ...SessionScopedEventColumnOptions,
+) schema.SessionScopedEventColumn {
+	var transformer = func(_ []any) {}
+	if direction == TransitionDirectionForward {
+		transformer = slices.Reverse
+	}
+	cacheKey := fmt.Sprintf("cache-%s-%s-%s", id, field.Name, chainFieldName)
+	return NewSimpleSessionScopedEventColumn(
+		id,
+		field,
+		func(s *schema.Session, i int) (any, error) {
+			var finalChain []any
+			finalChainAny, ok := s.Metadata[cacheKey]
+			if ok {
+				finalChain, ok = finalChainAny.([]any)
+				if ok {
+					return finalChain[i], nil
+				}
+			}
+			consecutiveValuesChain := make([]any, len(s.Events))
+			for idx := range consecutiveValuesChain {
+				hasNextHop := advance(s.Events[idx])
+				switch {
+				case hasNextHop:
+					value, ok := s.Events[idx].Values[chainFieldName]
+					if !ok {
+						consecutiveValuesChain[idx] = nil
+						continue
+					}
+					valueStr, ok := value.(string)
+					if ok {
+						consecutiveValuesChain[idx] = valueStr
+					} else {
+						consecutiveValuesChain[idx] = nil
+					}
+				case !hasNextHop && idx != 0:
+					consecutiveValuesChain[idx] = consecutiveValuesChain[idx-1]
+				default:
+					consecutiveValuesChain[idx] = nil
+				}
+			}
+			transformer(consecutiveValuesChain)
+			finalChain = make([]any, len(consecutiveValuesChain))
+			var currValue any
+			var previousValue any
+			for idx, processedValue := range consecutiveValuesChain {
+				if processedValue == currValue {
+					finalChain[idx] = previousValue
+					continue
+				}
+				finalChain[idx] = currValue
+				previousValue = currValue
+				currValue = processedValue
+			}
+			transformer(finalChain)
+			s.Metadata[cacheKey] = finalChain
+			return finalChain[i], nil
+		},
+		options...,
+	)
 }

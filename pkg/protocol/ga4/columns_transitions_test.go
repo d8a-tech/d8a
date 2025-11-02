@@ -41,7 +41,7 @@ func TestValueTransitions(t *testing.T) {
 			}),
 			field: "previous_page_location",
 			expected: []any{
-				"",
+				nil,
 				"https://example.com/page1",
 				"https://example.com/page1",
 				"https://example.com/page1",
@@ -59,7 +59,7 @@ func TestValueTransitions(t *testing.T) {
 			}),
 			field: "previous_page_title",
 			expected: []any{
-				"",
+				nil,
 				"Page 1",
 				"Page 1",
 				"Page 1",
@@ -81,7 +81,7 @@ func TestValueTransitions(t *testing.T) {
 				"https://example.com/page3",
 				"https://example.com/page3",
 				"https://example.com/page3",
-				"",
+				nil,
 			},
 		},
 		{
@@ -99,7 +99,7 @@ func TestValueTransitions(t *testing.T) {
 				"Page 3",
 				"Page 3",
 				"Page 3",
-				"",
+				nil,
 			},
 		},
 	}
