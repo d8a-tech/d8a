@@ -54,7 +54,7 @@ var testHitOne = &hits.Hit{
 		"sct":              []string{"1"},
 		"seg":              []string{"1"},
 		"dl":               []string{"https%3A%2F%2Fd8a-tech.github.io%2Fanalytics-playground%2Findex.html"},
-		"dr":               []string{"https%3A%2F%2Fd8a-tech.github.io%2Fanalytics-playground%2Fcheckout.html"},
+		"dr":               []string{"https://example.com"},
 		"dt":               []string{"Food%20Shop"},
 		"en":               []string{"page_view"},
 		"_ee":              []string{"1"},

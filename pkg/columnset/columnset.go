@@ -78,6 +78,7 @@ func sessionColumns() []schema.SessionColumn {
 		sessioncolumns.LastEventTimeColumn,
 		sessioncolumns.DurationColumn,
 		sessioncolumns.TotalEventsColumn,
+		sessioncolumns.RefererColumn,
 	}
 }
 
