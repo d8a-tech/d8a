@@ -386,3 +386,19 @@ func TestSessionTotalEvents(t *testing.T) {
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 	)
 }
+
+func TestSessionReferer(t *testing.T) {
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), TestHitThree()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[0]["session_referer"])
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[1]["session_referer"])
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[2]["session_referer"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+	)
+}
