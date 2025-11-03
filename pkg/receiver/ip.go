@@ -6,7 +6,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// realIP returns the client's real IP address by checking various headers
+// realIP returns the client's real IP address (IPv4 or IPv6) by checking various headers
 // that might contain it. The priority order is:
 // 1. X-Real-IP
 // 2. X-Client-IP

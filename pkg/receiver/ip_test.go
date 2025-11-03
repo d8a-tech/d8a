@@ -149,6 +149,20 @@ func TestRealIP(t *testing.T) {
 			expectedIP:  "2001:db8::1",
 			description: "Should handle IPv6 addresses correctly",
 		},
+		{
+			name: "IPv6 address via RemoteIP fallback",
+			setupRequest: func() *fasthttp.RequestCtx {
+				ctx := &fasthttp.RequestCtx{}
+				// Set remote IP for this test case with IPv6
+				ctx.SetRemoteAddr(&net.TCPAddr{
+					IP:   net.ParseIP("2001:4860:4860::8888"),
+					Port: 12345,
+				})
+				return ctx
+			},
+			expectedIP:  "2001:4860:4860::8888",
+			description: "Should handle IPv6 addresses via RemoteIP() fallback when no headers are present",
+		},
 	}
 
 	for _, tt := range tests {
