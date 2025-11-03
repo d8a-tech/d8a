@@ -51,7 +51,6 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           trigger_phrase: "@claude"
-          claude_args: --allowedTools "Bash(go *),Bash(gofmt *),Bash(golangci-lint *),Bash(/home/runner/go/bin/golangci-lint *),Bash(~/go/bin/golangci-lint *),Bash($HOME/go/bin/golangci-lint *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(find *),Bash(echo *),Bash(pwd),Bash(which *)"
         env:
           GO111MODULE: on
           CGO_ENABLED: 0
