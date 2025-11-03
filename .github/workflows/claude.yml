@@ -47,19 +47,12 @@ jobs:
 
       - name: Run Claude Code
         id: claude
-        uses: anthropics/claude-code-action@beta
+        uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-
-          # This is an optional setting that allows Claude to read CI results on PRs
-          additional_permissions: |
-            actions: read
-          
-          # Allow Claude to run Go commands, linting, and basic shell operations
-          allowed_tools: "Bash(go *),Bash(gofmt *),Bash(golangci-lint *),Bash(/home/runner/go/bin/golangci-lint *),Bash(~/go/bin/golangci-lint *),Bash($HOME/go/bin/golangci-lint *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(find *),Bash(echo *),Bash(pwd),Bash(which *)"
-          
-          # Environment variables for Go
-          claude_env: |
-            GO111MODULE: on
-            CGO_ENABLED: 0
+          trigger_phrase: "@claude"
+          claude_args: --allowedTools "Bash(go *),Bash(gofmt *),Bash(golangci-lint *),Bash(/home/runner/go/bin/golangci-lint *),Bash(~/go/bin/golangci-lint *),Bash($HOME/go/bin/golangci-lint *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(find *),Bash(echo *),Bash(pwd),Bash(which *)"
+        env:
+          GO111MODULE: on
+          CGO_ENABLED: 0
 
