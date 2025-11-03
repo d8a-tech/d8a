@@ -1750,7 +1750,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventPercentScrolled_Valid",
-			param:       "ep.percent_scrolled",
+			param:       "epn.percent_scrolled",
 			value:       "75.5",
 			expected:    75.5,
 			fieldName:   "params_percent_scrolled",
@@ -1758,7 +1758,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventPercentScrolled_Empty",
-			param:       "ep.percent_scrolled",
+			param:       "epn.percent_scrolled",
 			value:       "",
 			expected:    nil,
 			fieldName:   "params_percent_scrolled",
@@ -1766,7 +1766,7 @@ func TestEventColumns(t *testing.T) {
 		},
 		{
 			name:        "EventPercentScrolled_Invalid",
-			param:       "ep.percent_scrolled",
+			param:       "epn.percent_scrolled",
 			value:       "invalid",
 			expected:    nil,
 			fieldName:   "params_percent_scrolled",

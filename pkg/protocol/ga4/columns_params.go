@@ -1290,7 +1290,7 @@ var eventLanguageColumn = columns.FromQueryParamEventColumn(
 var eventPercentScrolledColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamPercentScrolled.ID,
 	ProtocolInterfaces.EventParamPercentScrolled.Field,
-	"ep.percent_scrolled",
+	"epn.percent_scrolled",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamPercentScrolled.ID)),
 	columns.WithEventColumnDocs(
