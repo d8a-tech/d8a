@@ -1,4 +1,4 @@
-<img src="./public/logo.svg" alt="Open Mercato logo" width="1200" />
+<img src="./docs/static/img/logo-wide.svg" alt="D8a logo" width="1200" />
 
 # Divine Data (d8a)
 

@@ -2254,47 +2254,350 @@ func TestEventColumns(t *testing.T) {
 func TestSessionColumns(t *testing.T) {
 	// Test cases for session columns
 	var sessionColumnTestCases = []struct {
-		name        string
-		param       string
-		value       string
-		expected    any
-		expectedErr bool
-		fieldName   string
-		description string
+		name            string
+		expected        any
+		expectedErr     bool
+		fieldName       string
+		description     string
+		hits            columntests.TestHits
+		caseConfigFuncs []columntests.CaseConfigFunc
 	}{
 
 		{
 			name:        "SessionEngagement_Valid",
-			param:       "seg",
-			value:       "1",
 			expected:    int64(1),
 			fieldName:   "session_is_engaged",
 			description: "Valid session engagement",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", "1"),
+			},
 		},
 		{
 			name:        "SessionEngagement_Empty",
-			param:       "seg",
-			value:       "",
 			expected:    nil,
 			fieldName:   "session_is_engaged",
 			description: "Empty session engagement should be nil",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", ""),
+			},
 		},
 		{
 			name:        "SessionEngagement_Invalid",
-			param:       "seg",
-			value:       "invalid",
 			expected:    nil,
 			fieldName:   "session_is_engaged",
 			description: "Invalid session engagement should be nil",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", "invalid"),
+			},
+		},
+		{
+			name:        "SessionEntryPageLocation_SinglePageView",
+			expected:    "https://example.com/entry",
+			fieldName:   "session_entry_page_location",
+			description: "Entry page location from single page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/entry"),
+			},
+		},
+		{
+			name:        "SessionEntryPageLocation_MultiplePageViews",
+			expected:    "https://example.com/first",
+			fieldName:   "session_entry_page_location",
+			description: "Entry page location from first of multiple page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
+			},
+		},
+		{
+			name:        "SessionEntryPageLocation_MixedEvents",
+			expected:    "https://example.com/page",
+			fieldName:   "session_entry_page_location",
+			description: "Entry page location ignores non-page-view events",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/ignored"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/page"),
+				columntests.EnsureQueryParam(2, "en", "scroll"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/also-ignored"),
+			},
+		},
+		{
+			name:        "SessionEntryPageLocation_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_entry_page_location",
+			description: "Entry page location is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureQueryParam(1, "en", "scroll"),
+			},
+		},
+		{
+			name:        "SessionExitPageLocation_SinglePageView",
+			expected:    "https://example.com/exit",
+			fieldName:   "session_exit_page_location",
+			description: "Exit page location from single page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/exit"),
+			},
+		},
+		{
+			name:        "SessionExitPageLocation_MultiplePageViews",
+			expected:    "https://example.com/third",
+			fieldName:   "session_exit_page_location",
+			description: "Exit page location from last of multiple page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
+			},
+		},
+		{
+			name:        "SessionExitPageLocation_MixedEvents",
+			expected:    "https://example.com/last-page",
+			fieldName:   "session_exit_page_location",
+			description: "Exit page location ignores non-page-view events at end",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/last-page"),
+				columntests.EnsureQueryParam(2, "en", "click"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/ignored"),
+			},
+		},
+		{
+			name:        "SessionExitPageLocation_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_exit_page_location",
+			description: "Exit page location is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureQueryParam(1, "en", "scroll"),
+			},
+		},
+		{
+			name:        "SessionEntryPageTitle_SinglePageView",
+			expected:    "Entry Page",
+			fieldName:   "session_entry_page_title",
+			description: "Entry page title from single page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "Entry Page"),
+			},
+		},
+		{
+			name:        "SessionEntryPageTitle_MultiplePageViews",
+			expected:    "First Page",
+			fieldName:   "session_entry_page_title",
+			description: "Entry page title from first of multiple page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "First Page"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dt", "Second Page"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dt", "Third Page"),
+			},
+		},
+		{
+			name:        "SessionEntryPageTitle_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_entry_page_title",
+			description: "Entry page title is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+			},
+		},
+		{
+			name:        "SessionExitPageTitle_SinglePageView",
+			expected:    "Exit Page",
+			fieldName:   "session_exit_page_title",
+			description: "Exit page title from single page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "Exit Page"),
+			},
+		},
+		{
+			name:        "SessionExitPageTitle_MultiplePageViews",
+			expected:    "Third Page",
+			fieldName:   "session_exit_page_title",
+			description: "Exit page title from last of multiple page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "First Page"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dt", "Second Page"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dt", "Third Page"),
+			},
+		},
+		{
+			name:        "SessionExitPageTitle_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_exit_page_title",
+			description: "Exit page title is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "scroll"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_TwoPageViews",
+			expected:    "https://example.com/second",
+			fieldName:   "session_second_page_location",
+			description: "Second page location from second page view",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_ThreePageViews",
+			expected:    "https://example.com/second",
+			fieldName:   "session_second_page_location",
+			description: "Second page location from three page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_SinglePageView",
+			expected:    nil,
+			fieldName:   "session_second_page_location",
+			description: "Second page location is nil with only one page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/only"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_MixedEvents",
+			expected:    "https://example.com/second-page",
+			fieldName:   "session_second_page_location",
+			description: "Second page location ignores non-page-view events",
+			hits: columntests.TestHits{
+				columntests.TestHitOne(),
+				columntests.TestHitTwo(),
+				columntests.TestHitThree(),
+				columntests.TestHitOne(),
+			},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
+				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/ignored"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/second-page"),
+				columntests.EnsureQueryParam(3, "en", "scroll"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_second_page_location",
+			description: "Second page location is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureQueryParam(1, "en", "scroll"),
+			},
+		},
+		{
+			name:        "SessionSecondPageTitle_TwoPageViews",
+			expected:    "Second Page",
+			fieldName:   "session_second_page_title",
+			description: "Second page title from second page view",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "First Page"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dt", "Second Page"),
+			},
+		},
+		{
+			name:        "SessionSecondPageTitle_ThreePageViews",
+			expected:    "Second Page",
+			fieldName:   "session_second_page_title",
+			description: "Second page title from three page views",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "First Page"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "dt", "Second Page"),
+				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureQueryParam(2, "dt", "Third Page"),
+			},
+		},
+		{
+			name:        "SessionSecondPageTitle_SinglePageView",
+			expected:    nil,
+			fieldName:   "session_second_page_title",
+			description: "Second page title is nil with only one page view",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(0, "dt", "Only Page"),
+			},
+		},
+		{
+			name:        "SessionSecondPageTitle_NoPageViews",
+			expected:    nil,
+			fieldName:   "session_second_page_title",
+			description: "Second page title is nil when no page views",
+			hits:        columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "click"),
+			},
 		},
 	}
 
 	for _, tc := range sessionColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
+			hits := tc.hits
 			columntests.ColumnTestCase(
 				t,
-				columntests.TestHits{columntests.TestHitOne()},
+				hits,
 				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
 					// when + then
 					if tc.expectedErr {
@@ -2306,7 +2609,7 @@ func TestSessionColumns(t *testing.T) {
 					}
 				},
 				NewGA4Protocol(currency.NewDummyConverter(1)),
-				columntests.EnsureQueryParam(0, tc.param, tc.value))
+				tc.caseConfigFuncs...)
 		})
 	}
 }

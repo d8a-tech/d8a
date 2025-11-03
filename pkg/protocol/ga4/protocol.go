@@ -395,6 +395,12 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 		},
 		Session: []schema.SessionColumn{
 			sessionEngagementColumn,
+			sessionEntryPageLocationColumn,
+			sessionExitPageLocationColumn,
+			sessionEntryPageTitleColumn,
+			sessionExitPageTitleColumn,
+			sessionSecondPageLocationColumn,
+			sessionSecondPageTitleColumn,
 		},
 	}
 }

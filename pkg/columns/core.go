@@ -33,15 +33,7 @@ var CoreInterfaces = struct {
 	EventUtmCampaign        schema.Interface
 	EventUtmID              schema.Interface
 	EventUtmCreativeFormat  schema.Interface
-	SessionID               schema.Interface
-	SessionDuration         schema.Interface
-	SessionFirstEventTime   schema.Interface
-	SessionLastEventTime    schema.Interface
-	SessionTotalEvents      schema.Interface
-	SessionReferer          schema.Interface
-	SSESessionHitNumber     schema.Interface
-	SSESessionPageNumber    schema.Interface
-	SSEIsEntry              schema.Interface
+
 	// Click ids
 	EventClickIDGclid   schema.Interface
 	EventClickIDDclid   schema.Interface
@@ -67,6 +59,26 @@ var CoreInterfaces = struct {
 	GeoCity         schema.Interface
 	GeoSubContinent schema.Interface
 	GeoMetro        schema.Interface
+
+	// Session-scoped event columns
+	SSESessionHitNumber  schema.Interface
+	SSESessionPageNumber schema.Interface
+	SSEIsEntry           schema.Interface
+
+	// Session columns
+	SessionID             schema.Interface
+	SessionDuration       schema.Interface
+	SessionFirstEventTime schema.Interface
+	SessionLastEventTime  schema.Interface
+	SessionTotalEvents    schema.Interface
+	SessionReferer        schema.Interface
+
+	SessionEntryPageLocation  schema.Interface
+	SessionExitPageLocation   schema.Interface
+	SessionEntryPageTitle     schema.Interface
+	SessionExitPageTitle      schema.Interface
+	SessionSecondPageLocation schema.Interface
+	SessionSecondPageTitle    schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -188,51 +200,6 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "utm_creative_format", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	SessionID: schema.Interface{
-		ID:      "core.d8a.tech/sessions/id",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
-	},
-	SessionDuration: schema.Interface{
-		ID:      "core.d8a.tech/sessions/duration",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
-	SessionFirstEventTime: schema.Interface{
-		ID:      "core.d8a.tech/sessions/first_event_time",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
-	},
-	SessionLastEventTime: schema.Interface{
-		ID:      "core.d8a.tech/sessions/last_event_time",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
-	},
-	SessionTotalEvents: schema.Interface{
-		ID:      "core.d8a.tech/sessions/total_events",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
-	SessionReferer: schema.Interface{
-		ID:      "core.d8a.tech/sessions/referer",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_referer", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	SSESessionHitNumber: schema.Interface{
-		ID:      "core.d8a.tech/events/session_hit_number",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_hit_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
-	SSESessionPageNumber: schema.Interface{
-		ID:      "core.d8a.tech/events/session_page_number",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
-	SSEIsEntry: schema.Interface{
-		ID:      "core.d8a.tech/events/session_is_entry",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_is_entry", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
-	},
 	// Click ids
 	EventClickIDGclid: schema.Interface{
 		ID:      "core.d8a.tech/events/click_id_gclid",
@@ -335,6 +302,81 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/geo_metro",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "geo_metro", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SSESessionHitNumber: schema.Interface{
+		ID:      "core.d8a.tech/events/session_hit_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_hit_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSESessionPageNumber: schema.Interface{
+		ID:      "core.d8a.tech/events/session_page_number",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSEIsEntry: schema.Interface{
+		ID:      "core.d8a.tech/events/session_is_entry",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_is_entry", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	SessionID: schema.Interface{
+		ID:      "core.d8a.tech/sessions/id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+	},
+	SessionDuration: schema.Interface{
+		ID:      "core.d8a.tech/sessions/duration",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_duration", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionFirstEventTime: schema.Interface{
+		ID:      "core.d8a.tech/sessions/first_event_time",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+	},
+	SessionLastEventTime: schema.Interface{
+		ID:      "core.d8a.tech/sessions/last_event_time",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_last_event_time", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
+	},
+	SessionTotalEvents: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_events",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_events", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionReferer: schema.Interface{
+		ID:      "core.d8a.tech/sessions/referer",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_referer", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionEntryPageLocation: schema.Interface{
+		ID:      "core.d8a.tech/sessions/entry_page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_entry_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionExitPageLocation: schema.Interface{
+		ID:      "core.d8a.tech/sessions/exit_page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_exit_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionEntryPageTitle: schema.Interface{
+		ID:      "core.d8a.tech/sessions/entry_page_title",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_entry_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionExitPageTitle: schema.Interface{
+		ID:      "core.d8a.tech/sessions/exit_page_title",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_exit_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionSecondPageLocation: schema.Interface{
+		ID:      "core.d8a.tech/sessions/second_page_location",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_second_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionSecondPageTitle: schema.Interface{
+		ID:      "core.d8a.tech/sessions/second_page_title",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_second_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 
