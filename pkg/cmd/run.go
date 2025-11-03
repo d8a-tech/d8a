@@ -245,8 +245,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						storage.NewInMemorySet(),
 					)
 
-					logrus.Warnf("batch size: %d", cmd.Int(batcherBatchSizeFlag.Name))
-
 					// Start server and handle its error
 					serverErr := receiver.Serve(
 						ctx,

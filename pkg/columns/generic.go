@@ -116,6 +116,48 @@ func FromQueryParamSessionColumn(
 	}, options...)
 }
 
+// NthEventMatchingPredicateValueColumn creates a session column that extracts a value from the nth event
+// that matches the given predicate. This allows protocol-specific filtering (e.g., only page view events).
+// Supports negative indices to count from the end (e.g., -1 for last matching event).
+func NthEventMatchingPredicateValueColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	n int,
+	extractedField string,
+	matches func(*schema.Event) bool,
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	return NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, error) {
+			matchingEvents := make([]*schema.Event, 0)
+			for _, event := range session.Events {
+				if matches(event) {
+					matchingEvents = append(matchingEvents, event)
+				}
+			}
+			if len(matchingEvents) == 0 {
+				return nil, nil // nolint:nilnil // nil is valid for this column
+			}
+			index := n
+			if index < 0 {
+				index = len(matchingEvents) + index
+			}
+
+			if index < 0 || index >= len(matchingEvents) {
+				return nil, nil // nolint:nilnil // nil is valid for this column
+			}
+			v, ok := matchingEvents[index].Values[extractedField]
+			if !ok {
+				return nil, nil // nolint:nilnil // nil is valid for this column
+			}
+			return v, nil
+		},
+		options...,
+	)
+}
+
 // URLElementColumn creates a new event column from a URL element
 func URLElementColumn(
 	id schema.InterfaceID,
