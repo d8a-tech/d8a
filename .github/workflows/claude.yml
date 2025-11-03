@@ -13,10 +13,16 @@ on:
 jobs:
   claude:
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude') && 
+         (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude') && 
+         (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude') && 
+         (github.event.review.author_association == 'OWNER' || github.event.review.author_association == 'MEMBER' || github.event.review.author_association == 'COLLABORATOR')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')) && 
+         (github.event.issue.user.login == github.repository_owner || github.event.sender.type == 'User'))
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -49,8 +55,8 @@ jobs:
           additional_permissions: |
             actions: read
           
-          # Allow Claude to run Go tests, build commands, linting, and basic shell operations
-          allowed_tools: "Bash(go test *),Bash(go build *),Bash(go run *),Bash(go mod *),Bash(go fmt *),Bash(go vet *),Bash(gofmt *),Bash(golangci-lint *),Bash(~/go/bin/golangci-lint *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(find *),Bash(echo *)"
+          # Allow Claude to run Go commands, linting, and basic shell operations
+          allowed_tools: "Bash(go *),Bash(gofmt *),Bash(golangci-lint *),Bash(/home/runner/go/bin/golangci-lint *),Bash(~/go/bin/golangci-lint *),Bash($HOME/go/bin/golangci-lint *),Bash(ls *),Bash(cat *),Bash(grep *),Bash(find *),Bash(echo *),Bash(pwd),Bash(which *)"
           
           # Environment variables for Go
           claude_env: |
