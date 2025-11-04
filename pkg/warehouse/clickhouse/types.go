@@ -256,7 +256,7 @@ func (m *clickhouseArrayTypeMapper) handleListOfStruct(structType *arrow.StructT
 	fieldTypes := make([]SpecificClickhouseType, 0, len(structType.Fields()))
 
 	for _, field := range structType.Fields() {
-		fieldArrowType := warehouse.ArrowType{ArrowDataType: field.Type}
+		fieldArrowType := warehouse.ArrowType{ArrowDataType: field.Type, Nullable: field.Nullable}
 		fieldType, err := m.SubMapper.ArrowToWarehouse(fieldArrowType)
 		if err != nil {
 			return SpecificClickhouseType{}, fmt.Errorf("error mapping field %s: %w", field.Name, err)

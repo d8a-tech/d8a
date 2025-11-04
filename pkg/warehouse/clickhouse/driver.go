@@ -225,7 +225,6 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 				return fmt.Errorf("error formatting value for column %s: %w", col, err)
 			}
 			values[i] = formattedValue
-			logrus.Infof("column %s, type %s, value %v", col, schema.Field(i).Type, formattedValue)
 		}
 
 		// Append row to batch

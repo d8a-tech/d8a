@@ -404,27 +404,10 @@ func (suite *ClickHouseTestSuite) TestAddColumn() {
 }
 
 func (suite *ClickHouseTestSuite) TestCreateTableAlreadyExists() {
-	suite.T().Skip("Skipping, to be fixed in https://github.com/d8a-tech/gaben/issues/49")
 	tableName := "test_create_table_already_exists"
 
 	// when & then - run the standard warehouse test
 	testutils.TestCreateTable(suite.T(), suite.driver, tableName)
-}
-
-func (suite *ClickHouseTestSuite) TestDebugFailingCase() {
-	tableName := "test_create_table_already_exists"
-	testSchema := testutils.TestSchema()
-
-	// when
-	createErr := suite.driver.CreateTable(tableName+"_create_test", testSchema)
-
-	// then
-	suite.Require().NoError(createErr, "CreateTable should succeed on first attempt")
-	missing, err := suite.driver.MissingColumns(tableName+"_create_test", testSchema)
-
-	// then
-	suite.Require().NoError(err, "MissingColumns should succeed")
-	suite.Require().Empty(missing, "missing columns should be empty")
 }
 
 // TestClickHouseTestSuite runs the entire test suite

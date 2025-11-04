@@ -342,7 +342,7 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 			Compression: &clickhouse.Compression{
 				Method: clickhouse.CompressionLZ4,
 			},
-			Debug:                true,
+			Debug:                cmd.Bool(debugFlag.Name),
 			BlockBufferSize:      10,
 			MaxCompressionBuffer: 10240,
 		}
