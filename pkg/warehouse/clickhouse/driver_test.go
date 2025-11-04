@@ -32,8 +32,8 @@ const ClickHouseCreateTableQuery = `CREATE TABLE testdb.analytics_events (
 	tags Array(String),
 	metrics Array(Float64),
 	properties Nested(
-		key String,
-		value String
+		key Nullable(String),
+		value Nullable(String)
 	  ),
 	  created_date Nullable(Date32)
   ) ENGINE = MergeTree()
@@ -84,7 +84,7 @@ func (suite *ClickHouseTestSuite) SetupSuite() {
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
 		},
-		Debug:                true,
+		Debug:                false,
 		BlockBufferSize:      10,
 		MaxCompressionBuffer: 10240,
 	}
