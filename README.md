@@ -65,7 +65,7 @@ curl "${BASE_URL}/g/collect?v=2&tid=G-5T0Z13HKP4&gtm=45je5580h2v9219555710za200&
   -H 'user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.8.3 Chrome/122.0.0.0 Safari/537.36' ;
 ```
 
-### Quick ClickHouse single-node via Docker
+### Quick volatile ClickHouse single-node via Docker
 
 ```bash
 docker run --rm -it \
@@ -75,6 +75,7 @@ docker run --rm -it \
   -e CLICKHOUSE_PASSWORD=12345d8a6789 \
   clickhouse/clickhouse-server:latest
 ```
+Reference: [ClickHouse Docker image](https://hub.docker.com/r/clickhouse/clickhouse-server).
 
 Then start d8a with the ClickHouse driver:
 
@@ -88,7 +89,7 @@ go run main.go server \
   --clickhouse-password 12345d8a6789 
 ```
 
-D8a defaults to ClickHouse credentials `default` / `default`. Override with `--clickhouse-username` and `--clickhouse-password` if you use different credentials. Reference: [ClickHouse Docker image](https://hub.docker.com/r/clickhouse/clickhouse-server).
+
 
 ## Testing
 
