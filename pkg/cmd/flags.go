@@ -70,3 +70,52 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Sources: defaultSourceChain("DBIP_DOWNLOAD_TIMEOUT", "dbip.download_timeout"),
 	Value:   60 * time.Second,
 }
+
+var warehouseFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse",
+	Usage:   "Target warehouse driver (console or clickhouse)",
+	Sources: defaultSourceChain("WAREHOUSE", "warehouse"),
+	Value:   "console",
+}
+
+var clickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-host",
+	Usage:   "ClickHouse host",
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "clickhouse.host"),
+}
+
+var clickhousePortFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-port",
+	Usage:   "ClickHouse port",
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "clickhouse.port"),
+	Value:   "9000",
+}
+
+var clickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-database",
+	Usage:   "ClickHouse database name",
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "clickhouse.database"),
+}
+
+var clickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-username",
+	Usage:   "ClickHouse username",
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "clickhouse.username"),
+	Value:   "",
+}
+
+var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-password",
+	Usage:   "ClickHouse password",
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
+	Value:   "",
+}
+
+var warehouseConfigFlags = []cli.Flag{
+	warehouseFlag,
+	clickhouseHostFlag,
+	clickhousePortFlag,
+	clickhouseDatabaseFlag,
+	clickhouseUsernameFlag,
+	clickhousePasswordFlag,
+}

@@ -11,7 +11,7 @@ var ClientIDColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventClientID.ID,
 	columns.CoreInterfaces.EventClientID.Field,
 	func(event *schema.Event) (any, error) {
-		return event.BoundHit.ClientID, nil
+		return string(event.BoundHit.ClientID), nil
 	},
 	columns.WithEventColumnDocs(
 		"Client ID",
