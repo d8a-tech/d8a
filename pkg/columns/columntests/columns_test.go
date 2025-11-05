@@ -387,7 +387,7 @@ func TestSessionTotalEvents(t *testing.T) {
 	)
 }
 
-func TestSessionReferer(t *testing.T) {
+func TestSessionReferrer(t *testing.T) {
 	ColumnTestCase(
 		t,
 		TestHits{TestHitOne(), TestHitTwo(), TestHitThree()},
@@ -395,9 +395,9 @@ func TestSessionReferer(t *testing.T) {
 			// when + then
 			require.NoError(t, closeErr)
 
-			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[0]["session_referer"])
-			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[1]["session_referer"])
-			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[2]["session_referer"])
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[0]["session_referrer"])
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[1]["session_referrer"])
+			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[2]["session_referrer"])
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
 	)

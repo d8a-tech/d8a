@@ -5,23 +5,23 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// RefererColumn is the column for the referer of a whole session
-var RefererColumn = columns.NewSimpleSessionColumn(
-	columns.CoreInterfaces.SessionReferer.ID,
-	columns.CoreInterfaces.SessionReferer.Field,
+// ReferrerColumn is the column for the referrer of a whole session
+var ReferrerColumn = columns.NewSimpleSessionColumn(
+	columns.CoreInterfaces.SessionReferrer.ID,
+	columns.CoreInterfaces.SessionReferrer.Field,
 	func(session *schema.Session) (any, error) {
 		if len(session.Events) == 0 {
-			return nil, nil // nolint:nilnil // no referer for empty session
+			return nil, nil // nolint:nilnil // no referrer for empty session
 		}
 		firstEventReferrer, ok := session.Events[0].Values[columns.CoreInterfaces.EventPageReferrer.Field.Name]
 		if !ok {
-			return nil, nil // nolint:nilnil // no referer for first event
+			return nil, nil // nolint:nilnil // no referrer for first event
 		}
 		return firstEventReferrer, nil
 	},
 	columns.WithSessionColumnDocs(
-		"Session Referer",
-		"The referer of the session. Collected from the first event in the session.",
+		"Session Referrer",
+		"The referrer of the session. Collected from the first event in the session.",
 	),
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
