@@ -401,6 +401,15 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			sessionExitPageTitleColumn,
 			sessionSecondPageLocationColumn,
 			sessionSecondPageTitleColumn,
+			sessionUtmMarketingTacticColumn,
+			sessionUtmSourcePlatformColumn,
+			sessionUtmTermColumn,
+			sessionUtmContentColumn,
+			sessionUtmSourceColumn,
+			sessionUtmMediumColumn,
+			sessionUtmCampaignColumn,
+			sessionUtmIDColumn,
+			sessionUtmCreativeFormatColumn,
 		},
 	}
 }
