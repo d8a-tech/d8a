@@ -230,11 +230,6 @@ func (m *clickhouseArrayTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowTy
 		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
 	}
 
-	// ClickHouse arrays are always non-nullable at the array level
-	// Create a copy without nullable flag for processing
-	processedType := arrowType.Copy()
-	processedType.Nullable = false
-
 	// Handle List of Struct case directly (since we support this pattern)
 	if structType, isStruct := listType.Elem().(*arrow.StructType); isStruct {
 		return m.handleListOfStruct(structType)

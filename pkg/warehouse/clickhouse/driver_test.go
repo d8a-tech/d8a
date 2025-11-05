@@ -375,11 +375,11 @@ func (suite *ClickHouseTestSuite) TestMultipleTypeIncompatibilities() {
 	suite.Require().Equal(arrow.PrimitiveTypes.Int64, errorColumns["string_field"].ExpectedType)
 }
 
-func (suite *ClickHouseTestSuite) TestWrite() {
+func (suite *ClickHouseTestSuite) TestBasicWrites() {
 	tableName := "test_write"
 
 	// when & then - run the standard warehouse test
-	testutils.TestWrite(suite.T(), suite.driver, tableName)
+	testutils.TestBasicWrites(suite.T(), suite.driver, tableName)
 
 	// Additional assertions to verify data was actually inserted
 	suite.Run("verify_data_inserted", func() {
@@ -394,6 +394,13 @@ func (suite *ClickHouseTestSuite) TestWrite() {
 		suite.Require().NoError(err, "should execute count query successfully")
 		suite.Assert().Greater(count, int64(0), "should have inserted at least one row")
 	})
+}
+
+func (suite *ClickHouseTestSuite) TestComplexWrites() {
+	tableName := "test_write"
+
+	// when & then - run the standard warehouse test
+	testutils.TestComplexWrites(suite.T(), suite.driver, tableName)
 }
 
 func (suite *ClickHouseTestSuite) TestAddColumn() {
