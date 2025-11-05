@@ -9,21 +9,23 @@ import (
 
 // CoreInterfaces are the core columns that are always present in the schema.
 var CoreInterfaces = struct {
-	EventID                 schema.Interface
-	EventName               schema.Interface
-	EventTimestampUTC       schema.Interface
-	EventDateUTC            schema.Interface
-	EventPageTitle          schema.Interface
-	EventPageReferrer       schema.Interface
-	EventPagePath           schema.Interface
-	EventPageLocation       schema.Interface
-	EventPageHostname       schema.Interface
-	EventClientID           schema.Interface
-	EventUserID             schema.Interface
-	EventPropertyID         schema.Interface
-	EventTrackingProtocol   schema.Interface
-	EventPlatform           schema.Interface
-	EventIPAddress          schema.Interface
+	EventID               schema.Interface
+	EventName             schema.Interface
+	EventTimestampUTC     schema.Interface
+	EventDateUTC          schema.Interface
+	EventPageTitle        schema.Interface
+	EventPageReferrer     schema.Interface
+	EventPagePath         schema.Interface
+	EventPageLocation     schema.Interface
+	EventPageHostname     schema.Interface
+	EventClientID         schema.Interface
+	EventUserID           schema.Interface
+	EventPropertyID       schema.Interface
+	EventTrackingProtocol schema.Interface
+	EventPlatform         schema.Interface
+	EventIPAddress        schema.Interface
+
+	// Event UTM parameters
 	EventUtmMarketingTactic schema.Interface
 	EventUtmSourcePlatform  schema.Interface
 	EventUtmTerm            schema.Interface
@@ -79,6 +81,17 @@ var CoreInterfaces = struct {
 	SessionExitPageTitle      schema.Interface
 	SessionSecondPageLocation schema.Interface
 	SessionSecondPageTitle    schema.Interface
+
+	// Session UTM parameters
+	SessionUtmMarketingTactic schema.Interface
+	SessionUtmSourcePlatform  schema.Interface
+	SessionUtmTerm            schema.Interface
+	SessionUtmContent         schema.Interface
+	SessionUtmSource          schema.Interface
+	SessionUtmMedium          schema.Interface
+	SessionUtmCampaign        schema.Interface
+	SessionUtmID              schema.Interface
+	SessionUtmCreativeFormat  schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -377,6 +390,51 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/second_page_title",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_second_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmMarketingTactic: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_marketing_tactic",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_marketing_tactic", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmSourcePlatform: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_source_platform",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_source_platform", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmTerm: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_term",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_term", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmContent: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_content",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_content", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmSource: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_source",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_source", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmMedium: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_medium",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_medium", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmCampaign: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_campaign",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_campaign", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmID: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionUtmCreativeFormat: schema.Interface{
+		ID:      "core.d8a.tech/sessions/utm_creative_format",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_utm_creative_format", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 

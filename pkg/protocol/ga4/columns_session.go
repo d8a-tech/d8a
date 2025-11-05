@@ -148,3 +148,201 @@ var sessionSecondPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 		"The title of the second page view event in the session. Useful for analyzing user navigation patterns after landing.", // nolint:lll // it's a description
 	),
 )
+
+var sessionUtmMarketingTacticColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmMarketingTactic.ID,
+	columns.CoreInterfaces.SessionUtmMarketingTactic.Field,
+	0,
+	columns.CoreInterfaces.EventUtmMarketingTactic.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmMarketingTactic.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Marketing Tactic",
+		"The UTM marketing tactic from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmSourcePlatformColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmSourcePlatform.ID,
+	columns.CoreInterfaces.SessionUtmSourcePlatform.Field,
+	0,
+	columns.CoreInterfaces.EventUtmSourcePlatform.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmSourcePlatform.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Source Platform",
+		"The UTM source platform from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmTermColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmTerm.ID,
+	columns.CoreInterfaces.SessionUtmTerm.Field,
+	0,
+	columns.CoreInterfaces.EventUtmTerm.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmTerm.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Term",
+		"The UTM term from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmContentColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmContent.ID,
+	columns.CoreInterfaces.SessionUtmContent.Field,
+	0,
+	columns.CoreInterfaces.EventUtmContent.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmContent.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Content",
+		"The UTM content from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmSourceColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmSource.ID,
+	columns.CoreInterfaces.SessionUtmSource.Field,
+	0,
+	columns.CoreInterfaces.EventUtmSource.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmSource.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Source",
+		"The UTM source from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmMediumColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmMedium.ID,
+	columns.CoreInterfaces.SessionUtmMedium.Field,
+	0,
+	columns.CoreInterfaces.EventUtmMedium.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmMedium.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Medium",
+		"The UTM medium from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmCampaignColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmCampaign.ID,
+	columns.CoreInterfaces.SessionUtmCampaign.Field,
+	0,
+	columns.CoreInterfaces.EventUtmCampaign.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmCampaign.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Campaign",
+		"The UTM campaign from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmIDColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmID.ID,
+	columns.CoreInterfaces.SessionUtmID.Field,
+	0,
+	columns.CoreInterfaces.EventUtmID.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmID.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM ID",
+		"The UTM ID from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColumn(
+	columns.CoreInterfaces.SessionUtmCreativeFormat.ID,
+	columns.CoreInterfaces.SessionUtmCreativeFormat.Field,
+	0,
+	columns.CoreInterfaces.EventUtmCreativeFormat.Field.Name,
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventUtmCreativeFormat.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session UTM Creative Format",
+		"The UTM creative format from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
