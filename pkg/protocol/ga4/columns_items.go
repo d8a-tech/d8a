@@ -10,6 +10,23 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+// getItemFieldNames extracts all field names from the EventItems struct schema.
+func getItemFieldNames() []string {
+	listType, ok := ProtocolInterfaces.EventItems.Field.Type.(*arrow.ListType)
+	if !ok {
+		return nil
+	}
+	structType, ok := listType.Elem().(*arrow.StructType)
+	if !ok {
+		return nil
+	}
+	fieldNames := make([]string, structType.NumFields())
+	for i := 0; i < structType.NumFields(); i++ {
+		fieldNames[i] = structType.Field(i).Name
+	}
+	return fieldNames
+}
+
 var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventItems.ID,
@@ -107,7 +124,12 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 		return nil
 	}
 
+	// Initialize item map with all fields set to nil
 	item := make(map[string]any)
+	for _, fieldName := range getItemFieldNames() {
+		item[fieldName] = nil
+	}
+
 	parts := strings.Split(itemStr, "~")
 
 	price := float64(0)

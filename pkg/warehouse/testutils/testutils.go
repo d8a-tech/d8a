@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -635,9 +636,9 @@ func generateSampleTestData() map[string]any {
 	}
 }
 
-// TestWrite performs a simple test for the Write command.
+// TestBasicWrites performs a simple test for the Write command.
 // It creates a table first, then writes data to it, ensuring both operations succeed.
-func TestWrite(t *testing.T, driver warehouse.Driver, tableName string) {
+func TestBasicWrites(t *testing.T, driver warehouse.Driver, tableName string) {
 	t.Helper()
 
 	// given
@@ -766,4 +767,140 @@ func TestCreateTable(t *testing.T, driver warehouse.Driver, tableName string) {
 		var tableAlreadyExistsErr *warehouse.ErrTableAlreadyExists
 		require.ErrorAs(t, secondCreateErr, &tableAlreadyExistsErr, "error should be of type ErrTableAlreadyExists")
 	})
+}
+
+// TestComplexWrites performs tests for the Write command with complex data types.
+func TestComplexWrites(t *testing.T, driver warehouse.Driver, tableName string) { // nolint:funlen,lll // It's a test function
+	t.Helper()
+
+	// given
+	require.NotNil(t, driver, "driver should not be nil")
+	require.NotEmpty(t, tableName, "table name should not be empty")
+
+	testSchema := TestSchema()
+
+	t.Run("create_table_should_succeed", func(t *testing.T) {
+		// when
+		createErr := driver.CreateTable(tableName+"_create_test", testSchema)
+
+		// then
+		require.NoError(t, createErr, "CreateTable should succeed on first attempt")
+	})
+
+	validRow := map[string]any{
+		"id":           "123",
+		"user_id":      int64(42),
+		"timestamp":    nil,
+		"event_type":   "page_view",
+		"session_id":   "sess_abcdef",
+		"is_active":    true,
+		"score":        85.5,
+		"count":        int64(99),
+		"items":        int32(3),
+		"rating":       float32(4.2),
+		"tags":         nil,
+		"metrics":      nil,
+		"properties":   nil,
+		"created_date": nil,
+	}
+
+	cases := []struct {
+		name    string
+		success bool
+		rows    []map[string]any
+	}{
+		{
+			name:    "empty_rows",
+			success: true,
+			rows:    []map[string]any{},
+		},
+		{
+			name:    "valid_row_with_null_values",
+			success: false,
+			rows:    []map[string]any{validRow},
+		},
+		{
+			name:    "valid_row_with_collections_mixed_null_values",
+			success: true,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				theCopy["tags"] = []any{"mobile", "analytics"}
+				theCopy["metrics"] = []any{2.3, 4.7}
+				theCopy["properties"] = []any{
+					map[string]any{
+						"key":   "campaign",
+						"value": nil,
+					},
+					map[string]any{
+						"key":   nil,
+						"value": "organic",
+					},
+				}
+				return theCopy
+			}()},
+		},
+		{
+			name:    "missing_single_non_nullable_column",
+			success: false,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				delete(theCopy, "id")
+				return theCopy
+			}()},
+		},
+		{
+			name:    "missing_single_nullable_column",
+			success: false, // It should still fail, even if the column is null you need to pass it
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				delete(theCopy, "properties")
+				return theCopy
+			}()},
+		},
+		{
+			name:    "invalid_column_type_for_score_field",
+			success: false,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				theCopy["score"] = "not_a_number"
+				return theCopy
+			}()},
+		},
+		{
+			name:    "invalid_column_type_for_event_type_field",
+			success: false,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				theCopy["event_type"] = 42
+				return theCopy
+			}()},
+		},
+		{
+			name:    "null_in_non_nullable_field",
+			success: false,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				theCopy["id"] = nil
+				return theCopy
+			}()},
+		},
+		{
+			name:    "single_empty_row",
+			success: false,
+			rows:    []map[string]any{{}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			writeErr := driver.Write(context.Background(), tableName+"_create_test", testSchema, tc.rows)
+
+			// then
+			if tc.success {
+				require.NoError(t, writeErr, "Write should succeed")
+			} else {
+				require.Error(t, writeErr, "Write should fail")
+			}
+		})
+	}
 }
