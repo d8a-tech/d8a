@@ -21,7 +21,7 @@ Once you have d8a running and can successfully send test requests, you're ready 
 
 After installing d8a, you'll need to reconfigure your current GA4 setup to send traffic to the d8a product. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
 
-Follow the [Intercepting GA4 Events](./intercepting-ga4-events) guide to configure your Google Tag Manager implementation to send data to your d8a endpoint.
+Follow the [Intercepting GA4 Events](intercepting-ga4-events) guide to configure your Google Tag Manager implementation to send data to your d8a endpoint.
 
 The guide covers multiple methods:
 - **Method 1 (Recommended)**: Duplicate GA4 requests to keep your existing GA4 setup intact while also sending data to d8a
@@ -33,6 +33,6 @@ Choose the method that best fits your needs based on whether you want to continu
 
 After completing both steps:
 - Verify that events are being received by your d8a instance
-- Review the [columns documentation](./columns) to understand the data schema
-- Explore the [protocols documentation](./protocols/ga4) for detailed protocol information
+- Review the [columns documentation](columns) to understand the data schema
+- Explore the [protocols documentation](protocols/ga4) for detailed protocol information
 
