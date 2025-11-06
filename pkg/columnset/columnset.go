@@ -67,6 +67,7 @@ func eventColumns() []schema.EventColumn {
 		eventcolumns.ClickIDsSrsltidColumn,
 		eventcolumns.ClickIDsGbraidColumn,
 		eventcolumns.ClickIDsWbraidColumn,
+		eventcolumns.ClickIDsFbclidColumn,
 		eventcolumns.ClickIDsMsclkidColumn,
 	}
 }

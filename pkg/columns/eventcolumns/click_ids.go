@@ -72,6 +72,20 @@ var ClickIDsWbraidColumn = columns.FromPageURLEventColumn(
 	),
 )
 
+// ClickIDsFbclidColumn is the column for the FBCLID of an event
+var ClickIDsFbclidColumn = columns.FromPageURLEventColumn(
+	columns.CoreInterfaces.EventClickIDFbclid.ID,
+	columns.CoreInterfaces.EventClickIDFbclid.Field,
+	"fbclid",
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDFbclid.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Facebook fbclid",
+		"Meta Click ID from Meta Ads campaigns (Facebook, Instagram, WhatsApp), extracted from the 'fbclid' parameter in the page URL, used for tracking ad clicks and linking conversions to Meta Ads.", // nolint:lll // it's a description
+	),
+)
+
 // ClickIDsMsclkidColumn is the column for the MSCLKID of an event
 var ClickIDsMsclkidColumn = columns.FromPageURLEventColumn(
 	columns.CoreInterfaces.EventClickIDMsclkid.ID,
