@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,7 +100,13 @@ func TestHits(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			ga4Protocol := NewGA4Protocol(currency.NewDummyConverter(1))
+			ga4Protocol := NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+				{
+					PropertyID:         "1234567890",
+					PropertyName:       "Test Property",
+					PropertyTrackingID: "G-2VEWJC5YPE",
+				},
+			}))
 			request := &protocol.Request{
 				QueryParams: tc.queryParams,
 				Headers:     map[string][]string{},

@@ -17,6 +17,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/pings"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/protosessions"
@@ -260,7 +261,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						),
 						cmd.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(currencyConverter),
+							"/g/collect": ga4.NewGA4Protocol(currencyConverter, ga4.NewStaticPropertySource([]properties.PropertyConfig{})),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
 							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),

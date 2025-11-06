@@ -2,23 +2,31 @@ package ga4
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
 
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 type ga4Protocol struct {
-	converter currency.Converter
+	converter      currency.Converter
+	propertySource PropertySource
 }
 
 func (p *ga4Protocol) ID() string {
 	return "ga4"
 }
+
+const (
+	metadataPropertyName = "property_name"
+	metadataTrackingID   = "property_tracking_id"
+)
 
 func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	// Read the request body
@@ -63,8 +71,8 @@ func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	return theHits, nil
 }
 
-// createHitFromQueryParams creates a hit using only query parameters
-func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body []byte) (*hits.Hit, error) {
+// createHitBase creates a hit with common fields populated from the request
+func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hits.Hit, error) {
 	hit := hits.New()
 
 	clientID, err := p.ClientID(request)
@@ -78,6 +86,13 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 	if err != nil {
 		return nil, err
 	}
+
+	config, err := p.propertySource.GetByPropertyID(hit.PropertyID)
+	if err != nil {
+		return nil, err
+	}
+	hit.Metadata[metadataPropertyName] = config.PropertyName
+	hit.Metadata[metadataTrackingID] = config.PropertyTrackingID
 
 	hit.UserID, err = p.UserID(request)
 	if err != nil {
@@ -96,6 +111,16 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 		}
 	}
 	hit.Headers = headers
+
+	return hit, nil
+}
+
+// createHitFromQueryParams creates a hit using only query parameters
+func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body []byte) (*hits.Hit, error) {
+	hit, err := p.createHitBase(request, body)
+	if err != nil {
+		return nil, err
+	}
 
 	queryParams := url.Values{}
 	for key, values := range request.QueryParams {
@@ -166,37 +191,10 @@ func (p *ga4Protocol) createHitFromMergedParams(
 	body []byte,
 	mergedParams url.Values,
 ) (*hits.Hit, error) {
-	hit := hits.New()
-
-	clientID, err := p.ClientID(request)
+	hit, err := p.createHitBase(request, body)
 	if err != nil {
 		return nil, err
 	}
-	hit.ClientID = hits.ClientID(clientID)
-	hit.AuthoritativeClientID = hit.ClientID
-
-	hit.PropertyID, err = p.PropertyID(request)
-	if err != nil {
-		return nil, err
-	}
-
-	hit.UserID, err = p.UserID(request)
-	if err != nil {
-		return nil, err
-	}
-
-	hit.Body = body
-	hit.Host = string(request.Host)
-	hit.Path = string(request.Path)
-	hit.Method = string(request.Method)
-
-	headers := url.Values{}
-	for key, values := range request.Headers {
-		for _, value := range values {
-			headers.Add(key, value)
-		}
-	}
-	hit.Headers = headers
 
 	hit.QueryParams = mergedParams
 
@@ -212,11 +210,11 @@ func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
-	propertyID := request.QueryParams.Get("tid")
-	if propertyID == "" {
-		return "", errors.New("`tid` is a required query parameter for ga4 protocol")
+	property, err := p.propertySource.GetByTrackingID(request.QueryParams.Get("tid"))
+	if err != nil {
+		return "", err
 	}
-	return propertyID, nil
+	return property.PropertyID, nil
 }
 
 func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
@@ -414,9 +412,52 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	}
 }
 
+// TODO: test that
+// PropertySource is a source of property configurations.
+type PropertySource interface {
+	GetByTrackingID(trackingID string) (properties.PropertyConfig, error)
+	GetByPropertyID(propertyID string) (properties.PropertyConfig, error)
+}
+
+// StaticPropertySource is a static property source that stores property configurations in a map.
+type StaticPropertySource struct {
+	tid map[string]*properties.PropertyConfig
+	pid map[string]*properties.PropertyConfig
+}
+
+// GetByTrackingID gets a property configuration by tracking ID.
+func (s StaticPropertySource) GetByTrackingID(trackingID string) (properties.PropertyConfig, error) {
+	property, ok := s.tid[trackingID]
+	if !ok {
+		return properties.PropertyConfig{}, fmt.Errorf("Unknown property tracking ID: %s", trackingID)
+	}
+	return *property, nil
+}
+
+// GetByPropertyID gets a property configuration by property ID.
+func (s StaticPropertySource) GetByPropertyID(propertyID string) (properties.PropertyConfig, error) {
+	property, ok := s.pid[propertyID]
+	if !ok {
+		return properties.PropertyConfig{}, fmt.Errorf("Unknown property ID: %s", propertyID)
+	}
+	return *property, nil
+}
+
+// NewStaticPropertySource creates a new static property source from a list of property configurations.
+func NewStaticPropertySource(props []properties.PropertyConfig) PropertySource {
+	tid := make(map[string]*properties.PropertyConfig)
+	pid := make(map[string]*properties.PropertyConfig)
+	for _, prop := range props {
+		tid[prop.PropertyTrackingID] = &prop
+		pid[prop.PropertyID] = &prop
+	}
+	return StaticPropertySource{tid: tid, pid: pid}
+}
+
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
-func NewGA4Protocol(converter currency.Converter) protocol.Protocol {
+func NewGA4Protocol(converter currency.Converter, propertySource PropertySource) protocol.Protocol {
 	return &ga4Protocol{
-		converter: converter,
+		converter:      converter,
+		propertySource: propertySource,
 	}
 }

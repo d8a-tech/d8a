@@ -7,6 +7,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2245,7 +2246,13 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1)),
+				NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+					{
+						PropertyID:         "1234567890",
+						PropertyName:       "Test Property",
+						PropertyTrackingID: "G-2VEWJC5YPE",
+					},
+				})),
 				columntests.EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}
@@ -2959,7 +2966,13 @@ func TestSessionColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1)),
+				NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+					{
+						PropertyID:         "1234567890",
+						PropertyName:       "Test Property",
+						PropertyTrackingID: "G-2VEWJC5YPE",
+					},
+				})),
 				tc.caseConfigFuncs...)
 		})
 	}

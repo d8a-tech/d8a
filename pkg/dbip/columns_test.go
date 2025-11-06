@@ -7,6 +7,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -28,11 +29,24 @@ func TestDBIPColumns(t *testing.T) {
 			assert.Equal(t, "Europe", whd.WriteCalls[0].Records[0]["geo_continent"])
 			assert.Equal(t, "Lower Silesia", whd.WriteCalls[0].Records[0]["geo_region"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), ga4.NewStaticPropertySource([]properties.PropertyConfig{
+			{
+				PropertyID:         "1234567890",
+				PropertyName:       "Test Property",
+				PropertyTrackingID: "G-2VEWJC5YPE",
+			},
+		})),
 		columntests.SetColumnsRegistry(
 			columnset.DefaultColumnRegistry(
 				ga4.NewGA4Protocol(
 					currency.NewDummyConverter(1),
+					ga4.NewStaticPropertySource([]properties.PropertyConfig{
+						{
+							PropertyID:         "1234567890",
+							PropertyName:       "Test Property",
+							PropertyTrackingID: "G-2VEWJC5YPE",
+						},
+					}),
 				),
 				GeoColumns(
 					NewOnlyOnceDownloader(
