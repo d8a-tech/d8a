@@ -251,6 +251,22 @@ func TestEventColumns(t *testing.T) {
 			description: "Empty click id wbraid should be nil",
 		},
 		{
+			name:        "ClickIDsFbclid_Valid",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar&fbclid=1337",
+			expected:    "1337",
+			fieldName:   "click_id_fbclid",
+			description: "Valid click id fbclid",
+		},
+		{
+			name:        "ClickIDsFbclid_Empty",
+			param:       "dl",
+			value:       "https://example.com/page?foo=bar",
+			expected:    nil,
+			fieldName:   "click_id_fbclid",
+			description: "Empty click id fbclid should be nil",
+		},
+		{
 			name:        "ClickIDsMsclkid_Valid",
 			param:       "dl",
 			value:       "https://example.com/page?foo=bar&msclkid=1337",

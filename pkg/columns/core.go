@@ -42,6 +42,7 @@ var CoreInterfaces = struct {
 	EventClickIDSrsltid schema.Interface
 	EventClickIDGbraid  schema.Interface
 	EventClickIDWbraid  schema.Interface
+	EventClickIDFbclid  schema.Interface
 	EventClickIDMsclkid schema.Interface
 
 	// Device
@@ -238,6 +239,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/click_id_wbraid",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "click_id_wbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventClickIDFbclid: schema.Interface{
+		ID:      "core.d8a.tech/events/click_id_fbclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "click_id_fbclid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventClickIDMsclkid: schema.Interface{
 		ID:      "core.d8a.tech/events/click_id_msclkid",
