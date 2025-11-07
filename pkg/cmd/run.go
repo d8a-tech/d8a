@@ -13,6 +13,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/d8a-tech/d8a/pkg/bolt"
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -104,6 +105,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err != nil {
 						return err
 					}
+					ordering := schema.NewInterfaceOrdering(
+						columns.CoreInterfaces,
+						ga4.ProtocolInterfaces,
+					)
+					columnData = schema.Sorted(columnData, ordering)
 					formatters := map[string]columnsFormatter{
 						"console":  newConsoleColumnsFormatter(),
 						"json":     newJSONColumnsFormatter(),

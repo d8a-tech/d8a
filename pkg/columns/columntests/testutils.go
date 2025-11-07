@@ -385,6 +385,10 @@ func ColumnTestCase(
 		cc.warehouseRegistry,
 		cc.columnsRegistry,
 		cc.layoutRegistry,
+		schema.NewInterfaceOrdering(
+			columns.CoreInterfaces,
+			theProtocol.Interfaces(),
+		),
 	)
 	if err := guard.EnsureTables("1337"); err != nil {
 		t.Fatalf("failed to ensure tables: %v", err)

@@ -212,6 +212,10 @@ func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
 	return &userID, nil
 }
 
+func (p *ga4Protocol) Interfaces() any {
+	return ProtocolInterfaces
+}
+
 func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all columns
 	return schema.Columns{
 		Event: []schema.EventColumn{
