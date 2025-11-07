@@ -455,7 +455,7 @@ func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
 }
 
 // CastToBool casts a value to bool considering various truthy representations
-func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
+func CastToBool(_ schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
 		// Handle boolean values directly
 		if boolVal, ok := value.(bool); ok {
@@ -465,15 +465,13 @@ func CastToBool(columnID schema.InterfaceID) func(any) (any, error) {
 		// Handle string values
 		valueStr, ok := value.(string)
 		if !ok {
-			logrus.Debugf("CastToBool: %s: value is not a string or bool: %v", columnID, value)
 			return false, nil
 		}
 
 		// Use util.StrToBool for string conversion
 		boolVal, err := util.StrToBool(valueStr)
 		if err != nil {
-			logrus.Debugf("CastToBool: %s: %v: %v", columnID, err, value)
-			return false, err
+			return false, fmt.Errorf("failed to cast %s to bool: %w", valueStr, err)
 		}
 		return boolVal, nil
 	}

@@ -2,10 +2,12 @@ package ga4
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
 	"github.com/slipros/devicedetector"
 )
@@ -13,12 +15,42 @@ import (
 // DeviceCategorySmartphone is a const value for core.d8a.tech/events/device_category for smartphone devices
 const DeviceCategorySmartphone = "smartphone"
 
-var dd *devicedetector.DeviceDetector = func() *devicedetector.DeviceDetector {
+type deviceParser interface {
+	Parse(userAgent string) *devicedetector.DeviceInfo
+}
+
+type cachingDeviceParser struct {
+	dd    *devicedetector.DeviceDetector
+	cache *ristretto.Cache[string, *devicedetector.DeviceInfo]
+}
+
+func (p *cachingDeviceParser) Parse(userAgent string) *devicedetector.DeviceInfo {
+	item, ok := p.cache.Get(userAgent)
+	if ok {
+		return item
+	}
+	deviceInfo := p.dd.Parse(userAgent)
+	p.cache.SetWithTTL(userAgent, deviceInfo, 30, time.Second)
+	return deviceInfo
+}
+
+var dd = func() deviceParser {
 	dd, err := devicedetector.NewDeviceDetector()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create device detector: %v", err))
 	}
-	return dd
+	c, err := ristretto.NewCache(&ristretto.Config[string, *devicedetector.DeviceInfo]{
+		NumCounters: 100000,
+		MaxCost:     10000,
+		BufferItems: 64,
+	})
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create device detector cache: %v", err))
+	}
+	return &cachingDeviceParser{
+		dd:    dd,
+		cache: c,
+	}
 }()
 
 func getDeviceInfo(event *schema.Event) (*devicedetector.DeviceInfo, error) {
