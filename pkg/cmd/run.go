@@ -62,11 +62,17 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 		},
 		Flags: []cli.Flag{
 			debugFlag,
+			traceFlag,
 			configFlag,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			if cmd.Bool(debugFlag.Name) {
+			switch {
+			case cmd.Bool(traceFlag.Name):
+				logrus.SetLevel(logrus.TraceLevel)
+			case cmd.Bool(debugFlag.Name):
 				logrus.SetLevel(logrus.DebugLevel)
+			default:
+				logrus.SetLevel(logrus.InfoLevel)
 			}
 			return ctx, nil
 		},
@@ -172,7 +178,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						time.Second*1,
 						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
 					)
-					serverStorage := storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher)
+					serverStorage := receiver.NewBatchingStorage(
+						storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher),
+						1000,
+						time.Millisecond*500,
+					)
 					workerErrChan := make(chan error, 1)
 					go func() {
 						defer cancel()

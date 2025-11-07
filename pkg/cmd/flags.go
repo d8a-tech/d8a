@@ -15,6 +15,13 @@ var debugFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   false,
 }
 
+var traceFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "trace",
+	Usage:   "Enable trace mode",
+	Sources: defaultSourceChain("TRACE", "trace"),
+	Value:   false,
+}
+
 var serverPortFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "server-port",
 	Usage:   "Port to listen on for HTTP server",

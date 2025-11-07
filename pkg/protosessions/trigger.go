@@ -31,6 +31,7 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 	m.lastCtx = ctx
 	logrus.Debugf("Handling hit: %s/%s", hit.AuthoritativeClientID, hit.ID)
 	m.lastHandledHitTime = serverReceivedTime
+	logrus.Tracef("Setting last handled hit time to: %s", m.lastHandledHitTime)
 	expirationTimeBucket := BucketNumber(serverReceivedTime.Add(m.sessionDuration), m.tickInterval)
 
 	// We are setting the bucket calculated for serverReceivedTime as the bucket when the
@@ -148,7 +149,9 @@ func (m *closeTriggerMiddleware) tick() error {
 				if err != nil {
 					return false, fmt.Errorf("failed to sort hits: %w", err)
 				}
+				startTime := time.Now()
 				err = m.closer.Close(sortedHits)
+				logrus.Tracef("Closing session took: %s", time.Since(startTime))
 				if err != nil {
 					return false, fmt.Errorf("failed to close session: %w", err)
 				}
@@ -168,6 +171,7 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 	if err != nil {
 		return err
 	}
+	logrus.Tracef("Getting next bucket from KV: %s", string(nextBucket))
 	var nextBucketInt int64
 	if nextBucket != nil {
 		nextBucketInt, err = strconv.ParseInt(string(nextBucket), 10, 64)
@@ -233,6 +237,7 @@ func (m *closeTriggerMiddleware) sorted(allHits []*hits.Hit) ([]*hits.Hit, error
 }
 
 func (m *closeTriggerMiddleware) OnPing(ctx *Context, t time.Time) error {
+	logrus.Tracef("Setting the current marching bucket to: %d", BucketNumber(t, m.tickInterval))
 	m.lastHandledHitTime = t
 	m.lastCtx = ctx
 	return nil
