@@ -1,6 +1,9 @@
 package ga4
 
 import (
+	"fmt"
+
+	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -346,3 +349,127 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 		"The UTM creative format from the first page view event in the session.", // nolint:lll // it's a description
 	),
 )
+
+func TotalEventsOfGivenNameColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	eventName string,
+	options ...columns.SessionColumnOptions,
+) schema.SessionColumn {
+	options = append(options, columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	))
+	return columns.NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, error) {
+			totalEvents := 0
+			for _, event := range session.Events {
+				if event.Values[columns.CoreInterfaces.EventName.Field.Name] == eventName {
+					totalEvents++
+				}
+			}
+			return totalEvents, nil
+		},
+		options...,
+	)
+}
+
+func UniqueEventsOfGivenNameColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	eventName string,
+	dependentColumns []*arrow.Field,
+	options ...columns.SessionColumnOptions,
+) schema.SessionColumn {
+	options = append(options, columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	))
+	return columns.NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, error) {
+			uniqueEvents := make(map[string]bool)
+			for _, event := range session.Events {
+				if event.Values[columns.CoreInterfaces.EventName.Field.Name] == eventName {
+					depHash := ""
+					for _, dependentColumn := range dependentColumns {
+						depValue, ok := event.Values[dependentColumn.Name]
+						if !ok {
+							continue
+						}
+						depHash += fmt.Sprintf("%v", depValue)
+					}
+					uniqueEvents[depHash] = true
+				}
+			}
+			return len(uniqueEvents), nil
+		},
+		options...,
+	)
+}
+
+var sessionTotalPageViewsColumn = TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalPageViews.ID,
+	columns.CoreInterfaces.SessionTotalPageViews.Field,
+	PageViewEventType,
+)
+
+var sessionUniquePageViewsColumn = UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniquePageViews.ID,
+	columns.CoreInterfaces.SessionUniquePageViews.Field,
+	PageViewEventType,
+	[]*arrow.Field{
+		columns.CoreInterfaces.EventPageLocation.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
+
+var sessionTotalScrollsColumn = TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalScrolls.ID,
+	columns.CoreInterfaces.SessionTotalScrolls.Field,
+	ScrollEventType,
+)
+
+var sessionTotalOutboundClicksColumn = TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalOutboundClicks.ID,
+	columns.CoreInterfaces.SessionTotalOutboundClicks.Field,
+	ClickEventType,
+)
+
+var sessionUniqueOutboundClicksColumn = UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueOutboundClicks.ID,
+	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
+	ClickEventType,
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamLinkURL.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
+
+/*
+	SessionTotalOutboundClicks    schema.Interface
+	SessionUniqueOutboundClicks   schema.Interface
+	SessionTotalSiteSearches      schema.Interface
+	SessionUniqueSiteSearches     schema.Interface
+	SessionTotalFormInteractions  schema.Interface
+	SessionUniqueFormInteractions schema.Interface
+	SessionTotalVideoEngagements  schema.Interface
+	SessionTotalFileDownloads     schema.Interface
+	SessionUniqueFileDownloads    schema.Interface*/
