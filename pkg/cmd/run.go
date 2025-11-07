@@ -66,11 +66,12 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			configFlag,
 		},
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			if cmd.Bool(traceFlag.Name) {
+			switch {
+			case cmd.Bool(traceFlag.Name):
 				logrus.SetLevel(logrus.TraceLevel)
-			} else if cmd.Bool(debugFlag.Name) {
+			case cmd.Bool(debugFlag.Name):
 				logrus.SetLevel(logrus.DebugLevel)
-			} else {
+			default:
 				logrus.SetLevel(logrus.InfoLevel)
 			}
 			return ctx, nil
