@@ -2,7 +2,7 @@ package schema
 
 import (
 	"math"
-	"reflect"
+	"reflect" //nolint:depguard // sorting will be used only during initialization
 	"sort"
 )
 
