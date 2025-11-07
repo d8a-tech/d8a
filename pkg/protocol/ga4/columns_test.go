@@ -391,6 +391,22 @@ func TestEventColumns(t *testing.T) {
 			description: "Empty reward value should be nil",
 		},
 		{
+			name:        "EventMeasurementID_Valid",
+			param:       "tid",
+			value:       "G-1234567890",
+			expected:    "G-1234567890",
+			fieldName:   "measurement_id",
+			description: "Valid measurement ID",
+		},
+		{
+			name:        "EventMeasurementID_Empty",
+			param:       "tid",
+			value:       "",
+			expected:    nil,
+			fieldName:   "measurement_id",
+			description: "Empty measurement ID should be nil",
+		},
+		{
 			name:        "EventName_Valid",
 			param:       "en",
 			value:       "page_view",
@@ -2246,11 +2262,11 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
 					{
-						PropertyID:         "1234567890",
-						PropertyName:       "Test Property",
-						PropertyTrackingID: "G-2VEWJC5YPE",
+						PropertyID:            "1234567890",
+						PropertyName:          "Test Property",
+						PropertyMeasurementID: "G-2VEWJC5YPE",
 					},
 				})),
 				columntests.EnsureQueryParam(0, tc.param, tc.value))
@@ -2966,11 +2982,11 @@ func TestSessionColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
 					{
-						PropertyID:         "1234567890",
-						PropertyName:       "Test Property",
-						PropertyTrackingID: "G-2VEWJC5YPE",
+						PropertyID:            "1234567890",
+						PropertyName:          "Test Property",
+						PropertyMeasurementID: "G-2VEWJC5YPE",
 					},
 				})),
 				tc.caseConfigFuncs...)

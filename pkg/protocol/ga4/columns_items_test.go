@@ -56,11 +56,11 @@ func TestItemsColumnAllParams(t *testing.T) {
 			assert.Equal(t, "PROMO_123", item["promotion_id"])
 			assert.Equal(t, "Summer Sale", item["promotion_name"])
 		},
-		NewGA4Protocol(currency.NewDummyConverter(2), NewStaticPropertySource([]properties.PropertyConfig{
+		NewGA4Protocol(currency.NewDummyConverter(2), properties.NewStaticPropertySource([]properties.PropertyConfig{
 			{
-				PropertyID:         "1234567890",
-				PropertyName:       "Test Property",
-				PropertyTrackingID: "G-2VEWJC5YPE",
+				PropertyID:            "1234567890",
+				PropertyName:          "Test Property",
+				PropertyMeasurementID: "G-2VEWJC5YPE",
 			},
 		})),
 		columntests.EnsureQueryParam(
@@ -130,11 +130,11 @@ func TestItemsColumnRefund(t *testing.T) {
 					assert.Equal(t, tc.expectedRefund, item["item_refund"])
 					assert.Equal(t, tc.expectedRevenue, item["item_revenue"])
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
 					{
-						PropertyID:         "1234567890",
-						PropertyName:       "Test Property",
-						PropertyTrackingID: "G-2VEWJC5YPE",
+						PropertyID:            "1234567890",
+						PropertyName:          "Test Property",
+						PropertyMeasurementID: "G-2VEWJC5YPE",
 					},
 				})),
 				columntests.EnsureQueryParam(
@@ -176,11 +176,11 @@ func TestItemsColumnTakeFromEvent(t *testing.T) {
 			assert.Equal(t, "EVENT_PROMO_456", item["promotion_id"])
 			assert.Equal(t, "Event Promotion", item["promotion_name"])
 		},
-		NewGA4Protocol(currency.NewDummyConverter(1), NewStaticPropertySource([]properties.PropertyConfig{
+		NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
 			{
-				PropertyID:         "1234567890",
-				PropertyName:       "Test Property",
-				PropertyTrackingID: "G-2VEWJC5YPE",
+				PropertyID:            "1234567890",
+				PropertyName:          "Test Property",
+				PropertyMeasurementID: "G-2VEWJC5YPE",
 			},
 		})),
 		columntests.EnsureQueryParam(
@@ -442,11 +442,11 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 
 					tc.assertFunc(t, record)
 				},
-				NewGA4Protocol(currency.NewDummyConverter(.5), NewStaticPropertySource([]properties.PropertyConfig{
+				NewGA4Protocol(currency.NewDummyConverter(.5), properties.NewStaticPropertySource([]properties.PropertyConfig{
 					{
-						PropertyID:         "1234567890",
-						PropertyName:       "Test Property",
-						PropertyTrackingID: "G-2VEWJC5YPE",
+						PropertyID:            "1234567890",
+						PropertyName:          "Test Property",
+						PropertyMeasurementID: "G-2VEWJC5YPE",
 					},
 				})),
 				refFuncs...,

@@ -2,7 +2,6 @@ package ga4
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -16,7 +15,7 @@ import (
 
 type ga4Protocol struct {
 	converter      currency.Converter
-	propertySource PropertySource
+	propertySource properties.PropertySource
 }
 
 func (p *ga4Protocol) ID() string {
@@ -92,7 +91,7 @@ func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hi
 		return nil, err
 	}
 	hit.Metadata[metadataPropertyName] = config.PropertyName
-	hit.Metadata[metadataTrackingID] = config.PropertyTrackingID
+	hit.Metadata[metadataTrackingID] = config.PropertyMeasurementID
 
 	hit.UserID, err = p.UserID(request)
 	if err != nil {
@@ -210,7 +209,7 @@ func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
-	property, err := p.propertySource.GetByTrackingID(request.QueryParams.Get("tid"))
+	property, err := p.propertySource.GetByMeasurementID(request.QueryParams.Get("tid"))
 	if err != nil {
 		return "", err
 	}
@@ -228,6 +227,7 @@ func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
 func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all columns
 	return schema.Columns{
 		Event: []schema.EventColumn{
+			eventMeasurementIDColumn,
 			eventNameColumn,
 			eventPageTitleColumn,
 			eventPageReferrerColumn,
@@ -412,50 +412,8 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	}
 }
 
-// TODO: test that
-// PropertySource is a source of property configurations.
-type PropertySource interface {
-	GetByTrackingID(trackingID string) (properties.PropertyConfig, error)
-	GetByPropertyID(propertyID string) (properties.PropertyConfig, error)
-}
-
-// StaticPropertySource is a static property source that stores property configurations in a map.
-type StaticPropertySource struct {
-	tid map[string]*properties.PropertyConfig
-	pid map[string]*properties.PropertyConfig
-}
-
-// GetByTrackingID gets a property configuration by tracking ID.
-func (s StaticPropertySource) GetByTrackingID(trackingID string) (properties.PropertyConfig, error) {
-	property, ok := s.tid[trackingID]
-	if !ok {
-		return properties.PropertyConfig{}, fmt.Errorf("Unknown property tracking ID: %s", trackingID)
-	}
-	return *property, nil
-}
-
-// GetByPropertyID gets a property configuration by property ID.
-func (s StaticPropertySource) GetByPropertyID(propertyID string) (properties.PropertyConfig, error) {
-	property, ok := s.pid[propertyID]
-	if !ok {
-		return properties.PropertyConfig{}, fmt.Errorf("Unknown property ID: %s", propertyID)
-	}
-	return *property, nil
-}
-
-// NewStaticPropertySource creates a new static property source from a list of property configurations.
-func NewStaticPropertySource(props []properties.PropertyConfig) PropertySource {
-	tid := make(map[string]*properties.PropertyConfig)
-	pid := make(map[string]*properties.PropertyConfig)
-	for _, prop := range props {
-		tid[prop.PropertyTrackingID] = &prop
-		pid[prop.PropertyID] = &prop
-	}
-	return StaticPropertySource{tid: tid, pid: pid}
-}
-
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
-func NewGA4Protocol(converter currency.Converter, propertySource PropertySource) protocol.Protocol {
+func NewGA4Protocol(converter currency.Converter, propertySource properties.PropertySource) protocol.Protocol {
 	return &ga4Protocol{
 		converter:      converter,
 		propertySource: propertySource,

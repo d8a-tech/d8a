@@ -29,22 +29,22 @@ func TestDBIPColumns(t *testing.T) {
 			assert.Equal(t, "Europe", whd.WriteCalls[0].Records[0]["geo_continent"])
 			assert.Equal(t, "Lower Silesia", whd.WriteCalls[0].Records[0]["geo_region"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), ga4.NewStaticPropertySource([]properties.PropertyConfig{
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
 			{
-				PropertyID:         "1234567890",
-				PropertyName:       "Test Property",
-				PropertyTrackingID: "G-2VEWJC5YPE",
+				PropertyID:            "1234567890",
+				PropertyName:          "Test Property",
+				PropertyMeasurementID: "G-2VEWJC5YPE",
 			},
 		})),
 		columntests.SetColumnsRegistry(
 			columnset.DefaultColumnRegistry(
 				ga4.NewGA4Protocol(
 					currency.NewDummyConverter(1),
-					ga4.NewStaticPropertySource([]properties.PropertyConfig{
+					properties.NewStaticPropertySource([]properties.PropertyConfig{
 						{
-							PropertyID:         "1234567890",
-							PropertyName:       "Test Property",
-							PropertyTrackingID: "G-2VEWJC5YPE",
+							PropertyID:            "1234567890",
+							PropertyName:          "Test Property",
+							PropertyMeasurementID: "G-2VEWJC5YPE",
 						},
 					}),
 				),
@@ -65,6 +65,12 @@ func TestDBIPColumns(t *testing.T) {
 						TTL:        30 * time.Second,
 					},
 				),
+				properties.NewStaticPropertySource([]properties.PropertyConfig{
+					{
+						PropertyID:   "1337",
+						PropertyName: "Test Property",
+					},
+				}),
 			),
 		),
 	)

@@ -69,8 +69,9 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 			)
 		}
 		cr = columnset.DefaultColumnRegistry(
-			ga4.NewGA4Protocol(currencyConverter, ga4.NewStaticPropertySource([]properties.PropertyConfig{})),
+			ga4.NewGA4Protocol(currencyConverter, properties.NewStaticPropertySource([]properties.PropertyConfig{})),
 			geoColumns,
+			propertySource(cmd),
 		)
 	}
 	return cr

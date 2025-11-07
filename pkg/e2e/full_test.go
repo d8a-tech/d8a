@@ -225,11 +225,11 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 			protocol.PathProtocolMapping{
 				"/g/collect": ga4.NewGA4Protocol(
 					currency.NewDummyConverter(1),
-					ga4.NewStaticPropertySource([]properties.PropertyConfig{
+					properties.NewStaticPropertySource([]properties.PropertyConfig{
 						{
-							PropertyID:         "1234567890",
-							PropertyName:       "Test Property",
-							PropertyTrackingID: "G-5T0Z13HKP4",
+							PropertyID:            "1234567890",
+							PropertyName:          "Test Property",
+							PropertyMeasurementID: "G-5T0Z13HKP4",
 						},
 					}),
 				),

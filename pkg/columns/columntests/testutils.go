@@ -10,6 +10,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
@@ -347,7 +348,15 @@ func ColumnTestCase(
 	warehouseRegistry := warehouse.NewStaticDriverRegistry(
 		warehouseDriver,
 	)
-	columnsRegistry := columnset.DefaultColumnRegistry(theProtocol, nil)
+	columnsRegistry := columnset.DefaultColumnRegistry(
+		theProtocol, nil, properties.NewStaticPropertySource(
+			[]properties.PropertyConfig{},
+			properties.WithDefaultConfig(properties.PropertyConfig{
+				PropertyID:   "1337",
+				PropertyName: "Test Property",
+			}),
+		),
+	)
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},
 		schema.NewEmbeddedSessionColumnsLayout(

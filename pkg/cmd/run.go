@@ -129,6 +129,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						dbipEnabled,
 						dbipDestinationDirectory,
 						dbipDownloadTimeoutFlag,
+						propertyIDFlag,
+						propertyNameFlag,
 					},
 					warehouseConfigFlags,
 				),
@@ -170,6 +172,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						time.Second*1,
 						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
 					)
+					ps := propertySource(cmd)
 					serverStorage := storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher)
 					workerErrChan := make(chan error, 1)
 					go func() {
@@ -261,7 +264,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						),
 						cmd.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(currencyConverter, ga4.NewStaticPropertySource([]properties.PropertyConfig{})),
+							"/g/collect": ga4.NewGA4Protocol(
+								currencyConverter,
+								ps,
+							),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
 							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),
@@ -362,4 +368,17 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 
 	logrus.Fatalf("unsupported warehouse %s", warehouseType)
 	return nil
+}
+
+func propertySource(cmd *cli.Command) properties.PropertySource {
+	return properties.NewStaticPropertySource(
+		[]properties.PropertyConfig{},
+		properties.WithDefaultConfig(
+			properties.PropertyConfig{
+				PropertyID:            cmd.String(propertyIDFlag.Name),
+				PropertyName:          cmd.String(propertyNameFlag.Name),
+				PropertyMeasurementID: "-",
+			},
+		),
+	)
 }
