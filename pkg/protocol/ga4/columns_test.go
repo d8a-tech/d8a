@@ -3088,6 +3088,54 @@ func TestSessionColumns(t *testing.T) {
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/page"),
 			},
 		},
+		{
+			name:        "SessionTotalSiteSearches",
+			expected:    2,
+			fieldName:   "session_total_site_searches",
+			description: "Session total site searches",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "view_search_results"),
+				columntests.EnsureQueryParam(1, "en", "search"),
+			},
+		},
+		{
+			name:        "SessionTotalSiteSearches_Zero",
+			expected:    0,
+			fieldName:   "session_total_site_searches",
+			description: "Session total site searches",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+			},
+		},
+		{
+			name:        "SessionUniqueSiteSearches",
+			expected:    1,
+			fieldName:   "session_unique_site_searches",
+			description: "Session unique site searches",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "view_search_results"),
+				columntests.EnsureQueryParam(0, "ep.search_term", "search_term1"),
+				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureQueryParam(1, "ep.search_term", "search_term1"),
+			},
+		},
+		{
+			name:        "SessionUniqueSiteSearches_Different",
+			expected:    2,
+			fieldName:   "session_unique_site_searches",
+			description: "Session unique site searches",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "view_search_results"),
+				columntests.EnsureQueryParam(0, "ep.search_term", "search_term1"),
+				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureQueryParam(1, "ep.search_term", "search_term2"),
+			},
+		},
 	}
 
 	for _, tc := range sessionColumnTestCases {

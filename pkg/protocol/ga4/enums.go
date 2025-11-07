@@ -10,4 +10,8 @@ const (
 	ClickEventType = "click"
 	// RefundEventType is the event type for refunds
 	RefundEventType = "refund"
+	// ViewSearchResultsEventType is the event type for view search results
+	ViewSearchResultsEventType = "view_search_results"
+	// SearchEventType is the event type for searches
+	SearchEventType = "search"
 )

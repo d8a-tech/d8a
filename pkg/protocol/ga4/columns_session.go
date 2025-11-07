@@ -2,6 +2,7 @@ package ga4
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
@@ -353,7 +354,7 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 func TotalEventsOfGivenNameColumn(
 	columnID schema.InterfaceID,
 	field *arrow.Field,
-	eventName string,
+	eventNames []string,
 	options ...columns.SessionColumnOptions,
 ) schema.SessionColumn {
 	options = append(options, columns.WithSessionColumnDependsOn(
@@ -368,7 +369,11 @@ func TotalEventsOfGivenNameColumn(
 		func(session *schema.Session) (any, error) {
 			totalEvents := 0
 			for _, event := range session.Events {
-				if event.Values[columns.CoreInterfaces.EventName.Field.Name] == eventName {
+				valueAsString, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name].(string)
+				if !ok {
+					continue
+				}
+				if slices.Contains(eventNames, valueAsString) {
 					totalEvents++
 				}
 			}
@@ -381,7 +386,7 @@ func TotalEventsOfGivenNameColumn(
 func UniqueEventsOfGivenNameColumn(
 	columnID schema.InterfaceID,
 	field *arrow.Field,
-	eventName string,
+	eventNames []string,
 	dependentColumns []*arrow.Field,
 	options ...columns.SessionColumnOptions,
 ) schema.SessionColumn {
@@ -397,7 +402,11 @@ func UniqueEventsOfGivenNameColumn(
 		func(session *schema.Session) (any, error) {
 			uniqueEvents := make(map[string]bool)
 			for _, event := range session.Events {
-				if event.Values[columns.CoreInterfaces.EventName.Field.Name] == eventName {
+				valueAsString, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name].(string)
+				if !ok {
+					continue
+				}
+				if slices.Contains(eventNames, valueAsString) {
 					depHash := ""
 					for _, dependentColumn := range dependentColumns {
 						depValue, ok := event.Values[dependentColumn.Name]
@@ -418,13 +427,13 @@ func UniqueEventsOfGivenNameColumn(
 var sessionTotalPageViewsColumn = TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalPageViews.ID,
 	columns.CoreInterfaces.SessionTotalPageViews.Field,
-	PageViewEventType,
+	[]string{PageViewEventType},
 )
 
 var sessionUniquePageViewsColumn = UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniquePageViews.ID,
 	columns.CoreInterfaces.SessionUniquePageViews.Field,
-	PageViewEventType,
+	[]string{PageViewEventType},
 	[]*arrow.Field{
 		columns.CoreInterfaces.EventPageLocation.Field,
 	},
@@ -439,19 +448,19 @@ var sessionUniquePageViewsColumn = UniqueEventsOfGivenNameColumn(
 var sessionTotalScrollsColumn = TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalScrolls.ID,
 	columns.CoreInterfaces.SessionTotalScrolls.Field,
-	ScrollEventType,
+	[]string{ScrollEventType},
 )
 
 var sessionTotalOutboundClicksColumn = TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalOutboundClicks.ID,
 	columns.CoreInterfaces.SessionTotalOutboundClicks.Field,
-	ClickEventType,
+	[]string{ClickEventType},
 )
 
 var sessionUniqueOutboundClicksColumn = UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.ID,
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
-	ClickEventType,
+	[]string{ClickEventType},
 	[]*arrow.Field{
 		ProtocolInterfaces.EventParamLinkURL.Field,
 	},
@@ -463,13 +472,30 @@ var sessionUniqueOutboundClicksColumn = UniqueEventsOfGivenNameColumn(
 	),
 )
 
+var sessionTotalSiteSearchesColumn = TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalSiteSearches.ID,
+	columns.CoreInterfaces.SessionTotalSiteSearches.Field,
+	[]string{ViewSearchResultsEventType, SearchEventType},
+)
+
+var sessionUniqueSiteSearchesColumn = UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueSiteSearches.ID,
+	columns.CoreInterfaces.SessionUniqueSiteSearches.Field,
+	[]string{ViewSearchResultsEventType, SearchEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamSearchTerm.Field,
+	},
+)
+
 /*
-	SessionTotalOutboundClicks    schema.Interface
-	SessionUniqueOutboundClicks   schema.Interface
+
 	SessionTotalSiteSearches      schema.Interface
 	SessionUniqueSiteSearches     schema.Interface
+
 	SessionTotalFormInteractions  schema.Interface
 	SessionUniqueFormInteractions schema.Interface
+
 	SessionTotalVideoEngagements  schema.Interface
+
 	SessionTotalFileDownloads     schema.Interface
 	SessionUniqueFileDownloads    schema.Interface*/

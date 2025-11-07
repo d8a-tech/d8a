@@ -101,8 +101,8 @@ var CoreInterfaces = struct {
 	SessionTotalScrolls         schema.Interface
 	SessionTotalOutboundClicks  schema.Interface
 	SessionUniqueOutboundClicks schema.Interface
-	// SessionTotalSiteSearches      schema.Interface
-	// SessionUniqueSiteSearches     schema.Interface
+	SessionTotalSiteSearches    schema.Interface
+	SessionUniqueSiteSearches   schema.Interface
 	// SessionTotalFormInteractions  schema.Interface
 	// SessionUniqueFormInteractions schema.Interface
 	// SessionTotalVideoEngagements  schema.Interface
@@ -481,16 +481,16 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_unique_outbound_clicks", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	// SessionTotalSiteSearches: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/total_site_searches",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_total_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
-	// SessionUniqueSiteSearches: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/unique_site_searches",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_unique_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
+	SessionTotalSiteSearches: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_site_searches",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueSiteSearches: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_site_searches",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
 	// SessionTotalFormInteractions: schema.Interface{
 	// 	ID:      "core.d8a.tech/sessions/total_form_interactions",
 	// 	Version: "1.0.0",
