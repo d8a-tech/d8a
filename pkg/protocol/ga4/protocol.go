@@ -86,13 +86,6 @@ func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hi
 		return nil, err
 	}
 
-	config, err := p.propertySource.GetByPropertyID(hit.PropertyID)
-	if err != nil {
-		return nil, err
-	}
-	hit.Metadata[metadataPropertyName] = config.PropertyName
-	hit.Metadata[metadataTrackingID] = config.PropertyMeasurementID
-
 	hit.UserID, err = p.UserID(request)
 	if err != nil {
 		return nil, err
