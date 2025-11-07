@@ -4,6 +4,7 @@ package columnset
 import (
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columns/sessioncolumns"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocolschema"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -25,6 +26,7 @@ func stubGeoIPColumns() []schema.EventColumn {
 func DefaultColumnRegistry(
 	theProtocol protocol.Protocol,
 	geoColumns []schema.EventColumn,
+	propertySource properties.PropertySource,
 ) schema.ColumnsRegistry {
 	if len(geoColumns) == 0 {
 		logrus.Info("No geo columns provided, using stub implementations")
@@ -33,7 +35,7 @@ func DefaultColumnRegistry(
 	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
-			schema.NewColumns(sessionColumns(), eventColumns(), sessionScopedEventColumns()),
+			schema.NewColumns(sessionColumns(), eventColumns(propertySource), sessionScopedEventColumns()),
 		),
 		protocolschema.NewFromProtocolColumnsRegistry(protocol.NewStaticRegistry(
 			map[string]protocol.Protocol{},
@@ -46,13 +48,14 @@ func DefaultColumnRegistry(
 	})
 }
 
-func eventColumns() []schema.EventColumn {
+func eventColumns(propertySource properties.PropertySource) []schema.EventColumn {
 	return []schema.EventColumn{
 		eventcolumns.EventIDColumn,
 		eventcolumns.IPAddressColumn,
 		eventcolumns.ClientIDColumn,
 		eventcolumns.UserIDColumn,
 		eventcolumns.PropertyIDColumn,
+		eventcolumns.PropertyNameColumn(propertySource),
 		eventcolumns.UtmMarketingTacticColumn,
 		eventcolumns.UtmSourcePlatformColumn,
 		eventcolumns.UtmTermColumn,

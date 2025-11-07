@@ -7,6 +7,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -388,6 +389,22 @@ func TestEventColumns(t *testing.T) {
 			expected:    nil,
 			fieldName:   "params_reward_value",
 			description: "Empty reward value should be nil",
+		},
+		{
+			name:        "EventMeasurementID_Valid",
+			param:       "tid",
+			value:       "G-1234567890",
+			expected:    "G-1234567890",
+			fieldName:   "measurement_id",
+			description: "Valid measurement ID",
+		},
+		{
+			name:        "EventMeasurementID_Empty",
+			param:       "tid",
+			value:       "",
+			expected:    nil,
+			fieldName:   "measurement_id",
+			description: "Empty measurement ID should be nil",
 		},
 		{
 			name:        "EventName_Valid",
@@ -2245,7 +2262,7 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1)),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 				columntests.EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}
@@ -2959,7 +2976,7 @@ func TestSessionColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1)),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 				tc.caseConfigFuncs...)
 		})
 	}

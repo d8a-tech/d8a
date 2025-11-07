@@ -111,6 +111,20 @@ var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "",
 }
 
+var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "property-id",
+	Usage:   "Property ID, used as a source for specific columns",
+	Sources: defaultSourceChain("PROPERTY_ID", "property.id"),
+	Value:   "-",
+}
+
+var propertyNameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "property-name",
+	Usage:   "Property name, used as a source for specific columns",
+	Sources: defaultSourceChain("PROPERTY_NAME", "property.name"),
+	Value:   "Unknown Property",
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseFlag,
 	clickhouseHostFlag,

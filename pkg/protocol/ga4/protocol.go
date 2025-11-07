@@ -8,12 +8,14 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 type ga4Protocol struct {
-	converter currency.Converter
+	converter      currency.Converter
+	propertySource properties.PropertySource
 }
 
 func (p *ga4Protocol) ID() string {
@@ -63,8 +65,8 @@ func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	return theHits, nil
 }
 
-// createHitFromQueryParams creates a hit using only query parameters
-func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body []byte) (*hits.Hit, error) {
+// createHitBase creates a hit with common fields populated from the request
+func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hits.Hit, error) {
 	hit := hits.New()
 
 	clientID, err := p.ClientID(request)
@@ -96,6 +98,16 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 		}
 	}
 	hit.Headers = headers
+
+	return hit, nil
+}
+
+// createHitFromQueryParams creates a hit using only query parameters
+func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body []byte) (*hits.Hit, error) {
+	hit, err := p.createHitBase(request, body)
+	if err != nil {
+		return nil, err
+	}
 
 	queryParams := url.Values{}
 	for key, values := range request.QueryParams {
@@ -166,37 +178,10 @@ func (p *ga4Protocol) createHitFromMergedParams(
 	body []byte,
 	mergedParams url.Values,
 ) (*hits.Hit, error) {
-	hit := hits.New()
-
-	clientID, err := p.ClientID(request)
+	hit, err := p.createHitBase(request, body)
 	if err != nil {
 		return nil, err
 	}
-	hit.ClientID = hits.ClientID(clientID)
-	hit.AuthoritativeClientID = hit.ClientID
-
-	hit.PropertyID, err = p.PropertyID(request)
-	if err != nil {
-		return nil, err
-	}
-
-	hit.UserID, err = p.UserID(request)
-	if err != nil {
-		return nil, err
-	}
-
-	hit.Body = body
-	hit.Host = string(request.Host)
-	hit.Path = string(request.Path)
-	hit.Method = string(request.Method)
-
-	headers := url.Values{}
-	for key, values := range request.Headers {
-		for _, value := range values {
-			headers.Add(key, value)
-		}
-	}
-	hit.Headers = headers
 
 	hit.QueryParams = mergedParams
 
@@ -212,11 +197,11 @@ func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
-	propertyID := request.QueryParams.Get("tid")
-	if propertyID == "" {
-		return "", errors.New("`tid` is a required query parameter for ga4 protocol")
+	property, err := p.propertySource.GetByMeasurementID(request.QueryParams.Get("tid"))
+	if err != nil {
+		return "", err
 	}
-	return propertyID, nil
+	return property.PropertyID, nil
 }
 
 func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
@@ -230,6 +215,7 @@ func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
 func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all columns
 	return schema.Columns{
 		Event: []schema.EventColumn{
+			eventMeasurementIDColumn,
 			eventNameColumn,
 			eventPageTitleColumn,
 			eventPageReferrerColumn,
@@ -415,8 +401,9 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 }
 
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
-func NewGA4Protocol(converter currency.Converter) protocol.Protocol {
+func NewGA4Protocol(converter currency.Converter, propertySource properties.PropertySource) protocol.Protocol {
 	return &ga4Protocol{
-		converter: converter,
+		converter:      converter,
+		propertySource: propertySource,
 	}
 }

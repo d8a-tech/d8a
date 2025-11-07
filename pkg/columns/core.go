@@ -21,6 +21,7 @@ var CoreInterfaces = struct {
 	EventClientID         schema.Interface
 	EventUserID           schema.Interface
 	EventPropertyID       schema.Interface
+	EventPropertyName     schema.Interface
 	EventTrackingProtocol schema.Interface
 	EventPlatform         schema.Interface
 	EventIPAddress        schema.Interface
@@ -158,6 +159,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/property_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "property_id", Type: arrow.BinaryTypes.String},
+	},
+	EventPropertyName: schema.Interface{
+		ID:      "core.d8a.tech/events/property_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "property_name", Type: arrow.BinaryTypes.String},
 	},
 	EventPlatform: schema.Interface{
 		ID:      "core.d8a.tech/events/platform",

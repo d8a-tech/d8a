@@ -174,3 +174,17 @@ var gtmDebugColumn = columns.FromPageURLEventColumn(
 		"The Tag Manager debug mode identifier, present when the Tag Manager is running in debug/preview mode for testing.",
 	),
 )
+
+var eventMeasurementIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventMeasurementID.ID,
+	ProtocolInterfaces.EventMeasurementID.Field,
+	"tid",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventMeasurementID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Measurement ID",
+		"The Google Analytics 4 measurement / tracking identifier. A unique identifier for the property that sent this event. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real property data calculated on the backend, use the property_id column. ", // nolint:lll // it's a description
+	),
+)

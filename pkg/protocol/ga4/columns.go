@@ -39,6 +39,8 @@ const (
 
 // ProtocolInterfaces are the columns that are specific to the ga4 protocol.
 var ProtocolInterfaces = struct {
+	EventMeasurementID schema.Interface
+
 	EventIParamgnoreReferrer   schema.Interface
 	EventParamEngagementTimeMs schema.Interface
 	// Campaign params
@@ -244,6 +246,11 @@ var ProtocolInterfaces = struct {
 	EventPrivacyAnalyticsStorage schema.Interface
 	EventPrivacyAdsStorage       schema.Interface
 }{
+	EventMeasurementID: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/event/measurement_id",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String},
+	},
 	// ignore_referrer - used in session_start event
 	EventIParamgnoreReferrer: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_ignore_referrer",

@@ -12,6 +12,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/pings"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/protosessions"
@@ -222,7 +223,10 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 			receiver.NewDummyRawLogStorage(),
 			runningServer.port,
 			protocol.PathProtocolMapping{
-				"/g/collect": ga4.NewGA4Protocol(currency.NewDummyConverter(1)),
+				"/g/collect": ga4.NewGA4Protocol(
+					currency.NewDummyConverter(1),
+					properties.TestPropertySource(),
+				),
 			},
 			map[string]func(fctx *fasthttp.RequestCtx){},
 		)

@@ -17,6 +17,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/pings"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/protosessions"
@@ -128,6 +129,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						dbipEnabled,
 						dbipDestinationDirectory,
 						dbipDownloadTimeoutFlag,
+						propertyIDFlag,
+						propertyNameFlag,
 					},
 					warehouseConfigFlags,
 				),
@@ -260,7 +263,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						),
 						cmd.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(currencyConverter),
+							"/g/collect": ga4.NewGA4Protocol(
+								currencyConverter,
+								propertySource(cmd),
+							),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
 							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),
@@ -361,4 +367,17 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 
 	logrus.Fatalf("unsupported warehouse %s", warehouseType)
 	return nil
+}
+
+func propertySource(cmd *cli.Command) properties.PropertySource {
+	return properties.NewStaticPropertySource(
+		[]properties.PropertyConfig{},
+		properties.WithDefaultConfig(
+			properties.PropertyConfig{
+				PropertyID:            cmd.String(propertyIDFlag.Name),
+				PropertyName:          cmd.String(propertyNameFlag.Name),
+				PropertyMeasurementID: "-",
+			},
+		),
+	)
 }

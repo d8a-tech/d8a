@@ -6,6 +6,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -121,7 +122,7 @@ func TestValueTransitions(t *testing.T) {
 					}
 					assert.Equal(t, tc.expected, writeResult)
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1)),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 			)
 		})
 	}
