@@ -29,25 +29,10 @@ func TestDBIPColumns(t *testing.T) {
 			assert.Equal(t, "Europe", whd.WriteCalls[0].Records[0]["geo_continent"])
 			assert.Equal(t, "Lower Silesia", whd.WriteCalls[0].Records[0]["geo_region"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
-			{
-				PropertyID:            "1234567890",
-				PropertyName:          "Test Property",
-				PropertyMeasurementID: "G-2VEWJC5YPE",
-			},
-		})),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 		columntests.SetColumnsRegistry(
 			columnset.DefaultColumnRegistry(
-				ga4.NewGA4Protocol(
-					currency.NewDummyConverter(1),
-					properties.NewStaticPropertySource([]properties.PropertyConfig{
-						{
-							PropertyID:            "1234567890",
-							PropertyName:          "Test Property",
-							PropertyMeasurementID: "G-2VEWJC5YPE",
-						},
-					}),
-				),
+				ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 				GeoColumns(
 					NewOnlyOnceDownloader(
 						NewExtensionBasedOCIDownloader(
@@ -65,12 +50,7 @@ func TestDBIPColumns(t *testing.T) {
 						TTL:        30 * time.Second,
 					},
 				),
-				properties.NewStaticPropertySource([]properties.PropertyConfig{
-					{
-						PropertyID:   "1337",
-						PropertyName: "Test Property",
-					},
-				}),
+				properties.TestPropertySource(),
 			),
 		),
 	)

@@ -122,13 +122,7 @@ func TestValueTransitions(t *testing.T) {
 					}
 					assert.Equal(t, tc.expected, writeResult)
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewStaticPropertySource([]properties.PropertyConfig{
-					{
-						PropertyID:            "1234567890",
-						PropertyName:          "Test Property",
-						PropertyMeasurementID: "G-2VEWJC5YPE",
-					},
-				})),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 			)
 		})
 	}

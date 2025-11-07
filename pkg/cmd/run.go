@@ -172,7 +172,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						time.Second*1,
 						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
 					)
-					ps := propertySource(cmd)
 					serverStorage := storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher)
 					workerErrChan := make(chan error, 1)
 					go func() {
@@ -266,7 +265,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						protocol.PathProtocolMapping{
 							"/g/collect": ga4.NewGA4Protocol(
 								currencyConverter,
-								ps,
+								propertySource(cmd),
 							),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){

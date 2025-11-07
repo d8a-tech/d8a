@@ -349,13 +349,7 @@ func ColumnTestCase(
 		warehouseDriver,
 	)
 	columnsRegistry := columnset.DefaultColumnRegistry(
-		theProtocol, nil, properties.NewStaticPropertySource(
-			[]properties.PropertyConfig{},
-			properties.WithDefaultConfig(properties.PropertyConfig{
-				PropertyID:   "1337",
-				PropertyName: "Test Property",
-			}),
-		),
+		theProtocol, nil, properties.TestPropertySource(),
 	)
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},
