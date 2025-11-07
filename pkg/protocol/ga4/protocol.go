@@ -22,11 +22,6 @@ func (p *ga4Protocol) ID() string {
 	return "ga4"
 }
 
-const (
-	metadataPropertyName = "property_name"
-	metadataTrackingID   = "property_tracking_id"
-)
-
 func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	// Read the request body
 	body, err := io.ReadAll(request.Body)
