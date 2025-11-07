@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -35,6 +36,10 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
 				getTableNames().events,
 				getTableNames().sessionsColumnPrefix,
 			),
+		),
+		schema.NewInterfaceOrdering(
+			columns.CoreInterfaces,
+			ga4.NewGA4Protocol(currencyConverter, propertySource(cmd)).Interfaces(),
 		),
 	)
 	if err := guard.EnsureTables(propertyID); err != nil {

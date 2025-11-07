@@ -13,6 +13,7 @@ type Guard struct {
 
 	columnsColumns ColumnsRegistry
 	layout         LayoutRegistry
+	ordering       *InterfaceOrdering
 }
 
 // NewGuard creates a new Guard
@@ -20,11 +21,13 @@ func NewGuard(
 	warehouseRegistry warehouse.Registry,
 	columnsColumns ColumnsRegistry,
 	layout LayoutRegistry,
+	ordering *InterfaceOrdering,
 ) *Guard {
 	return &Guard{
 		warehouseRegistry: warehouseRegistry,
 		columnsColumns:    columnsColumns,
 		layout:            layout,
+		ordering:          ordering,
 	}
 }
 
@@ -40,7 +43,7 @@ func (m *Guard) EnsureTables(
 	if err != nil {
 		return err
 	}
-	tables := layout.Tables(columns)
+	tables := layout.Tables(Sorted(columns, m.ordering))
 	for _, table := range tables {
 		driver, err := m.warehouseRegistry.Get(propertyID)
 		if err != nil {

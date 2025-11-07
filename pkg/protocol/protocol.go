@@ -27,6 +27,7 @@ type Request struct {
 type Protocol interface {
 	ID() string
 	Columns() schema.Columns
+	Interfaces() any
 
 	Hits(*Request) ([]*hits.Hit, error)
 }

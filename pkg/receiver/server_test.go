@@ -35,6 +35,10 @@ func (m *mockProtocol) ID() string {
 	return m.id
 }
 
+func (m *mockProtocol) Interfaces() any {
+	return struct{}{}
+}
+
 func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	theHit := hits.New()
 
