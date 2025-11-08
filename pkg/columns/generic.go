@@ -747,3 +747,80 @@ func NewValueTransitionColumn(
 		options...,
 	)
 }
+
+// TotalEventsOfGivenNameColumn creates a session column that counts the total number
+// of events with the given event names.
+func TotalEventsOfGivenNameColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	eventNames []string,
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	options = append(options, WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	))
+	return NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, error) {
+			totalEvents := 0
+			for _, event := range session.Events {
+				valueAsString, ok := event.Values[CoreInterfaces.EventName.Field.Name].(string)
+				if !ok {
+					continue
+				}
+				if slices.Contains(eventNames, valueAsString) {
+					totalEvents++
+				}
+			}
+			return totalEvents, nil
+		},
+		options...,
+	)
+}
+
+// UniqueEventsOfGivenNameColumn creates a session column that counts the unique number
+// of events with the given event names, taking into account the dependent column values.
+func UniqueEventsOfGivenNameColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	eventNames []string,
+	dependentColumns []*arrow.Field,
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	options = append(options, WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	))
+	return NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, error) {
+			uniqueEvents := make(map[string]bool)
+			for _, event := range session.Events {
+				valueAsString, ok := event.Values[CoreInterfaces.EventName.Field.Name].(string)
+				if !ok {
+					continue
+				}
+				if slices.Contains(eventNames, valueAsString) {
+					depHash := ""
+					for _, dependentColumn := range dependentColumns {
+						depValue, ok := event.Values[dependentColumn.Name]
+						if !ok {
+							continue
+						}
+						depHash += fmt.Sprintf("%v%v", valueAsString, depValue)
+					}
+					uniqueEvents[depHash] = true
+				}
+			}
+			return len(uniqueEvents), nil
+		},
+		options...,
+	)
+}

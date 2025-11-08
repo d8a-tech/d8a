@@ -1,9 +1,6 @@
 package ga4
 
 import (
-	"fmt"
-	"slices"
-
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -351,86 +348,13 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 	),
 )
 
-func TotalEventsOfGivenNameColumn(
-	columnID schema.InterfaceID,
-	field *arrow.Field,
-	eventNames []string,
-	options ...columns.SessionColumnOptions,
-) schema.SessionColumn {
-	options = append(options, columns.WithSessionColumnDependsOn(
-		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
-		},
-	))
-	return columns.NewSimpleSessionColumn(
-		columnID,
-		field,
-		func(session *schema.Session) (any, error) {
-			totalEvents := 0
-			for _, event := range session.Events {
-				valueAsString, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name].(string)
-				if !ok {
-					continue
-				}
-				if slices.Contains(eventNames, valueAsString) {
-					totalEvents++
-				}
-			}
-			return totalEvents, nil
-		},
-		options...,
-	)
-}
-
-func UniqueEventsOfGivenNameColumn(
-	columnID schema.InterfaceID,
-	field *arrow.Field,
-	eventNames []string,
-	dependentColumns []*arrow.Field,
-	options ...columns.SessionColumnOptions,
-) schema.SessionColumn {
-	options = append(options, columns.WithSessionColumnDependsOn(
-		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
-		},
-	))
-	return columns.NewSimpleSessionColumn(
-		columnID,
-		field,
-		func(session *schema.Session) (any, error) {
-			uniqueEvents := make(map[string]bool)
-			for _, event := range session.Events {
-				valueAsString, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name].(string)
-				if !ok {
-					continue
-				}
-				if slices.Contains(eventNames, valueAsString) {
-					depHash := ""
-					for _, dependentColumn := range dependentColumns {
-						depValue, ok := event.Values[dependentColumn.Name]
-						if !ok {
-							continue
-						}
-						depHash += fmt.Sprintf("%v", depValue)
-					}
-					uniqueEvents[depHash] = true
-				}
-			}
-			return len(uniqueEvents), nil
-		},
-		options...,
-	)
-}
-
-var sessionTotalPageViewsColumn = TotalEventsOfGivenNameColumn(
+var sessionTotalPageViewsColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalPageViews.ID,
 	columns.CoreInterfaces.SessionTotalPageViews.Field,
 	[]string{PageViewEventType},
 )
 
-var sessionUniquePageViewsColumn = UniqueEventsOfGivenNameColumn(
+var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniquePageViews.ID,
 	columns.CoreInterfaces.SessionUniquePageViews.Field,
 	[]string{PageViewEventType},
@@ -445,19 +369,19 @@ var sessionUniquePageViewsColumn = UniqueEventsOfGivenNameColumn(
 	),
 )
 
-var sessionTotalScrollsColumn = TotalEventsOfGivenNameColumn(
+var sessionTotalScrollsColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalScrolls.ID,
 	columns.CoreInterfaces.SessionTotalScrolls.Field,
 	[]string{ScrollEventType},
 )
 
-var sessionTotalOutboundClicksColumn = TotalEventsOfGivenNameColumn(
+var sessionTotalOutboundClicksColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalOutboundClicks.ID,
 	columns.CoreInterfaces.SessionTotalOutboundClicks.Field,
 	[]string{ClickEventType},
 )
 
-var sessionUniqueOutboundClicksColumn = UniqueEventsOfGivenNameColumn(
+var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.ID,
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
 	[]string{ClickEventType},
@@ -472,13 +396,13 @@ var sessionUniqueOutboundClicksColumn = UniqueEventsOfGivenNameColumn(
 	),
 )
 
-var sessionTotalSiteSearchesColumn = TotalEventsOfGivenNameColumn(
+var sessionTotalSiteSearchesColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalSiteSearches.ID,
 	columns.CoreInterfaces.SessionTotalSiteSearches.Field,
 	[]string{ViewSearchResultsEventType, SearchEventType},
 )
 
-var sessionUniqueSiteSearchesColumn = UniqueEventsOfGivenNameColumn(
+var sessionUniqueSiteSearchesColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueSiteSearches.ID,
 	columns.CoreInterfaces.SessionUniqueSiteSearches.Field,
 	[]string{ViewSearchResultsEventType, SearchEventType},
@@ -487,15 +411,50 @@ var sessionUniqueSiteSearchesColumn = UniqueEventsOfGivenNameColumn(
 	},
 )
 
-/*
+var sessionTotalFormInteractionsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalFormInteractions.ID,
+	columns.CoreInterfaces.SessionTotalFormInteractions.Field,
+	[]string{FormSubmitEventType, FormStartEventType},
+)
 
-	SessionTotalSiteSearches      schema.Interface
-	SessionUniqueSiteSearches     schema.Interface
+var sessionUniqueFormInteractionsColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueFormInteractions.ID,
+	columns.CoreInterfaces.SessionUniqueFormInteractions.Field,
+	[]string{FormSubmitEventType, FormStartEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamFormID.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamFormID.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
 
-	SessionTotalFormInteractions  schema.Interface
-	SessionUniqueFormInteractions schema.Interface
+var sessionTotalVideoEngagementsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalVideoEngagements.ID,
+	columns.CoreInterfaces.SessionTotalVideoEngagements.Field,
+	[]string{VideoStartEventType, VideoCompleteEventType, VideoProgressEventType},
+)
 
-	SessionTotalVideoEngagements  schema.Interface
+var sessionTotalFileDownloadsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalFileDownloads.ID,
+	columns.CoreInterfaces.SessionTotalFileDownloads.Field,
+	[]string{FileDownloadEventType},
+)
 
-	SessionTotalFileDownloads     schema.Interface
-	SessionUniqueFileDownloads    schema.Interface*/
+var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueFileDownloads.ID,
+	columns.CoreInterfaces.SessionUniqueFileDownloads.Field,
+	[]string{FileDownloadEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamLinkURL.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)

@@ -96,18 +96,18 @@ var CoreInterfaces = struct {
 	SessionUtmMarketingTactic schema.Interface
 
 	// Totals
-	SessionTotalPageViews       schema.Interface
-	SessionUniquePageViews      schema.Interface
-	SessionTotalScrolls         schema.Interface
-	SessionTotalOutboundClicks  schema.Interface
-	SessionUniqueOutboundClicks schema.Interface
-	SessionTotalSiteSearches    schema.Interface
-	SessionUniqueSiteSearches   schema.Interface
-	// SessionTotalFormInteractions  schema.Interface
-	// SessionUniqueFormInteractions schema.Interface
-	// SessionTotalVideoEngagements  schema.Interface
-	// SessionTotalFileDownloads     schema.Interface
-	// SessionUniqueFileDownloads    schema.Interface
+	SessionTotalPageViews         schema.Interface
+	SessionUniquePageViews        schema.Interface
+	SessionTotalScrolls           schema.Interface
+	SessionTotalOutboundClicks    schema.Interface
+	SessionUniqueOutboundClicks   schema.Interface
+	SessionTotalSiteSearches      schema.Interface
+	SessionUniqueSiteSearches     schema.Interface
+	SessionTotalFormInteractions  schema.Interface
+	SessionUniqueFormInteractions schema.Interface
+	SessionTotalVideoEngagements  schema.Interface
+	SessionTotalFileDownloads     schema.Interface
+	SessionUniqueFileDownloads    schema.Interface
 
 	EventPropertyName schema.Interface
 }{
@@ -491,31 +491,31 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_unique_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	// SessionTotalFormInteractions: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/total_form_interactions",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_total_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
-	// SessionUniqueFormInteractions: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/unique_form_interactions",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_unique_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
-	// SessionTotalVideoEngagements: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/total_video_engagements",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_total_video_engagements", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
-	// SessionTotalFileDownloads: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/total_file_downloads",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_total_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
-	// SessionUniqueFileDownloads: schema.Interface{
-	// 	ID:      "core.d8a.tech/sessions/unique_file_downloads",
-	// 	Version: "1.0.0",
-	// 	Field:   &arrow.Field{Name: "session_unique_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	// },
+	SessionTotalFormInteractions: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_form_interactions",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueFormInteractions: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_form_interactions",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalVideoEngagements: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_video_engagements",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_video_engagements", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalFileDownloads: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_file_downloads",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueFileDownloads: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_file_downloads",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
 	EventPropertyName: schema.Interface{
 		ID:      "core.d8a.tech/events/property_name",
 		Version: "1.0.0",

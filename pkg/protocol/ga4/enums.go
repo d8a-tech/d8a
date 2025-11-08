@@ -14,4 +14,16 @@ const (
 	ViewSearchResultsEventType = "view_search_results"
 	// SearchEventType is the event type for searches
 	SearchEventType = "search"
+	// FormSubmitEventType is the event type for form interactions
+	FormSubmitEventType = "form_submit"
+	// FormStartEventType is the event type for form starts
+	FormStartEventType = "form_start"
+	// VideoStartEventType is the event type for video starts
+	VideoStartEventType = "video_start"
+	// VideoCompleteEventType is the event type for video completes
+	VideoCompleteEventType = "video_complete"
+	// VideoProgressEventType is the event type for video progress
+	VideoProgressEventType = "video_progress"
+	// FileDownloadEventType is the event type for file downloads
+	FileDownloadEventType = "file_download"
 )
