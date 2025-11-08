@@ -400,6 +400,18 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			sessionUtmCampaignColumn,
 			sessionUtmIDColumn,
 			sessionUtmCreativeFormatColumn,
+			sessionTotalPageViewsColumn,
+			sessionUniquePageViewsColumn,
+			sessionTotalScrollsColumn,
+			sessionTotalOutboundClicksColumn,
+			sessionUniqueOutboundClicksColumn,
+			sessionTotalSiteSearchesColumn,
+			sessionUniqueSiteSearchesColumn,
+			sessionTotalFormInteractionsColumn,
+			sessionUniqueFormInteractionsColumn,
+			sessionTotalVideoEngagementsColumn,
+			sessionTotalFileDownloadsColumn,
+			sessionUniqueFileDownloadsColumn,
 		},
 	}
 }

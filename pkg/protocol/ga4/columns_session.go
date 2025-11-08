@@ -1,6 +1,7 @@
 package ga4
 
 import (
+	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -344,5 +345,116 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 	columns.WithSessionColumnDocs(
 		"Session UTM Creative Format",
 		"The UTM creative format from the first page view event in the session.", // nolint:lll // it's a description
+	),
+)
+
+var sessionTotalPageViewsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalPageViews.ID,
+	columns.CoreInterfaces.SessionTotalPageViews.Field,
+	[]string{PageViewEventType},
+)
+
+var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniquePageViews.ID,
+	columns.CoreInterfaces.SessionUniquePageViews.Field,
+	[]string{PageViewEventType},
+	[]*arrow.Field{
+		columns.CoreInterfaces.EventPageLocation.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
+
+var sessionTotalScrollsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalScrolls.ID,
+	columns.CoreInterfaces.SessionTotalScrolls.Field,
+	[]string{ScrollEventType},
+)
+
+var sessionTotalOutboundClicksColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalOutboundClicks.ID,
+	columns.CoreInterfaces.SessionTotalOutboundClicks.Field,
+	[]string{ClickEventType},
+)
+
+var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueOutboundClicks.ID,
+	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
+	[]string{ClickEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamLinkURL.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
+
+var sessionTotalSiteSearchesColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalSiteSearches.ID,
+	columns.CoreInterfaces.SessionTotalSiteSearches.Field,
+	[]string{ViewSearchResultsEventType, SearchEventType},
+)
+
+var sessionUniqueSiteSearchesColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueSiteSearches.ID,
+	columns.CoreInterfaces.SessionUniqueSiteSearches.Field,
+	[]string{ViewSearchResultsEventType, SearchEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamSearchTerm.Field,
+	},
+)
+
+var sessionTotalFormInteractionsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalFormInteractions.ID,
+	columns.CoreInterfaces.SessionTotalFormInteractions.Field,
+	[]string{FormSubmitEventType, FormStartEventType},
+)
+
+var sessionUniqueFormInteractionsColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueFormInteractions.ID,
+	columns.CoreInterfaces.SessionUniqueFormInteractions.Field,
+	[]string{FormSubmitEventType, FormStartEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamFormID.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamFormID.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+)
+
+var sessionTotalVideoEngagementsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalVideoEngagements.ID,
+	columns.CoreInterfaces.SessionTotalVideoEngagements.Field,
+	[]string{VideoStartEventType, VideoCompleteEventType, VideoProgressEventType},
+)
+
+var sessionTotalFileDownloadsColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalFileDownloads.ID,
+	columns.CoreInterfaces.SessionTotalFileDownloads.Field,
+	[]string{FileDownloadEventType},
+)
+
+var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionUniqueFileDownloads.ID,
+	columns.CoreInterfaces.SessionUniqueFileDownloads.Field,
+	[]string{FileDownloadEventType},
+	[]*arrow.Field{
+		ProtocolInterfaces.EventParamLinkURL.Field,
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
 	),
 )

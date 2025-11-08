@@ -95,6 +95,20 @@ var CoreInterfaces = struct {
 	SessionUtmCreativeFormat  schema.Interface
 	SessionUtmMarketingTactic schema.Interface
 
+	// Totals
+	SessionTotalPageViews         schema.Interface
+	SessionUniquePageViews        schema.Interface
+	SessionTotalScrolls           schema.Interface
+	SessionTotalOutboundClicks    schema.Interface
+	SessionUniqueOutboundClicks   schema.Interface
+	SessionTotalSiteSearches      schema.Interface
+	SessionUniqueSiteSearches     schema.Interface
+	SessionTotalFormInteractions  schema.Interface
+	SessionUniqueFormInteractions schema.Interface
+	SessionTotalVideoEngagements  schema.Interface
+	SessionTotalFileDownloads     schema.Interface
+	SessionUniqueFileDownloads    schema.Interface
+
 	EventPropertyName schema.Interface
 }{
 	EventID: schema.Interface{
@@ -441,6 +455,66 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/utm_marketing_tactic",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_utm_marketing_tactic", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionTotalPageViews: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_page_views",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniquePageViews: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_page_views",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalScrolls: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_scrolls",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_scrolls", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalOutboundClicks: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_outbound_clicks",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_outbound_clicks", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueOutboundClicks: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_outbound_clicks",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_outbound_clicks", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalSiteSearches: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_site_searches",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueSiteSearches: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_site_searches",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_site_searches", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalFormInteractions: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_form_interactions",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueFormInteractions: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_form_interactions",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_form_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalVideoEngagements: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_video_engagements",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_video_engagements", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalFileDownloads: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_file_downloads",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionUniqueFileDownloads: schema.Interface{
+		ID:      "core.d8a.tech/sessions/unique_file_downloads",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_unique_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventPropertyName: schema.Interface{
 		ID:      "core.d8a.tech/events/property_name",
