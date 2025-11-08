@@ -179,6 +179,8 @@ func (m *closeTriggerMiddleware) tick() error { // nolint:funlen // the function
 			// If the destination bucket is in the future, we assume, that a future tick
 			// will process the proto-session and we skip it for now.
 			if destinationBucketInt > nextBucketInt {
+				// Setting the destination bucket in the cache to avoid future lookups in KV
+				m.cache.Set(hits.ClientID(authoritativeClientID), destinationBucketInt)
 				logrus.Debugf("Destination bucket %d is greater than next bucket %d, skipping", destinationBucketInt, nextBucketInt)
 				continue
 			}
