@@ -10,11 +10,13 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/storage"
+	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
 )
 
 type closeTriggerMiddleware struct {
 	lock               sync.Mutex
+	cache              destinationBucketCache
 	kv                 storage.KV
 	set                storage.Set
 	sessionDuration    time.Duration
@@ -24,6 +26,41 @@ type closeTriggerMiddleware struct {
 	lastCtx            *Context
 	closer             Closer
 	stop               bool
+}
+
+type destinationBucketCache interface {
+	Get(authoritativeClientID hits.ClientID) (int64, bool)
+	Set(authoritativeClientID hits.ClientID, destinationBucket int64)
+}
+
+type ristrettoDestinationBucketCache struct {
+	cache    *ristretto.Cache[string, int64]
+	cacheTTL time.Duration
+}
+
+func (c *ristrettoDestinationBucketCache) Get(authoritativeClientID hits.ClientID) (int64, bool) {
+	return c.cache.Get(string(authoritativeClientID))
+}
+
+func (c *ristrettoDestinationBucketCache) Set(authoritativeClientID hits.ClientID, destinationBucket int64) {
+	c.cache.SetWithTTL(
+		string(authoritativeClientID),
+		destinationBucket,
+		1,
+		c.cacheTTL,
+	)
+}
+
+func newRistrettoDestinationBucketCache(cacheTTL time.Duration) (destinationBucketCache, error) {
+	cache, err := ristretto.NewCache(&ristretto.Config[string, int64]{
+		NumCounters: 10000,
+		MaxCost:     10000,
+		BufferItems: 64,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ristrettoDestinationBucketCache{cache, cacheTTL}, nil
 }
 
 func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() error) error {
@@ -43,6 +80,8 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 	if err != nil {
 		return err
 	}
+
+	m.cache.Set(hit.AuthoritativeClientID, expirationTimeBucket)
 
 	// We add the AuthoritativeClientID to the set of AuthoritativeClientIDs that are suspected to be closed
 	// in the given bucket.
@@ -78,7 +117,7 @@ func (m *closeTriggerMiddleware) doStop() {
 
 // tick performs a single tick of the closeTriggerMiddleware.
 // The algorithm is loosely based on "timing wheels"
-func (m *closeTriggerMiddleware) tick() error {
+func (m *closeTriggerMiddleware) tick() error { // nolint:funlen // the function contains a lot of comments
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	// Setting the sleep duration to default value, can be overridden under certain conditions later
@@ -112,29 +151,36 @@ func (m *closeTriggerMiddleware) tick() error {
 			// (Handle method blindly adds the AuthoritativeClientID to its current buckets and does not clean
 			// up the older ones). For that, we are checking the destination bucket, marked separately
 			// by Handle.
-			destinationBucket, err := m.kv.Get([]byte(ExpirationKey(string(authoritativeClientID))))
-			if err != nil {
-				return false, fmt.Errorf("failed to get expiration key: %w", err)
+			var destinationBucketInt int64
+			destinationBucketInt, ok := m.cache.Get(hits.ClientID(authoritativeClientID))
+			if !ok {
+				destinationBucket, err := m.kv.Get([]byte(ExpirationKey(string(authoritativeClientID))))
+				if err != nil {
+					return false, fmt.Errorf("failed to get expiration key: %w", err)
+				}
+				if len(destinationBucket) == 0 {
+					logrus.Warnf(
+						"Destination bucket for %s is empty, skipping. Maybe it was evicted?",
+						ExpirationKey(string(authoritativeClientID)),
+					)
+					continue
+				}
+				destinationBucketInt, err = strconv.ParseInt(string(destinationBucket), 10, 64)
+				if err != nil {
+					return false, fmt.Errorf(
+						"failed to parse destination bucket for %s: %w, (%s)",
+						ExpirationKey(string(authoritativeClientID)),
+						err,
+						string(destinationBucket),
+					)
+				}
 			}
-			if len(destinationBucket) == 0 {
-				logrus.Warnf(
-					"Destination bucket for %s is empty, skipping. Maybe it was evicted?",
-					ExpirationKey(string(authoritativeClientID)),
-				)
-				continue
-			}
-			destinationBucketInt, err := strconv.ParseInt(string(destinationBucket), 10, 64)
-			if err != nil {
-				return false, fmt.Errorf(
-					"failed to parse destination bucket for %s: %w, (%s)",
-					ExpirationKey(string(authoritativeClientID)),
-					err,
-					string(destinationBucket),
-				)
-			}
+
 			// If the destination bucket is in the future, we assume, that a future tick
 			// will process the proto-session and we skip it for now.
 			if destinationBucketInt > nextBucketInt {
+				// Setting the destination bucket in the cache to avoid future lookups in KV
+				m.cache.Set(hits.ClientID(authoritativeClientID), destinationBucketInt)
 				logrus.Debugf("Destination bucket %d is greater than next bucket %d, skipping", destinationBucketInt, nextBucketInt)
 				continue
 			}
@@ -251,6 +297,10 @@ func NewCloseTriggerMiddleware(
 	tickInterval time.Duration, // tickInterval controls how often the middleware will check for closed protosessions
 	closer Closer,
 ) Middleware {
+	destinationBucketCache, err := newRistrettoDestinationBucketCache(sessionDuration)
+	if err != nil {
+		logrus.Panicf("failed to create destination bucket cache: %s", err)
+	}
 	m := &closeTriggerMiddleware{
 		lock:            sync.Mutex{},
 		kv:              kv,
@@ -258,6 +308,7 @@ func NewCloseTriggerMiddleware(
 		sessionDuration: sessionDuration,
 		tickInterval:    tickInterval,
 		closer:          closer,
+		cache:           destinationBucketCache,
 	}
 	go func() {
 		err := m.loop()
