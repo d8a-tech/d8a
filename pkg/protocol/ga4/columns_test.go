@@ -3121,6 +3121,8 @@ func TestSessionColumns(t *testing.T) {
 				columntests.EnsureQueryParam(0, "ep.search_term", "search_term1"),
 				columntests.EnsureQueryParam(1, "en", "search"),
 				columntests.EnsureQueryParam(1, "ep.search_term", "search_term1"),
+				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureQueryParam(1, "ep.search_term", "search_term1"),
 			},
 		},
 		{

@@ -783,7 +783,8 @@ func TotalEventsOfGivenNameColumn(
 }
 
 // UniqueEventsOfGivenNameColumn creates a session column that counts the unique number
-// of events with the given event names, taking into account the dependent column values.
+// of events. Deduplication strategy: Events are considered unique for unique combinations of event name
+// and dependent column values.
 func UniqueEventsOfGivenNameColumn(
 	columnID schema.InterfaceID,
 	field *arrow.Field,
@@ -814,7 +815,7 @@ func UniqueEventsOfGivenNameColumn(
 						if !ok {
 							continue
 						}
-						depHash += fmt.Sprintf("%v%v", valueAsString, depValue)
+						depHash += fmt.Sprintf("%v||%v", valueAsString, depValue)
 					}
 					uniqueEvents[depHash] = true
 				}
