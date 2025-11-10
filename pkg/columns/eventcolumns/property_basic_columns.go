@@ -20,7 +20,7 @@ var PropertyIDColumn = columns.NewSimpleEventColumn(
 )
 
 // PropertyNameColumn is the column for the name of the property of an event
-func PropertyNameColumn(propertySource properties.PropertySource) schema.EventColumn {
+func PropertyNameColumn(propertySource properties.SettingsRegistry) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		columns.CoreInterfaces.EventPropertyName.ID,
 		columns.CoreInterfaces.EventPropertyName.Field,

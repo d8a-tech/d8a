@@ -8,6 +8,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/dgraph-io/ristretto/v2"
 	"golang.org/x/sync/errgroup"
@@ -31,6 +32,8 @@ type sessionWriterImpl struct {
 	columnsRegistry schema.ColumnsRegistry
 	columnsCache    *ristretto.Cache[string, schema.Columns]
 	columnsLock     sync.Mutex
+
+	splitterRegistry splitter.Registry
 
 	parentCtx context.Context
 }
@@ -88,14 +91,16 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 	if err != nil {
 		return err
 	}
-
+	allSplitSessions := []*schema.Session{}
 	for _, session := range sessions {
-		if err := m.writeColumns(writeDeps.columns, session); err != nil {
+		splitSessions, err := m.writeColumns(writeDeps.columns, session)
+		if err != nil {
 			return err
 		}
+		allSplitSessions = append(allSplitSessions, splitSessions...)
 	}
 
-	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout, 1000).ToRows(writeDeps.columns, sessions...)
+	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout, 1000).ToRows(writeDeps.columns, allSplitSessions...)
 	if err != nil {
 		return err
 	}
@@ -159,27 +164,38 @@ func (m *sessionWriterImpl) prepareDeps(sessions []*schema.Session) (*writeDeps,
 	}, nil
 }
 
-func (m *sessionWriterImpl) writeColumns(columns schema.Columns, session *schema.Session) error {
+func (m *sessionWriterImpl) writeColumns(columns schema.Columns, session *schema.Session) ([]*schema.Session, error) {
 	for _, column := range columns.Event {
 		for _, event := range session.Events {
 			if err := column.Write(event); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
-	for _, column := range columns.SessionScopedEvent {
-		for i := range session.Events {
-			if err := column.Write(session, i); err != nil {
-				return err
+	splitter, err := m.splitterRegistry.Splitter(session.PropertyID)
+	if err != nil {
+		return nil, err
+	}
+	splitSessions, err := splitter.Split(session)
+	if err != nil {
+		return nil, err
+	}
+	for _, splitSession := range splitSessions {
+		for _, column := range columns.SessionScopedEvent {
+			for i := range splitSession.Events {
+				if err := column.Write(splitSession, i); err != nil {
+					return nil, err
+				}
+			}
+		}
+		for _, column := range columns.Session {
+			if err := column.Write(splitSession); err != nil {
+				return nil, err
 			}
 		}
 	}
-	for _, column := range columns.Session {
-		if err := column.Write(session); err != nil {
-			return err
-		}
-	}
-	return nil
+
+	return splitSessions, nil
 }
 
 // NewSessionWriter creates a new SessionWriter with the provided warehouse, column sources, and layout sources.
@@ -189,6 +205,7 @@ func NewSessionWriter(
 	whr warehouse.Registry,
 	columnsRegistry schema.ColumnsRegistry,
 	layouts schema.LayoutRegistry,
+	splitterRegistry splitter.Registry,
 ) SessionWriter {
 	return &sessionWriterImpl{
 		writeTimeout:      30 * time.Second,
@@ -201,6 +218,7 @@ func NewSessionWriter(
 		layoutsCache:      createDefaultCache[schema.Layout](),
 		cacheTTL:          5 * time.Minute,
 		parentCtx:         parentCtx,
+		splitterRegistry:  splitterRegistry,
 	}
 }
 

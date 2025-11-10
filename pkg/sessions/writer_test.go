@@ -7,6 +7,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 )
@@ -38,6 +39,9 @@ func TestWriter(t *testing.T) {
 				"events",
 				"session_",
 			),
+		),
+		splitterRegistry: splitter.NewStaticSplitterRegistry(
+			splitter.NewNoop(),
 		),
 		layoutsCache: createDefaultCache[schema.Layout](),
 		cacheTTL:     5 * time.Minute,

@@ -132,6 +132,37 @@ var propertyNameFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "Unknown Property",
 }
 
+var propertySettingsSplitByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "property-settings-split-by-user-id",
+	Usage:   "If set, the sessions will be split when the user ID value changes",
+	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_USER_ID", "property.settings.split_by_user_id"),
+	Value:   true,
+}
+
+var propertySettingsSplitByCampaignFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "property-settings-split-by-campaign",
+	Usage:   "If set, the sessions will be split when the UTM campaign value changes",
+	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_CAMPAIGN", "property.settings.split_by_campaign"),
+	Value:   true,
+}
+
+var propertySettingsSplitByTimeSinceFirstEventFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:  "property-settings-split-by-time-since-first-event",
+	Usage: "The sessions will be split when the time since first event is greater than the duration",
+	Sources: defaultSourceChain(
+		"PROPERTY_SETTINGS_SPLIT_BY_TIME_SINCE_FIRST_EVENT",
+		"property.settings.split_by_time_since_first_event",
+	),
+	Value: 12 * time.Hour,
+}
+
+var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "property-settings-split-by-max-events",
+	Usage:   "The sessions will be split when the number of events is greater than the value",
+	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"),
+	Value:   1000,
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseFlag,
 	clickhouseHostFlag,

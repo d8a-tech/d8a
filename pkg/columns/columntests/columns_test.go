@@ -8,6 +8,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -419,5 +420,34 @@ func TestSessionReferrer(t *testing.T) {
 			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[2]["session_referrer"])
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+	)
+}
+
+func TestSessionSplitCause(t *testing.T) {
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), TestHitThree(), TestHitFour()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+
+			// First and second events are in first session, no split cause
+			assert.Equal(t, TestHitOne().ID, whd.WriteCalls[0].Records[0]["session_id"])
+			assert.Equal(t, nil, whd.WriteCalls[0].Records[0]["session_split_cause"])
+			assert.Equal(t, TestHitOne().ID, whd.WriteCalls[0].Records[1]["session_id"])
+			assert.Equal(t, nil, whd.WriteCalls[0].Records[1]["session_split_cause"])
+
+			// Third and fourth event is in second session, max_x_events split cause
+			assert.Equal(t, TestHitThree().ID, whd.WriteCalls[0].Records[2]["session_id"])
+			assert.Equal(t, "max_x_events", whd.WriteCalls[0].Records[2]["session_split_cause"])
+			assert.Equal(t, TestHitThree().ID, whd.WriteCalls[0].Records[3]["session_id"])
+			assert.Equal(t, "max_x_events", whd.WriteCalls[0].Records[3]["session_split_cause"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		SetSplitterRegistry(splitter.NewStaticSplitterRegistry(
+			splitter.New(
+				splitter.NewMaxXEventsSplitCondition(2),
+			),
+		)),
 	)
 }

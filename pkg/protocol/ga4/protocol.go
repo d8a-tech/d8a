@@ -14,8 +14,8 @@ import (
 )
 
 type ga4Protocol struct {
-	converter      currency.Converter
-	propertySource properties.PropertySource
+	converter currency.Converter
+	psr       properties.SettingsRegistry
 }
 
 func (p *ga4Protocol) ID() string {
@@ -197,7 +197,7 @@ func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
-	property, err := p.propertySource.GetByMeasurementID(request.QueryParams.Get("tid"))
+	property, err := p.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
 	if err != nil {
 		return "", err
 	}
@@ -417,9 +417,12 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 }
 
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
-func NewGA4Protocol(converter currency.Converter, propertySource properties.PropertySource) protocol.Protocol {
+func NewGA4Protocol(
+	converter currency.Converter,
+	psr properties.SettingsRegistry,
+) protocol.Protocol {
 	return &ga4Protocol{
-		converter:      converter,
-		propertySource: propertySource,
+		converter: converter,
+		psr:       psr,
 	}
 }

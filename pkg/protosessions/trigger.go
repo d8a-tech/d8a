@@ -14,11 +14,18 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// The limits below are not confiugurable to protect against abuse of the system.
+// The limits are anyway far beyound any reasonable use case.
+var maxEventInSessionHardCap uint32 = 10000
+var maxTimeInSessionHardCap = 24 * time.Hour
+
 type closeTriggerMiddleware struct {
 	lock               sync.Mutex
 	cache              destinationBucketCache
 	kv                 storage.KV
 	set                storage.Set
+	protoSessionSizes  map[hits.ClientID]uint32
+	firstHitTime       map[hits.ClientID]time.Time
 	sessionDuration    time.Duration
 	loopSleepDuration  time.Duration
 	lastHandledHitTime time.Time
@@ -89,10 +96,26 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 	if err != nil {
 		return err
 	}
+
+	m.protoSessionSizes[hit.AuthoritativeClientID]++
+	_, ok := m.firstHitTime[hit.AuthoritativeClientID]
+	if !ok {
+		m.firstHitTime[hit.AuthoritativeClientID] = hit.ServerReceivedTime
+	}
+	if m.protoSessionSizes[hit.AuthoritativeClientID] >= maxEventInSessionHardCap ||
+		hit.ServerReceivedTime.Sub(m.firstHitTime[hit.AuthoritativeClientID]) >= maxTimeInSessionHardCap {
+		logrus.Warnf("Reached hard cap for proto-session %s, closing it", hit.AuthoritativeClientID)
+		m.lock.Lock()
+		defer m.lock.Unlock()
+		return m.doCloseProtosession(hit.AuthoritativeClientID)
+	}
+
 	return next()
 }
 
 func (m *closeTriggerMiddleware) OnCleanup(_ *Context, authoritativeClientID hits.ClientID) error {
+	delete(m.protoSessionSizes, authoritativeClientID)
+	delete(m.firstHitTime, authoritativeClientID)
 	return m.kv.Delete([]byte(ExpirationKey(string(authoritativeClientID))))
 }
 
@@ -147,69 +170,88 @@ func (m *closeTriggerMiddleware) tick() error { // nolint:funlen // the function
 		// sleep duration.
 		m.loopSleepDuration = 0
 		for _, authoritativeClientID := range allAuthoritativeClientIDs {
-			// AuthoritativeClientID of given proto-session may be also in some future tick buckets
-			// (Handle method blindly adds the AuthoritativeClientID to its current buckets and does not clean
-			// up the older ones). For that, we are checking the destination bucket, marked separately
-			// by Handle.
-			var destinationBucketInt int64
-			destinationBucketInt, ok := m.cache.Get(hits.ClientID(authoritativeClientID))
-			if !ok {
-				destinationBucket, err := m.kv.Get([]byte(ExpirationKey(string(authoritativeClientID))))
-				if err != nil {
-					return false, fmt.Errorf("failed to get expiration key: %w", err)
-				}
-				if len(destinationBucket) == 0 {
-					logrus.Warnf(
-						"Destination bucket for %s is empty, skipping. Maybe it was evicted?",
-						ExpirationKey(string(authoritativeClientID)),
-					)
-					continue
-				}
-				destinationBucketInt, err = strconv.ParseInt(string(destinationBucket), 10, 64)
-				if err != nil {
-					return false, fmt.Errorf(
-						"failed to parse destination bucket for %s: %w, (%s)",
-						ExpirationKey(string(authoritativeClientID)),
-						err,
-						string(destinationBucket),
-					)
-				}
+			shouldClose, err := m.shouldBeClosed(hits.ClientID(authoritativeClientID), nextBucketInt)
+			if err != nil {
+				return false, err
 			}
-
-			// If the destination bucket is in the future, we assume, that a future tick
-			// will process the proto-session and we skip it for now.
-			if destinationBucketInt > nextBucketInt {
-				// Setting the destination bucket in the cache to avoid future lookups in KV
-				m.cache.Set(hits.ClientID(authoritativeClientID), destinationBucketInt)
-				logrus.Debugf("Destination bucket %d is greater than next bucket %d, skipping", destinationBucketInt, nextBucketInt)
+			if !shouldClose {
 				continue
 			}
-			// At this point we are closing the proto-session
-			allHits, err := m.lastCtx.CollectAll(hits.ClientID(authoritativeClientID))
+			err = m.doCloseProtosession(hits.ClientID(authoritativeClientID))
 			if err != nil {
-				return false, fmt.Errorf("failed to collect hits: %w", err)
-			}
-			// Do not call Closer if there's nothing to close (possible only in some half-processed state)
-			if len(allHits) > 0 {
-				sortedHits, err := m.sorted(allHits)
-				if err != nil {
-					return false, fmt.Errorf("failed to sort hits: %w", err)
-				}
-				startTime := time.Now()
-				err = m.closer.Close(sortedHits)
-				logrus.Tracef("Closing session took: %s", time.Since(startTime))
-				if err != nil {
-					return false, fmt.Errorf("failed to close session: %w", err)
-				}
-			}
-			// Cleanup the data for given AuthoritativeClientID (ctx calls all middlewares to cleanup any leftover data)
-			err = m.lastCtx.TriggerCleanup(hits.ClientID(authoritativeClientID))
-			if err != nil {
-				return false, fmt.Errorf("failed to trigger cleanup: %w", err)
+				return false, err
 			}
 		}
 		return false, nil
 	})
+}
+
+func (m *closeTriggerMiddleware) shouldBeClosed(
+	authoritativeClientID hits.ClientID,
+	nextBucketInt int64,
+) (bool, error) {
+	// AuthoritativeClientID of given proto-session may be also in some future tick buckets
+	// (Handle method blindly adds the AuthoritativeClientID to its current buckets and does not clean
+	// up the older ones). For that, we are checking the destination bucket, marked separately
+	// by Handle.
+	var destinationBucketInt int64
+	destinationBucketInt, ok := m.cache.Get(hits.ClientID(authoritativeClientID))
+	if !ok {
+		destinationBucket, err := m.kv.Get([]byte(ExpirationKey(string(authoritativeClientID))))
+		if err != nil {
+			return false, fmt.Errorf("failed to get expiration key: %w", err)
+		}
+		if len(destinationBucket) == 0 {
+			logrus.Warnf(
+				"Destination bucket for %s is empty, skipping. Maybe it was evicted?",
+				ExpirationKey(string(authoritativeClientID)),
+			)
+			return false, nil
+		}
+		destinationBucketInt, err = strconv.ParseInt(string(destinationBucket), 10, 64)
+		if err != nil {
+			return false, fmt.Errorf(
+				"failed to parse destination bucket for %s: %w, (%s)",
+				ExpirationKey(string(authoritativeClientID)),
+				err,
+				string(destinationBucket),
+			)
+		}
+	}
+	// If the destination bucket is in the future, we assume, that a future tick
+	// will process the proto-session and we skip it for now.
+	if destinationBucketInt > nextBucketInt {
+		logrus.Debugf("Destination bucket %d is greater than next bucket %d, skipping", destinationBucketInt, nextBucketInt)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (m *closeTriggerMiddleware) doCloseProtosession(authoritativeClientID hits.ClientID) error {
+	// At this point we are closing the proto-session
+	allHits, err := m.lastCtx.CollectAll(authoritativeClientID)
+	if err != nil {
+		return fmt.Errorf("failed to collect hits: %w", err)
+	}
+	// Do not call Closer if there's nothing to close (possible only in some half-processed state)
+	if len(allHits) > 0 {
+		sortedHits, err := m.sorted(allHits)
+		if err != nil {
+			return fmt.Errorf("failed to sort hits: %w", err)
+		}
+		startTime := time.Now()
+		err = m.closer.Close(sortedHits)
+		logrus.Tracef("Closing session took: %s", time.Since(startTime))
+		if err != nil {
+			return fmt.Errorf("failed to close session: %w", err)
+		}
+	}
+	// Cleanup the data for given AuthoritativeClientID (ctx calls all middlewares to cleanup any leftover data)
+	err = m.lastCtx.TriggerCleanup(authoritativeClientID)
+	if err != nil {
+		return fmt.Errorf("failed to trigger cleanup: %w", err)
+	}
+	return nil
 }
 
 func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip bool, err error)) error {
@@ -302,13 +344,16 @@ func NewCloseTriggerMiddleware(
 		logrus.Panicf("failed to create destination bucket cache: %s", err)
 	}
 	m := &closeTriggerMiddleware{
-		lock:            sync.Mutex{},
-		kv:              kv,
-		set:             set,
-		sessionDuration: sessionDuration,
-		tickInterval:    tickInterval,
-		closer:          closer,
-		cache:           destinationBucketCache,
+		lock:              sync.Mutex{},
+		kv:                kv,
+		set:               set,
+		sessionDuration:   sessionDuration,
+		tickInterval:      tickInterval,
+		closer:            closer,
+		protoSessionSizes: make(map[hits.ClientID]uint32),
+		firstHitTime:      make(map[hits.ClientID]time.Time),
+
+		cache: destinationBucketCache,
 	}
 	go func() {
 		err := m.loop()
@@ -352,3 +397,13 @@ func BucketNumber(time time.Time, tickInterval time.Duration) int64 {
 	}
 	return time.Unix() / int64(tickInterval.Seconds())
 }
+
+/*
+
+A session should be closed when:
+
+    inactivity limit is reached (30 mins by default, configurable)
+    certain number of events is recorded (let's say 1000, configurable)
+    certain time passes (let's say 12h, configurable)
+
+*/

@@ -12,6 +12,7 @@ var CoreInterfaces = struct {
 	EventID           schema.Interface
 	EventName         schema.Interface
 	EventPropertyID   schema.Interface
+	EventPropertyName schema.Interface
 	EventDateUTC      schema.Interface
 	EventTimestampUTC schema.Interface
 	EventClientID     schema.Interface
@@ -109,7 +110,7 @@ var CoreInterfaces = struct {
 	SessionTotalFileDownloads     schema.Interface
 	SessionUniqueFileDownloads    schema.Interface
 
-	EventPropertyName schema.Interface
+	SessionSplitCause schema.Interface
 }{
 	EventID: schema.Interface{
 		ID:      "core.d8a.tech/events/id",
@@ -125,6 +126,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/property_id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "property_id", Type: arrow.BinaryTypes.String},
+	},
+	EventPropertyName: schema.Interface{
+		ID:      "core.d8a.tech/events/property_name",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "property_name", Type: arrow.BinaryTypes.String},
 	},
 	EventDateUTC: schema.Interface{
 		ID:      "core.d8a.tech/events/date_utc",
@@ -516,10 +522,10 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_unique_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventPropertyName: schema.Interface{
-		ID:      "core.d8a.tech/events/property_name",
+	SessionSplitCause: schema.Interface{
+		ID:      "core.d8a.tech/sessions/split_cause",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "property_name", Type: arrow.BinaryTypes.String},
+		Field:   &arrow.Field{Name: "session_split_cause", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
 

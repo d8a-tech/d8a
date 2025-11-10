@@ -20,6 +20,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
@@ -181,6 +182,9 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 												"events",
 												"sessions_",
 											),
+										),
+										splitter.NewStaticSplitterRegistry(
+											splitter.NewNoop(),
 										),
 									),
 									0,

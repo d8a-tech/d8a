@@ -26,7 +26,7 @@ func stubGeoIPColumns() []schema.EventColumn {
 func DefaultColumnRegistry(
 	theProtocol protocol.Protocol,
 	geoColumns []schema.EventColumn,
-	propertySource properties.PropertySource,
+	propertySource properties.SettingsRegistry,
 ) schema.ColumnsRegistry {
 	if len(geoColumns) == 0 {
 		logrus.Info("No geo columns provided, using stub implementations")
@@ -48,7 +48,7 @@ func DefaultColumnRegistry(
 	})
 }
 
-func eventColumns(propertySource properties.PropertySource) []schema.EventColumn {
+func eventColumns(propertySource properties.SettingsRegistry) []schema.EventColumn {
 	return []schema.EventColumn{
 		eventcolumns.EventIDColumn,
 		eventcolumns.IPAddressColumn,
@@ -83,6 +83,7 @@ func sessionColumns() []schema.SessionColumn {
 		sessioncolumns.DurationColumn,
 		sessioncolumns.TotalEventsColumn,
 		sessioncolumns.ReferrerColumn,
+		sessioncolumns.SplitCauseColumn,
 	}
 }
 
