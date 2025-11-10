@@ -444,9 +444,9 @@ func TestSessionSplitCause(t *testing.T) {
 			assert.Equal(t, "max_x_events", whd.WriteCalls[0].Records[3]["session_split_cause"])
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
-		SetSplitterRegistry(splitter.NewStaticSplitterRegistry(
+		SetSplitterRegistry(splitter.NewStaticRegistry(
 			splitter.New(
-				splitter.NewMaxXEventsSplitCondition(2),
+				splitter.NewMaxXEventsCondition(2),
 			),
 		)),
 	)

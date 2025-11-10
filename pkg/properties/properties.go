@@ -3,8 +3,8 @@ package properties
 
 import "time"
 
-// PropertySettings holds the tracking configuration for a property.
-type PropertySettings struct {
+// Settings holds the tracking configuration for a property.
+type Settings struct {
 	PropertyID   string
 	PropertyName string
 	// In some cases (like matomo) the measurement ID is the same as the property ID.

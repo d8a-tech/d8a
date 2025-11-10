@@ -26,7 +26,7 @@ func stubGeoIPColumns() []schema.EventColumn {
 func DefaultColumnRegistry(
 	theProtocol protocol.Protocol,
 	geoColumns []schema.EventColumn,
-	propertySource properties.SettingsRegistry,
+	psr properties.SettingsRegistry,
 ) schema.ColumnsRegistry {
 	if len(geoColumns) == 0 {
 		logrus.Info("No geo columns provided, using stub implementations")
@@ -35,7 +35,7 @@ func DefaultColumnRegistry(
 	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
-			schema.NewColumns(sessionColumns(), eventColumns(propertySource), sessionScopedEventColumns()),
+			schema.NewColumns(sessionColumns(), eventColumns(psr), sessionScopedEventColumns()),
 		),
 		protocolschema.NewFromProtocolColumnsRegistry(protocol.NewStaticRegistry(
 			map[string]protocol.Protocol{},
@@ -48,14 +48,14 @@ func DefaultColumnRegistry(
 	})
 }
 
-func eventColumns(propertySource properties.SettingsRegistry) []schema.EventColumn {
+func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
 	return []schema.EventColumn{
 		eventcolumns.EventIDColumn,
 		eventcolumns.IPAddressColumn,
 		eventcolumns.ClientIDColumn,
 		eventcolumns.UserIDColumn,
 		eventcolumns.PropertyIDColumn,
-		eventcolumns.PropertyNameColumn(propertySource),
+		eventcolumns.PropertyNameColumn(psr),
 		eventcolumns.UtmMarketingTacticColumn,
 		eventcolumns.UtmSourcePlatformColumn,
 		eventcolumns.UtmTermColumn,

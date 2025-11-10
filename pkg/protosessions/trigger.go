@@ -195,7 +195,7 @@ func (m *closeTriggerMiddleware) shouldBeClosed(
 	// up the older ones). For that, we are checking the destination bucket, marked separately
 	// by Handle.
 	var destinationBucketInt int64
-	destinationBucketInt, ok := m.cache.Get(hits.ClientID(authoritativeClientID))
+	destinationBucketInt, ok := m.cache.Get(authoritativeClientID)
 	if !ok {
 		destinationBucket, err := m.kv.Get([]byte(ExpirationKey(string(authoritativeClientID))))
 		if err != nil {

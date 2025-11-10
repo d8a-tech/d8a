@@ -27,9 +27,9 @@ type SessionSplitter interface {
 	Split(*schema.Session) ([]*schema.Session, error)
 }
 
-// SplitContext holds state accumulated while processing events.
+// Context holds state accumulated while processing events.
 // Conditions can read and update this context to maintain state efficiently.
-type SplitContext struct {
+type Context struct {
 	// EventCount is the number of events processed so far in the current session.
 	EventCount int
 	// FirstEvent is the timestamp of the first event in the current session.
@@ -40,20 +40,20 @@ type SplitContext struct {
 }
 
 // NewSplitContext creates a new context for session splitting.
-func NewSplitContext() *SplitContext {
-	return &SplitContext{
+func NewSplitContext() *Context {
+	return &Context{
 		EventCount:   0,
 		ColumnValues: make(map[string]interface{}),
 	}
 }
 
-// SplitCondition determines if a session should be split at a given event.
-type SplitCondition interface {
-	ShouldSplit(ctx *SplitContext, current *schema.Event) (SplitCause, bool)
+// Condition determines if a session should be split at a given event.
+type Condition interface {
+	ShouldSplit(ctx *Context, current *schema.Event) (SplitCause, bool)
 }
 
 type splitterImpl struct {
-	conditions []SplitCondition
+	conditions []Condition
 }
 
 func (s *splitterImpl) Split(session *schema.Session) ([]*schema.Session, error) {
@@ -99,7 +99,7 @@ func (s *splitterImpl) Split(session *schema.Session) ([]*schema.Session, error)
 }
 
 // initializeContext sets up the context with the first event of a session.
-func (s *splitterImpl) initializeContext(ctx *SplitContext, event *schema.Event) {
+func (s *splitterImpl) initializeContext(ctx *Context, event *schema.Event) {
 	ctx.FirstEvent = event
 	ctx.EventCount = 1
 	// Process event through conditions to initialize their state
@@ -111,12 +111,12 @@ func (s *splitterImpl) initializeContext(ctx *SplitContext, event *schema.Event)
 // NewNoop creates a new session splitter that does not split the session.
 func NewNoop() SessionSplitter {
 	return &splitterImpl{
-		conditions: []SplitCondition{},
+		conditions: []Condition{},
 	}
 }
 
 // New creates a new session splitter with the given conditions.
-func New(conditions ...SplitCondition) SessionSplitter {
+func New(conditions ...Condition) SessionSplitter {
 	return &splitterImpl{
 		conditions: conditions,
 	}
@@ -127,45 +127,45 @@ type Registry interface {
 	Splitter(propertyID string) (SessionSplitter, error)
 }
 
-type fromPropertySettingsSplitterRegistry struct {
-	propertySettingsRegistry properties.SettingsRegistry
+type fromPropertySettingsRegistry struct {
+	psr properties.SettingsRegistry
 }
 
-func (r *fromPropertySettingsSplitterRegistry) Splitter(propertyID string) (SessionSplitter, error) {
-	propertySettings, err := r.propertySettingsRegistry.GetByPropertyID(propertyID)
+func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionSplitter, error) {
+	propertySettings, err := r.psr.GetByPropertyID(propertyID)
 	if err != nil {
 		return nil, err
 	}
-	conditions := []SplitCondition{
-		NewTimeSinceFirstEventSplitCondition(propertySettings.SplitByTimeSinceFirstEvent),
-		NewMaxXEventsSplitCondition(propertySettings.SplitByMaxEvents),
+	conditions := []Condition{
+		NewTimeSinceFirstEventCondition(propertySettings.SplitByTimeSinceFirstEvent),
+		NewMaxXEventsCondition(propertySettings.SplitByMaxEvents),
 	}
 	if propertySettings.SplitByUserID {
-		conditions = append(conditions, NewUserIDSplitCondition())
+		conditions = append(conditions, NewUserIDCondition())
 	}
 	if propertySettings.SplitByCampaign {
-		conditions = append(conditions, NewUTMCampaignSplitCondition())
+		conditions = append(conditions, NewUTMCampaignCondition())
 	}
 
 	return New(conditions...), nil
 }
 
-// NewFromPropertySettingsSplitterRegistry creates a registry that builds splitters from property settings.
-func NewFromPropertySettingsSplitterRegistry(propertySettingsRegistry properties.SettingsRegistry) Registry {
-	return &fromPropertySettingsSplitterRegistry{
-		propertySettingsRegistry: propertySettingsRegistry,
+// NewFromPropertySettingsRegistry creates a registry that builds splitters from property settings.
+func NewFromPropertySettingsRegistry(psr properties.SettingsRegistry) Registry {
+	return &fromPropertySettingsRegistry{
+		psr: psr,
 	}
 }
 
-type staticSplitterRegistry struct {
+type staticRegistry struct {
 	splitter SessionSplitter
 }
 
-func (r *staticSplitterRegistry) Splitter(_ string) (SessionSplitter, error) {
+func (r *staticRegistry) Splitter(_ string) (SessionSplitter, error) {
 	return r.splitter, nil
 }
 
-// NewStaticSplitterRegistry always returns the same splitter.
-func NewStaticSplitterRegistry(splitter SessionSplitter) Registry {
-	return &staticSplitterRegistry{splitter: splitter}
+// NewStaticRegistry always returns the same splitter.
+func NewStaticRegistry(splitter SessionSplitter) Registry {
+	return &staticRegistry{splitter: splitter}
 }

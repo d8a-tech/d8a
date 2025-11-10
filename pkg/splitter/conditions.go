@@ -8,14 +8,14 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-type nullableStringColumnValueChangedSplitCondition struct {
+type nullableStringColumnValueChangedCondition struct {
 	columnName       string
 	splitCause       SplitCause
 	emptyValueSplits bool
 }
 
-func (c *nullableStringColumnValueChangedSplitCondition) ShouldSplit(
-	ctx *SplitContext,
+func (c *nullableStringColumnValueChangedCondition) ShouldSplit(
+	ctx *Context,
 	current *schema.Event,
 ) (SplitCause, bool) {
 	// Get current value
@@ -53,32 +53,32 @@ func (c *nullableStringColumnValueChangedSplitCondition) ShouldSplit(
 	return SplitCauseNone, false
 }
 
-// NewUTMCampaignSplitCondition creates a new split condition that splits
+// NewUTMCampaignCondition creates a new split condition that splits
 // the session when the UTM campaign value changes.
-func NewUTMCampaignSplitCondition() SplitCondition {
-	return &nullableStringColumnValueChangedSplitCondition{
+func NewUTMCampaignCondition() Condition {
+	return &nullableStringColumnValueChangedCondition{
 		columnName:       columns.CoreInterfaces.EventUtmCampaign.Field.Name,
 		splitCause:       SplitCauseUtmCampaignChange,
 		emptyValueSplits: true,
 	}
 }
 
-// NewUserIDSplitCondition creates a new split condition that splits
+// NewUserIDCondition creates a new split condition that splits
 // the session when the user id value changes.
-func NewUserIDSplitCondition() SplitCondition {
-	return &nullableStringColumnValueChangedSplitCondition{
+func NewUserIDCondition() Condition {
+	return &nullableStringColumnValueChangedCondition{
 		columnName:       columns.CoreInterfaces.EventUserID.Field.Name,
 		splitCause:       SplitCauseUserIDChange,
 		emptyValueSplits: false,
 	}
 }
 
-type maxXEventsSplitCondition struct {
+type maxXEventsCondition struct {
 	maxXEvents int
 }
 
-func (c *maxXEventsSplitCondition) ShouldSplit(
-	ctx *SplitContext,
+func (c *maxXEventsCondition) ShouldSplit(
+	ctx *Context,
 	_ *schema.Event,
 ) (SplitCause, bool) {
 	if ctx.EventCount >= c.maxXEvents {
@@ -87,20 +87,20 @@ func (c *maxXEventsSplitCondition) ShouldSplit(
 	return SplitCauseNone, false
 }
 
-// NewMaxXEventsSplitCondition creates a new split condition that splits
+// NewMaxXEventsCondition creates a new split condition that splits
 // the session when the number of events exceeds the maximum number of events.
-func NewMaxXEventsSplitCondition(maxXEvents int) SplitCondition {
-	return &maxXEventsSplitCondition{
+func NewMaxXEventsCondition(maxXEvents int) Condition {
+	return &maxXEventsCondition{
 		maxXEvents: maxXEvents,
 	}
 }
 
-type timeSinceFirstEventSplitCondition struct {
+type timeSinceFirstEventCondition struct {
 	timeSinceFirstEvent time.Duration
 }
 
-func (c *timeSinceFirstEventSplitCondition) ShouldSplit(
-	ctx *SplitContext,
+func (c *timeSinceFirstEventCondition) ShouldSplit(
+	ctx *Context,
 	current *schema.Event,
 ) (SplitCause, bool) {
 	if ctx.FirstEvent == nil {
@@ -112,10 +112,10 @@ func (c *timeSinceFirstEventSplitCondition) ShouldSplit(
 	return SplitCauseNone, false
 }
 
-// NewTimeSinceFirstEventSplitCondition creates a new split condition that splits
+// NewTimeSinceFirstEventCondition creates a new split condition that splits
 // the session when the time since the first event exceeds the maximum time.
-func NewTimeSinceFirstEventSplitCondition(timeSinceFirstEvent time.Duration) SplitCondition {
-	return &timeSinceFirstEventSplitCondition{
+func NewTimeSinceFirstEventCondition(timeSinceFirstEvent time.Duration) Condition {
+	return &timeSinceFirstEventCondition{
 		timeSinceFirstEvent: timeSinceFirstEvent,
 	}
 }

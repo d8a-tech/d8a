@@ -240,7 +240,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 																getTableNames().sessionsColumnPrefix,
 															),
 														),
-														splitter.NewFromPropertySettingsSplitterRegistry(propertySource(cmd)),
+														splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
 													),
 													5*time.Second,
 												),
@@ -392,10 +392,10 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 }
 
 func propertySource(cmd *cli.Command) properties.SettingsRegistry {
-	return properties.NewStaticPropertySource(
-		[]properties.PropertySettings{},
+	return properties.NewStaticSettingsRegistry(
+		[]properties.Settings{},
 		properties.WithDefaultConfig(
-			properties.PropertySettings{
+			properties.Settings{
 				PropertyID:                 cmd.String(propertyIDFlag.Name),
 				PropertyName:               cmd.String(propertyNameFlag.Name),
 				PropertyMeasurementID:      "-",

@@ -15,7 +15,7 @@ func TestSplitter(t *testing.T) {
 	cases := []struct {
 		name       string
 		session    *schema.Session
-		conditions []SplitCondition
+		conditions []Condition
 		expected   []expectedSessions
 	}{
 		{
@@ -25,8 +25,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign1"),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -41,8 +41,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -57,8 +57,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign1"),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -73,8 +73,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -90,8 +90,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -108,8 +108,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -126,8 +126,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2, 3},
@@ -140,8 +140,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -156,8 +156,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -172,8 +172,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -189,8 +189,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -207,8 +207,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2, 3},
@@ -225,8 +225,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2, 3},
@@ -239,8 +239,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewMaxXEventsSplitCondition(3),
+			conditions: []Condition{
+				NewMaxXEventsCondition(3),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -254,8 +254,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewMaxXEventsSplitCondition(3),
+			conditions: []Condition{
+				NewMaxXEventsCondition(3),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -271,8 +271,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewMaxXEventsSplitCondition(3),
+			conditions: []Condition{
+				NewMaxXEventsCondition(3),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -292,8 +292,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewMaxXEventsSplitCondition(2),
+			conditions: []Condition{
+				NewMaxXEventsCondition(2),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -309,8 +309,8 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()),
 				},
 			},
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -334,8 +334,8 @@ func TestSplitter(t *testing.T) {
 					},
 				}
 			}(),
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -362,8 +362,8 @@ func TestSplitter(t *testing.T) {
 					},
 				}
 			}(),
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -391,8 +391,8 @@ func TestSplitter(t *testing.T) {
 					},
 				}
 			}(),
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -412,9 +412,9 @@ func TestSplitter(t *testing.T) {
 					schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign2"),
 				},
 			},
-			conditions: []SplitCondition{
-				NewUTMCampaignSplitCondition(),
-				NewMaxXEventsSplitCondition(2),
+			conditions: []Condition{
+				NewUTMCampaignCondition(),
+				NewMaxXEventsCondition(2),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -443,9 +443,9 @@ func TestSplitter(t *testing.T) {
 					},
 				}
 			}(),
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1},
@@ -479,11 +479,11 @@ func TestSplitter(t *testing.T) {
 					},
 				}
 			}(),
-			conditions: []SplitCondition{
-				NewTimeSinceFirstEventSplitCondition(5 * time.Minute),
-				NewMaxXEventsSplitCondition(3),
-				NewUTMCampaignSplitCondition(),
-				NewUserIDSplitCondition(),
+			conditions: []Condition{
+				NewTimeSinceFirstEventCondition(5 * time.Minute),
+				NewMaxXEventsCondition(3),
+				NewUTMCampaignCondition(),
+				NewUserIDCondition(),
 			},
 			expected: []expectedSessions{
 				{0, 1, 2},
@@ -519,7 +519,7 @@ func TestSplitter(t *testing.T) {
 
 func TestAssignsSplitCauseToFirstEventOfNewSession(t *testing.T) {
 	// given
-	splitter := New(NewUTMCampaignSplitCondition())
+	splitter := New(NewUTMCampaignCondition())
 	session := &schema.Session{
 		Events: []*schema.Event{
 			schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign1"),

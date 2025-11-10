@@ -183,7 +183,7 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 												"sessions_",
 											),
 										),
-										splitter.NewStaticSplitterRegistry(
+										splitter.NewStaticRegistry(
 											splitter.NewNoop(),
 										),
 									),

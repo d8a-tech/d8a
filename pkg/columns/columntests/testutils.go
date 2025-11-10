@@ -371,7 +371,7 @@ func ColumnTestCase(
 		warehouseRegistry: warehouseRegistry,
 		columnsRegistry:   columnsRegistry,
 		layoutRegistry:    layoutRegistry,
-		splitterRegistry: splitter.NewStaticSplitterRegistry(
+		splitterRegistry: splitter.NewStaticRegistry(
 			splitter.NewNoop(),
 		),
 	}

@@ -228,7 +228,7 @@ func TestProtosessionsWarehouse(t *testing.T) {
 						"session_",
 					),
 				),
-				splitter.NewStaticSplitterRegistry(
+				splitter.NewStaticRegistry(
 					splitter.NewNoop(),
 				),
 			),

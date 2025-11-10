@@ -40,7 +40,7 @@ func TestWriter(t *testing.T) {
 				"session_",
 			),
 		),
-		splitterRegistry: splitter.NewStaticSplitterRegistry(
+		splitterRegistry: splitter.NewStaticRegistry(
 			splitter.NewNoop(),
 		),
 		layoutsCache: createDefaultCache[schema.Layout](),
