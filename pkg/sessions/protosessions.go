@@ -32,21 +32,16 @@ func (c *directCloser) Close(protosession []*hits.Hit) error {
 		return protosession[i].ServerReceivedTime.Before(protosession[j].ServerReceivedTime)
 	})
 
-	session := &schema.Session{
-		Metadata:   make(map[string]any),
-		Events:     make([]*schema.Event, len(protosession)),
-		PropertyID: protosession[0].PropertyID,
-		Values:     make(map[string]any),
-	}
+	events := make([]*schema.Event, len(protosession))
 	for i, hit := range protosession {
-		session.Events[i] = &schema.Event{
+		events[i] = &schema.Event{
 			BoundHit: hit,
 			Metadata: make(map[string]any),
 			Values:   make(map[string]any),
 		}
 	}
 
-	if err := c.writer.Write(session); err != nil {
+	if err := c.writer.Write(schema.NewSession(events)); err != nil {
 		logrus.Errorf("failed to write session: %v, adding Sleep to avoid spamming the warehouse", err)
 		time.Sleep(c.failureSleepDuration)
 		return err

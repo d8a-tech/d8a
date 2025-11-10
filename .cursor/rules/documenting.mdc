@@ -1,0 +1,17 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+---
+description: Documenting
+globs: *.go
+alwaysApply: true
+---
+
+# Documenting
+
+This instruction apply to to tasks, that require documenting the code.
+* Make sure that the documentation is short, concise and to the point.
+* The comment must bring information, that is not obvious from the documented entity name itself.
+* Never hardcode into documentation assumptions about code, that is not present near the documented entity. 

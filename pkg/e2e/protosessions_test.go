@@ -15,6 +15,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -226,6 +227,9 @@ func TestProtosessionsWarehouse(t *testing.T) {
 						"events",
 						"session_",
 					),
+				),
+				splitter.NewStaticRegistry(
+					splitter.NewNoop(),
 				),
 			),
 			0,

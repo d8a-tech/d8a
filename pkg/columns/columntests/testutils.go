@@ -14,6 +14,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 )
 
@@ -322,6 +323,7 @@ type CaseConfig struct {
 	warehouseRegistry warehouse.Registry
 	columnsRegistry   schema.ColumnsRegistry
 	layoutRegistry    schema.LayoutRegistry
+	splitterRegistry  splitter.Registry
 }
 type CaseConfigFunc func(t *testing.T, c *CaseConfig)
 
@@ -334,6 +336,12 @@ func EnsureQueryParam(hitNum int, param string, value string) CaseConfigFunc {
 func SetColumnsRegistry(columnsRegistry schema.ColumnsRegistry) CaseConfigFunc {
 	return func(t *testing.T, c *CaseConfig) {
 		c.columnsRegistry = columnsRegistry
+	}
+}
+
+func SetSplitterRegistry(splitterRegistry splitter.Registry) CaseConfigFunc {
+	return func(t *testing.T, c *CaseConfig) {
+		c.splitterRegistry = splitterRegistry
 	}
 }
 
@@ -363,6 +371,9 @@ func ColumnTestCase(
 		warehouseRegistry: warehouseRegistry,
 		columnsRegistry:   columnsRegistry,
 		layoutRegistry:    layoutRegistry,
+		splitterRegistry: splitter.NewStaticRegistry(
+			splitter.NewNoop(),
+		),
 	}
 	for _, requirement := range caseConfigF {
 		requirement(t, cc)
@@ -400,6 +411,7 @@ func ColumnTestCase(
 			cc.warehouseRegistry,
 			cc.columnsRegistry,
 			cc.layoutRegistry,
+			cc.splitterRegistry,
 		),
 		0,
 	)

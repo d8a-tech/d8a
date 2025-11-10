@@ -1,12 +1,18 @@
 // Package properties provides the core data models and types for property configuration.
 package properties
 
-// PropertyConfig holds the tracking configuration for a property.
-type PropertyConfig struct {
+import "time"
+
+// Settings holds the tracking configuration for a property.
+type Settings struct {
 	PropertyID   string
 	PropertyName string
 	// In some cases (like matomo) the measurement ID is the same as the property ID.
 	// In other cases (like GA4) the measurement ID is a separate ID.
 	PropertyMeasurementID string
-	Settings              map[string]any
+
+	SplitByUserID              bool
+	SplitByCampaign            bool
+	SplitByTimeSinceFirstEvent time.Duration
+	SplitByMaxEvents           int
 }

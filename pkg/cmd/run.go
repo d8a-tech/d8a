@@ -26,6 +26,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
+	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
@@ -143,6 +144,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						dbipDownloadTimeoutFlag,
 						propertyIDFlag,
 						propertyNameFlag,
+						propertySettingsSplitByUserIDFlag,
+						propertySettingsSplitByCampaignFlag,
+						propertySettingsSplitByTimeSinceFirstEventFlag,
+						propertySettingsSplitByMaxEventsFlag,
 					},
 					warehouseConfigFlags,
 				),
@@ -235,6 +240,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 																getTableNames().sessionsColumnPrefix,
 															),
 														),
+														splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
 													),
 													5*time.Second,
 												),
@@ -385,14 +391,18 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 	return nil
 }
 
-func propertySource(cmd *cli.Command) properties.PropertySource {
-	return properties.NewStaticPropertySource(
-		[]properties.PropertyConfig{},
+func propertySource(cmd *cli.Command) properties.SettingsRegistry {
+	return properties.NewStaticSettingsRegistry(
+		[]properties.Settings{},
 		properties.WithDefaultConfig(
-			properties.PropertyConfig{
-				PropertyID:            cmd.String(propertyIDFlag.Name),
-				PropertyName:          cmd.String(propertyNameFlag.Name),
-				PropertyMeasurementID: "-",
+			properties.Settings{
+				PropertyID:                 cmd.String(propertyIDFlag.Name),
+				PropertyName:               cmd.String(propertyNameFlag.Name),
+				PropertyMeasurementID:      "-",
+				SplitByUserID:              cmd.Bool(propertySettingsSplitByUserIDFlag.Name),
+				SplitByCampaign:            cmd.Bool(propertySettingsSplitByCampaignFlag.Name),
+				SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
+				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
 			},
 		),
 	)
