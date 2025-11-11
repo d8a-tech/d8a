@@ -198,12 +198,12 @@ func TestSplitter(t *testing.T) {
 			},
 		},
 		{
-			name: "User ID - Multiple events - empty user id",
+			name: "User ID - Multiple events - appears mid-session",
 			session: &schema.Session{
 				Events: []*schema.Event{
-					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
 					schema.NewEvent(hits.New()),
-					schema.NewEvent(hits.New()).WithValueKey("user_id", ""),
+					schema.NewEvent(hits.New()),
+					schema.NewEvent(hits.New()).WithValueKey("user_id", "user2"),
 					schema.NewEvent(hits.New()),
 				},
 			},
@@ -215,13 +215,66 @@ func TestSplitter(t *testing.T) {
 			},
 		},
 		{
-			name: "User ID - Multiple events - nil user id",
+			name: "User ID - Multiple events - appears mid-session, then changes",
+			session: &schema.Session{
+				Events: []*schema.Event{
+					schema.NewEvent(hits.New()),
+					schema.NewEvent(hits.New()),
+					schema.NewEvent(hits.New()).WithValueKey("user_id", "user2"),
+					schema.NewEvent(hits.New()).WithValueKey("user_id", "user3"),
+				},
+			},
+			conditions: []Condition{
+				NewUserIDCondition(),
+			},
+			expected: []expectedSessions{
+				{0, 1, 2},
+				{3},
+			},
+		},
+		{
+			name: "User ID - First has id, then nulls",
 			session: &schema.Session{
 				Events: []*schema.Event{
 					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
 					schema.NewEvent(hits.New()),
-					// This is equivalent of not having a user id
+					schema.NewEvent(hits.New()),
+					schema.NewEvent(hits.New()),
+				},
+			},
+			conditions: []Condition{
+				NewUserIDCondition(),
+			},
+			expected: []expectedSessions{
+				{0, 1, 2, 3},
+			},
+		},
+		{
+			name: "User ID - Explicit null in the middle",
+			session: &schema.Session{
+				Events: []*schema.Event{
+					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
+					schema.NewEvent(hits.New()),
+					// This is equivalent of not having a user id, effective the same case
+					// as the one above
 					schema.NewEvent(hits.New()).WithValueKey("user_id", nil),
+					schema.NewEvent(hits.New()),
+				},
+			},
+			conditions: []Condition{
+				NewUserIDCondition(),
+			},
+			expected: []expectedSessions{
+				{0, 1, 2, 3},
+			},
+		},
+		{
+			name: "User ID - Explicit empty value in the middle",
+			session: &schema.Session{
+				Events: []*schema.Event{
+					schema.NewEvent(hits.New()).WithValueKey("user_id", "user1"),
+					schema.NewEvent(hits.New()),
+					schema.NewEvent(hits.New()).WithValueKey("user_id", ""),
 					schema.NewEvent(hits.New()),
 				},
 			},
