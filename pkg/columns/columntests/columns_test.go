@@ -437,11 +437,11 @@ func TestSessionSplitCause(t *testing.T) {
 			assert.Equal(t, TestHitOne().ID, whd.WriteCalls[0].Records[1]["session_id"])
 			assert.Equal(t, nil, whd.WriteCalls[0].Records[1]["session_split_cause"])
 
-			// Third and fourth event is in second session, max_x_events split cause
+			// Third and fourth event is in second session, max_events_reached split cause
 			assert.Equal(t, TestHitThree().ID, whd.WriteCalls[0].Records[2]["session_id"])
-			assert.Equal(t, "max_x_events", whd.WriteCalls[0].Records[2]["session_split_cause"])
+			assert.Equal(t, "max_events_reached", whd.WriteCalls[0].Records[2]["session_split_cause"])
 			assert.Equal(t, TestHitThree().ID, whd.WriteCalls[0].Records[3]["session_id"])
-			assert.Equal(t, "max_x_events", whd.WriteCalls[0].Records[3]["session_split_cause"])
+			assert.Equal(t, "max_events_reached", whd.WriteCalls[0].Records[3]["session_split_cause"])
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
 		SetSplitterRegistry(splitter.NewStaticRegistry(

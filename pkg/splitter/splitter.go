@@ -13,14 +13,22 @@ const (
 	// SplitCauseNone indicates no split occurred.
 	SplitCauseNone SplitCause = ""
 	// SplitCauseUtmCampaignChange indicates split due to UTM campaign change.
-	SplitCauseUtmCampaignChange SplitCause = "utm_campaign_change"
+	SplitCauseUtmCampaignChange SplitCause = "utm_campaign_changed"
 	// SplitCauseUserIDChange indicates split due to user ID change.
-	SplitCauseUserIDChange SplitCause = "user_id_change"
+	SplitCauseUserIDChange SplitCause = "user_id_changed"
 	// SplitCauseMaxXEvents indicates split due to maximum number of events.
-	SplitCauseMaxXEvents SplitCause = "max_x_events"
+	SplitCauseMaxXEvents SplitCause = "max_events_reached"
 	// SplitCauseTimeSinceFirstEvent indicates split due to time since first event.
-	SplitCauseTimeSinceFirstEvent SplitCause = "time_since_first_event"
+	SplitCauseTimeSinceFirstEvent SplitCause = "max_time_since_first_event_reached"
 )
+
+// AllCauses is a list of all possible split causes, usable for documentation.
+var AllCauses = []SplitCause{
+	SplitCauseUtmCampaignChange,
+	SplitCauseUserIDChange,
+	SplitCauseMaxXEvents,
+	SplitCauseTimeSinceFirstEvent,
+}
 
 // SessionSplitter splits a session into multiple sessions based on conditions.
 type SessionSplitter interface {
