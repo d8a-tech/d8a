@@ -31,7 +31,7 @@ var SplitCauseColumn = columns.NewSimpleSessionColumn(
 	},
 	columns.WithSessionColumnDocs(
 		"Session Split Cause",
-		fmt.Sprintf("The cause of the split of the session. If the session was not split, this will be null. Possible values: null, %s", strings.Join(func() []string { //nolint:lll // documentation string
+		fmt.Sprintf("The cause of the split of the session. If the session was not split, this will be null. Possible values: null, %s.", strings.Join(func() []string { //nolint:lll // documentation string
 			values := make([]string, len(splitter.AllCauses))
 			for i, cause := range splitter.AllCauses {
 				values[i] = string(cause)
