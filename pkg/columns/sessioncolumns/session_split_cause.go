@@ -1,6 +1,9 @@
 package sessioncolumns
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/splitter"
@@ -28,6 +31,12 @@ var SplitCauseColumn = columns.NewSimpleSessionColumn(
 	},
 	columns.WithSessionColumnDocs(
 		"Session Split Cause",
-		"The cause of the split of the session. If the session was not split, this will be null.",
+		fmt.Sprintf("The cause of the split of the session. If the session was not split, this will be null. Possible values: null, %s", strings.Join(func() []string { //nolint:lll // documentation string
+			values := make([]string, len(splitter.AllCauses))
+			for i, cause := range splitter.AllCauses {
+				values[i] = string(cause)
+			}
+			return values
+		}(), ", ")),
 	),
 )
