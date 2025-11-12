@@ -5,8 +5,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'D8A',
-  tagline: '',
+  title: 'd8a.tech',
+  tagline: 'Documentation',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -63,10 +63,11 @@ const config: Config = {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
     navbar: {
-      title: 'D8A',
+      title: 'd8a.tech',
       logo: {
-        alt: 'My Site Logo',
-        src: 'img/logo.svg',
+        alt: 'd8a.tech logo',
+        src: 'img/d8a-logo.svg',
+        srcDark: 'img/d8a-logo-dark.svg',
       },
       items: [
         {
@@ -86,18 +87,12 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
-          items: [
-          ],
-        },
-        {
           title: 'Community',
           items: [
-          ],
-        },
-        {
-          title: 'More',
-          items: [
+            {
+              label: 'Discord',
+              href: 'https://discord.gg/U2B3Vah4',
+            },
           ],
         },
       ],
