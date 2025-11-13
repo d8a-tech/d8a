@@ -33,6 +33,6 @@ Choose the method that best fits your needs based on whether you want to continu
 
 After completing both steps:
 - Verify that events are being received by your d8a instance
-- Review the [columns documentation](/docs/columns) to understand the data schema
-- Explore the [protocols documentation](/docs/protocols/ga4) for detailed protocol information
+- Review the [columns documentation](/docs/articles/database-schema) to understand the data schema
+- Explore the [protocols documentation](/docs/articles/tracking-protocols/ga4-gtag) for detailed protocol information
 
