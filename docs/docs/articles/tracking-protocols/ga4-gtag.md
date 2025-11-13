@@ -1,4 +1,4 @@
-# GA4
+# GA4 gtag
 
 This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 
