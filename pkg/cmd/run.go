@@ -106,7 +106,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err != nil {
 						return err
 					}
-					ordering := schema.NewInterfaceOrdering(
+					ordering := schema.NewInterfaceDefinitionOrderKeeper(
 						columns.CoreInterfaces,
 						ga4.ProtocolInterfaces,
 					)
@@ -158,7 +158,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						defer cancel()
 					}
 
-					if err := migrate(ctx, cmd, "1337"); err != nil {
+					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name)); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
@@ -375,11 +375,13 @@ func warehouseRegistry(_ context.Context, cmd *cli.Command) warehouse.Registry {
 			MaxCompressionBuffer: 10240,
 		}
 
-		return warehouse.NewStaticDriverRegistry(whClickhouse.NewClickHouseTableDriver(
-			options,
-			database,
-			whClickhouse.WithOrderBy([]string{"id"}),
-		))
+		return warehouse.NewStaticDriverRegistry(
+			whClickhouse.NewClickHouseTableDriver(
+				options,
+				database,
+				whClickhouse.WithOrderBy([]string{"id"}),
+			),
+		)
 	case "console", "":
 		return warehouse.NewStaticDriverRegistry(
 			warehouse.NewConsoleDriver(),

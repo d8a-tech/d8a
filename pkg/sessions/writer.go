@@ -34,14 +34,13 @@ type sessionWriterImpl struct {
 	columnsLock     sync.Mutex
 
 	splitterRegistry splitter.Registry
-
-	parentCtx context.Context
+	parentCtx        context.Context
 }
 
 // Compile-time check to ensure SessionWriter implements SessionWriterInterface
 var _ SessionWriter = (*sessionWriterImpl)(nil)
 
-func (m *sessionWriterImpl) getSchema(propertyID, table string) (*arrow.Schema, error) {
+func (m *sessionWriterImpl) getSchemaForWriting(propertyID, table string) (*arrow.Schema, error) {
 	layout, err := m.getLayout(propertyID)
 	if err != nil {
 		return nil, err
@@ -93,7 +92,7 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 	}
 	allSplitSessions := []*schema.Session{}
 	for _, session := range sessions {
-		splitSessions, err := m.writeColumns(writeDeps.columns, session)
+		splitSessions, err := m.writeColumnValuesAndSplit(writeDeps.columns, session)
 		if err != nil {
 			return err
 		}
@@ -110,7 +109,7 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 	for _, allRowsForGivenTable := range perTableRows {
 		table, rows := allRowsForGivenTable.Table, allRowsForGivenTable.Rows
 		g.Go(func() error {
-			schema, err := m.getSchema(writeDeps.propertyID, allRowsForGivenTable.Table)
+			schema, err := m.getSchemaForWriting(writeDeps.propertyID, allRowsForGivenTable.Table)
 			if err != nil {
 				return err
 			}
@@ -164,7 +163,10 @@ func (m *sessionWriterImpl) prepareDeps(sessions []*schema.Session) (*writeDeps,
 	}, nil
 }
 
-func (m *sessionWriterImpl) writeColumns(columns schema.Columns, session *schema.Session) ([]*schema.Session, error) {
+func (m *sessionWriterImpl) writeColumnValuesAndSplit(
+	columns schema.Columns,
+	session *schema.Session,
+) ([]*schema.Session, error) {
 	for _, column := range columns.Event {
 		for _, event := range session.Events {
 			if err := column.Write(event); err != nil {

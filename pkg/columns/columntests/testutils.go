@@ -396,7 +396,7 @@ func ColumnTestCase(
 		cc.warehouseRegistry,
 		cc.columnsRegistry,
 		cc.layoutRegistry,
-		schema.NewInterfaceOrdering(
+		schema.NewInterfaceDefinitionOrderKeeper(
 			columns.CoreInterfaces,
 			theProtocol.Interfaces(),
 		),

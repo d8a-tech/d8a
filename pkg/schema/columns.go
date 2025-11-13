@@ -1,6 +1,8 @@
 package schema
 
 import (
+	"slices"
+
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
@@ -48,6 +50,15 @@ type Columns struct {
 	Session            []SessionColumn
 	Event              []EventColumn
 	SessionScopedEvent []SessionScopedEventColumn
+}
+
+// Copy returns a copy of the Columns struct.
+func (c Columns) Copy() Columns {
+	return Columns{
+		Session:            slices.Clone(c.Session),
+		Event:              slices.Clone(c.Event),
+		SessionScopedEvent: slices.Clone(c.SessionScopedEvent),
+	}
 }
 
 // NewColumns creates a new Columns struct with session, event and session-scoped-event columns.

@@ -11,18 +11,20 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/sirupsen/logrus"
 )
 
 type clickhouseDriver struct {
-	db              *sql.DB
-	conn            clickhouse.Conn
-	database        string
-	queryMapper     warehouse.QueryMapper
-	fieldTypeMapper warehouse.FieldTypeMapper[SpecificClickhouseType]
-	queryTimeout    time.Duration
-	typeComparer    *warehouse.TypeComparer
+	db                *sql.DB
+	conn              clickhouse.Conn
+	database          string
+	queryMapper       warehouse.QueryMapper
+	fieldTypeMapper   warehouse.FieldTypeMapper[SpecificClickhouseType]
+	queryTimeout      time.Duration
+	typeComparer      *warehouse.TypeComparer
+	tableColumnsCache *util.TTLCache[[]*arrow.Field]
 }
 
 // NewClickHouseTableDriver creates a new ClickHouse table driver.
@@ -34,14 +36,19 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		logrus.Fatalf("Failed to open ClickHouse connection: %v", err)
 	}
 
+	if err != nil {
+		logrus.Fatalf("Failed to create table columns cache: %v", err)
+	}
+
 	return &clickhouseDriver{
-		db:              db,
-		conn:            conn,
-		database:        database,
-		queryMapper:     NewClickHouseQueryMapper(opts...),
-		fieldTypeMapper: NewFieldTypeMapper(),
-		queryTimeout:    30 * time.Second,
-		typeComparer:    warehouse.NewTypeComparer(),
+		db:                db,
+		conn:              conn,
+		database:          database,
+		queryMapper:       NewClickHouseQueryMapper(opts...),
+		fieldTypeMapper:   NewFieldTypeMapper(),
+		queryTimeout:      30 * time.Second,
+		typeComparer:      warehouse.NewTypeComparer(),
+		tableColumnsCache: util.NewTTLCache[[]*arrow.Field](1 * time.Minute),
 	}
 }
 
@@ -109,16 +116,15 @@ func (d *clickhouseDriver) AddColumn(table string, field *arrow.Field) error {
 	return nil
 }
 
-func (d *clickhouseDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
-	// Query ClickHouse system.columns table to get existing column information
-	ctx, cancel := context.WithTimeout(context.Background(), d.queryTimeout)
+// columns retrieves all columns from the specified table as Arrow fields
+func (d *clickhouseDriver) columns(ctx context.Context, table string) ([]*arrow.Field, error) {
+	ctx, cancel := context.WithTimeout(ctx, d.queryTimeout)
 	defer cancel()
 
 	query := `
 		SELECT name, type 
 		FROM system.columns 
 		WHERE database = ? AND table = ?
-		ORDER BY name
 	`
 
 	rows, err := d.db.QueryContext(ctx, query, d.database, table)
@@ -131,8 +137,7 @@ func (d *clickhouseDriver) MissingColumns(table string, schema *arrow.Schema) ([
 		}
 	}()
 
-	// Check if table exists by checking if we got any rows
-	existingFields := make(map[string]*arrow.Field)
+	var fields []*arrow.Field
 	hasRows := false
 
 	for rows.Next() {
@@ -155,7 +160,7 @@ func (d *clickhouseDriver) MissingColumns(table string, schema *arrow.Schema) ([
 			Nullable: arrowType.Nullable,
 			Metadata: arrowType.Metadata,
 		}
-		existingFields[columnName] = arrowField
+		fields = append(fields, arrowField)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -165,6 +170,21 @@ func (d *clickhouseDriver) MissingColumns(table string, schema *arrow.Schema) ([
 	// If no rows were returned, the table doesn't exist
 	if !hasRows {
 		return nil, warehouse.NewTableNotFoundError(fmt.Sprintf("%s.%s", d.database, table))
+	}
+
+	return fields, nil
+}
+
+func (d *clickhouseDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
+	fields, err := d.columns(context.Background(), table)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert fields slice to map for comparison
+	existingFields := make(map[string]*arrow.Field)
+	for _, field := range fields {
+		existingFields[field.Name] = field
 	}
 
 	// Use common function from warehouse/diff.go
@@ -178,13 +198,18 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 		return nil
 	}
 
+	schemaFields, err := d.sortSchemaFieldsForWriting(ctx, table, schema.Fields())
+	if err != nil {
+		return fmt.Errorf("error sorting schema fields: %w", err)
+	}
+
 	// Construct full table name with database
 	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
 
 	// Get column names and types from schema
-	columns := make([]string, len(schema.Fields()))
-	columnTypes := make([]SpecificClickhouseType, len(schema.Fields()))
-	for i, field := range schema.Fields() {
+	columns := make([]string, len(schemaFields))
+	columnTypes := make([]SpecificClickhouseType, len(schemaFields))
+	for i, field := range schemaFields {
 		columns[i] = field.Name
 		arrowType := warehouse.ArrowType{
 			ArrowDataType: field.Type,
@@ -234,6 +259,43 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 	}
 
 	return nil
+}
+
+func (d *clickhouseDriver) sortSchemaFieldsForWriting(
+	ctx context.Context, table string, schemaFields []arrow.Field,
+) ([]*arrow.Field, error) {
+	var realFields []*arrow.Field
+	var err error
+	realFields, ok := d.tableColumnsCache.Get(table)
+	if !ok {
+		realFields, err = d.columns(ctx, table)
+		if err != nil {
+			return nil, fmt.Errorf("error getting table columns while sorting: %w", err)
+		}
+		d.tableColumnsCache.Set(table, realFields)
+	}
+	// at this point we have the real fields in the correct order, ready for writing
+	// all that is left is do a really quick check to see if both schemas seem to be
+	// compatible - other parts of the code do the deeper checks, here we only check column names
+	if len(realFields) != len(schemaFields) {
+		return nil, fmt.Errorf(
+			"column count mismatch: realFields has %d columns, schemaFields has %d columns",
+			len(realFields), len(schemaFields),
+		)
+	}
+
+	realFieldNames := make(map[string]bool, len(realFields))
+	for _, field := range realFields {
+		realFieldNames[field.Name] = true
+	}
+
+	for _, field := range schemaFields {
+		if !realFieldNames[field.Name] {
+			return nil, fmt.Errorf("column %s not found in realFields", field.Name)
+		}
+	}
+
+	return realFields, nil
 }
 
 // AreFieldsCompatible implements warehouse.FieldCompatibilityChecker
