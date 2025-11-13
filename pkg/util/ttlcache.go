@@ -81,4 +81,3 @@ func (c *TTLCache[V]) Len() int {
 
 	return len(c.items)
 }
-

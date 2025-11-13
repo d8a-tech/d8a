@@ -85,7 +85,7 @@ func TestSortByOrdering(t *testing.T) {
 	tests := []struct {
 		name     string
 		columns  []mockOrderColumn
-		ordering *InterfaceOrdering
+		ordering OrderKeeper
 		expected []string
 	}{
 		{
