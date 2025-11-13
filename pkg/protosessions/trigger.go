@@ -17,6 +17,7 @@ import (
 type catchUpState struct {
 	lastCatchUpLogTime   time.Time
 	startingBucketNumber int64
+	lastLoggedBucket     int64
 }
 
 // The limits below are not confiugurable to protect against abuse of the system.
@@ -275,20 +276,36 @@ func (m *closeTriggerMiddleware) handleCatchUp(nextBucketInt, currentBucket int6
 			m.catchUpState = &catchUpState{
 				lastCatchUpLogTime:   time.Now(),
 				startingBucketNumber: nextBucketInt,
+				lastLoggedBucket:     nextBucketInt,
 			}
 			logrus.Infof(
-				"Starting catching up processing, left buckets: %d, time to reprocess: %s. "+
+				"Starting catching up processing, left buckets: %d. "+
 					"If you want to skip, use --closer-skip-catching-up flag.",
 				currentBucket-nextBucketInt,
-				m.tickInterval*time.Duration(currentBucket-nextBucketInt),
 			)
 		} else if time.Since(m.catchUpState.lastCatchUpLogTime) > m.catchUpLogInterval {
+			bucketsProcessed := nextBucketInt - m.catchUpState.lastLoggedBucket
+			timeElapsed := time.Since(m.catchUpState.lastCatchUpLogTime)
+			var estimatedTimeRemaining time.Duration
+			if bucketsProcessed > 0 && timeElapsed > 0 {
+				processingRate := float64(bucketsProcessed) / timeElapsed.Seconds()
+				bucketsLeft := currentBucket - nextBucketInt
+				estimatedTimeRemaining = time.Duration(float64(bucketsLeft)/processingRate) * time.Second
+			}
 			m.catchUpState.lastCatchUpLogTime = time.Now()
-			logrus.Infof(
-				"Catching up processing, left buckets: %d, time to reprocess: %s",
-				currentBucket-nextBucketInt,
-				m.tickInterval*time.Duration(currentBucket-nextBucketInt),
-			)
+			m.catchUpState.lastLoggedBucket = nextBucketInt
+			if estimatedTimeRemaining > 0 {
+				logrus.Infof(
+					"Catching up processing, left buckets: %d, estimated time remaining: %s",
+					currentBucket-nextBucketInt,
+					estimatedTimeRemaining.Round(time.Second),
+				)
+			} else {
+				logrus.Infof(
+					"Catching up processing, left buckets: %d",
+					currentBucket-nextBucketInt,
+				)
+			}
 		}
 	}
 	return nextBucketInt
