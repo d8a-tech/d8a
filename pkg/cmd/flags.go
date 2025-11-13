@@ -50,6 +50,13 @@ var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   1 * time.Minute,
 }
 
+var closerSkipCatchingUpFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "closer-skip-catching-up",
+	Usage:   "If set, the closer will skip the catching up process",
+	Sources: defaultSourceChain("CLOSER_SKIP_CATCHING_UP", "closer.skip_catching_up"),
+	Value:   false,
+}
+
 var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "closer-tick-interval",
 	Usage:   "Tick interval for the closer",

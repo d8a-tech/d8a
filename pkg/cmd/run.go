@@ -139,6 +139,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						batcherBatchTimeoutFlag,
 						closerSessionDurationFlag,
 						closerTickIntervalFlag,
+						closerSkipCatchingUpFlag,
 						dbipEnabled,
 						dbipDestinationDirectory,
 						dbipDownloadTimeoutFlag,
@@ -223,28 +224,35 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 										encoding.GobDecoder,
 										[]protosessions.Middleware{
 											protosessions.NewEvicterMiddleware(storage.NewMonitoringKV(kv), serverStorage),
-											protosessions.NewCloseTriggerMiddleware(
-												storage.NewMonitoringKV(kv),
-												storage.NewMonitoringSet(set),
-												cmd.Duration(closerSessionDurationFlag.Name),
-												cmd.Duration(closerTickIntervalFlag.Name),
-												sessions.NewDirectCloser(
-													sessions.NewSessionWriter(
-														ctx,
-														warehouseRegistry(ctx, cmd),
-														columnsRegistry(cmd), // nolint:contextcheck // false positive
-														schema.NewStaticLayoutRegistry(
-															map[string]schema.Layout{},
-															schema.NewEmbeddedSessionColumnsLayout(
-																getTableNames().events,
-																getTableNames().sessionsColumnPrefix,
+											func() protosessions.Middleware {
+												opts := []protosessions.CloseTriggerMiddlewareOption{}
+												if cmd.Bool(closerSkipCatchingUpFlag.Name) {
+													opts = append(opts, protosessions.WithSkipCatchingUp())
+												}
+												return protosessions.NewCloseTriggerMiddleware(
+													storage.NewMonitoringKV(kv),
+													storage.NewMonitoringSet(set),
+													cmd.Duration(closerSessionDurationFlag.Name),
+													cmd.Duration(closerTickIntervalFlag.Name),
+													sessions.NewDirectCloser(
+														sessions.NewSessionWriter(
+															ctx,
+															warehouseRegistry(ctx, cmd),
+															columnsRegistry(cmd), // nolint:contextcheck // false positive
+															schema.NewStaticLayoutRegistry(
+																map[string]schema.Layout{},
+																schema.NewEmbeddedSessionColumnsLayout(
+																	getTableNames().events,
+																	getTableNames().sessionsColumnPrefix,
+																),
 															),
+															splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
 														),
-														splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
+														5*time.Second,
 													),
-													5*time.Second,
-												),
-											),
+													opts...,
+												)
+											}(),
 										},
 									),
 								),

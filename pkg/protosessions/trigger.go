@@ -14,25 +14,34 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type catchUpState struct {
+	lastCatchUpLogTime   time.Time
+	startingBucketNumber int64
+}
+
 // The limits below are not confiugurable to protect against abuse of the system.
 // The limits are anyway far beyound any reasonable use case.
 var maxEventInSessionHardCap uint32 = 10000
 var maxTimeInSessionHardCap = 24 * time.Hour
 
 type closeTriggerMiddleware struct {
-	lock               sync.Mutex
-	cache              destinationBucketCache
-	kv                 storage.KV
-	set                storage.Set
-	protoSessionSizes  map[hits.ClientID]uint32
-	firstHitTime       map[hits.ClientID]time.Time
-	sessionDuration    time.Duration
-	loopSleepDuration  time.Duration
-	lastHandledHitTime time.Time
-	tickInterval       time.Duration
-	lastCtx            *Context
-	closer             Closer
-	stop               bool
+	lock                    sync.Mutex
+	cache                   destinationBucketCache
+	kv                      storage.KV
+	set                     storage.Set
+	protoSessionSizes       map[hits.ClientID]uint32
+	firstHitTime            map[hits.ClientID]time.Time
+	sessionDuration         time.Duration
+	loopSleepDuration       time.Duration
+	lastHandledHitTime      time.Time
+	tickInterval            time.Duration
+	catchUpState            *catchUpState
+	skipCatchingUp          bool
+	catchUpBucketsThreshold int64
+	catchUpLogInterval      time.Duration
+	lastCtx                 *Context
+	closer                  Closer
+	stop                    bool
 }
 
 type destinationBucketCache interface {
@@ -254,13 +263,43 @@ func (m *closeTriggerMiddleware) doCloseProtosession(authoritativeClientID hits.
 	return nil
 }
 
+func (m *closeTriggerMiddleware) handleCatchUp(nextBucketInt, currentBucket int64) int64 {
+	if m.skipCatchingUp {
+		forcedNextBucketInt := BucketNumber(m.lastHandledHitTime, m.tickInterval)
+		logrus.Infof("Skipping processing of %d buckets", forcedNextBucketInt-nextBucketInt)
+		nextBucketInt = forcedNextBucketInt
+		m.skipCatchingUp = false
+	}
+	if nextBucketInt < currentBucket-m.catchUpBucketsThreshold {
+		if m.catchUpState == nil {
+			m.catchUpState = &catchUpState{
+				lastCatchUpLogTime:   time.Now(),
+				startingBucketNumber: nextBucketInt,
+			}
+			logrus.Infof(
+				"Starting catching up processing, left buckets: %d, time to reprocess: %s. "+
+					"If you want to skip, use --closer-skip-catching-up flag.",
+				currentBucket-nextBucketInt,
+				m.tickInterval*time.Duration(currentBucket-nextBucketInt),
+			)
+		} else if time.Since(m.catchUpState.lastCatchUpLogTime) > m.catchUpLogInterval {
+			m.catchUpState.lastCatchUpLogTime = time.Now()
+			logrus.Infof(
+				"Catching up processing, left buckets: %d, time to reprocess: %s",
+				currentBucket-nextBucketInt,
+				m.tickInterval*time.Duration(currentBucket-nextBucketInt),
+			)
+		}
+	}
+	return nextBucketInt
+}
+
 func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip bool, err error)) error {
+	var nextBucketInt int64
 	nextBucket, err := m.kv.Get([]byte(NextBucketKey))
 	if err != nil {
 		return err
 	}
-	logrus.Tracef("Getting next bucket from KV: %s", string(nextBucket))
-	var nextBucketInt int64
 	if nextBucket != nil {
 		nextBucketInt, err = strconv.ParseInt(string(nextBucket), 10, 64)
 		if err != nil {
@@ -272,11 +311,17 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 			return fmt.Errorf("failed to ensure first bucket: %w", err)
 		}
 	}
-	if nextBucketInt >= BucketNumber(m.lastHandledHitTime, m.tickInterval) {
+	currentBucket := BucketNumber(m.lastHandledHitTime, m.tickInterval)
+	if nextBucketInt >= currentBucket {
 		m.loopSleepDuration = m.tickInterval
+		if m.catchUpState != nil {
+			logrus.Info("Catched up processing of proto-sessions")
+			m.catchUpState = nil
+		}
 		logrus.Tracef("Bucket %d is not yet closed, skipping", nextBucketInt)
 		return nil
 	}
+	nextBucketInt = m.handleCatchUp(nextBucketInt, currentBucket)
 	skip, err := f(nextBucketInt)
 	if err != nil {
 		return err
@@ -331,6 +376,30 @@ func (m *closeTriggerMiddleware) OnPing(ctx *Context, t time.Time) error {
 	return nil
 }
 
+// CloseTriggerMiddlewareOption is a function that can be used to configure the close trigger middleware.
+type CloseTriggerMiddlewareOption func(*closeTriggerMiddleware)
+
+// WithCatchUpBucketsThreshold sets the number of buckets to catch up.
+func WithCatchUpBucketsThreshold(threshold int64) CloseTriggerMiddlewareOption {
+	return func(m *closeTriggerMiddleware) {
+		m.catchUpBucketsThreshold = threshold
+	}
+}
+
+// WithCatchUpLogInterval sets the interval at which the catching up process will be logged.
+func WithCatchUpLogInterval(interval time.Duration) CloseTriggerMiddlewareOption {
+	return func(m *closeTriggerMiddleware) {
+		m.catchUpLogInterval = interval
+	}
+}
+
+// WithSkipCatchingUp skips the catching up process.
+func WithSkipCatchingUp() CloseTriggerMiddlewareOption {
+	return func(m *closeTriggerMiddleware) {
+		m.skipCatchingUp = true
+	}
+}
+
 // NewCloseTriggerMiddleware creates a new closer middleware for session management.
 func NewCloseTriggerMiddleware(
 	kv storage.KV,
@@ -338,22 +407,27 @@ func NewCloseTriggerMiddleware(
 	sessionDuration,
 	tickInterval time.Duration, // tickInterval controls how often the middleware will check for closed protosessions
 	closer Closer,
+	options ...CloseTriggerMiddlewareOption,
 ) Middleware {
 	destinationBucketCache, err := newRistrettoDestinationBucketCache(sessionDuration)
 	if err != nil {
 		logrus.Panicf("failed to create destination bucket cache: %s", err)
 	}
 	m := &closeTriggerMiddleware{
-		lock:              sync.Mutex{},
-		kv:                kv,
-		set:               set,
-		sessionDuration:   sessionDuration,
-		tickInterval:      tickInterval,
-		closer:            closer,
-		protoSessionSizes: make(map[hits.ClientID]uint32),
-		firstHitTime:      make(map[hits.ClientID]time.Time),
-
-		cache: destinationBucketCache,
+		lock:                    sync.Mutex{},
+		kv:                      kv,
+		set:                     set,
+		sessionDuration:         sessionDuration,
+		tickInterval:            tickInterval,
+		closer:                  closer,
+		protoSessionSizes:       make(map[hits.ClientID]uint32),
+		firstHitTime:            make(map[hits.ClientID]time.Time),
+		catchUpBucketsThreshold: 30,
+		catchUpLogInterval:      10 * time.Second,
+		cache:                   destinationBucketCache,
+	}
+	for _, option := range options {
+		option(m)
 	}
 	go func() {
 		err := m.loop()
