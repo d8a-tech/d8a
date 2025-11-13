@@ -706,7 +706,7 @@ var ProtocolInterfaces = struct {
 	EventParamPercentScrolled: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_percent_scrolled",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "params_percent_scrolled", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field:   &arrow.Field{Name: "params_percent_scrolled", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	EventParamPreviousAppVersion: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/params_previous_app_version",

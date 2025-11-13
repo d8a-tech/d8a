@@ -6,13 +6,19 @@ import (
 	"sort"
 )
 
+// OrderKeeper is a interface that can be used to get the order of a given interface ID.
+type OrderKeeper interface {
+	GetOrder(id InterfaceID) int
+}
+
 // InterfaceOrdering maintains the order of column interfaces based on their definition position in structs.
 type InterfaceOrdering struct {
 	order map[InterfaceID]int
 }
 
-// NewInterfaceOrdering creates a new InterfaceOrdering instance.
-func NewInterfaceOrdering(structs ...interface{}) *InterfaceOrdering {
+// NewInterfaceDefinitionOrderKeeper creates a new OrderKeeper instance, that tracks
+// the order of columns using the definition position in structs.
+func NewInterfaceDefinitionOrderKeeper(structs ...interface{}) *InterfaceOrdering {
 	ordering := &InterfaceOrdering{
 		order: make(map[InterfaceID]int),
 	}
@@ -54,8 +60,33 @@ func (o *InterfaceOrdering) GetOrder(id InterfaceID) int {
 	return math.MaxInt
 }
 
+type noParticicularOrderKeeper struct {
+	orders  map[InterfaceID]int
+	current int
+}
+
+func (o *noParticicularOrderKeeper) GetOrder(id InterfaceID) int {
+	has, ok := o.orders[id]
+	if !ok {
+		has = o.current
+		o.current++
+		o.orders[id] = has
+	}
+	return has
+}
+
+// NewNoParticicularOrderKeeper creates a new OrderKeeper that assigns an order
+// to each interface ID in the order they are encountered, useful for testing or
+// quick prototyping.
+func NewNoParticicularOrderKeeper() OrderKeeper {
+	return &noParticicularOrderKeeper{
+		orders:  make(map[InterfaceID]int),
+		current: 0,
+	}
+}
+
 // SortByOrdering sorts a slice of columns according to their interface order.
-func SortByOrdering[T Column](cols []T, ordering *InterfaceOrdering) []T {
+func SortByOrdering[T Column](cols []T, ordering OrderKeeper) []T {
 	if ordering == nil {
 		return cols
 	}
@@ -71,10 +102,10 @@ func SortByOrdering[T Column](cols []T, ordering *InterfaceOrdering) []T {
 }
 
 // Sorted sorts a slice of columns according to their interface order.
-func Sorted(columns Columns, ordering *InterfaceOrdering) Columns {
-	return Columns{
-		Session:            SortByOrdering(columns.Session, ordering),
-		Event:              SortByOrdering(columns.Event, ordering),
-		SessionScopedEvent: SortByOrdering(columns.SessionScopedEvent, ordering),
-	}
+func Sorted(columns Columns, ordering OrderKeeper) Columns {
+	newCols := columns.Copy()
+	newCols.Session = SortByOrdering(newCols.Session, ordering)
+	newCols.Event = SortByOrdering(newCols.Event, ordering)
+	newCols.SessionScopedEvent = SortByOrdering(newCols.SessionScopedEvent, ordering)
+	return newCols
 }

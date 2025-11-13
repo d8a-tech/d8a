@@ -32,7 +32,7 @@ func TestInterfaceOrdering_RegisterInterfaceStruct(t *testing.T) {
 	}
 
 	// when
-	ordering := NewInterfaceOrdering(testInterfaces)
+	ordering := NewInterfaceDefinitionOrderKeeper(testInterfaces)
 
 	// then
 	assert.Equal(t, 0, ordering.GetOrder("test/first"))
@@ -42,7 +42,7 @@ func TestInterfaceOrdering_RegisterInterfaceStruct(t *testing.T) {
 
 func TestInterfaceOrdering_GetOrder_UnknownInterface(t *testing.T) {
 	// given
-	ordering := NewInterfaceOrdering()
+	ordering := NewInterfaceDefinitionOrderKeeper()
 
 	// when
 	order := ordering.GetOrder("unknown/interface")
@@ -74,7 +74,7 @@ func TestInterfaceOrdering_RegisterInterfaceStruct_FirstRegistrationWins(t *test
 	}
 
 	// when
-	ordering := NewInterfaceOrdering(firstStruct, secondStruct)
+	ordering := NewInterfaceDefinitionOrderKeeper(firstStruct, secondStruct)
 
 	// then
 	// First registration should win, so order is 0
@@ -96,7 +96,7 @@ func TestSortByOrdering(t *testing.T) {
 				{id: "test/second", name: "second"},
 			},
 			ordering: func() *InterfaceOrdering {
-				o := NewInterfaceOrdering()
+				o := NewInterfaceDefinitionOrderKeeper()
 				o.order["test/first"] = 0
 				o.order["test/second"] = 1
 				o.order["test/third"] = 2
@@ -111,7 +111,7 @@ func TestSortByOrdering(t *testing.T) {
 				{id: "test/first", name: "first"},
 			},
 			ordering: func() *InterfaceOrdering {
-				o := NewInterfaceOrdering()
+				o := NewInterfaceDefinitionOrderKeeper()
 				o.order["test/first"] = 0
 				return o
 			}(),

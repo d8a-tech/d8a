@@ -13,7 +13,7 @@ type Guard struct {
 
 	columnsColumns ColumnsRegistry
 	layout         LayoutRegistry
-	ordering       *InterfaceOrdering
+	ordering       OrderKeeper
 }
 
 // NewGuard creates a new Guard
@@ -21,7 +21,7 @@ func NewGuard(
 	warehouseRegistry warehouse.Registry,
 	columnsColumns ColumnsRegistry,
 	layout LayoutRegistry,
-	ordering *InterfaceOrdering,
+	ordering OrderKeeper,
 ) *Guard {
 	return &Guard{
 		warehouseRegistry: warehouseRegistry,

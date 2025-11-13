@@ -37,7 +37,7 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
 				getTableNames().sessionsColumnPrefix,
 			),
 		),
-		schema.NewInterfaceOrdering(
+		schema.NewInterfaceDefinitionOrderKeeper(
 			columns.CoreInterfaces,
 			ga4.NewGA4Protocol(currencyConverter, propertySource(cmd)).Interfaces(),
 		),
