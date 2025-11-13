@@ -37,7 +37,7 @@ jobs:
           go-version: '1.24'
 
       - name: Generate column documentation
-        run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/columns.md
+        run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/articles/database-schema.md
       
       - name: Build docs
         working-directory: docs
