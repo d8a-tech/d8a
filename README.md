@@ -1,4 +1,4 @@
-<img src="./docs/static/img/logo-wide.svg" alt="D8a logo" width="1200" />
+<img src="./docs/static/img/logo-wide.svg" alt="d8a logo" />
 
 # Divine Data (d8a)
 
@@ -25,10 +25,6 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 
 
 ## Screenshots
-
-
-
-## Architecture Overview
 
 
 ## Getting Started
@@ -101,6 +97,17 @@ go test ./...
 
 
 ## Documentation
+
+
+See the following resources:
+
+- [Getting Started Guide](https://d8a-tech.github.io/d8a/docs/getting-started/)
+- [Database Schema & Columns](https://d8a-tech.github.io/d8a/docs/columns)
+- [Technical Deep Dive](https://d8a-tech.github.io/d8a/docs/deep-dive)
+
+## Join us on Discord
+
+Connect with the team in our Discord community: [link](https://discord.gg/EegbcdsWUc)
 
 
 ## License
