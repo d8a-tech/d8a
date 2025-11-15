@@ -140,7 +140,7 @@ func (d *batchingDriver) flush() error {
 			logrus.WithError(err).Errorf("Failed to write batch for table %s", table)
 			continue
 		}
-		if err := d.set.Delete([]byte(fmt.Sprintf("batch:%s", table))); err != nil {
+		if err := d.set.Drop([]byte(fmt.Sprintf("batch:%s", table))); err != nil {
 			logrus.WithError(err).Error("failed to delete batch from set")
 		}
 		props.currentBatchSize = 0

@@ -58,6 +58,14 @@ func (m *monitoringSet) Add(key, value []byte) error {
 	return err
 }
 
+func (m *monitoringSet) Delete(key, value []byte) error {
+	start := time.Now()
+	err := m.Set.Delete(key, value)
+	duration := time.Since(start).Seconds()
+	setOperationLatency.WithLabelValues(m.instanceID, "delete").Observe(duration)
+	return err
+}
+
 func (m *monitoringSet) All(key []byte) ([][]byte, error) {
 	start := time.Now()
 	values, err := m.Set.All(key)
@@ -66,11 +74,11 @@ func (m *monitoringSet) All(key []byte) ([][]byte, error) {
 	return values, err
 }
 
-func (m *monitoringSet) Delete(key []byte) error {
+func (m *monitoringSet) Drop(key []byte) error {
 	start := time.Now()
-	err := m.Set.Delete(key)
+	err := m.Set.Drop(key)
 	duration := time.Since(start).Seconds()
-	setOperationLatency.WithLabelValues(m.instanceID, "delete").Observe(duration)
+	setOperationLatency.WithLabelValues(m.instanceID, "drop").Observe(duration)
 	return err
 }
 

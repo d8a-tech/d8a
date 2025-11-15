@@ -79,13 +79,17 @@ func (m *evicterMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() erro
 		return fmt.Errorf("failed to delete session stamp by client ID: %w", err)
 	}
 
-	return ctx.TriggerCleanup(oldAuthoritativeClientID)
+	return ctx.TriggerCleanup(allHits)
 }
 
 // SessionStampByClientIDPrefix is the prefix for session stamps by client ID keys.
 const SessionStampByClientIDPrefix = "sessions.stamps.by.client.id"
 
-func (m *evicterMiddleware) OnCleanup(_ *Context, authoritativeClientID hits.ClientID) error {
+func (m *evicterMiddleware) OnCleanup(_ *Context, allCleanedHits []*hits.Hit) error {
+	if len(allCleanedHits) == 0 {
+		return nil
+	}
+	authoritativeClientID := allCleanedHits[0].AuthoritativeClientID
 	sessionStamp, err := m.kv.Get(
 		[]byte(SessionStampByClientIDKey(string(authoritativeClientID))),
 	)

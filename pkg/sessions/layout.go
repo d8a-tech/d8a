@@ -3,8 +3,7 @@ package sessions
 import "github.com/d8a-tech/d8a/pkg/schema"
 
 type batchingLayout struct {
-	layout    schema.Layout
-	batchSize int
+	layout schema.Layout
 }
 
 func (l *batchingLayout) Tables(columns schema.Columns) []schema.WithName {
@@ -37,11 +36,10 @@ func (l *batchingLayout) ToRows(columns schema.Columns, sessions ...*schema.Sess
 	return newTableRows, nil
 }
 
-// NewBatchingSchemaLayout creates a new layout that batches the sessions into
-// smaller tables.
-func NewBatchingSchemaLayout(layout schema.Layout, batchSize int) schema.Layout {
+// NewBatchingSchemaLayout creates a new layout that makes sure  that all the rows
+// from a single table will be written to the warehouse in a single call.
+func NewBatchingSchemaLayout(layout schema.Layout) schema.Layout {
 	return &batchingLayout{
-		layout:    layout,
-		batchSize: batchSize,
+		layout: layout,
 	}
 }

@@ -99,7 +99,7 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 		allSplitSessions = append(allSplitSessions, splitSessions...)
 	}
 
-	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout, 1000).ToRows(writeDeps.columns, allSplitSessions...)
+	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout).ToRows(writeDeps.columns, allSplitSessions...)
 	if err != nil {
 		return err
 	}

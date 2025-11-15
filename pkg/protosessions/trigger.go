@@ -30,8 +30,8 @@ type closeTriggerMiddleware struct {
 	cache                   destinationBucketCache
 	kv                      storage.KV
 	set                     storage.Set
-	protoSessionSizes       map[hits.ClientID]uint32
-	firstHitTime            map[hits.ClientID]time.Time
+	protoSessionSizes       sync.Map
+	firstHitTime            sync.Map
 	sessionDuration         time.Duration
 	loopSleepDuration       time.Duration
 	lastHandledHitTime      time.Time
@@ -107,13 +107,26 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 		return err
 	}
 
-	m.protoSessionSizes[hit.AuthoritativeClientID]++
-	_, ok := m.firstHitTime[hit.AuthoritativeClientID]
-	if !ok {
-		m.firstHitTime[hit.AuthoritativeClientID] = hit.ServerReceivedTime
+	var size uint32
+	if val, ok := m.protoSessionSizes.Load(hit.AuthoritativeClientID); ok {
+		if v, ok := val.(uint32); ok {
+			size = v
+		}
 	}
-	if m.protoSessionSizes[hit.AuthoritativeClientID] >= maxEventInSessionHardCap ||
-		hit.ServerReceivedTime.Sub(m.firstHitTime[hit.AuthoritativeClientID]) >= maxTimeInSessionHardCap {
+	size++
+	m.protoSessionSizes.Store(hit.AuthoritativeClientID, size)
+	_, ok := m.firstHitTime.Load(hit.AuthoritativeClientID)
+	if !ok {
+		m.firstHitTime.Store(hit.AuthoritativeClientID, hit.ServerReceivedTime)
+	}
+	var firstTime time.Time
+	if val, ok := m.firstHitTime.Load(hit.AuthoritativeClientID); ok {
+		if v, ok := val.(time.Time); ok {
+			firstTime = v
+		}
+	}
+	if size >= maxEventInSessionHardCap ||
+		hit.ServerReceivedTime.Sub(firstTime) >= maxTimeInSessionHardCap {
 		logrus.Warnf("Reached hard cap for proto-session %s, closing it", hit.AuthoritativeClientID)
 		m.lock.Lock()
 		defer m.lock.Unlock()
@@ -123,9 +136,13 @@ func (m *closeTriggerMiddleware) Handle(ctx *Context, hit *hits.Hit, next func()
 	return next()
 }
 
-func (m *closeTriggerMiddleware) OnCleanup(_ *Context, authoritativeClientID hits.ClientID) error {
-	delete(m.protoSessionSizes, authoritativeClientID)
-	delete(m.firstHitTime, authoritativeClientID)
+func (m *closeTriggerMiddleware) OnCleanup(_ *Context, allCleanedHits []*hits.Hit) error {
+	if len(allCleanedHits) == 0 {
+		return nil
+	}
+	authoritativeClientID := allCleanedHits[0].AuthoritativeClientID
+	m.protoSessionSizes.Delete(authoritativeClientID)
+	m.firstHitTime.Delete(authoritativeClientID)
 	return m.kv.Delete([]byte(ExpirationKey(string(authoritativeClientID))))
 }
 
@@ -257,7 +274,7 @@ func (m *closeTriggerMiddleware) doCloseProtosession(authoritativeClientID hits.
 		}
 	}
 	// Cleanup the data for given AuthoritativeClientID (ctx calls all middlewares to cleanup any leftover data)
-	err = m.lastCtx.TriggerCleanup(authoritativeClientID)
+	err = m.lastCtx.TriggerCleanup(allHits)
 	if err != nil {
 		return fmt.Errorf("failed to trigger cleanup: %w", err)
 	}
@@ -348,7 +365,7 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 		if err != nil {
 			return fmt.Errorf("failed to set next bucket: %w", err)
 		}
-		err = m.set.Delete([]byte(BucketsKey(nextBucketInt)))
+		err = m.set.Drop([]byte(BucketsKey(nextBucketInt)))
 		if err != nil {
 			logrus.Warnf("Failed to delete bucket: %s", err)
 		}
@@ -437,8 +454,8 @@ func NewCloseTriggerMiddleware(
 		sessionDuration:         sessionDuration,
 		tickInterval:            tickInterval,
 		closer:                  closer,
-		protoSessionSizes:       make(map[hits.ClientID]uint32),
-		firstHitTime:            make(map[hits.ClientID]time.Time),
+		protoSessionSizes:       sync.Map{},
+		firstHitTime:            sync.Map{},
 		catchUpBucketsThreshold: 30,
 		catchUpLogInterval:      10 * time.Second,
 		cache:                   destinationBucketCache,

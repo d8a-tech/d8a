@@ -25,14 +25,18 @@ type Context struct {
 }
 
 // TriggerCleanup triggers cleanup for the given clientID across all middlewares.
-func (c *Context) TriggerCleanup(authoritativeClientID hits.ClientID) error {
+func (c *Context) TriggerCleanup(allCleanedHits []*hits.Hit) error {
 	for _, middleware := range c.allMiddlewares {
-		err := middleware.OnCleanup(c, authoritativeClientID)
+		err := middleware.OnCleanup(c, allCleanedHits)
 		if err != nil {
 			return err
 		}
 	}
-	return c.StorageSet.Delete([]byte(ProtoSessionHitsKey(authoritativeClientID)))
+	if len(allCleanedHits) > 0 {
+		authoritativeClientID := allCleanedHits[0].AuthoritativeClientID
+		return c.StorageSet.Drop([]byte(ProtoSessionHitsKey(authoritativeClientID)))
+	}
+	return nil
 }
 
 // CollectAll collects all hits for the given clientID from all middlewares and storage.
@@ -64,7 +68,7 @@ func (c *Context) CollectAll(authoritativeClientID hits.ClientID) ([]*hits.Hit, 
 type Middleware interface {
 	Handle(ctx *Context, hit *hits.Hit, next func() error) error
 	// OnCleanup is called when the data for proto-session for given clientID should be cleared
-	OnCleanup(ctx *Context, authoritativeClientID hits.ClientID) error
+	OnCleanup(ctx *Context, allCleanedHits []*hits.Hit) error
 	OnCollect(ctx *Context, authoritativeClientID hits.ClientID) ([]*hits.Hit, error)
 
 	OnPing(ctx *Context, pingTimestamp time.Time) error

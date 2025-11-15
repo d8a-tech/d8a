@@ -79,7 +79,7 @@ func (m *compactorMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() er
 		return fmt.Errorf("failed to add compacted hits: %w", err)
 	}
 
-	err = ctx.StorageSet.Delete([]byte(ProtoSessionHitsKey(hit.AuthoritativeClientID)))
+	err = ctx.StorageSet.Drop([]byte(ProtoSessionHitsKey(hit.AuthoritativeClientID)))
 	if err != nil {
 		return fmt.Errorf("failed to delete uncompressed proto-session hits: %w", err)
 	}
@@ -92,7 +92,11 @@ func (m *compactorMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() er
 	return nil
 }
 
-func (m *compactorMiddleware) OnCleanup(_ *Context, authoritativeClientID hits.ClientID) error {
+func (m *compactorMiddleware) OnCleanup(_ *Context, allCleanedHits []*hits.Hit) error {
+	if len(allCleanedHits) == 0 {
+		return nil
+	}
+	authoritativeClientID := allCleanedHits[0].AuthoritativeClientID
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

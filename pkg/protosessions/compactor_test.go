@@ -251,7 +251,11 @@ func TestCompactorMiddleware_OnCleanup(t *testing.T) {
 	compactor.size[clientID] = 500
 
 	// when
-	err := compactor.OnCleanup(ctx, clientID)
+	err := compactor.OnCleanup(ctx, []*hits.Hit{func() *hits.Hit {
+		h := hits.New()
+		h.AuthoritativeClientID = clientID
+		return h
+	}()})
 
 	// then
 	require.NoError(t, err)
