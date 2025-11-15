@@ -1,0 +1,69 @@
+services:
+  alloy:
+    image: grafana/alloy:latest
+    container_name: perflab-alloy
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "12345:12345"  # Alloy HTTP server
+    volumes:
+      - ./alloy-config.alloy:/etc/alloy/config.alloy
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
+    networks:
+      - perflab
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: perflab-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-otlp-receiver'
+    networks:
+      - perflab
+    depends_on:
+      - alloy
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: perflab-jaeger
+    ports:
+      - "16686:16686"  # Jaeger UI
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    networks:
+      - perflab
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: perflab-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml
+      - ./grafana-dashboards.yml:/etc/grafana/provisioning/dashboards/dashboards.yml
+      - ./dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+    networks:
+      - perflab
+    depends_on:
+      - prometheus
+
+networks:
+  perflab:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:
+

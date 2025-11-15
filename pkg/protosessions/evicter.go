@@ -31,16 +31,6 @@ func (m *evicterMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() erro
 		return fmt.Errorf("failed to set session stamp: %w", err)
 	}
 
-	_, err = m.kv.Set(
-		[]byte(SessionStampByClientIDKey(string(hit.AuthoritativeClientID))),
-		[]byte(hit.SessionStamp()),
-		storage.WithSkipIfKeyAlreadyExists(false),
-		storage.WithReturnPreviousValue(false),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to set session stamp by client ID: %w", err)
-	}
-
 	if savedAuthoritativeClientIDBytes == nil || hits.ClientID(
 		savedAuthoritativeClientIDBytes,
 	) == hit.AuthoritativeClientID {
@@ -56,7 +46,6 @@ func (m *evicterMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() erro
 		savedAuthoritativeClientID,
 	)
 
-	oldAuthoritativeClientID := hit.AuthoritativeClientID
 	allHits, err := ctx.CollectAll(hit.AuthoritativeClientID)
 	if err != nil {
 		return fmt.Errorf("failed to collect all hits: %w", err)
@@ -73,38 +62,19 @@ func (m *evicterMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() erro
 		return fmt.Errorf("failed to push hits: %w", err)
 	}
 
-	// Session stamp will be cleaned up by the authoritative client ID when it closes
-	err = m.kv.Delete([]byte(SessionStampByClientIDKey(string(oldAuthoritativeClientID))))
-	if err != nil {
-		return fmt.Errorf("failed to delete session stamp by client ID: %w", err)
-	}
-
 	return ctx.TriggerCleanup(allHits)
 }
-
-// SessionStampByClientIDPrefix is the prefix for session stamps by client ID keys.
-const SessionStampByClientIDPrefix = "sessions.stamps.by.client.id"
 
 func (m *evicterMiddleware) OnCleanup(_ *Context, allCleanedHits []*hits.Hit) error {
 	if len(allCleanedHits) == 0 {
 		return nil
 	}
-	authoritativeClientID := allCleanedHits[0].AuthoritativeClientID
-	sessionStamp, err := m.kv.Get(
-		[]byte(SessionStampByClientIDKey(string(authoritativeClientID))),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to get session stamp by client ID: %w", err)
-	}
+	sessionStamp := allCleanedHits[0].SessionStamp()
 	if len(sessionStamp) > 0 {
-		err = m.kv.Delete([]byte(SessionStampKey(string(sessionStamp))))
+		err := m.kv.Delete([]byte(SessionStampKey(string(sessionStamp))))
 		if err != nil {
 			return fmt.Errorf("failed to delete session stamp: %w", err)
 		}
-	}
-	err = m.kv.Delete([]byte(SessionStampByClientIDKey(string(authoritativeClientID))))
-	if err != nil {
-		return fmt.Errorf("failed to delete session stamp: %w", err)
 	}
 	return nil
 }
@@ -125,7 +95,10 @@ func SessionStampKey(sessionStamp string) string {
 	return fmt.Sprintf("%s.%s", SessionStampPrefix, sessionStamp)
 }
 
+// SessionStampByClientIDPrefix is the prefix for session stamps by client ID keys.
+const SessionStampByClientIDPrefix = "sessions.stamps.by.client.id"
+
 // SessionStampByClientIDKey returns the key for the session stamp by client ID.
-func SessionStampByClientIDKey(clientID string) string {
-	return fmt.Sprintf("%s.%s", SessionStampByClientIDPrefix, clientID)
-}
+// func SessionStampByClientIDKey(clientID string) string {
+// 	return fmt.Sprintf("%s.%s", SessionStampByClientIDPrefix, clientID)
+// }

@@ -7,9 +7,11 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
@@ -27,6 +29,8 @@ import (
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
+	"github.com/d8a-tech/d8a/pkg/warehouse"
+	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -325,6 +329,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return migrate(ctx, cmd, cmd.String("property-id"))
 				},
 			},
+			createRawlogDebuggerCommand(),
+			createPerflabTestCommand(),
 		},
 	}
 
