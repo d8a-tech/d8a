@@ -210,6 +210,20 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   1000,
 }
 
+var monitoringEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "monitoring-enabled",
+	Usage:   "Enable OpenTelemetry metrics",
+	Sources: defaultSourceChain("MONITORING_ENABLED", "monitoring.enabled"),
+	Value:   false,
+}
+
+var monitoringOTelEndpointFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "monitoring-otel-endpoint",
+	Usage:   "OTel collector endpoint for metrics",
+	Sources: defaultSourceChain("MONITORING_OTEL_ENDPOINT", "monitoring.otel_endpoint"),
+	Value:   "localhost:4317",
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseFlag,
 	clickhouseHostFlag,

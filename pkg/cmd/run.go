@@ -17,6 +17,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/pings"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -149,6 +150,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						propertySettingsSplitByCampaignFlag,
 						propertySettingsSplitByTimeSinceFirstEventFlag,
 						propertySettingsSplitByMaxEventsFlag,
+						monitoringEnabledFlag,
+						monitoringOTelEndpointFlag,
 					},
 					warehouseConfigFlags,
 				),
@@ -162,6 +165,25 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name)); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
+
+					// Setup metrics
+					metricsSetup, err := monitoring.SetupMetrics(
+						ctx,
+						cmd.Bool(monitoringEnabledFlag.Name),
+						cmd.String(monitoringOTelEndpointFlag.Name),
+						"d8a",
+						"1.0.0",
+					)
+					if err != nil {
+						return fmt.Errorf("failed to setup metrics: %w", err)
+					}
+					defer func() {
+						shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer shutdownCancel()
+						if err := metricsSetup.Shutdown(shutdownCtx); err != nil {
+							logrus.Errorf("Error shutting down metrics: %v", err)
+						}
+					}()
 
 					// Set up signal handling
 					sigChan := make(chan os.Signal, 1)
@@ -277,17 +299,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						workerErrChan <- nil
 					}()
 
-					rawLogStorage := receiver.NewDummyRawLogStorage()
-
 					// Start server and handle its error
 					serverErr := receiver.Serve(
 						ctx,
 						serverStorage,
-						receiver.NewBatchingRawlogStorage(
-							rawLogStorage,
-							cmd.Int(batcherBatchSizeFlag.Name),
-							cmd.Duration(batcherBatchTimeoutFlag.Name),
-						),
+						receiver.NewNoopRawLogStorage(),
 						cmd.Int(serverPortFlag.Name),
 						protocol.PathProtocolMapping{
 							"/g/collect": ga4.NewGA4Protocol(
@@ -393,6 +409,10 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 	case "console", "":
 		return warehouse.NewStaticDriverRegistry(
 			warehouse.NewConsoleDriver(),
+		)
+	case "noop":
+		return warehouse.NewStaticDriverRegistry(
+			warehouse.NewNoopDriver(),
 		)
 	default:
 	}

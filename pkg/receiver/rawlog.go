@@ -235,6 +235,19 @@ func NewDummyRawLogStorage() RawLogStorage {
 	return &dummyRawLogStorage{}
 }
 
+// NoopRawLogStorage discards all raw log data.
+type NoopRawLogStorage struct{}
+
+// Store implements RawLogStorage
+func (n *NoopRawLogStorage) Store(_ *bytes.Buffer) error {
+	return nil
+}
+
+// NewNoopRawLogStorage creates a noop raw log storage that discards all data.
+func NewNoopRawLogStorage() RawLogStorage {
+	return &NoopRawLogStorage{}
+}
+
 // RawLogMainPageHandler returns a handler for the main rawlog page showing all index items
 func RawLogMainPageHandler(rawLogIndexSet storage.Set) func(fctx *fasthttp.RequestCtx) {
 	tmpl := template.Must(template.ParseFS(templateFS, "templates/main.html"))

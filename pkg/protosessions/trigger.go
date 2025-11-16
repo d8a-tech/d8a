@@ -1,6 +1,7 @@
 package protosessions
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -12,6 +13,8 @@ import (
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type catchUpState struct {
@@ -43,6 +46,8 @@ type closeTriggerMiddleware struct {
 	lastCtx                 *Context
 	closer                  Closer
 	stop                    bool
+	tickHistogram           metric.Int64Histogram
+	lagGauge                metric.Int64Gauge
 }
 
 type destinationBucketCache interface {
@@ -168,6 +173,11 @@ func (m *closeTriggerMiddleware) doStop() {
 // tick performs a single tick of the closeTriggerMiddleware.
 // The algorithm is loosely based on "timing wheels"
 func (m *closeTriggerMiddleware) tick() error { // nolint:funlen // the function contains a lot of comments
+	tickStart := time.Now()
+	defer func() {
+		m.tickHistogram.Record(context.TODO(), time.Since(tickStart).Microseconds())
+	}()
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	// Setting the sleep duration to default value, can be overridden under certain conditions later
@@ -346,6 +356,12 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 		}
 	}
 	currentBucket := BucketNumber(m.lastHandledHitTime, m.tickInterval)
+
+	// Record lag as difference between current and next bucket in time units
+	lagBuckets := currentBucket - nextBucketInt
+	lagMicroseconds := lagBuckets * m.tickInterval.Microseconds()
+	m.lagGauge.Record(context.TODO(), lagMicroseconds)
+
 	if nextBucketInt >= currentBucket {
 		m.loopSleepDuration = m.tickInterval
 		if m.catchUpState != nil {
@@ -447,6 +463,23 @@ func NewCloseTriggerMiddleware(
 	if err != nil {
 		logrus.Panicf("failed to create destination bucket cache: %s", err)
 	}
+
+	meter := otel.GetMeterProvider().Meter("protosessions")
+	tickHistogram, _ := meter.Int64Histogram(
+		"protosessions.trigger.tick.duration",
+		metric.WithDescription("Duration of tick execution in close trigger middleware"),
+		metric.WithUnit("us"),
+		metric.WithExplicitBucketBoundaries(
+			1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000,
+			500000, 1000000, 2500000, 5000000, 10000000,
+		),
+	)
+	lagGauge, _ := meter.Int64Gauge(
+		"protosessions.trigger.lag",
+		metric.WithDescription("Processing lag between current and last handled bucket"),
+		metric.WithUnit("us"),
+	)
+
 	m := &closeTriggerMiddleware{
 		lock:                    sync.Mutex{},
 		kv:                      kv,
@@ -459,6 +492,8 @@ func NewCloseTriggerMiddleware(
 		catchUpBucketsThreshold: 30,
 		catchUpLogInterval:      10 * time.Second,
 		cache:                   destinationBucketCache,
+		tickHistogram:           tickHistogram,
+		lagGauge:                lagGauge,
 	}
 	for _, option := range options {
 		option(m)

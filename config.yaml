@@ -1,0 +1,7 @@
+warehouse: noop
+closer:
+  session_duration: 5s
+
+monitoring:
+  enabled: true
+  otel_endpoint: localhost:4317

@@ -9,10 +9,14 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/pings"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Context holds the context for protosessions operations.
@@ -90,7 +94,26 @@ func Handler(
 		Decoder:        decoder,
 		allMiddlewares: middlewares,
 	}
+
+	meter := otel.GetMeterProvider().Meter("protosessions")
+	handlerHistogram, _ := meter.Int64Histogram(
+		"protosessions.hitprocessing.duration",
+		metric.WithDescription("Duration of hit processing handler execution"),
+		metric.WithUnit("us"),
+	)
+	middlewareHistogram, _ := meter.Int64Histogram(
+		"protosessions.middleware.duration",
+		metric.WithDescription("Duration of middleware execution"),
+		metric.WithUnit("us"),
+	)
+	storageHistogram, _ := meter.Int64Histogram(
+		"protosessions.storage.duration",
+		metric.WithDescription("Duration of storage operation"),
+		metric.WithUnit("us"),
+	)
+
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
+
 		if isPing, err := handlePing(md, c, middlewares); isPing {
 			return err
 		}
@@ -99,26 +122,37 @@ func Handler(
 		sortHitsByTime(h.Hits)
 
 		for _, hit := range h.Hits {
+			hitProcessingStart := time.Now()
 			nextFuncs := make([]func(context.Context) error, len(middlewares)+1)
 			for i := range nextFuncs {
 				if i == len(nextFuncs)-1 {
 					nextFuncs[i] = func(_ context.Context) error {
+						storageStart := time.Now()
 						b := bytes.NewBuffer(nil)
 						_, err := encoder(b, hit)
 						if err != nil {
 							return worker.NewError(worker.ErrTypeDroppable, err)
 						}
-						return set.Add([]byte(ProtoSessionHitsKey(hit.AuthoritativeClientID)), b.Bytes())
+						err = set.Add([]byte(ProtoSessionHitsKey(hit.AuthoritativeClientID)), b.Bytes())
+						storageHistogram.Record(ctx, time.Since(storageStart).Microseconds())
+						return err
 					}
 				} else {
+					middlewareIdx := i
 					nextFuncs[i] = func(ctx context.Context) error {
-						return middlewares[i].Handle(c, hit, func() error {
-							return nextFuncs[i+1](ctx)
+						middlewareStart := time.Now()
+						middlewareName := fmt.Sprintf("%T", middlewares[middlewareIdx])
+						err := middlewares[middlewareIdx].Handle(c, hit, func() error {
+							return nextFuncs[middlewareIdx+1](ctx)
 						})
+						middlewareHistogram.Record(ctx, time.Since(middlewareStart).Microseconds(),
+							monitoring.WithAttributes(attribute.String("middleware", middlewareName)))
+						return err
 					}
 				}
 			}
 			err := nextFuncs[0](ctx)
+			handlerHistogram.Record(ctx, time.Since(hitProcessingStart).Microseconds())
 			if err != nil {
 				logrus.Errorf("Task processing error: %s", err)
 			}

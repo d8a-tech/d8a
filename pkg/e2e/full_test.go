@@ -190,15 +190,15 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 									0,
 								),
 							),
-							protosessions.NewCompactorMiddleware(
-								runningServer.compactorKV,
-								encoding.JSONEncoder,
-								encoding.JSONDecoder,
-								uint32(4*1024),
-							),
-						},
-					),
+						protosessions.NewCompactorMiddleware(
+							runningServer.compactorKV,
+							encoding.JSONEncoder,
+							encoding.JSONDecoder,
+							uint32(4*1024),
+						),
+					},
 				),
+			),
 			},
 			[]worker.Middleware{},
 		)
