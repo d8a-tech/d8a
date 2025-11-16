@@ -96,20 +96,23 @@ func Handler(
 	}
 
 	meter := otel.GetMeterProvider().Meter("protosessions")
-	handlerHistogram, _ := meter.Int64Histogram(
+	handlerHistogram, _ := meter.Float64Histogram(
 		"protosessions.hitprocessing.duration",
 		metric.WithDescription("Duration of hit processing handler execution"),
-		metric.WithUnit("us"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
-	middlewareHistogram, _ := meter.Int64Histogram(
+	middlewareHistogram, _ := meter.Float64Histogram(
 		"protosessions.middleware.duration",
 		metric.WithDescription("Duration of middleware execution"),
-		metric.WithUnit("us"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
-	storageHistogram, _ := meter.Int64Histogram(
+	storageHistogram, _ := meter.Float64Histogram(
 		"protosessions.storage.duration",
 		metric.WithDescription("Duration of storage operation"),
-		metric.WithUnit("us"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.UsBuckets...),
 	)
 
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
@@ -134,7 +137,7 @@ func Handler(
 							return worker.NewError(worker.ErrTypeDroppable, err)
 						}
 						err = set.Add([]byte(ProtoSessionHitsKey(hit.AuthoritativeClientID)), b.Bytes())
-						storageHistogram.Record(ctx, time.Since(storageStart).Microseconds())
+						storageHistogram.Record(ctx, time.Since(storageStart).Seconds())
 						return err
 					}
 				} else {
@@ -145,14 +148,14 @@ func Handler(
 						err := middlewares[middlewareIdx].Handle(c, hit, func() error {
 							return nextFuncs[middlewareIdx+1](ctx)
 						})
-						middlewareHistogram.Record(ctx, time.Since(middlewareStart).Microseconds(),
+						middlewareHistogram.Record(ctx, time.Since(middlewareStart).Seconds(),
 							monitoring.WithAttributes(attribute.String("middleware", middlewareName)))
 						return err
 					}
 				}
 			}
 			err := nextFuncs[0](ctx)
-			handlerHistogram.Record(ctx, time.Since(hitProcessingStart).Microseconds())
+			handlerHistogram.Record(ctx, time.Since(hitProcessingStart).Seconds())
 			if err != nil {
 				logrus.Errorf("Task processing error: %s", err)
 			}

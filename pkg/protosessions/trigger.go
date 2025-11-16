@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
@@ -46,7 +47,7 @@ type closeTriggerMiddleware struct {
 	lastCtx                 *Context
 	closer                  Closer
 	stop                    bool
-	tickHistogram           metric.Int64Histogram
+	tickHistogram           metric.Float64Histogram
 	lagGauge                metric.Int64Gauge
 }
 
@@ -175,7 +176,7 @@ func (m *closeTriggerMiddleware) doStop() {
 func (m *closeTriggerMiddleware) tick() error { // nolint:funlen // the function contains a lot of comments
 	tickStart := time.Now()
 	defer func() {
-		m.tickHistogram.Record(context.TODO(), time.Since(tickStart).Microseconds())
+		m.tickHistogram.Record(context.TODO(), time.Since(tickStart).Seconds())
 	}()
 
 	m.lock.Lock()
@@ -465,14 +466,11 @@ func NewCloseTriggerMiddleware(
 	}
 
 	meter := otel.GetMeterProvider().Meter("protosessions")
-	tickHistogram, _ := meter.Int64Histogram(
+	tickHistogram, _ := meter.Float64Histogram(
 		"protosessions.trigger.tick.duration",
 		metric.WithDescription("Duration of tick execution in close trigger middleware"),
-		metric.WithUnit("us"),
-		metric.WithExplicitBucketBoundaries(
-			1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000,
-			500000, 1000000, 2500000, 5000000, 10000000,
-		),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
 	lagGauge, _ := meter.Int64Gauge(
 		"protosessions.trigger.lag",

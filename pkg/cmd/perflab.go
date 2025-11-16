@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/urfave/cli/v3"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -135,6 +136,7 @@ func createPerflabTestCommand() *cli.Command {
 				"perflab.request.duration",
 				metric.WithDescription("Request duration in seconds"),
 				metric.WithUnit("s"),
+				metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create histogram: %w", err)

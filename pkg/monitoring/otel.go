@@ -14,6 +14,22 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
+// UsBuckets provides histogram boundaries for microsecond-scale measurements (1us to 100ms) in seconds.
+var UsBuckets = []float64{
+	0.000001, 0.000002, 0.000005, 0.00001, 0.00002, 0.00005,
+	0.0001, 0.0002, 0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1,
+}
+
+// MsBuckets provides histogram boundaries for millisecond-scale measurements (500us to 5s) in seconds.
+var MsBuckets = []float64{
+	0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0,
+}
+
+// SBuckets provides histogram boundaries for second-scale measurements (5ms to 2m) in seconds.
+var SBuckets = []float64{
+	0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0,
+}
+
 // WithAttributes is a wrapper around metric.WithAttributes to satisfy linter rules.
 func WithAttributes(attrs ...attribute.KeyValue) metric.RecordOption {
 	return metric.WithAttributes(attrs...)
@@ -62,17 +78,6 @@ func SetupMetrics(ctx context.Context, enabled bool, otelEndpoint, serviceName, 
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(
 			metricExporter,
 			sdkmetric.WithInterval(30*time.Second),
-		)),
-		sdkmetric.WithView(sdkmetric.NewView(
-			sdkmetric.Instrument{Kind: sdkmetric.InstrumentKindHistogram},
-			sdkmetric.Stream{
-				Aggregation: sdkmetric.AggregationExplicitBucketHistogram{
-					Boundaries: []float64{
-						0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500,
-						5000, 7500, 10000, 20000, 50000, 100000,
-					},
-				},
-			},
 		)),
 	)
 	otel.SetMeterProvider(meterProvider)

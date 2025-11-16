@@ -112,7 +112,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "rate(protosessions_hitprocessing_duration_microseconds_count[$__rate_interval])",
+                    "expr": "rate(protosessions_hitprocessing_duration_seconds_count[$__rate_interval])",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -183,7 +183,7 @@
                             }
                         ]
                     },
-                    "unit": "µs"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -216,7 +216,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.75, sum by(le) (rate(protosessions_hitprocessing_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.75, sum by(le) (rate(protosessions_hitprocessing_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -232,7 +232,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.9, sum by(le) (rate(protosessions_hitprocessing_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.9, sum by(le) (rate(protosessions_hitprocessing_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
@@ -249,7 +249,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.99, sum by(le) (rate(protosessions_hitprocessing_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.99, sum by(le) (rate(protosessions_hitprocessing_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
@@ -347,7 +347,7 @@
                             }
                         ]
                     },
-                    "unit": "µs"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -380,7 +380,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.75, sum by(le, middleware) (rate(protosessions_middleware_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.75, sum by(le, middleware) (rate(protosessions_middleware_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -451,7 +451,7 @@
                             }
                         ]
                     },
-                    "unit": "µs"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -484,7 +484,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.9, sum by(le, middleware) (rate(protosessions_middleware_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.9, sum by(le, middleware) (rate(protosessions_middleware_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -555,7 +555,7 @@
                             }
                         ]
                     },
-                    "unit": "µs"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -588,7 +588,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.99, sum by(le, middleware) (rate(protosessions_middleware_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.99, sum by(le, middleware) (rate(protosessions_middleware_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -685,7 +685,7 @@
                             }
                         ]
                     },
-                    "unit": "µs"
+                    "unit": "s"
                 },
                 "overrides": []
             },
@@ -718,7 +718,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.75, sum by(le) (rate(protosessions_trigger_tick_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.75, sum by(le) (rate(protosessions_trigger_tick_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "includeNullMetadata": true,
                     "interval": "1m",
@@ -734,7 +734,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.9, sum by(le) (rate(protosessions_trigger_tick_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.9, sum by(le) (rate(protosessions_trigger_tick_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
@@ -751,7 +751,7 @@
                     },
                     "disableTextWrap": false,
                     "editorMode": "code",
-                    "expr": "histogram_quantile(0.99, sum by(le) (rate(protosessions_trigger_tick_duration_microseconds_bucket[$__rate_interval])))",
+                    "expr": "histogram_quantile(0.99, sum by(le) (rate(protosessions_trigger_tick_duration_seconds_bucket[$__rate_interval])))",
                     "fullMetaSearch": false,
                     "hide": false,
                     "includeNullMetadata": true,
