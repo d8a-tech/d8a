@@ -107,7 +107,7 @@ func (r *staticDriverRegistry) Get(_ string) (Driver, error) {
 
 // NewStaticDriverRegistry creates a new static driver registry that always returns the same driver.
 func NewStaticDriverRegistry(driver Driver) Registry {
-	return &staticDriverRegistry{driver: NewLoggingDriver(driver)}
+	return &staticDriverRegistry{driver: driver}
 }
 
 type loggingDriver struct {

@@ -48,7 +48,7 @@ type closeTriggerMiddleware struct {
 	closer                  Closer
 	stop                    bool
 	tickHistogram           metric.Float64Histogram
-	lagGauge                metric.Int64Gauge
+	lagGauge                metric.Float64Gauge
 }
 
 type destinationBucketCache interface {
@@ -240,7 +240,8 @@ func (m *closeTriggerMiddleware) shouldBeClosed(
 			return false, fmt.Errorf("failed to get expiration key: %w", err)
 		}
 		if len(destinationBucket) == 0 {
-			logrus.Warnf(
+			// TODO adda  metric for that
+			logrus.Debugf(
 				"Destination bucket for %s is empty, skipping. Maybe it was evicted?",
 				ExpirationKey(string(authoritativeClientID)),
 			)
@@ -359,9 +360,10 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 	currentBucket := BucketNumber(m.lastHandledHitTime, m.tickInterval)
 
 	// Record lag as difference between current and next bucket in time units
-	lagBuckets := currentBucket - nextBucketInt
-	lagMicroseconds := lagBuckets * m.tickInterval.Microseconds()
-	m.lagGauge.Record(context.TODO(), lagMicroseconds)
+	lagBuckets := BucketNumber(time.Now().UTC(), m.tickInterval) - nextBucketInt
+	logrus.Infof("Lag buckets: %d", lagBuckets)
+	lagSeconds := float64(lagBuckets) * m.tickInterval.Seconds()
+	m.lagGauge.Record(context.TODO(), lagSeconds)
 
 	if nextBucketInt >= currentBucket {
 		m.loopSleepDuration = m.tickInterval
@@ -472,10 +474,10 @@ func NewCloseTriggerMiddleware(
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
-	lagGauge, _ := meter.Int64Gauge(
-		"protosessions.trigger.lag",
+	lagGauge, _ := meter.Float64Gauge(
+		"protosessions.trigger.lagv2",
 		metric.WithDescription("Processing lag between current and last handled bucket"),
-		metric.WithUnit("us"),
+		metric.WithUnit("s"),
 	)
 
 	m := &closeTriggerMiddleware{

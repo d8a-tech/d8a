@@ -40,7 +40,7 @@ func (m *evicterMiddleware) Handle(ctx *Context, hit *hits.Hit, next func() erro
 	savedAuthoritativeClientID := hits.ClientID(savedAuthoritativeClientIDBytes)
 
 	// Eviction happens here
-	logrus.Infof(
+	logrus.Debugf(
 		"Evicting protosession: %v to %v",
 		hit.AuthoritativeClientID,
 		savedAuthoritativeClientID,

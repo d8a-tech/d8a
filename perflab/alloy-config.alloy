@@ -17,9 +17,9 @@ otelcol.receiver.otlp "default" {
 
 // Batch processor for metrics to Prometheus
 otelcol.processor.batch "prometheus" {
-  timeout = "2s"
-  send_batch_size = 8192
-  send_batch_max_size = 0
+  timeout = "200ms"
+  send_batch_size = 100
+  send_batch_max_size = 500
 
   output {
     metrics = [otelcol.exporter.otlphttp.prometheus.input]
@@ -28,9 +28,9 @@ otelcol.processor.batch "prometheus" {
 
 // Batch processor for traces to Jaeger
 otelcol.processor.batch "jaeger" {
-  timeout = "2s"
-  send_batch_size = 8192
-  send_batch_max_size = 0
+  timeout = "200ms"
+  send_batch_size = 100
+  send_batch_max_size = 500
 
   output {
     traces = [otelcol.exporter.otlp.jaeger.input]

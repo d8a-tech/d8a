@@ -77,10 +77,10 @@ func SetupMetrics(ctx context.Context, enabled bool, otelEndpoint, serviceName, 
 		sdkmetric.WithResource(res),
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(
 			metricExporter,
-			sdkmetric.WithInterval(30*time.Second),
+			sdkmetric.WithInterval(1*time.Second),
 		)),
 	)
 	otel.SetMeterProvider(meterProvider)
-	logrus.Infof("OTel metrics configured with endpoint %s (export interval: 30s)", otelEndpoint)
+	logrus.Infof("OTel metrics configured with endpoint %s (export interval: 1s)", otelEndpoint)
 	return &MetricsSetup{meterProvider: meterProvider}, nil
 }
