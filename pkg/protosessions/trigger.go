@@ -361,7 +361,7 @@ func (m *closeTriggerMiddleware) withNextBucket(f func(nextBucket int64) (skip b
 
 	// Record lag as difference between current and next bucket in time units
 	lagBuckets := BucketNumber(time.Now().UTC(), m.tickInterval) - nextBucketInt
-	logrus.Infof("Lag buckets: %d", lagBuckets)
+
 	lagSeconds := float64(lagBuckets) * m.tickInterval.Seconds()
 	m.lagGauge.Record(context.TODO(), lagSeconds)
 

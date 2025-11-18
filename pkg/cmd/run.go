@@ -50,7 +50,9 @@ func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 var currencyConverter currency.Converter = func() currency.Converter {
 	converter, err := currency.NewFWAConverter(nil)
 	if err != nil {
-		logrus.Fatalf("failed to create currency converter: %v", err)
+		// logrus.Fatalf("failed to create currency converter: %v", err)
+		// TODO: Remove this, used for the current cloudflare downtime
+		return currency.NewDummyConverter(1.0)
 	}
 	return converter
 }()
@@ -214,7 +216,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					)
 					serverStorage := receiver.NewBatchingStorage(
 						storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher),
-						1000,
+						cmd.Int(batcherBatchSizeFlag.Name),
 						time.Millisecond*500,
 					)
 					workerErrChan := make(chan error, 1)
@@ -229,6 +231,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
 						}
+						cachedKV, err := storage.NewCachedKV(
+							storage.NewMonitoringKV(kv),
+							storage.WithCacheTTL(time.Minute),
+							storage.WithMaxCacheBytes(1024*1024*5), // 5MB
+						)
+						if err != nil {
+							logrus.Fatalf("failed to create cached kv: %v", err)
+						}
 						set, err := bolt.NewBoltSet("/tmp/bolt_set.db")
 						if err != nil {
 							logrus.Fatalf("failed to create bolt set: %v", err)
@@ -240,19 +250,22 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 									encoding.ZlibCBORDecoder,
 									protosessions.Handler(
 										ctx,
-										set,
-										kv,
+										storage.NewMonitoringSet(set),
+										cachedKV,
 										encoding.GobEncoder,
 										encoding.GobDecoder,
 										[]protosessions.Middleware{
-											protosessions.NewEvicterMiddleware(storage.NewMonitoringKV(kv), serverStorage),
+											protosessions.NewEvicterMiddleware(
+												cachedKV,
+												serverStorage,
+											),
 											func() protosessions.Middleware {
 												opts := []protosessions.CloseTriggerMiddlewareOption{}
 												if cmd.Bool(closerSkipCatchingUpFlag.Name) {
 													opts = append(opts, protosessions.WithSkipCatchingUp())
 												}
 												return protosessions.NewCloseTriggerMiddleware(
-													storage.NewMonitoringKV(kv),
+													cachedKV,
 													storage.NewMonitoringSet(set),
 													cmd.Duration(closerSessionDurationFlag.Name),
 													cmd.Duration(closerTickIntervalFlag.Name),
