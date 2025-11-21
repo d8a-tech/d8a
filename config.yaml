@@ -3,5 +3,5 @@ closer:
   session_duration: 5s
 
 monitoring:
-  enabled: true
+  enabled: false
   otel_endpoint: localhost:4317

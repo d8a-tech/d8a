@@ -56,11 +56,11 @@ func (b *genericStorageTickerBackend) nextBucketKey() string {
 	return NextBucketKeyPrefix
 }
 
-// NewGenericStorageTickerBackend creates a TickerStateBackend using generic storage interfaces.
-func NewGenericStorageTickerBackend(
-	kv storage.KV,
+// NewGenericStorageTimingWheelBackend creates a TickerStateBackend using generic storage interfaces.
+func NewGenericStorageTimingWheelBackend(
 	name string,
-) TickerStateBackend {
+	kv storage.KV,
+) TimingWheelStateBackend {
 	return &genericStorageTickerBackend{
 		kv:   kv,
 		name: name,

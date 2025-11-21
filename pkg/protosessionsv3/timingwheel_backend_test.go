@@ -11,7 +11,7 @@ import (
 func TestGenericStorageTickerBackend_FirstRun(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
-	backend := NewGenericStorageTickerBackend(kv, "test")
+	backend := NewGenericStorageTimingWheelBackend("test", kv)
 	ctx := context.Background()
 
 	// when
@@ -25,7 +25,7 @@ func TestGenericStorageTickerBackend_FirstRun(t *testing.T) {
 func TestGenericStorageTickerBackend_SaveAndGet(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
-	backend := NewGenericStorageTickerBackend(kv, "test")
+	backend := NewGenericStorageTimingWheelBackend("test", kv)
 	ctx := context.Background()
 
 	// when
@@ -42,21 +42,21 @@ func TestGenericStorageTickerBackend_SaveAndGet(t *testing.T) {
 func TestGenericStorageTickerBackend_NamedVsUnnamed(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
-	
-	namedBackend := NewGenericStorageTickerBackend(kv, "wheel1")
-	unnamedBackend := NewGenericStorageTickerBackend(kv, "")
+
+	namedBackend := NewGenericStorageTimingWheelBackend("wheel1", kv)
+	unnamedBackend := NewGenericStorageTimingWheelBackend("", kv)
 	ctx := context.Background()
 
 	// when
 	err := namedBackend.SaveNextBucket(ctx, 10)
 	assert.NoError(t, err)
-	
+
 	err = unnamedBackend.SaveNextBucket(ctx, 20)
 	assert.NoError(t, err)
 
 	namedNext, err := namedBackend.GetNextBucket(ctx)
 	assert.NoError(t, err)
-	
+
 	unnamedNext, err := unnamedBackend.GetNextBucket(ctx)
 	assert.NoError(t, err)
 
@@ -64,4 +64,3 @@ func TestGenericStorageTickerBackend_NamedVsUnnamed(t *testing.T) {
 	assert.Equal(t, int64(10), namedNext)
 	assert.Equal(t, int64(20), unnamedNext)
 }
-

@@ -22,7 +22,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
+	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -248,49 +248,37 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 								worker.NewGenericTaskHandler(
 									hits.HitProcessingTaskName,
 									encoding.ZlibCBORDecoder,
-									protosessions.Handler(
+									protosessionsv3.Handler(
 										ctx,
-										storage.NewMonitoringSet(set),
-										cachedKV,
-										encoding.GobEncoder,
-										encoding.GobDecoder,
-										[]protosessions.Middleware{
-											protosessions.NewEvicterMiddleware(
-												cachedKV,
-												serverStorage,
-											),
-											func() protosessions.Middleware {
-												opts := []protosessions.CloseTriggerMiddlewareOption{}
-												if cmd.Bool(closerSkipCatchingUpFlag.Name) {
-													opts = append(opts, protosessions.WithSkipCatchingUp())
-												}
-												return protosessions.NewCloseTriggerMiddleware(
-													cachedKV,
-													storage.NewMonitoringSet(set),
-													cmd.Duration(closerSessionDurationFlag.Name),
-													cmd.Duration(closerTickIntervalFlag.Name),
-													sessions.NewDirectCloser(
-														sessions.NewSessionWriter(
-															ctx,
-															warehouseRegistry(ctx, cmd),
-															columnsRegistry(cmd), // nolint:contextcheck // false positive
-															schema.NewStaticLayoutRegistry(
-																map[string]schema.Layout{},
-																schema.NewEmbeddedSessionColumnsLayout(
-																	getTableNames().events,
-																	getTableNames().sessionsColumnPrefix,
-																),
-															),
-															splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
-														),
-														5*time.Second,
+										protosessionsv3.NewNaiveGenericStorageBatchedIOBackend(
+											cachedKV,
+											set,
+											encoding.JSONEncoder,
+											encoding.JSONDecoder,
+										),
+										protosessionsv3.NewGenericStorageTimingWheelBackend(
+											"",
+											kv,
+										),
+										sessions.NewDirectCloser(
+											sessions.NewSessionWriter(
+												ctx,
+												warehouseRegistry(ctx, cmd),
+												columnsRegistry(cmd), // nolint:contextcheck // false positive
+												schema.NewStaticLayoutRegistry(
+													map[string]schema.Layout{},
+													schema.NewEmbeddedSessionColumnsLayout(
+														getTableNames().events,
+														getTableNames().sessionsColumnPrefix,
 													),
-													opts...,
-												)
-											}(),
-										},
-									),
-								),
+												),
+												splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
+											),
+											5*time.Second,
+										),
+										serverStorage,
+										propertySource(cmd),
+									)),
 							},
 							[]worker.Middleware{},
 						)

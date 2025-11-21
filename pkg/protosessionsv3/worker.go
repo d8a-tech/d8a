@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/pings"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/worker"
@@ -22,11 +23,25 @@ type Middleware interface {
 func Handler(
 	ctx context.Context,
 	backend BatchedIOBackend,
+	tickerStateBackend TimingWheelStateBackend,
+	closer Closer,
 	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
 ) func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error {
-	orchestrator := NewOrchestrator(backend, requeuer, settingsRegistry)
-	return func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error {
+	orchestrator := NewOrchestrator(
+		ctx,
+		backend,
+		tickerStateBackend,
+		closer,
+		requeuer,
+		settingsRegistry,
+	)
+	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
+		isPing, pingTimestamp := pings.IsTaskAPing(md)
+		if isPing {
+			orchestrator.updateLastHitTime(pingTimestamp)
+			return nil
+		}
 		err := orchestrator.Orchestrate(ctx, h.Hits)
 		if err != nil {
 			var errType worker.ErrorType

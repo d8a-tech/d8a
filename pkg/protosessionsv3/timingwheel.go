@@ -24,9 +24,19 @@ type BucketProcessorFunc func(ctx context.Context, bucketNumber int64) (BucketNe
 // GetCurrentTimeFunc returns the logical current time for the timing wheel.
 type GetCurrentTimeFunc func() time.Time
 
+// TimingWheelStateBackend provides abstract storage for timing wheel state.
+type TimingWheelStateBackend interface {
+	// GetNextBucket returns the next bucket to process.
+	// Returns -1 if no bucket has been processed yet (first run).
+	GetNextBucket(ctx context.Context) (int64, error)
+
+	// SaveNextBucket persists the next bucket number to process.
+	SaveNextBucket(ctx context.Context, bucketNumber int64) error
+}
+
 // TimingWheel implements a timing wheel for scheduling protosession closures.
 type TimingWheel struct {
-	backend        TickerStateBackend
+	backend        TimingWheelStateBackend
 	tickInterval   time.Duration
 	processor      BucketProcessorFunc
 	getCurrentTime GetCurrentTimeFunc
@@ -37,7 +47,7 @@ type TimingWheel struct {
 
 // NewTimingWheel creates a timing wheel with the given tick interval.
 func NewTimingWheel(
-	backend TickerStateBackend,
+	backend TimingWheelStateBackend,
 	tickInterval time.Duration,
 	processor BucketProcessorFunc,
 	getCurrentTime GetCurrentTimeFunc,
@@ -83,7 +93,9 @@ func (tw *TimingWheel) loop(ctx context.Context) {
 				logrus.Errorf("TimingWheel tick failed: %s", err)
 			}
 			// Update ticker interval in case loopSleep changed
-			ticker.Reset(tw.loopSleep)
+			if tw.loopSleep > 0 {
+				ticker.Reset(tw.loopSleep)
+			}
 		}
 	}
 }
@@ -116,6 +128,8 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 	currentBucket := BucketNumber(currentTime, tw.tickInterval)
 
+	logrus.Debugf("TimingWheel tick next bucket: %d, current bucket: %d", nextBucket, currentBucket)
+
 	// Bucket not yet ready to process
 	if nextBucket >= currentBucket {
 		logrus.Tracef("Bucket %d is not yet closed, skipping", nextBucket)
@@ -123,8 +137,8 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	}
 
 	// Process bucket
-	// Set loopSleep to 0 to enable fast catch-up
-	tw.loopSleep = 0
+	// Set loopSleep to minimal duration to enable fast catch-up
+	tw.loopSleep = time.Nanosecond
 
 	result, err := tw.processor(ctx, nextBucket)
 	if err != nil {
@@ -141,4 +155,8 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (tw *TimingWheel) BucketNumber(time time.Time) int64 {
+	return BucketNumber(time, tw.tickInterval)
 }

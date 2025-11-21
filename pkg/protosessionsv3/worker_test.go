@@ -8,6 +8,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/receiver"
+	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,6 +19,7 @@ func TestWorker(t *testing.T) {
 	results := make(map[hits.ClientID][]*hits.Hit)
 	clashes := make(map[string]string)
 	evictions := make([]*hits.Hit, 0)
+	tickerStateBackend := NewGenericStorageTimingWheelBackend("protosessions", storage.NewInMemoryKV())
 	backend := NewTestBatchedIOBackend(
 		WithAppendHitsHandler(func(request *AppendHitsToProtoSessionRequest) *AppendHitsToProtoSessionResponse {
 			if results[request.ProtoSessionID] == nil {
@@ -46,12 +48,13 @@ func TestWorker(t *testing.T) {
 			}
 		}),
 	)
+	closer := NewTestCloser()
 	requeuer := receiver.NewTestStorage(func(hits []*hits.Hit) error {
 		evictions = append(evictions, hits...)
 		return nil
 	})
 	settingsRegistry := properties.NewTestSettingRegistry()
-	handler := Handler(context.Background(), backend, requeuer, settingsRegistry)
+	handler := Handler(context.Background(), backend, tickerStateBackend, closer, requeuer, settingsRegistry)
 	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{
 			columntests.TestHitOne(),

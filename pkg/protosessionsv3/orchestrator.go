@@ -2,6 +2,7 @@ package protosessionsv3
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -9,21 +10,50 @@ import (
 	"github.com/d8a-tech/d8a/pkg/receiver"
 )
 
-type Orchestrator struct {
-	backend          BatchedIOBackend
-	requeuer         receiver.Storage
-	settingsRegistry properties.SettingsRegistry
+// Closer defines an interface for closing and processing hit sessions
+type Closer interface {
+	Close(protosession []*hits.Hit) error
 }
 
-func NewOrchestrator(backend BatchedIOBackend, requeuer receiver.Storage, settingsRegistry properties.SettingsRegistry) *Orchestrator {
-	return &Orchestrator{
+type Orchestrator struct {
+	ctx              context.Context
+	backend          BatchedIOBackend
+	closer           Closer
+	requeuer         receiver.Storage
+	settingsRegistry properties.SettingsRegistry
+	timingWheel      *TimingWheel
+	lastHitTime      time.Time
+}
+
+func NewOrchestrator(
+	ctx context.Context,
+	backend BatchedIOBackend,
+	tickerStateBackend TimingWheelStateBackend,
+	closer Closer,
+	requeuer receiver.Storage,
+	settingsRegistry properties.SettingsRegistry,
+) *Orchestrator {
+	o := &Orchestrator{
+		ctx:              ctx,
 		backend:          backend,
+		closer:           closer,
 		requeuer:         requeuer,
 		settingsRegistry: settingsRegistry,
 	}
+	o.timingWheel = NewTimingWheel(
+		tickerStateBackend,
+		1*time.Second,
+		o.processBucket,
+		func() time.Time { return o.lastHitTime },
+	)
+	go o.timingWheel.Start(ctx)
+	return o
 }
 
 func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *ProtosessionError {
+	if len(hitsBatch) == 0 {
+		return nil
+	}
 	batchSettingsRegistry := o.settingsRegistry
 	var requests []*IdentifierConflictRequest
 	for _, hit := range hitsBatch {
@@ -70,7 +100,7 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 			markProtoSessionClosingForGivenBucketRequests,
 			&MarkProtoSessionClosingForGivenBucketRequest{
 				ProtoSessionID: hit.AuthoritativeClientID,
-				BucketID:       BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration), 1*time.Second),
+				BucketID:       o.timingWheel.BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration)),
 			},
 		)
 		appendHitsRequests = append(appendHitsRequests, &AppendHitsToProtoSessionRequest{
@@ -116,5 +146,79 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 	if err != nil {
 		return NewProtosessionError(err, true)
 	}
+	o.updateLastHitTime(hitsBatch[len(hitsBatch)-1].ServerReceivedTime)
 	return nil
+}
+
+func (o *Orchestrator) updateLastHitTime(time time.Time) {
+	o.lastHitTime = time
+}
+
+// This is called by the timing wheel to process a bucket.
+func (o *Orchestrator) processBucket(
+	ctx context.Context,
+	bucketNumber int64,
+) (BucketNextInstruction, error) {
+	responses := o.backend.GetAllProtosessionsForBucket(
+		ctx,
+		[]*GetAllProtosessionsForBucketRequest{
+			{BucketID: bucketNumber},
+		},
+	)
+
+	if len(responses) == 0 {
+		return BucketProcessingAdvance, nil
+	}
+
+	response := responses[0]
+	if response.Err != nil {
+		return BucketProcessingNoop, response.Err
+	}
+
+	removeRequests := make([]*RemoveProtoSessionHitsRequest, 0)
+
+	for _, protoSessionHits := range response.ProtoSessions {
+		if len(protoSessionHits) == 0 {
+			continue
+		}
+
+		sortedHits := sortHitsByServerReceivedTime(protoSessionHits)
+
+		// Close the proto-session
+		err := o.closer.Close(sortedHits)
+		if err != nil {
+			return BucketProcessingNoop, err
+		}
+
+		protoSessionID := protoSessionHits[0].AuthoritativeClientID
+		removeRequests = append(removeRequests, &RemoveProtoSessionHitsRequest{
+			ProtoSessionID: protoSessionID,
+		})
+	}
+
+	if len(removeRequests) > 0 {
+		removeResponses := o.backend.RemoveProtoSessionHits(ctx, removeRequests)
+		for _, removeResponse := range removeResponses {
+			if removeResponse.Err != nil {
+				return BucketProcessingNoop, removeResponse.Err
+			}
+		}
+	}
+
+	return BucketProcessingAdvance, nil
+}
+
+func sortHitsByServerReceivedTime(hitsToSort []*hits.Hit) []*hits.Hit {
+	if len(hitsToSort) <= 1 {
+		return hitsToSort
+	}
+
+	sorted := make([]*hits.Hit, len(hitsToSort))
+	copy(sorted, hitsToSort)
+
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].ServerReceivedTime.Before(sorted[j].ServerReceivedTime)
+	})
+
+	return sorted
 }
