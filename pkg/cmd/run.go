@@ -446,6 +446,9 @@ func propertySource(cmd *cli.Command) properties.SettingsRegistry {
 				SplitByCampaign:            cmd.Bool(propertySettingsSplitByCampaignFlag.Name),
 				SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
 				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
+
+				SessionTimeout:            cmd.Duration(closerSessionDurationFlag.Name),
+				SessionJoinBySessionStamp: true,
 			},
 		),
 	)

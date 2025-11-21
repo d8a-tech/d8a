@@ -22,8 +22,48 @@ type IdentifierConflictResponse struct {
 	Request       *IdentifierConflictRequest
 }
 
-type AddToProtoSessionResult struct {
+type AppendHitsToProtoSessionRequest struct {
+	ProtoSessionID hits.ClientID
+	Hits           []*hits.Hit
+}
+
+type AppendHitsToProtoSessionResponse struct {
 	Err error
+}
+
+type GetProtoSessionHitsRequest struct {
+	ProtoSessionID hits.ClientID
+}
+
+type GetProtoSessionHitsResponse struct {
+	Hits []*hits.Hit
+	Err  error
+}
+
+type RemoveProtoSessionHitsRequest struct {
+	ProtoSessionID hits.ClientID
+}
+
+type RemoveProtoSessionHitsResponse struct {
+	Err error
+}
+
+type MarkProtoSessionClosingForGivenBucketRequest struct {
+	ProtoSessionID hits.ClientID
+	BucketID       int64
+}
+
+type MarkProtoSessionClosingForGivenBucketResponse struct {
+	Err error
+}
+
+type GetAllProtosessionsForBucketRequest struct {
+	BucketID int64
+}
+
+type GetAllProtosessionsForBucketResponse struct {
+	ProtoSessions [][]*hits.Hit
+	Err           error
 }
 
 type BatchedIOBackend interface {
@@ -31,6 +71,28 @@ type BatchedIOBackend interface {
 		ctx context.Context,
 		requests []*IdentifierConflictRequest,
 	) []*IdentifierConflictResponse
+	HandleBatch(
+		ctx context.Context,
+		appendHitsRequests []*AppendHitsToProtoSessionRequest,
+		getProtoSessionHitsRequests []*GetProtoSessionHitsRequest,
+		markProtoSessionClosingForGivenBucketRequests []*MarkProtoSessionClosingForGivenBucketRequest,
+	) (
+		[]*AppendHitsToProtoSessionResponse,
+		[]*GetProtoSessionHitsResponse,
+		[]*MarkProtoSessionClosingForGivenBucketResponse,
+	)
+	GetAllProtosessionsForBucket(
+		ctx context.Context,
+		requests []*GetAllProtosessionsForBucketRequest,
+	) []*GetAllProtosessionsForBucketResponse
+	RemoveProtoSessionHits(
+		ctx context.Context,
+		requests []*RemoveProtoSessionHitsRequest,
+	) []*RemoveProtoSessionHitsResponse
+	// terminates all the gorutines, frees all the resources
+	CleanupMachinery(
+		ctx context.Context,
+	) error
 }
 
 type naiveGenericStorageBatchedIOBackend struct {
@@ -72,6 +134,39 @@ func (b *naiveGenericStorageBatchedIOBackend) GetIdentifierConflicts(
 		}
 	}
 	return results
+}
+
+func (b *naiveGenericStorageBatchedIOBackend) HandleBatch(
+	ctx context.Context,
+	appendHitsRequests []*AppendHitsToProtoSessionRequest,
+	getProtoSessionHitsRequests []*GetProtoSessionHitsRequest,
+	markProtoSessionClosingForGivenBucketRequests []*MarkProtoSessionClosingForGivenBucketRequest,
+) (
+	[]*AppendHitsToProtoSessionResponse,
+	[]*GetProtoSessionHitsResponse,
+	[]*MarkProtoSessionClosingForGivenBucketResponse,
+) {
+	return []*AppendHitsToProtoSessionResponse{}, []*GetProtoSessionHitsResponse{}, []*MarkProtoSessionClosingForGivenBucketResponse{}
+}
+
+func (b *naiveGenericStorageBatchedIOBackend) GetAllProtosessionsForBucket(
+	ctx context.Context,
+	requests []*GetAllProtosessionsForBucketRequest,
+) []*GetAllProtosessionsForBucketResponse {
+	return []*GetAllProtosessionsForBucketResponse{}
+}
+
+func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionHits(
+	ctx context.Context,
+	requests []*RemoveProtoSessionHitsRequest,
+) []*RemoveProtoSessionHitsResponse {
+	return []*RemoveProtoSessionHitsResponse{}
+}
+
+func (b *naiveGenericStorageBatchedIOBackend) CleanupMachinery(
+	ctx context.Context,
+) error {
+	return nil
 }
 
 func NewNaiveGenericStorageBatchedIOBackend(
