@@ -102,7 +102,7 @@ func TestHits(t *testing.T) {
 			// given
 			ga4Protocol := NewGA4Protocol(
 				currency.NewDummyConverter(1),
-				properties.TestPropertySource())
+				properties.NewTestSettingRegistry())
 			request := &protocol.Request{
 				QueryParams: tc.queryParams,
 				Headers:     map[string][]string{},

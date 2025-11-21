@@ -357,7 +357,7 @@ func ColumnTestCase(
 		warehouseDriver,
 	)
 	columnsRegistry := columnset.DefaultColumnRegistry(
-		theProtocol, nil, properties.TestPropertySource(),
+		theProtocol, nil, properties.NewTestSettingRegistry(),
 	)
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},

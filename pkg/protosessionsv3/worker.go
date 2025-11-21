@@ -2,11 +2,11 @@ package protosessionsv3
 
 import (
 	"context"
+	"time"
 
-	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
-	"github.com/d8a-tech/d8a/pkg/storage"
+	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/worker"
 )
 
@@ -19,19 +19,14 @@ type Middleware interface {
 }
 
 // Handler returns a function that processes hit processing tasks.
+// TODO: Rethink each "Droppable" error
 func Handler(
 	ctx context.Context,
-	set storage.Set,
-	kv storage.KV,
+	backend BatchedIOBackend,
+	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
-	encoder encoding.EncoderFunc,
-	decoder encoding.DecoderFunc,
 ) func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error {
 
-	backend := NewNaiveGenericStorageBatchedIOBackend(kv, set, encoder, decoder)
-
-	// TODO: consider adding local cache for parameter conflicts
-	// TODO: add config
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
 		batchSettingsRegistry := settingsRegistry
 		var requests []*IdentifierConflictRequest
@@ -40,25 +35,7 @@ func Handler(
 			if err != nil {
 				return worker.NewError(worker.ErrTypeDroppable, err)
 			}
-			// TODO: What if both are conflicting against different sessions?
-			if settings.SessionJoinBySessionStamp {
-				requests = append(requests, &IdentifierConflictRequest{
-					IdentifierType: "session_stamp",
-					Hit:            hit,
-					ExtractIdentifier: func(h *hits.Hit) string {
-						return h.SessionStamp()
-					},
-				})
-			}
-			if settings.SessionJoinByUserID && hit.UserID != nil {
-				requests = append(requests, &IdentifierConflictRequest{
-					IdentifierType: "user_id",
-					Hit:            hit,
-					ExtractIdentifier: func(h *hits.Hit) string {
-						return *h.UserID
-					},
-				})
-			}
+			requests = append(requests, GetConflictCheckRequests(hit, settings)...)
 		}
 		conflictsByOriginalAuthoritativeClientID := make(map[hits.ClientID]*IdentifierConflictResponse)
 		results := backend.GetIdentifierConflicts(ctx, requests)
@@ -67,23 +44,82 @@ func Handler(
 				conflictsByOriginalAuthoritativeClientID[result.Request.Hit.AuthoritativeClientID] = result
 			}
 		}
-		var forEvictionProtosessions map[hits.ClientID][]*hits.Hit
-		var forSavingHits []*hits.Hit
+		protosessionsForEviction := make(map[hits.ClientID][]*hits.Hit)
+		hitsToBeSaved := make([]*hits.Hit, 0)
 		for _, hit := range h.Hits {
 			if conflict, ok := conflictsByOriginalAuthoritativeClientID[hit.AuthoritativeClientID]; ok {
 				MarkForEviction(hit, conflict.ConflictsWith)
-				if forEvictionProtosessions[conflict.ConflictsWith] == nil {
-					forEvictionProtosessions[conflict.ConflictsWith] = make([]*hits.Hit, 0)
+				if protosessionsForEviction[conflict.ConflictsWith] == nil {
+					protosessionsForEviction[conflict.ConflictsWith] = make([]*hits.Hit, 0)
 				}
-				forEvictionProtosessions[conflict.ConflictsWith] = append(forEvictionProtosessions[conflict.ConflictsWith], hit)
+				protosessionsForEviction[conflict.ConflictsWith] = append(protosessionsForEviction[conflict.ConflictsWith], hit)
 			} else {
-				forSavingHits = append(forSavingHits, hit)
+				hitsToBeSaved = append(hitsToBeSaved, hit)
+			}
+		}
+		var appendHitsRequests []*AppendHitsToProtoSessionRequest
+		var markProtoSessionClosingForGivenBucketRequests []*MarkProtoSessionClosingForGivenBucketRequest
+		var getProtoSessionHitsRequests []*GetProtoSessionHitsRequest
+		for clientID := range protosessionsForEviction {
+			getProtoSessionHitsRequests = append(getProtoSessionHitsRequests, &GetProtoSessionHitsRequest{
+				ProtoSessionID: clientID,
+			})
+		}
+		for _, hit := range hitsToBeSaved {
+			settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
+			if err != nil {
+				return worker.NewError(worker.ErrTypeDroppable, err)
+			}
+			markProtoSessionClosingForGivenBucketRequests = append(
+				markProtoSessionClosingForGivenBucketRequests,
+				&MarkProtoSessionClosingForGivenBucketRequest{
+					ProtoSessionID: hit.AuthoritativeClientID,
+					BucketID:       BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration), 1*time.Second),
+				},
+			)
+			appendHitsRequests = append(appendHitsRequests, &AppendHitsToProtoSessionRequest{
+				ProtoSessionID: hit.AuthoritativeClientID,
+				Hits:           []*hits.Hit{hit},
+			})
+		}
+		appendHitsResps, getProtoSessionHitsResps, markProtoSessionClosingForGivenBucketResps := backend.HandleBatch(
+			ctx,
+			appendHitsRequests,
+			getProtoSessionHitsRequests,
+			markProtoSessionClosingForGivenBucketRequests,
+		)
+		for _, response := range appendHitsResps {
+			if response.Err != nil {
+				return worker.NewError(worker.ErrTypeDroppable, response.Err)
+			}
+		}
+		for _, response := range markProtoSessionClosingForGivenBucketResps {
+			if response.Err != nil {
+				return worker.NewError(worker.ErrTypeDroppable, response.Err)
+			}
+		}
+		for _, response := range getProtoSessionHitsResps {
+			if response.Err != nil {
+				return worker.NewError(worker.ErrTypeDroppable, response.Err)
+			}
+			for _, hit := range response.Hits {
+				theList, ok := protosessionsForEviction[hit.AuthoritativeClientID]
+				if !ok {
+					theList = make([]*hits.Hit, 0)
+				}
+				theList = append(theList, hit)
+				protosessionsForEviction[hit.AuthoritativeClientID] = theList
 			}
 		}
 
+		allHitsToBeRequeued := make([]*hits.Hit, 0)
+		for _, hits := range protosessionsForEviction {
+			allHitsToBeRequeued = append(allHitsToBeRequeued, hits...)
+		}
+		err := requeuer.Push(allHitsToBeRequeued)
+		if err != nil {
+			return worker.NewError(worker.ErrTypeDroppable, err)
+		}
 		return nil
 	}
 }
-
-// TODO: Reminder for writing test cases - what if a hit was evicted multiple times? For exmaple user logged in from 3 machines
-// and the protosessions were joined together?
