@@ -57,6 +57,16 @@ type RemoveProtoSessionHitsResponse struct {
 	Err error
 }
 
+// RemoveAllHitRelatedMetadataRequest represents a request to remove all hit-related metadata
+type RemoveAllHitRelatedMetadataRequest struct {
+	hit *hits.Hit
+}
+
+// RemoveAllHitRelatedMetadataResponse represents the result of removing all hit-related metadata
+type RemoveAllHitRelatedMetadataResponse struct {
+	Err error
+}
+
 // MarkProtoSessionClosingForGivenBucketRequest marks a proto-session for closing in a bucket
 type MarkProtoSessionClosingForGivenBucketRequest struct {
 	ProtoSessionID hits.ClientID
@@ -81,6 +91,7 @@ type GetAllProtosessionsForBucketResponse struct {
 
 // BatchedIOBackend provides batched I/O operations for proto-sessions
 type BatchedIOBackend interface {
+	// TODO cleanup the identifiers - how?
 	GetIdentifierConflicts(
 		ctx context.Context,
 		requests []*IdentifierConflictRequest,
@@ -99,10 +110,14 @@ type BatchedIOBackend interface {
 		ctx context.Context,
 		requests []*GetAllProtosessionsForBucketRequest,
 	) []*GetAllProtosessionsForBucketResponse
-	RemoveProtoSessionHits(
+	RemoveProtoSessionEntities(
 		ctx context.Context,
-		requests []*RemoveProtoSessionHitsRequest,
-	) []*RemoveProtoSessionHitsResponse
+		hitsRequests []*RemoveProtoSessionHitsRequest,
+		metadataRequests []*RemoveAllHitRelatedMetadataRequest,
+	) (
+		[]*RemoveProtoSessionHitsResponse,
+		[]*RemoveAllHitRelatedMetadataResponse,
+	)
 	// terminates all the gorutines, frees all the resources
 	CleanupMachinery(
 		ctx context.Context,
@@ -261,16 +276,23 @@ func (b *naiveGenericStorageBatchedIOBackend) getAllProtosessionsForSingleBucket
 	return protoSessions, nil
 }
 
-func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionHits(
+func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionEntities(
 	_ context.Context,
-	requests []*RemoveProtoSessionHitsRequest,
-) []*RemoveProtoSessionHitsResponse {
-	responses := make([]*RemoveProtoSessionHitsResponse, len(requests))
-	for i, request := range requests {
+	hitsRequests []*RemoveProtoSessionHitsRequest,
+	metadataRequests []*RemoveAllHitRelatedMetadataRequest,
+) ([]*RemoveProtoSessionHitsResponse, []*RemoveAllHitRelatedMetadataResponse) {
+	hitsResponses := make([]*RemoveProtoSessionHitsResponse, len(hitsRequests))
+	for i, request := range hitsRequests {
 		err := b.set.Drop([]byte(protoSessionHitsKey(request.ProtoSessionID)))
-		responses[i] = &RemoveProtoSessionHitsResponse{Err: err}
+		hitsResponses[i] = &RemoveProtoSessionHitsResponse{Err: err}
 	}
-	return responses
+	// TODO: Remove the session stamp mappings here
+	metadataResponses := make([]*RemoveAllHitRelatedMetadataResponse, len(metadataRequests))
+	for i, request := range metadataRequests {
+		err := b.kv.Delete([]byte(fmt.Sprintf("metadata.%s.%s", request.hit.AuthoritativeClientID, request.hit.SessionStamp())))
+		metadataResponses[i] = &RemoveAllHitRelatedMetadataResponse{Err: err}
+	}
+	return hitsResponses, metadataResponses
 }
 
 func (b *naiveGenericStorageBatchedIOBackend) CleanupMachinery(

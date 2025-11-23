@@ -134,6 +134,7 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 				theList = make([]*hits.Hit, 0)
 			}
 			theList = append(theList, hit)
+			// TODO: protosessionsForEviction should be REMVOED along with their metadata
 			protosessionsForEviction[hit.AuthoritativeClientID] = theList
 		}
 	}
@@ -197,7 +198,7 @@ func (o *Orchestrator) processBucket(
 	}
 
 	if len(removeRequests) > 0 {
-		removeResponses := o.backend.RemoveProtoSessionHits(ctx, removeRequests)
+		removeResponses := o.backend.RemoveProtoSessionEntities(ctx, removeRequests)
 		for _, removeResponse := range removeResponses {
 			if removeResponse.Err != nil {
 				return BucketProcessingNoop, removeResponse.Err

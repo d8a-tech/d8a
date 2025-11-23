@@ -71,8 +71,8 @@ func (t *TestBatchedIOBackend) GetAllProtosessionsForBucket(
 	return responses
 }
 
-// RemoveProtoSessionHits implements BatchedIOBackend
-func (t *TestBatchedIOBackend) RemoveProtoSessionHits(
+// RemoveProtoSessionEntities implements BatchedIOBackend
+func (t *TestBatchedIOBackend) RemoveProtoSessionEntities(
 	_ context.Context,
 	requests []*RemoveProtoSessionHitsRequest,
 ) []*RemoveProtoSessionHitsResponse {

@@ -488,7 +488,7 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 			}
 
 			// when
-			responses := backend.RemoveProtoSessionHits(
+			responses := backend.RemoveProtoSessionEntities(
 				context.Background(),
 				tt.removeRequests,
 			)
@@ -599,7 +599,7 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	assert.Len(t, bucketResponses[0].ProtoSessions, 2)
 
 	// when: remove hits
-	removeResponses := backend.RemoveProtoSessionHits(
+	removeResponses := backend.RemoveProtoSessionEntities(
 		context.Background(),
 		[]*RemoveProtoSessionHitsRequest{
 			{ProtoSessionID: client1},
