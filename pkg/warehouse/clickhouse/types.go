@@ -568,7 +568,7 @@ func (m *clickhouseNullableTypeMapper) ArrowToWarehouse(arrowType warehouse.Arro
 		TypeAsString: fmt.Sprintf("Nullable(%s)", innerType.TypeAsString),
 		FormatFunc: func(i any, metadata arrow.Metadata) (any, error) {
 			if i == nil {
-				return nil, fmt.Errorf("cannot format nil value")
+				return nil, nil //nolint:nilnil // nil is a valid value for Nullable type in ClickHouse
 			}
 			return innerType.Format(i, metadata)
 		},
