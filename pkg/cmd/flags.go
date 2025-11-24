@@ -87,7 +87,7 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 
 var warehouseFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "warehouse",
-	Usage:   "Target warehouse driver (console or clickhouse)",
+	Usage:   "Target warehouse driver (console, clickhouse, or bigquery)",
 	Sources: defaultSourceChain("WAREHOUSE", "warehouse"),
 	Value:   "console",
 }
@@ -123,6 +123,46 @@ var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 	Usage:   "ClickHouse password",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
 	Value:   "",
+}
+
+// BigQuery flags
+var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-project-id",
+	Usage:   "BigQuery GCP project ID",
+	Sources: defaultSourceChain("BIGQUERY_PROJECT_ID", "bigquery.project_id"),
+}
+
+var bigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-dataset-name",
+	Usage:   "BigQuery dataset name",
+	Sources: defaultSourceChain("BIGQUERY_DATASET_NAME", "bigquery.dataset_name"),
+}
+
+var bigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-creds-json",
+	Usage:   "BigQuery service account JSON (raw or base64)",
+	Sources: defaultSourceChain("BIGQUERY_CREDS_JSON", "bigquery.creds_json"),
+}
+
+var bigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-writer-type",
+	Usage:   "BigQuery writer type (loadjob or streaming)",
+	Sources: defaultSourceChain("BIGQUERY_WRITER_TYPE", "bigquery.writer_type"),
+	Value:   "loadjob",
+}
+
+var bigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "bigquery-query-timeout",
+	Usage:   "BigQuery query timeout",
+	Sources: defaultSourceChain("BIGQUERY_QUERY_TIMEOUT", "bigquery.query_timeout"),
+	Value:   30 * time.Second,
+}
+
+var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "bigquery-table-creation-timeout",
+	Usage:   "BigQuery table creation timeout",
+	Sources: defaultSourceChain("BIGQUERY_TABLE_CREATION_TIMEOUT", "bigquery.table_creation_timeout"),
+	Value:   10 * time.Second,
 }
 
 var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
@@ -177,4 +217,10 @@ var warehouseConfigFlags = []cli.Flag{
 	clickhouseDatabaseFlag,
 	clickhouseUsernameFlag,
 	clickhousePasswordFlag,
+	bigQueryProjectIDFlag,
+	bigQueryDatasetNameFlag,
+	bigQueryCredsJSONFlag,
+	bigQueryWriterTypeFlag,
+	bigQueryQueryTimeoutFlag,
+	bigQueryTableCreationTimeoutFlag,
 }
