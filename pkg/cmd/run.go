@@ -273,10 +273,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						workerErrChan <- nil
 					}()
 
-					rawLogStorage := receiver.NewFromStorageSetRawLogStorage(
-						storage.NewInMemorySet(),
-						storage.NewInMemorySet(),
-					)
+					rawLogStorage := receiver.NewDummyRawLogStorage()
 
 					// Start server and handle its error
 					serverErr := receiver.Serve(
@@ -295,8 +292,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							),
 						},
 						map[string]func(fctx *fasthttp.RequestCtx){
-							"/rawlogs": receiver.RawLogMainPageHandlerFromReader(rawLogStorage),
-							"/rawlog/": receiver.RawLogDetailPageHandlerFromReader(rawLogStorage),
+							"/healthz": func(fctx *fasthttp.RequestCtx) {
+								fctx.SetStatusCode(fasthttp.StatusOK)
+								fctx.SetBodyString("OK")
+							},
 						},
 					)
 					if serverErr != nil {
@@ -326,7 +325,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return migrate(ctx, cmd, cmd.String("property-id"))
 				},
 			},
-			createRawlogDebuggerCommand(),
 		},
 	}
 
