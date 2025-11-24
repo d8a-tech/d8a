@@ -1,0 +1,20 @@
+# Git
+.git/
+.github/
+.gitignore
+
+# Documentation
+docs/
+*.md
+LICENSE
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+*.db
+
+# Dependencies
+node_modules/
+
