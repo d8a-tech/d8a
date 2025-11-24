@@ -18,7 +18,7 @@ var SessionIDColumn = columns.NewSimpleSessionColumn(
 		}
 		firstEventID, ok := session.Events[0].Values[columns.CoreInterfaces.EventID.Field.Name]
 		if !ok {
-			return nil, errors.New("First event doesn't have ID")
+			return nil, errors.New("first event doesn't have ID")
 		}
 		return firstEventID, nil
 	},

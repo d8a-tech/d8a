@@ -568,7 +568,7 @@ func (m *clickhouseNullableTypeMapper) ArrowToWarehouse(arrowType warehouse.Arro
 		TypeAsString: fmt.Sprintf("Nullable(%s)", innerType.TypeAsString),
 		FormatFunc: func(i any, metadata arrow.Metadata) (any, error) {
 			if i == nil {
-				return nil, nil
+				return nil, fmt.Errorf("cannot format nil value")
 			}
 			return innerType.Format(i, metadata)
 		},
@@ -703,7 +703,7 @@ func anyType(asString string) SpecificClickhouseType {
 	return SpecificClickhouseType{
 		TypeAsString: asString,
 		FormatFunc: func(_ any, _ arrow.Metadata) (any, error) {
-			return nil, fmt.Errorf("This type does not support formatting: %s", asString)
+			return nil, fmt.Errorf("this type does not support formatting: %s", asString)
 		},
 	}
 }

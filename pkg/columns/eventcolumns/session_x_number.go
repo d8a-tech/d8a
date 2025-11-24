@@ -34,7 +34,7 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 		if !ok {
 			return nil, errors.New("invalid page location type")
 		}
-		var currentPage string = currentPageValue
+		currentPage := currentPageValue
 		for idx := 0; idx <= i; idx++ {
 			candidatePageValue, ok := s.Events[idx].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
 			if !ok {

@@ -1,98 +1,110 @@
-linters-settings:
-  forbidigo:
-    # Forbid the use of metric.WithAttributes
-    forbid:
-      - p: "^metric\\.WithAttributes$"
-        msg: "use libs -> monitoring.WithAttributes wrapper instead of metric.WithAttributes directly"
-
-  dupl:
-    threshold: 95
-  funlen:
-    lines: 65
-    statements: 40
-  gocognit:
-    min-complexity: 50
-  goconst:
-    min-occurrences: 4
-  lll:
-    line-length: 120
-  gosec:
-    excludes:
-      - G104 # Duplicate with errcheck
-  depguard:
-    rules:
-      Main:
-        list-mode: lax
-        files:
-        - $all
-        - "!$test"
-        deny:
-          - pkg: reflect
-            desc: Please don't use reflect package
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - unlambda
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
-  exhaustive:
-    check-generated: false
-    default-signifies-exhaustive: true
-  nakedret:
-    max-func-lines: 30
-  perfsprint:
-    error-format: true
-    string-format: true
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - contextcheck
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - errorlint
+    - exhaustive
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godox
+    - gosec
+    - govet
+    - lll
+    - misspell
+    - nakedret
+    - nilnil
+    - prealloc
     - revive
     - staticcheck
-    - gosimple
-    - gosec
-    - dogsled
-    - godox
-    - govet
-    - gocyclo
-    - lll
-    - funlen
-    - gofmt
-    - gocognit
-    - forbidigo
-    - dupl
-    - depguard
-    - whitespace
-    - goconst
     - unconvert
     - unused
-    - errcheck
-    - bodyclose
-    - gocritic
-    - errorlint
-    - misspell
-    - bidichk
-    - contextcheck
-    - nilnil
-    - exhaustive
-    - nakedret
-    - prealloc
-    - forcetypeassert
-    - asciicheck
-
+    - whitespace
+  settings:
+    depguard:
+      rules:
+        Main:
+          list-mode: lax
+          files:
+            - $all
+            - '!$test'
+          deny:
+            - pkg: reflect
+              desc: Please don't use reflect package
+    dupl:
+      threshold: 95
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    exhaustive:
+      default-signifies-exhaustive: true
+    forbidigo:
+      forbid:
+        - pattern: ^metric\.WithAttributes$
+          msg: use libs -> monitoring.WithAttributes wrapper instead of metric.WithAttributes directly
+    funlen:
+      lines: 65
+      statements: 40
+    gocognit:
+      min-complexity: 50
+    goconst:
+      min-occurrences: 4
+    gocritic:
+      disabled-checks:
+        - unlambda
+        - importShadow
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    gosec:
+      excludes:
+        - G104
+    lll:
+      line-length: 120
+    nakedret:
+      max-func-lines: 30
+    perfsprint:
+      error-format: true
+      string-format: true
+    revive:
+      rules:
+        - name: var-naming
+          disabled: true
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+          - funlen
+          - gosec
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-use-default: false
-  # Exclude some linters from running on tests files
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - dupl
-        - gosec
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

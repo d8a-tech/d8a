@@ -170,7 +170,7 @@ func (d *batchingDriver) start() {
 func StopBatchingDriver(d Driver) error {
 	batching, ok := d.(*batchingDriver)
 	if !ok {
-		return errors.New("Passed driver instance is not a Batching driver")
+		return errors.New("passed driver instance is not a Batching driver")
 	}
 	batching.stop <- struct{}{}
 	return nil
