@@ -29,6 +29,19 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 
 ## Getting Started
 
+### Using Docker
+
+Pull and run the latest release:
+
+```bash
+docker run --rm -p 8080:8080 \
+  -v $(pwd)/config.yaml:/config.yaml \
+  ghcr.io/d8a-tech/d8a:latest \
+  server --config /config.yaml
+```
+
+### From Source
+
 1. Run it.
 
 ```bash
