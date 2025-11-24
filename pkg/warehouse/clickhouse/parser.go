@@ -130,9 +130,10 @@ func (p *clickhouseParser) parseFieldType(tokens []clickhouseToken, startPos int
 		pos++ // Skip opening paren
 
 		for pos < len(tokens) && parenCount > 0 {
-			if tokens[pos].Type == "lparen" {
+			switch tokens[pos].Type {
+			case "lparen":
 				parenCount++
-			} else if tokens[pos].Type == "rparen" {
+			case "rparen":
 				parenCount--
 			}
 			pos++

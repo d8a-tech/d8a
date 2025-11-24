@@ -25,7 +25,7 @@ func (s StaticSettingsRegistry) GetByMeasurementID(trackingID string) (Settings,
 		if s.defaultConfig != nil {
 			return *s.defaultConfig, nil
 		}
-		return Settings{}, fmt.Errorf("Unknown property tracking ID: %s", trackingID)
+		return Settings{}, fmt.Errorf("unknown property tracking ID: %s", trackingID)
 	}
 	return *property, nil
 }
@@ -37,7 +37,7 @@ func (s StaticSettingsRegistry) GetByPropertyID(propertyID string) (Settings, er
 		if s.defaultConfig != nil {
 			return *s.defaultConfig, nil
 		}
-		return Settings{}, fmt.Errorf("Unknown property ID: %s", propertyID)
+		return Settings{}, fmt.Errorf("unknown property ID: %s", propertyID)
 	}
 	return *property, nil
 }

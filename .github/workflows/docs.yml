@@ -32,9 +32,9 @@ jobs:
         run: npm ci
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Generate column documentation
         run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/articles/database-schema.md
