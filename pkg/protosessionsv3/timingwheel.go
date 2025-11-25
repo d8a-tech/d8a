@@ -118,7 +118,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 	// First run - initialize to current bucket
 	if nextBucket == -1 {
-		currentBucket := BucketNumber(currentTime, tw.tickInterval)
+		currentBucket := tw.BucketNumber(currentTime)
 		if err := tw.backend.SaveNextBucket(ctx, currentBucket); err != nil {
 			return fmt.Errorf("failed to initialize bucket: %w", err)
 		}
@@ -126,7 +126,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 		return nil
 	}
 
-	currentBucket := BucketNumber(currentTime, tw.tickInterval)
+	currentBucket := tw.BucketNumber(currentTime)
 
 	logrus.Debugf("TimingWheel tick next bucket: %d, current bucket: %d", nextBucket, currentBucket)
 
@@ -158,5 +158,9 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 }
 
 func (tw *TimingWheel) BucketNumber(time time.Time) int64 {
-	return BucketNumber(time, tw.tickInterval)
+	// A bucket every second
+	if tw.tickInterval < 1 {
+		return time.Unix()
+	}
+	return time.Unix() / int64(tw.tickInterval.Seconds())
 }

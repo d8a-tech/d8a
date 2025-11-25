@@ -40,7 +40,7 @@ var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "batcher-batch-timeout",
 	Usage:   "Batch timeout for the batcher",
 	Sources: defaultSourceChain("BATCHER_BATCH_TIMEOUT", "batcher.batch_timeout"),
-	Value:   5 * time.Second,
+	Value:   1 * time.Second,
 }
 
 var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{

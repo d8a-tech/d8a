@@ -51,7 +51,10 @@ func NewOrchestrator(
 	return o
 }
 
-func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *ProtosessionError {
+func (o *Orchestrator) Orchestrate(
+	ctx context.Context,
+	hitsBatch []*hits.Hit,
+) *ProtosessionError {
 	if len(hitsBatch) == 0 {
 		return nil
 	}
@@ -151,9 +154,10 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
 	}
 
-	removeResponses, removeAllHitRelatedMetadataResponses := o.backend.RemoveProtoSessionEntities(
+	removeResponses, removeAllHitRelatedMetadataResponses, _ := o.backend.Cleanup(
 		ctx,
 		removeHitRequests,
+		nil,
 		nil,
 	)
 	for _, removeResponse := range removeResponses {
@@ -172,6 +176,7 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 }
 
 func (o *Orchestrator) updateLastHitTime(time time.Time) {
+	logrus.Infof("updateLastHitTime: %s", time)
 	o.lastHitTime = time
 }
 
@@ -229,20 +234,26 @@ func (o *Orchestrator) processBucket(
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(protoSessionID))
 	}
 
-	if len(removeHitRequests) > 0 || len(removeAllHitRelatedMetadataRequests) > 0 {
-		removeResponses, removeAllHitRelatedMetadataResponses := o.backend.RemoveProtoSessionEntities(ctx, removeHitRequests, removeAllHitRelatedMetadataRequests)
-		for _, removeResponse := range removeResponses {
-			if removeResponse.Err != nil {
-				return BucketProcessingNoop, removeResponse.Err
-			}
-		}
-		for _, removeAllHitRelatedMetadataResponse := range removeAllHitRelatedMetadataResponses {
-			if removeAllHitRelatedMetadataResponse.Err != nil {
-				return BucketProcessingNoop, removeAllHitRelatedMetadataResponse.Err
-			}
+	removeResponses, removeAllHitRelatedMetadataResponses, removeBucketMetadataResponses := o.backend.Cleanup(
+		ctx, removeHitRequests, removeAllHitRelatedMetadataRequests, []*RemoveBucketMetadataRequest{
+			NewRemoveBucketMetadataRequest(bucketNumber),
+		})
+	for _, removeResponse := range removeResponses {
+		if removeResponse.Err != nil {
+			return BucketProcessingNoop, removeResponse.Err
 		}
 	}
-
+	for _, removeAllHitRelatedMetadataResponse := range removeAllHitRelatedMetadataResponses {
+		if removeAllHitRelatedMetadataResponse.Err != nil {
+			return BucketProcessingNoop, removeAllHitRelatedMetadataResponse.Err
+		}
+	}
+	for _, removeBucketMetadataResponse := range removeBucketMetadataResponses {
+		if removeBucketMetadataResponse.Err != nil {
+			// We advance - if bucket deletion fails TODO
+			return BucketProcessingNoop, removeBucketMetadataResponse.Err
+		}
+	}
 	return BucketProcessingAdvance, nil
 }
 

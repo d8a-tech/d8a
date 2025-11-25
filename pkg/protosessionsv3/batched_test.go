@@ -488,9 +488,10 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 			}
 
 			// when
-			responses, _ := backend.RemoveProtoSessionEntities(
+			responses, _, _ := backend.Cleanup(
 				context.Background(),
 				tt.removeRequests,
+				nil,
 				nil,
 			)
 
@@ -522,7 +523,7 @@ func TestNaiveGenericStorageBatchedIOBackend_CleanupMachinery(t *testing.T) {
 	)
 
 	// when
-	err := backend.CleanupMachinery(context.Background())
+	err := backend.Stop(context.Background())
 
 	// then
 	assert.NoError(t, err)
@@ -600,12 +601,13 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	assert.Len(t, bucketResponses[0].ProtoSessions, 2)
 
 	// when: remove hits
-	removeResponses, _ := backend.RemoveProtoSessionEntities(
+	removeResponses, _, _ := backend.Cleanup(
 		context.Background(),
 		[]*RemoveProtoSessionHitsRequest{
 			NewRemoveProtoSessionHitsRequest(client1),
 			NewRemoveProtoSessionHitsRequest(client2),
 		},
+		nil,
 		nil,
 	)
 
@@ -633,7 +635,7 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	assert.Empty(t, getResponses[1].Hits)
 
 	// when: cleanup
-	err := backend.CleanupMachinery(context.Background())
+	err := backend.Stop(context.Background())
 
 	// then
 	assert.NoError(t, err)

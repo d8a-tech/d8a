@@ -151,6 +151,26 @@ func NewRemoveAllHitRelatedMetadataResponse(err error) *RemoveAllHitRelatedMetad
 	return &RemoveAllHitRelatedMetadataResponse{Err: err}
 }
 
+// RemoveBucketMetadataRequest represents a request to remove bucket metadata
+type RemoveBucketMetadataRequest struct {
+	BucketID int64
+}
+
+// NewRemoveBucketMetadataRequest creates a new remove bucket metadata request
+func NewRemoveBucketMetadataRequest(bucketID int64) *RemoveBucketMetadataRequest {
+	return &RemoveBucketMetadataRequest{BucketID: bucketID}
+}
+
+// RemoveBucketMetadataResponse represents the result of removing bucket metadata
+type RemoveBucketMetadataResponse struct {
+	Err error
+}
+
+// NewRemoveBucketMetadataResponse creates a new remove bucket metadata response
+func NewRemoveBucketMetadataResponse(err error) *RemoveBucketMetadataResponse {
+	return &RemoveBucketMetadataResponse{Err: err}
+}
+
 // MarkProtoSessionClosingForGivenBucketRequest marks a proto-session for closing in a bucket
 type MarkProtoSessionClosingForGivenBucketRequest struct {
 	ProtoSessionID hits.ClientID
@@ -226,18 +246,18 @@ type BatchedIOBackend interface {
 		ctx context.Context,
 		requests []*GetAllProtosessionsForBucketRequest,
 	) []*GetAllProtosessionsForBucketResponse
-	RemoveProtoSessionEntities(
+	Cleanup(
 		ctx context.Context,
 		hitsRequests []*RemoveProtoSessionHitsRequest,
 		metadataRequests []*RemoveAllHitRelatedMetadataRequest,
+		bucketMetadataRequests []*RemoveBucketMetadataRequest,
 	) (
 		[]*RemoveProtoSessionHitsResponse,
 		[]*RemoveAllHitRelatedMetadataResponse,
+		[]*RemoveBucketMetadataResponse,
 	)
-	// terminates all the gorutines, frees all the resources
-	CleanupMachinery(
-		ctx context.Context,
-	) error
+	// Stops the backend, terminates all the gorutines, frees all the resources
+	Stop(context.Context) error
 }
 
 type naiveGenericStorageBatchedIOBackend struct {
@@ -387,11 +407,16 @@ func (b *naiveGenericStorageBatchedIOBackend) getAllProtosessionsForSingleBucket
 	return protoSessions, nil
 }
 
-func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionEntities(
+func (b *naiveGenericStorageBatchedIOBackend) Cleanup(
 	_ context.Context,
 	hitsRequests []*RemoveProtoSessionHitsRequest,
 	metadataRequests []*RemoveAllHitRelatedMetadataRequest,
-) ([]*RemoveProtoSessionHitsResponse, []*RemoveAllHitRelatedMetadataResponse) {
+	bucketMetadataRequests []*RemoveBucketMetadataRequest,
+) (
+	[]*RemoveProtoSessionHitsResponse,
+	[]*RemoveAllHitRelatedMetadataResponse,
+	[]*RemoveBucketMetadataResponse,
+) {
 	hitsResponses := make([]*RemoveProtoSessionHitsResponse, len(hitsRequests))
 	for i, request := range hitsRequests {
 		err := b.set.Drop([]byte(protoSessionHitsKey(request.ProtoSessionID)))
@@ -402,10 +427,15 @@ func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionEntities(
 		err := b.kv.Delete([]byte(identifierKey(request.IdentifierType, request.ExtractIdentifier, request.Hit)))
 		metadataResponses[i] = NewRemoveAllHitRelatedMetadataResponse(err)
 	}
-	return hitsResponses, metadataResponses
+	bucketMetadataResponses := make([]*RemoveBucketMetadataResponse, len(bucketMetadataRequests))
+	for i, request := range bucketMetadataRequests {
+		err := b.set.Drop([]byte(bucketsKey(request.BucketID)))
+		bucketMetadataResponses[i] = NewRemoveBucketMetadataResponse(err)
+	}
+	return hitsResponses, metadataResponses, bucketMetadataResponses
 }
 
-func (b *naiveGenericStorageBatchedIOBackend) CleanupMachinery(
+func (b *naiveGenericStorageBatchedIOBackend) Stop(
 	_ context.Context,
 ) error {
 	return nil
@@ -426,14 +456,10 @@ func NewNaiveGenericStorageBatchedIOBackend(
 	}
 }
 
-const protoSessionHitsPrefix = "sessions.hits"
-
 func protoSessionHitsKey(authoritativeClientID hits.ClientID) string {
-	return fmt.Sprintf("%s.%s", protoSessionHitsPrefix, authoritativeClientID)
+	return fmt.Sprintf("%s.%s", "sessions.hits", authoritativeClientID)
 }
 
-const bucketsPrefix = "sessions.buckets"
-
 func bucketsKey(bucketNumber int64) string {
-	return fmt.Sprintf("%s.%d", bucketsPrefix, bucketNumber)
+	return fmt.Sprintf("%s.%d", "sessions.buckets", bucketNumber)
 }

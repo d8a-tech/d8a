@@ -139,4 +139,3 @@ func (m *mockTickerBackend) SaveNextBucket(_ context.Context, bucketNumber int64
 	m.nextBucket = bucketNumber
 	return nil
 }
-
