@@ -14,6 +14,7 @@ type TestBatchedIOBackend struct {
 	markProtoSessionClosingForGivenBucketHandler func(*MarkProtoSessionClosingForGivenBucketRequest) *MarkProtoSessionClosingForGivenBucketResponse
 	getAllProtosessionsForBucketHandler          func(*GetAllProtosessionsForBucketRequest) *GetAllProtosessionsForBucketResponse
 	removeProtoSessionHitsHandler                func(*RemoveProtoSessionHitsRequest) *RemoveProtoSessionHitsResponse
+	removeAllHitRelatedMetadataHandler           func(*RemoveAllHitRelatedMetadataRequest) *RemoveAllHitRelatedMetadataResponse
 	cleanupMachineryHandler                      func() error
 }
 
@@ -74,13 +75,23 @@ func (t *TestBatchedIOBackend) GetAllProtosessionsForBucket(
 // RemoveProtoSessionEntities implements BatchedIOBackend
 func (t *TestBatchedIOBackend) RemoveProtoSessionEntities(
 	_ context.Context,
-	requests []*RemoveProtoSessionHitsRequest,
-) []*RemoveProtoSessionHitsResponse {
-	responses := make([]*RemoveProtoSessionHitsResponse, len(requests))
-	for i, req := range requests {
-		responses[i] = t.removeProtoSessionHitsHandler(req)
+	hitsRequests []*RemoveProtoSessionHitsRequest,
+	metadataRequests []*RemoveAllHitRelatedMetadataRequest,
+) (
+	[]*RemoveProtoSessionHitsResponse,
+	[]*RemoveAllHitRelatedMetadataResponse,
+) {
+	hitsResponses := make([]*RemoveProtoSessionHitsResponse, len(hitsRequests))
+	for i, req := range hitsRequests {
+		hitsResponses[i] = t.removeProtoSessionHitsHandler(req)
 	}
-	return responses
+
+	metadataResponses := make([]*RemoveAllHitRelatedMetadataResponse, len(metadataRequests))
+	for i, req := range metadataRequests {
+		metadataResponses[i] = t.removeAllHitRelatedMetadataHandler(req)
+	}
+
+	return hitsResponses, metadataResponses
 }
 
 // CleanupMachinery implements BatchedIOBackend
@@ -145,6 +156,15 @@ func WithRemoveProtoSessionHitsHandler(
 	}
 }
 
+// WithRemoveAllHitRelatedMetadataHandler sets custom handler for remove metadata requests
+func WithRemoveAllHitRelatedMetadataHandler(
+	handler func(*RemoveAllHitRelatedMetadataRequest) *RemoveAllHitRelatedMetadataResponse,
+) TestBatchedIOBackendOption {
+	return func(b *TestBatchedIOBackend) {
+		b.removeAllHitRelatedMetadataHandler = handler
+	}
+}
+
 // WithCleanupMachineryHandler sets custom handler for cleanup
 func WithCleanupMachineryHandler(handler func() error) TestBatchedIOBackendOption {
 	return func(b *TestBatchedIOBackend) {
@@ -185,6 +205,11 @@ func NewTestBatchedIOBackend(opts ...TestBatchedIOBackendOption) BatchedIOBacken
 		},
 		removeProtoSessionHitsHandler: func(_ *RemoveProtoSessionHitsRequest) *RemoveProtoSessionHitsResponse {
 			return &RemoveProtoSessionHitsResponse{
+				Err: nil,
+			}
+		},
+		removeAllHitRelatedMetadataHandler: func(_ *RemoveAllHitRelatedMetadataRequest) *RemoveAllHitRelatedMetadataResponse {
+			return &RemoveAllHitRelatedMetadataResponse{
 				Err: nil,
 			}
 		},

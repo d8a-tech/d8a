@@ -7,11 +7,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
@@ -30,8 +28,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
-	"github.com/d8a-tech/d8a/pkg/warehouse"
-	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -346,7 +342,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return migrate(ctx, cmd, cmd.String("property-id"))
 				},
 			},
-			createRawlogDebuggerCommand(),
 			createPerflabTestCommand(),
 		},
 	}
@@ -354,72 +349,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry {
-	warehouseType := strings.ToLower(cmd.String(warehouseFlag.Name))
-	if warehouseType == "" {
-		warehouseType = warehouseFlag.Value
-	}
-
-	switch warehouseType {
-	case "clickhouse":
-		host := cmd.String(clickhouseHostFlag.Name)
-		if host == "" {
-			logrus.Fatalf("clickhouse-host must be set when warehouse=clickhouse")
-		}
-
-		port := cmd.String(clickhousePortFlag.Name)
-		if port == "" {
-			port = clickhousePortFlag.Value
-		}
-
-		database := cmd.String(clickhouseDatabaseFlag.Name)
-		if database == "" {
-			logrus.Fatalf("clickhouse-database must be set when warehouse=clickhouse")
-		}
-
-		options := &clickhouse.Options{
-			Addr: []string{
-				fmt.Sprintf("%s:%s", host, port),
-			},
-			Auth: clickhouse.Auth{
-				Database: database,
-				Username: cmd.String(clickhouseUsernameFlag.Name),
-				Password: cmd.String(clickhousePasswordFlag.Name),
-			},
-			Settings: clickhouse.Settings{
-				"max_execution_time": 60,
-			},
-			DialTimeout: time.Second * 30,
-			Compression: &clickhouse.Compression{
-				Method: clickhouse.CompressionLZ4,
-			},
-			Debug:                cmd.Bool(debugFlag.Name),
-			BlockBufferSize:      10,
-			MaxCompressionBuffer: 10240,
-		}
-
-		return warehouse.NewStaticDriverRegistry(
-			whClickhouse.NewClickHouseTableDriver(
-				options,
-				database,
-				whClickhouse.WithOrderBy([]string{"id"}),
-			),
-		)
-	case "console", "":
-		return warehouse.NewStaticDriverRegistry(
-			warehouse.NewConsoleDriver(),
-		)
-	case "noop":
-		return warehouse.NewStaticDriverRegistry(
-			warehouse.NewNoopDriver(),
-		)
-	default:
-	}
-
-	logrus.Fatalf("unsupported warehouse %s", warehouseType)
-	return nil
 }
 
 func propertySource(cmd *cli.Command) properties.SettingsRegistry {

@@ -134,7 +134,6 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 				theList = make([]*hits.Hit, 0)
 			}
 			theList = append(theList, hit)
-			// TODO: protosessionsForEviction should be REMVOED along with their metadata
 			protosessionsForEviction[hit.AuthoritativeClientID] = theList
 		}
 	}
@@ -147,6 +146,30 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 	if err != nil {
 		return NewProtosessionError(err, true)
 	}
+
+	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
+	for id, _ := range protosessionsForEviction {
+		removeHitRequests = append(removeHitRequests, &RemoveProtoSessionHitsRequest{
+			ProtoSessionID: id,
+		})
+	}
+
+	removeResponses, removeAllHitRelatedMetadataResponses := o.backend.RemoveProtoSessionEntities(
+		ctx,
+		removeHitRequests,
+		nil,
+	)
+	for _, removeResponse := range removeResponses {
+		if removeResponse.Err != nil {
+			return NewProtosessionError(removeResponse.Err, true)
+		}
+	}
+	for _, removeAllHitRelatedMetadataResponse := range removeAllHitRelatedMetadataResponses {
+		if removeAllHitRelatedMetadataResponse.Err != nil {
+			return NewProtosessionError(removeAllHitRelatedMetadataResponse.Err, true)
+		}
+	}
+
 	o.updateLastHitTime(hitsBatch[len(hitsBatch)-1].ServerReceivedTime)
 	return nil
 }
@@ -176,7 +199,8 @@ func (o *Orchestrator) processBucket(
 		return BucketProcessingNoop, response.Err
 	}
 
-	removeRequests := make([]*RemoveProtoSessionHitsRequest, 0)
+	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
+	removeAllHitRelatedMetadataRequests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
 
 	for _, protoSessionHits := range response.ProtoSessions {
 		if len(protoSessionHits) == 0 {
@@ -184,24 +208,37 @@ func (o *Orchestrator) processBucket(
 		}
 
 		sortedHits := sortHitsByServerReceivedTime(protoSessionHits)
+		settings, err := o.settingsRegistry.GetByPropertyID(sortedHits[0].PropertyID)
+		if err != nil {
+			return BucketProcessingNoop, err
+		}
+		removeAllHitRelatedMetadataRequests = append(
+			removeAllHitRelatedMetadataRequests,
+			GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...,
+		)
 
 		// Close the proto-session
-		err := o.closer.Close(sortedHits)
+		err = o.closer.Close(sortedHits)
 		if err != nil {
 			return BucketProcessingNoop, err
 		}
 
-		protoSessionID := protoSessionHits[0].AuthoritativeClientID
-		removeRequests = append(removeRequests, &RemoveProtoSessionHitsRequest{
+		protoSessionID := sortedHits[0].AuthoritativeClientID
+		removeHitRequests = append(removeHitRequests, &RemoveProtoSessionHitsRequest{
 			ProtoSessionID: protoSessionID,
 		})
 	}
 
-	if len(removeRequests) > 0 {
-		removeResponses := o.backend.RemoveProtoSessionEntities(ctx, removeRequests)
+	if len(removeHitRequests) > 0 || len(removeAllHitRelatedMetadataRequests) > 0 {
+		removeResponses, removeAllHitRelatedMetadataResponses := o.backend.RemoveProtoSessionEntities(ctx, removeHitRequests, removeAllHitRelatedMetadataRequests)
 		for _, removeResponse := range removeResponses {
 			if removeResponse.Err != nil {
 				return BucketProcessingNoop, removeResponse.Err
+			}
+		}
+		for _, removeAllHitRelatedMetadataResponse := range removeAllHitRelatedMetadataResponses {
+			if removeAllHitRelatedMetadataResponse.Err != nil {
+				return BucketProcessingNoop, removeAllHitRelatedMetadataResponse.Err
 			}
 		}
 	}

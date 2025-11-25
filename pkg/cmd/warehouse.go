@@ -33,6 +33,10 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 		return warehouse.NewStaticDriverRegistry(
 			warehouse.NewConsoleDriver(),
 		)
+	case "noop":
+		return warehouse.NewStaticDriverRegistry(
+			warehouse.NewNoopDriver(),
+		)
 	default:
 		logrus.Fatalf("unsupported warehouse %s", warehouseType)
 		return nil

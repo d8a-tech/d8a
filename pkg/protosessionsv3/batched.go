@@ -59,7 +59,9 @@ type RemoveProtoSessionHitsResponse struct {
 
 // RemoveAllHitRelatedMetadataRequest represents a request to remove all hit-related metadata
 type RemoveAllHitRelatedMetadataRequest struct {
-	hit *hits.Hit
+	IdentifierType    string
+	ExtractIdentifier func(*hits.Hit) string
+	hit               *hits.Hit
 }
 
 // RemoveAllHitRelatedMetadataResponse represents the result of removing all hit-related metadata
@@ -131,6 +133,10 @@ type naiveGenericStorageBatchedIOBackend struct {
 	decoder encoding.DecoderFunc
 }
 
+func identifierKey(identifierType string, extractor func(*hits.Hit) string, hit *hits.Hit) string {
+	return fmt.Sprintf("ids.%s.%s", identifierType, extractor(hit))
+}
+
 func (b *naiveGenericStorageBatchedIOBackend) GetIdentifierConflicts(
 	_ context.Context,
 	requests []*IdentifierConflictRequest,
@@ -138,7 +144,7 @@ func (b *naiveGenericStorageBatchedIOBackend) GetIdentifierConflicts(
 	results := make([]*IdentifierConflictResponse, len(requests))
 	for i, request := range requests {
 		result, err := b.kv.Set(
-			[]byte(fmt.Sprintf("ids.%s.%s", request.IdentifierType, request.ExtractIdentifier(request.Hit))),
+			[]byte(identifierKey(request.IdentifierType, request.ExtractIdentifier, request.Hit)),
 			[]byte(request.Hit.AuthoritativeClientID),
 			storage.WithSkipIfKeyAlreadyExists(true),
 			storage.WithReturnPreviousValue(true),
@@ -286,10 +292,9 @@ func (b *naiveGenericStorageBatchedIOBackend) RemoveProtoSessionEntities(
 		err := b.set.Drop([]byte(protoSessionHitsKey(request.ProtoSessionID)))
 		hitsResponses[i] = &RemoveProtoSessionHitsResponse{Err: err}
 	}
-	// TODO: Remove the session stamp mappings here
 	metadataResponses := make([]*RemoveAllHitRelatedMetadataResponse, len(metadataRequests))
 	for i, request := range metadataRequests {
-		err := b.kv.Delete([]byte(fmt.Sprintf("metadata.%s.%s", request.hit.AuthoritativeClientID, request.hit.SessionStamp())))
+		err := b.kv.Delete([]byte(identifierKey(request.IdentifierType, request.ExtractIdentifier, request.hit)))
 		metadataResponses[i] = &RemoveAllHitRelatedMetadataResponse{Err: err}
 	}
 	return hitsResponses, metadataResponses
