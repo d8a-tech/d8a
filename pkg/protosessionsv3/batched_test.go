@@ -21,37 +21,37 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_AppendHits(t *testing.T
 		{
 			name: "should append hits to single proto-session",
 			requests: []*AppendHitsToProtoSessionRequest{
-				{
-					ProtoSessionID: "client1",
-					Hits: []*hits.Hit{
+				NewAppendHitsToProtoSessionRequest(
+					"client1",
+					[]*hits.Hit{
 						{AuthoritativeClientID: "client1", IP: "192.168.1.1"},
 						{AuthoritativeClientID: "client1", IP: "192.168.1.2"},
 					},
-				},
+				),
 			},
 			expectErrors: []bool{false},
 		},
 		{
 			name: "should append hits to multiple proto-sessions",
 			requests: []*AppendHitsToProtoSessionRequest{
-				{
-					ProtoSessionID: "client1",
-					Hits:           []*hits.Hit{{AuthoritativeClientID: "client1"}},
-				},
-				{
-					ProtoSessionID: "client2",
-					Hits:           []*hits.Hit{{AuthoritativeClientID: "client2"}},
-				},
+				NewAppendHitsToProtoSessionRequest(
+					"client1",
+					[]*hits.Hit{{AuthoritativeClientID: "client1"}},
+				),
+				NewAppendHitsToProtoSessionRequest(
+					"client2",
+					[]*hits.Hit{{AuthoritativeClientID: "client2"}},
+				),
 			},
 			expectErrors: []bool{false, false},
 		},
 		{
 			name: "should handle empty hits list",
 			requests: []*AppendHitsToProtoSessionRequest{
-				{
-					ProtoSessionID: "client1",
-					Hits:           []*hits.Hit{},
-				},
+				NewAppendHitsToProtoSessionRequest(
+					"client1",
+					[]*hits.Hit{},
+				),
 			},
 			expectErrors: []bool{false},
 		},
@@ -115,7 +115,7 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_GetHits(t *testing.T) {
 				},
 			},
 			requests: []*GetProtoSessionHitsRequest{
-				{ProtoSessionID: "client1"},
+				NewGetProtoSessionHitsRequest("client1"),
 			},
 			expectCounts: []int{2},
 		},
@@ -129,8 +129,8 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_GetHits(t *testing.T) {
 				},
 			},
 			requests: []*GetProtoSessionHitsRequest{
-				{ProtoSessionID: "client1"},
-				{ProtoSessionID: "client2"},
+				NewGetProtoSessionHitsRequest("client1"),
+				NewGetProtoSessionHitsRequest("client2"),
 			},
 			expectCounts: []int{1, 2},
 		},
@@ -138,7 +138,7 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_GetHits(t *testing.T) {
 			name:      "should return empty for non-existent proto-session",
 			setupHits: map[hits.ClientID][]*hits.Hit{},
 			requests: []*GetProtoSessionHitsRequest{
-				{ProtoSessionID: "non-existent"},
+				NewGetProtoSessionHitsRequest("non-existent"),
 			},
 			expectCounts: []int{0},
 		},
@@ -161,7 +161,7 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_GetHits(t *testing.T) {
 				_, _, _ = backend.HandleBatch(
 					context.Background(),
 					[]*AppendHitsToProtoSessionRequest{
-						{ProtoSessionID: clientID, Hits: hitsToStore},
+						NewAppendHitsToProtoSessionRequest(clientID, hitsToStore),
 					},
 					nil,
 					nil,
@@ -194,15 +194,15 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_MarkClosing(t *testing.
 		{
 			name: "should mark single proto-session for bucket",
 			requests: []*MarkProtoSessionClosingForGivenBucketRequest{
-				{ProtoSessionID: "client1", BucketID: 100},
+				NewMarkProtoSessionClosingForGivenBucketRequest("client1", 100),
 			},
 		},
 		{
 			name: "should mark multiple proto-sessions for different buckets",
 			requests: []*MarkProtoSessionClosingForGivenBucketRequest{
-				{ProtoSessionID: "client1", BucketID: 100},
-				{ProtoSessionID: "client2", BucketID: 101},
-				{ProtoSessionID: "client3", BucketID: 100},
+				NewMarkProtoSessionClosingForGivenBucketRequest("client1", 100),
+				NewMarkProtoSessionClosingForGivenBucketRequest("client2", 101),
+				NewMarkProtoSessionClosingForGivenBucketRequest("client3", 100),
 			},
 		},
 	}
@@ -260,16 +260,16 @@ func TestNaiveGenericStorageBatchedIOBackend_HandleBatch_Combined(t *testing.T) 
 	)
 
 	appendRequests := []*AppendHitsToProtoSessionRequest{
-		{
-			ProtoSessionID: "client1",
-			Hits:           []*hits.Hit{{AuthoritativeClientID: "client1"}},
-		},
+		NewAppendHitsToProtoSessionRequest(
+			"client1",
+			[]*hits.Hit{{AuthoritativeClientID: "client1"}},
+		),
 	}
 	getRequests := []*GetProtoSessionHitsRequest{
-		{ProtoSessionID: "client1"},
+		NewGetProtoSessionHitsRequest("client1"),
 	}
 	markRequests := []*MarkProtoSessionClosingForGivenBucketRequest{
-		{ProtoSessionID: "client1", BucketID: 100},
+		NewMarkProtoSessionClosingForGivenBucketRequest("client1", 100),
 	}
 
 	// when
@@ -345,11 +345,11 @@ func TestNaiveGenericStorageBatchedIOBackend_GetAllProtosessionsForBucket(t *tes
 				backend.HandleBatch(
 					context.Background(),
 					[]*AppendHitsToProtoSessionRequest{
-						{ProtoSessionID: clientID, Hits: hitsToStore},
+						NewAppendHitsToProtoSessionRequest(clientID, hitsToStore),
 					},
 					nil,
 					[]*MarkProtoSessionClosingForGivenBucketRequest{
-						{ProtoSessionID: clientID, BucketID: tt.bucketID},
+						NewMarkProtoSessionClosingForGivenBucketRequest(clientID, tt.bucketID),
 					},
 				)
 			}
@@ -358,7 +358,7 @@ func TestNaiveGenericStorageBatchedIOBackend_GetAllProtosessionsForBucket(t *tes
 			responses := backend.GetAllProtosessionsForBucket(
 				context.Background(),
 				[]*GetAllProtosessionsForBucketRequest{
-					{BucketID: tt.bucketID},
+					NewGetAllProtosessionsForBucketRequest(tt.bucketID),
 				},
 			)
 
@@ -390,13 +390,13 @@ func TestNaiveGenericStorageBatchedIOBackend_GetAllProtosessionsForBucket_Multip
 	backend.HandleBatch(
 		context.Background(),
 		[]*AppendHitsToProtoSessionRequest{
-			{ProtoSessionID: "client1", Hits: []*hits.Hit{{AuthoritativeClientID: "client1"}}},
-			{ProtoSessionID: "client2", Hits: []*hits.Hit{{AuthoritativeClientID: "client2"}}},
+			NewAppendHitsToProtoSessionRequest("client1", []*hits.Hit{{AuthoritativeClientID: "client1"}}),
+			NewAppendHitsToProtoSessionRequest("client2", []*hits.Hit{{AuthoritativeClientID: "client2"}}),
 		},
 		nil,
 		[]*MarkProtoSessionClosingForGivenBucketRequest{
-			{ProtoSessionID: "client1", BucketID: 100},
-			{ProtoSessionID: "client2", BucketID: 200},
+			NewMarkProtoSessionClosingForGivenBucketRequest("client1", 100),
+			NewMarkProtoSessionClosingForGivenBucketRequest("client2", 200),
 		},
 	)
 
@@ -404,9 +404,9 @@ func TestNaiveGenericStorageBatchedIOBackend_GetAllProtosessionsForBucket_Multip
 	responses := backend.GetAllProtosessionsForBucket(
 		context.Background(),
 		[]*GetAllProtosessionsForBucketRequest{
-			{BucketID: 100},
-			{BucketID: 200},
-			{BucketID: 300},
+			NewGetAllProtosessionsForBucketRequest(100),
+			NewGetAllProtosessionsForBucketRequest(200),
+			NewGetAllProtosessionsForBucketRequest(300),
 		},
 	)
 
@@ -434,7 +434,7 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 				"client1": {{AuthoritativeClientID: "client1"}},
 			},
 			removeRequests: []*RemoveProtoSessionHitsRequest{
-				{ProtoSessionID: "client1"},
+				NewRemoveProtoSessionHitsRequest("client1"),
 			},
 			verifyClientID:    "client1",
 			expectHitsRemoved: true,
@@ -446,8 +446,8 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 				"client2": {{AuthoritativeClientID: "client2"}},
 			},
 			removeRequests: []*RemoveProtoSessionHitsRequest{
-				{ProtoSessionID: "client1"},
-				{ProtoSessionID: "client2"},
+				NewRemoveProtoSessionHitsRequest("client1"),
+				NewRemoveProtoSessionHitsRequest("client2"),
 			},
 			verifyClientID:    "client1",
 			expectHitsRemoved: true,
@@ -456,7 +456,7 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 			name:      "should handle removing non-existent proto-session",
 			setupHits: map[hits.ClientID][]*hits.Hit{},
 			removeRequests: []*RemoveProtoSessionHitsRequest{
-				{ProtoSessionID: "non-existent"},
+				NewRemoveProtoSessionHitsRequest("non-existent"),
 			},
 			verifyClientID:    "non-existent",
 			expectHitsRemoved: true,
@@ -480,7 +480,7 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 				backend.HandleBatch(
 					context.Background(),
 					[]*AppendHitsToProtoSessionRequest{
-						{ProtoSessionID: clientID, Hits: hitsToStore},
+						NewAppendHitsToProtoSessionRequest(clientID, hitsToStore),
 					},
 					nil,
 					nil,
@@ -488,9 +488,10 @@ func TestNaiveGenericStorageBatchedIOBackend_RemoveProtoSessionHits(t *testing.T
 			}
 
 			// when
-			responses := backend.RemoveProtoSessionEntities(
+			responses, _ := backend.RemoveProtoSessionEntities(
 				context.Background(),
 				tt.removeRequests,
+				nil,
 			)
 
 			// then
@@ -557,8 +558,8 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	appendResponses, _, _ := backend.HandleBatch(
 		context.Background(),
 		[]*AppendHitsToProtoSessionRequest{
-			{ProtoSessionID: client1, Hits: []*hits.Hit{hit1}},
-			{ProtoSessionID: client2, Hits: []*hits.Hit{hit2}},
+			NewAppendHitsToProtoSessionRequest(client1, []*hits.Hit{hit1}),
+			NewAppendHitsToProtoSessionRequest(client2, []*hits.Hit{hit2}),
 		},
 		nil,
 		nil,
@@ -575,8 +576,8 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 		nil,
 		nil,
 		[]*MarkProtoSessionClosingForGivenBucketRequest{
-			{ProtoSessionID: client1, BucketID: bucketID},
-			{ProtoSessionID: client2, BucketID: bucketID},
+			NewMarkProtoSessionClosingForGivenBucketRequest(client1, bucketID),
+			NewMarkProtoSessionClosingForGivenBucketRequest(client2, bucketID),
 		},
 	)
 
@@ -589,7 +590,7 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	bucketResponses := backend.GetAllProtosessionsForBucket(
 		context.Background(),
 		[]*GetAllProtosessionsForBucketRequest{
-			{BucketID: bucketID},
+			NewGetAllProtosessionsForBucketRequest(bucketID),
 		},
 	)
 
@@ -599,12 +600,13 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 	assert.Len(t, bucketResponses[0].ProtoSessions, 2)
 
 	// when: remove hits
-	removeResponses := backend.RemoveProtoSessionEntities(
+	removeResponses, _ := backend.RemoveProtoSessionEntities(
 		context.Background(),
 		[]*RemoveProtoSessionHitsRequest{
-			{ProtoSessionID: client1},
-			{ProtoSessionID: client2},
+			NewRemoveProtoSessionHitsRequest(client1),
+			NewRemoveProtoSessionHitsRequest(client2),
 		},
+		nil,
 	)
 
 	// then
@@ -617,8 +619,8 @@ func TestNaiveGenericStorageBatchedIOBackend_Integration(t *testing.T) {
 		context.Background(),
 		nil,
 		[]*GetProtoSessionHitsRequest{
-			{ProtoSessionID: client1},
-			{ProtoSessionID: client2},
+			NewGetProtoSessionHitsRequest(client1),
+			NewGetProtoSessionHitsRequest(client2),
 		},
 		nil,
 	)
@@ -645,36 +647,36 @@ func TestNaiveGenericStorageBatchedIOBackend_GetIdentifierConflicts(t *testing.T
 
 	// when
 	results := backend.GetIdentifierConflicts(context.Background(), []*IdentifierConflictRequest{
-		{
-			IdentifierType: "session_stamp",
-			Hit: &hits.Hit{
+		NewIdentifierConflictRequest(
+			&hits.Hit{
 				AuthoritativeClientID: "client1",
 				IP:                    "192.168.1.1",
 			},
-			ExtractIdentifier: func(h *hits.Hit) string {
+			"session_stamp",
+			func(h *hits.Hit) string {
 				return h.SessionStamp()
 			},
-		},
-		{
-			IdentifierType: "session_stamp",
-			Hit: &hits.Hit{
+		),
+		NewIdentifierConflictRequest(
+			&hits.Hit{
 				AuthoritativeClientID: "client1",
 				IP:                    "192.168.1.1",
 			},
-			ExtractIdentifier: func(h *hits.Hit) string {
+			"session_stamp",
+			func(h *hits.Hit) string {
 				return h.SessionStamp()
 			},
-		},
-		{
-			IdentifierType: "session_stamp",
-			Hit: &hits.Hit{
+		),
+		NewIdentifierConflictRequest(
+			&hits.Hit{
 				AuthoritativeClientID: "client2",
 				IP:                    "192.168.1.1",
 			},
-			ExtractIdentifier: func(h *hits.Hit) string {
+			"session_stamp",
+			func(h *hits.Hit) string {
 				return h.SessionStamp()
 			},
-		},
+		),
 	})
 
 	// then

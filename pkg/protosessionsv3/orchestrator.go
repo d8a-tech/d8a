@@ -8,6 +8,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/receiver"
+	"github.com/sirupsen/logrus"
 )
 
 // Closer defines an interface for closing and processing hit sessions
@@ -87,9 +88,7 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 	markProtoSessionClosingForGivenBucketRequests := make([]*MarkProtoSessionClosingForGivenBucketRequest, 0)
 	getProtoSessionHitsRequests := make([]*GetProtoSessionHitsRequest, 0)
 	for clientID := range protosessionsForEviction {
-		getProtoSessionHitsRequests = append(getProtoSessionHitsRequests, &GetProtoSessionHitsRequest{
-			ProtoSessionID: clientID,
-		})
+		getProtoSessionHitsRequests = append(getProtoSessionHitsRequests, NewGetProtoSessionHitsRequest(clientID))
 	}
 	for _, hit := range hitsToBeSaved {
 		settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
@@ -98,15 +97,15 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 		}
 		markProtoSessionClosingForGivenBucketRequests = append(
 			markProtoSessionClosingForGivenBucketRequests,
-			&MarkProtoSessionClosingForGivenBucketRequest{
-				ProtoSessionID: hit.AuthoritativeClientID,
-				BucketID:       o.timingWheel.BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration)),
-			},
+			NewMarkProtoSessionClosingForGivenBucketRequest(
+				hit.AuthoritativeClientID,
+				o.timingWheel.BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration)),
+			),
 		)
-		appendHitsRequests = append(appendHitsRequests, &AppendHitsToProtoSessionRequest{
-			ProtoSessionID: hit.AuthoritativeClientID,
-			Hits:           []*hits.Hit{hit},
-		})
+		appendHitsRequests = append(appendHitsRequests, NewAppendHitsToProtoSessionRequest(
+			hit.AuthoritativeClientID,
+			[]*hits.Hit{hit},
+		))
 	}
 	appendHitsResps, getProtoSessionHitsResps, markProtoSessionClosingForGivenBucketResps := o.backend.HandleBatch(
 		ctx,
@@ -148,10 +147,8 @@ func (o *Orchestrator) Orchestrate(ctx context.Context, hitsBatch []*hits.Hit) *
 	}
 
 	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
-	for id, _ := range protosessionsForEviction {
-		removeHitRequests = append(removeHitRequests, &RemoveProtoSessionHitsRequest{
-			ProtoSessionID: id,
-		})
+	for id := range protosessionsForEviction {
+		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
 	}
 
 	removeResponses, removeAllHitRelatedMetadataResponses := o.backend.RemoveProtoSessionEntities(
@@ -186,7 +183,7 @@ func (o *Orchestrator) processBucket(
 	responses := o.backend.GetAllProtosessionsForBucket(
 		ctx,
 		[]*GetAllProtosessionsForBucketRequest{
-			{BucketID: bucketNumber},
+			NewGetAllProtosessionsForBucketRequest(bucketNumber),
 		},
 	)
 
@@ -212,6 +209,11 @@ func (o *Orchestrator) processBucket(
 		if err != nil {
 			return BucketProcessingNoop, err
 		}
+		for i, h := range sortedHits {
+			if h == nil {
+				logrus.Fatalf("hit is nil in processBucket at index %d", i)
+			}
+		}
 		removeAllHitRelatedMetadataRequests = append(
 			removeAllHitRelatedMetadataRequests,
 			GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...,
@@ -224,9 +226,7 @@ func (o *Orchestrator) processBucket(
 		}
 
 		protoSessionID := sortedHits[0].AuthoritativeClientID
-		removeHitRequests = append(removeHitRequests, &RemoveProtoSessionHitsRequest{
-			ProtoSessionID: protoSessionID,
-		})
+		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(protoSessionID))
 	}
 
 	if len(removeHitRequests) > 0 || len(removeAllHitRelatedMetadataRequests) > 0 {

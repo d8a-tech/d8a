@@ -253,7 +253,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											encoding.JSONDecoder,
 										),
 										protosessionsv3.NewGenericStorageTimingWheelBackend(
-											"",
+											"default",
 											kv,
 										),
 										sessions.NewDirectCloser(
