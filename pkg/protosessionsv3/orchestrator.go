@@ -3,6 +3,7 @@ package protosessionsv3
 import (
 	"context"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -24,6 +25,7 @@ type Orchestrator struct {
 	settingsRegistry properties.SettingsRegistry
 	timingWheel      *TimingWheel
 	lastHitTime      time.Time
+	lock             sync.Mutex
 }
 
 func NewOrchestrator(
@@ -175,9 +177,17 @@ func (o *Orchestrator) Orchestrate(
 	return nil
 }
 
-func (o *Orchestrator) updateLastHitTime(time time.Time) {
-	logrus.Infof("updateLastHitTime: %s", time)
-	o.lastHitTime = time
+func (o *Orchestrator) updateLastHitTime(theTime time.Time) {
+	if theTime.After(o.lastHitTime) {
+		// Add a second to the last hit time to ensure we don't process the same bucket twice.
+		if o.lastHitTime.IsZero() {
+			logrus.Infof("setting last hit bucket number to %d", o.timingWheel.BucketNumber(theTime))
+			o.lastHitTime = theTime
+		} else {
+			logrus.Infof("setting last hit bucket number to %d", o.timingWheel.BucketNumber(o.lastHitTime.Add(time.Second)))
+			o.lastHitTime = o.lastHitTime.Add(time.Second)
+		}
+	}
 }
 
 // This is called by the timing wheel to process a bucket.
@@ -185,6 +195,7 @@ func (o *Orchestrator) processBucket(
 	ctx context.Context,
 	bucketNumber int64,
 ) (BucketNextInstruction, error) {
+	logrus.Infof("(pre) processing bucket %d", bucketNumber)
 	responses := o.backend.GetAllProtosessionsForBucket(
 		ctx,
 		[]*GetAllProtosessionsForBucketRequest{
@@ -254,6 +265,8 @@ func (o *Orchestrator) processBucket(
 			return BucketProcessingNoop, removeBucketMetadataResponse.Err
 		}
 	}
+
+	logrus.Infof("(post) processedbucket %d", bucketNumber)
 	return BucketProcessingAdvance, nil
 }
 

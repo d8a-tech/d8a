@@ -1,6 +1,6 @@
 warehouse: noop
 closer:
-  session_duration: 5s
+  session_duration: 10s
 
 monitoring:
   enabled: false

@@ -107,7 +107,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 	currentTime := tw.getCurrentTime()
 	if currentTime.IsZero() {
-		logrus.Tracef("No events processed yet, skipping timing wheel tick")
+		logrus.Infof("No events processed yet, skipping timing wheel tick")
 		return nil
 	}
 
@@ -157,10 +157,10 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	return nil
 }
 
-func (tw *TimingWheel) BucketNumber(time time.Time) int64 {
+func (tw *TimingWheel) BucketNumber(theTime time.Time) int64 {
 	// A bucket every second
 	if tw.tickInterval < 1 {
-		return time.Unix()
+		return theTime.Unix()
 	}
-	return time.Unix() / int64(tw.tickInterval.Seconds())
+	return theTime.Unix() / int64(tw.tickInterval.Seconds())
 }

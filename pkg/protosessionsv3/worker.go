@@ -8,7 +8,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/worker"
-	"github.com/sirupsen/logrus"
 )
 
 // Middleware defines an interface for task processing middleware
@@ -69,7 +68,6 @@ func Handler(
 				INFO[0071] updateLastHitTime: 2025-11-25 23:21:02 +0100 CET
 
 			*/
-			logrus.Infof("ping timestamp: %s", pingTimestamp)
 			orchestrator.updateLastHitTime(pingTimestamp)
 			return nil
 		}
