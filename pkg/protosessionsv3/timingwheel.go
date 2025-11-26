@@ -41,35 +41,36 @@ type PerBucketMutexes map[int64]*sync.Mutex
 
 func (m PerBucketMutexes) Lock(bucketNumber int64) {
 	mapMutex.Lock()
-	defer mapMutex.Unlock()
 	mutex, ok := m[bucketNumber]
 	if !ok {
 		mutex = &sync.Mutex{}
 		m[bucketNumber] = mutex
 	}
+	mapMutex.Unlock()
 	mutex.Lock()
 }
 
 func (m PerBucketMutexes) TryLock(bucketNumber int64) bool {
 	mapMutex.Lock()
-	defer mapMutex.Unlock()
 	mutex, ok := m[bucketNumber]
 	if !ok {
 		mutex = &sync.Mutex{}
 		m[bucketNumber] = mutex
 	}
+	mapMutex.Unlock()
 	return mutex.TryLock()
 }
 
 func (m PerBucketMutexes) Drop(bucketNumber int64) {
 	mapMutex.Lock()
-	defer mapMutex.Unlock()
 	mutex, ok := m[bucketNumber]
 	if !ok {
+		mapMutex.Unlock()
 		return
 	}
-	mutex.Unlock()
 	delete(m, bucketNumber)
+	mapMutex.Unlock()
+	mutex.Unlock()
 }
 
 // TimingWheel implements a timing wheel for scheduling protosession closures.
@@ -99,6 +100,7 @@ func NewTimingWheel(
 		stop:           make(chan struct{}),
 		stopped:        make(chan struct{}),
 		loopSleep:      tickInterval,
+		lock:           make(PerBucketMutexes),
 	}
 }
 

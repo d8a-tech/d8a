@@ -52,7 +52,7 @@ function generateSessionStamp() {
 
 // Function to get sessionStamp with 1% chance of reusing previous one
 function getSessionStamp() {
-    if (previousSessionStamps.length > 0 && Math.random() < 0.5) {
+    if (previousSessionStamps.length > 0 && Math.random() < 0.01) {
         return previousSessionStamps[Math.floor(Math.random() * previousSessionStamps.length)];
     }
     const newStamp = generateSessionStamp();

@@ -204,25 +204,35 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err := bolt.EnsureDatabase(boltDB); err != nil {
 						logrus.Fatalf("failed to ensure database: %v", err)
 					}
-					boltPublisher := publishers.NewPingingPublisher(
+					fsPublisher, err := worker.NewFilesystemDirectoryPublisher(
+						"/tmp/worker",
+						worker.NewBinaryMessageFormat(),
+					)
+					if err != nil {
+						logrus.Fatalf("failed to create filesystem directory publisher: %v", err)
+					}
+					workerPublisher := publishers.NewPingingPublisher(
 						ctx,
-						bolt.NewPublisher(boltDB, worker.NewBinaryMessageFormat()),
+						fsPublisher,
 						time.Second*1,
 						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
 					)
 					serverStorage := receiver.NewBatchingStorage(
-						storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, boltPublisher),
+						storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, workerPublisher),
 						cmd.Int(batcherBatchSizeFlag.Name),
 						time.Millisecond*500,
 					)
 					workerErrChan := make(chan error, 1)
 					go func() {
 						defer cancel()
-						consumer := bolt.NewConsumer(
+						workerConsumer, err := worker.NewFilesystemDirectoryConsumer(
 							ctx,
-							boltDB,
+							"/tmp/worker",
 							worker.NewBinaryMessageFormat(),
 						)
+						if err != nil {
+							logrus.Fatalf("failed to create worker consumer: %v", err)
+						}
 						kv, err := bolt.NewBoltKV("/tmp/bolt_kv.db")
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
@@ -279,7 +289,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							[]worker.Middleware{},
 						)
 
-						if err := consumer.Consume(func(task *worker.Task) error {
+						if err := workerConsumer.Consume(func(task *worker.Task) error {
 							// Check if context is done before processing task
 							select {
 							case <-ctx.Done():

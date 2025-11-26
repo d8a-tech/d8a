@@ -60,16 +60,42 @@ func (o *Orchestrator) Orchestrate(
 	if len(hitsBatch) == 0 {
 		return nil
 	}
-	newBatch := []*hits.Hit{}
-	for _, hit := range hitsBatch {
-		// TODO: The hits that would expire in the past must be dropped here.
-		if hit.ClientID == hit.AuthoritativeClientID {
-			newBatch = append(newBatch, hit)
-		}
-	}
 	batchSettingsRegistry := o.settingsRegistry
-	var requests []*IdentifierConflictRequest
+	newBatch := []*hits.Hit{}
+	uniqueBuckets := make(map[int64][]*hits.Hit)
 	for _, hit := range hitsBatch {
+		settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewProtosessionError(err, true)
+		}
+		bucketNumber := o.timingWheel.BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration))
+		if _, ok := uniqueBuckets[bucketNumber]; !ok {
+			uniqueBuckets[bucketNumber] = make([]*hits.Hit, 0)
+		}
+		uniqueBuckets[bucketNumber] = append(uniqueBuckets[bucketNumber], hit)
+	}
+	hitsToDrop := map[hits.ClientID]*hits.Hit{}
+	for bucketNumber, hits := range uniqueBuckets {
+		ok := o.timingWheel.lock.TryLock(bucketNumber)
+		if !ok {
+			logrus.Warnf("Dropping %d hits for bucket %d because it is being processed", len(hits), bucketNumber)
+			for _, hit := range hits {
+				hitsToDrop[hit.AuthoritativeClientID] = hit
+			}
+			continue
+		}
+		defer o.timingWheel.lock.Drop(bucketNumber)
+		if bucketNumber <= o.timingWheel.BucketNumber(o.timingWheel.getCurrentTime()) {
+			logrus.Warnf("Dropping %d hits for bucket %d because it is already expired (current bucket: %d)", len(hits), bucketNumber, o.timingWheel.BucketNumber(o.timingWheel.getCurrentTime()))
+			for _, hit := range hits {
+				hitsToDrop[hit.AuthoritativeClientID] = hit
+			}
+			continue
+		}
+		newBatch = append(newBatch, hits...)
+	}
+	var requests []*IdentifierConflictRequest
+	for _, hit := range newBatch {
 		settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
 			return NewProtosessionError(err, true)
@@ -85,7 +111,7 @@ func (o *Orchestrator) Orchestrate(
 	}
 	protosessionsForEviction := make(map[hits.ClientID][]*hits.Hit)
 	hitsToBeSaved := make([]*hits.Hit, 0)
-	for _, hit := range hitsBatch {
+	for _, hit := range newBatch {
 		if conflict, ok := conflictsByOriginalAuthoritativeClientID[hit.AuthoritativeClientID]; ok {
 			MarkForEviction(hit, conflict.ConflictsWith)
 			if protosessionsForEviction[conflict.ConflictsWith] == nil {
@@ -162,11 +188,23 @@ func (o *Orchestrator) Orchestrate(
 	for id := range protosessionsForEviction {
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
 	}
+	removeHitMetadataRequests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
+	for _, hit := range hitsToDrop {
+		settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewProtosessionError(err, true)
+		}
+		removeHitMetadataRequests = append(
+			removeHitMetadataRequests,
+			GetRemoveHitRelatedMetadataRequests([]*hits.Hit{hit}, settings)...,
+		)
+
+	}
 
 	removeResponses, removeAllHitRelatedMetadataResponses, _ := o.backend.Cleanup(
 		ctx,
 		removeHitRequests,
-		nil,
+		removeHitMetadataRequests,
 		nil,
 	)
 	for _, removeResponse := range removeResponses {
@@ -179,19 +217,15 @@ func (o *Orchestrator) Orchestrate(
 			return NewProtosessionError(removeAllHitRelatedMetadataResponse.Err, true)
 		}
 	}
-
-	o.updateLastHitTime(hitsBatch[len(hitsBatch)-1].ServerReceivedTime)
+	if len(newBatch) > 0 {
+		o.updateLastHitTime(newBatch[len(newBatch)-1].ServerReceivedTime)
+	}
 	return nil
 }
 
 func (o *Orchestrator) updateLastHitTime(theTime time.Time) {
 	if theTime.After(o.lastHitTime) {
-		// Add a second to the last hit time to ensure we don't process the same bucket twice.
-		if o.lastHitTime.IsZero() {
-			o.lastHitTime = theTime
-		} else {
-			o.lastHitTime = o.lastHitTime.Add(time.Second)
-		}
+		o.lastHitTime = theTime
 	}
 }
 
