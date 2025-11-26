@@ -115,7 +115,7 @@ type loggingDriver struct {
 }
 
 func (d *loggingDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	// logrus.Infof("writing `%d` records to `%s`", len(rows), table)
+	logrus.Infof("writing `%d` records to `%s`", len(rows), table)
 	return d.driver.Write(ctx, table, schema, rows)
 }
 

@@ -3,6 +3,7 @@ package protosessionsv3
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -34,6 +35,43 @@ type TimingWheelStateBackend interface {
 	SaveNextBucket(ctx context.Context, bucketNumber int64) error
 }
 
+var mapMutex = sync.Mutex{}
+
+type PerBucketMutexes map[int64]*sync.Mutex
+
+func (m PerBucketMutexes) Lock(bucketNumber int64) {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+	mutex, ok := m[bucketNumber]
+	if !ok {
+		mutex = &sync.Mutex{}
+		m[bucketNumber] = mutex
+	}
+	mutex.Lock()
+}
+
+func (m PerBucketMutexes) TryLock(bucketNumber int64) bool {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+	mutex, ok := m[bucketNumber]
+	if !ok {
+		mutex = &sync.Mutex{}
+		m[bucketNumber] = mutex
+	}
+	return mutex.TryLock()
+}
+
+func (m PerBucketMutexes) Drop(bucketNumber int64) {
+	mapMutex.Lock()
+	defer mapMutex.Unlock()
+	mutex, ok := m[bucketNumber]
+	if !ok {
+		return
+	}
+	mutex.Unlock()
+	delete(m, bucketNumber)
+}
+
 // TimingWheel implements a timing wheel for scheduling protosession closures.
 type TimingWheel struct {
 	backend        TimingWheelStateBackend
@@ -43,6 +81,7 @@ type TimingWheel struct {
 	stop           chan struct{}
 	stopped        chan struct{}
 	loopSleep      time.Duration
+	lock           PerBucketMutexes
 }
 
 // NewTimingWheel creates a timing wheel with the given tick interval.
@@ -127,6 +166,8 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	}
 
 	currentBucket := tw.BucketNumber(currentTime)
+	tw.lock.Lock(currentBucket)
+	defer tw.lock.Drop(currentBucket)
 
 	logrus.Debugf("TimingWheel tick next bucket: %d, current bucket: %d", nextBucket, currentBucket)
 

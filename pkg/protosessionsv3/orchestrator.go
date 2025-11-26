@@ -60,6 +60,13 @@ func (o *Orchestrator) Orchestrate(
 	if len(hitsBatch) == 0 {
 		return nil
 	}
+	newBatch := []*hits.Hit{}
+	for _, hit := range hitsBatch {
+		// TODO: The hits that would expire in the past must be dropped here.
+		if hit.ClientID == hit.AuthoritativeClientID {
+			newBatch = append(newBatch, hit)
+		}
+	}
 	batchSettingsRegistry := o.settingsRegistry
 	var requests []*IdentifierConflictRequest
 	for _, hit := range hitsBatch {
@@ -181,10 +188,8 @@ func (o *Orchestrator) updateLastHitTime(theTime time.Time) {
 	if theTime.After(o.lastHitTime) {
 		// Add a second to the last hit time to ensure we don't process the same bucket twice.
 		if o.lastHitTime.IsZero() {
-			logrus.Infof("setting last hit bucket number to %d", o.timingWheel.BucketNumber(theTime))
 			o.lastHitTime = theTime
 		} else {
-			logrus.Infof("setting last hit bucket number to %d", o.timingWheel.BucketNumber(o.lastHitTime.Add(time.Second)))
 			o.lastHitTime = o.lastHitTime.Add(time.Second)
 		}
 	}
@@ -195,7 +200,6 @@ func (o *Orchestrator) processBucket(
 	ctx context.Context,
 	bucketNumber int64,
 ) (BucketNextInstruction, error) {
-	logrus.Infof("(pre) processing bucket %d", bucketNumber)
 	responses := o.backend.GetAllProtosessionsForBucket(
 		ctx,
 		[]*GetAllProtosessionsForBucketRequest{
@@ -266,7 +270,6 @@ func (o *Orchestrator) processBucket(
 		}
 	}
 
-	logrus.Infof("(post) processedbucket %d", bucketNumber)
 	return BucketProcessingAdvance, nil
 }
 

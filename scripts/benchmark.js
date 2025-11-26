@@ -39,7 +39,7 @@ const eventTypes = [
 function generateCid() {
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     let result = '';
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 12; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
@@ -52,7 +52,7 @@ function generateSessionStamp() {
 
 // Function to get sessionStamp with 1% chance of reusing previous one
 function getSessionStamp() {
-    if (previousSessionStamps.length > 0 && Math.random() < 0.01) {
+    if (previousSessionStamps.length > 0 && Math.random() < 0.5) {
         return previousSessionStamps[Math.floor(Math.random() * previousSessionStamps.length)];
     }
     const newStamp = generateSessionStamp();
