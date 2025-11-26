@@ -24,8 +24,33 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 - **Europe & GDPR?** - Supports EU's independence from Bigtech
 
 
-## Screenshots
+## Screenshots & Reporting Demo
+<table>
+  <tr>
+    <td>
+      <a href="./docs/static/img/reporting-overview.png" target="_blank">
+        <img src="./docs/static/img/reporting-overview.png" alt="Overview Screenshot" width="260" />
+      </a>
+    </td>
+    <td>
+      <a href="./docs/static/img/reporting-location.png" target="_blank">
+        <img src="./docs/static/img/reporting-location.png" alt="Location Screenshot" width="260" />
+      </a>
+    </td>
+    <td>
+      <a href="./docs/static/img/reporting-ecommerce.png" target="_blank">
+        <img src="./docs/static/img/reporting-ecommerce.png" alt="Ecommerce Screenshot" width="260" />
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">Overview</td>
+    <td style="text-align:center;">Location</td>
+    <td style="text-align:center;">Ecommerce</td>
+  </tr>
+</table>
 
+You can also see the full demo [here](https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd).
 
 ## Getting Started
 
