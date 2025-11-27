@@ -11,6 +11,9 @@ import (
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/dgraph-io/ristretto/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -35,6 +38,8 @@ type sessionWriterImpl struct {
 
 	splitterRegistry splitter.Registry
 	parentCtx        context.Context
+
+	columnCalcDuration metric.Float64Counter
 }
 
 // Compile-time check to ensure SessionWriter implements SessionWriterInterface
@@ -167,12 +172,16 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	columns schema.Columns,
 	session *schema.Session,
 ) ([]*schema.Session, error) {
+	ctx := m.parentCtx
 	for _, column := range columns.Event {
+		start := time.Now()
 		for _, event := range session.Events {
 			if err := column.Write(event); err != nil {
 				return nil, err
 			}
 		}
+		m.columnCalcDuration.Add(ctx, time.Since(start).Seconds(),
+			metric.WithAttributes(attribute.String("interface_id", string(column.Implements().ID))))
 	}
 	splitter, err := m.splitterRegistry.Splitter(session.PropertyID)
 	if err != nil {
@@ -184,16 +193,22 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	}
 	for _, splitSession := range splitSessions {
 		for _, column := range columns.SessionScopedEvent {
+			start := time.Now()
 			for i := range splitSession.Events {
 				if err := column.Write(splitSession, i); err != nil {
 					return nil, err
 				}
 			}
+			m.columnCalcDuration.Add(ctx, time.Since(start).Seconds(),
+				metric.WithAttributes(attribute.String("interface_id", string(column.Implements().ID))))
 		}
 		for _, column := range columns.Session {
+			start := time.Now()
 			if err := column.Write(splitSession); err != nil {
 				return nil, err
 			}
+			m.columnCalcDuration.Add(ctx, time.Since(start).Seconds(),
+				metric.WithAttributes(attribute.String("interface_id", string(column.Implements().ID))))
 		}
 	}
 
@@ -209,18 +224,26 @@ func NewSessionWriter(
 	layouts schema.LayoutRegistry,
 	splitterRegistry splitter.Registry,
 ) SessionWriter {
+	meter := otel.GetMeterProvider().Meter("sessions")
+	columnCalcDuration, _ := meter.Float64Counter(
+		"sessions.column_calc.duration",
+		metric.WithDescription("Total seconds spent calculating column values"),
+		metric.WithUnit("s"),
+	)
+
 	return &sessionWriterImpl{
-		writeTimeout:      30 * time.Second,
-		concurrency:       10,
-		warehouseRegistry: whr,
-		warehouseCache:    createDefaultCache[warehouse.Driver](),
-		columnsRegistry:   columnsRegistry,
-		columnsCache:      createDefaultCache[schema.Columns](),
-		layoutRegistry:    layouts,
-		layoutsCache:      createDefaultCache[schema.Layout](),
-		cacheTTL:          5 * time.Minute,
-		parentCtx:         parentCtx,
-		splitterRegistry:  splitterRegistry,
+		writeTimeout:       30 * time.Second,
+		concurrency:        10,
+		warehouseRegistry:  whr,
+		warehouseCache:     createDefaultCache[warehouse.Driver](),
+		columnsRegistry:    columnsRegistry,
+		columnsCache:       createDefaultCache[schema.Columns](),
+		layoutRegistry:     layouts,
+		layoutsCache:       createDefaultCache[schema.Layout](),
+		cacheTTL:           5 * time.Minute,
+		parentCtx:          parentCtx,
+		splitterRegistry:   splitterRegistry,
+		columnCalcDuration: columnCalcDuration,
 	}
 }
 
