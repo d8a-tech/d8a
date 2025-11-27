@@ -143,9 +143,9 @@ go test ./...
 
 See the following resources:
 
-- [Getting Started Guide](https://d8a-tech.github.io/d8a/docs/getting-started/)
-- [Database Schema & Columns](https://d8a-tech.github.io/d8a/docs/columns)
-- [Technical Deep Dive](https://d8a-tech.github.io/d8a/docs/deep-dive)
+- [Getting Started Guide](https://docs.d8a.tech/getting-started)
+- [Database Schema & Columns](https://docs.d8a.tech/articles/database-schema)
+- [Technical Deep Dive](https://docs.d8a.tech/articles/technical-deep-dive)
 
 ## Join us on Discord
 
