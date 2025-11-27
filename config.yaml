@@ -4,8 +4,8 @@ batcher:
   batch_timeout: 5s
 
 closer:
-  session_duration: 2s
+  session_duration: 10s
 
 monitoring:
-  enabled: false
+  enabled: true
   otel_endpoint: localhost:4317

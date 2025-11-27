@@ -27,6 +27,7 @@ func Handler(
 	closer Closer,
 	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
+	evictionStrategy EvictionStrategy,
 ) func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error {
 	orchestrator := NewOrchestrator(
 		ctx,
@@ -35,39 +36,11 @@ func Handler(
 		closer,
 		requeuer,
 		settingsRegistry,
+		evictionStrategy,
 	)
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
 		isPing, pingTimestamp := pings.IsTaskAPing(md)
 		if isPing {
-			// TODO: those ping timestamps bork the logic:
-			/*
-				INFO[0063] updateLastHitTime: 2025-11-25 23:20:46 +0100 CET
-				INFO[0065] updateLastHitTime: 2025-11-25 23:20:47 +0100 CET
-				INFO[0066] updateLastHitTime: 2025-11-25 23:20:48 +0100 CET
-				INFO[0067] updateLastHitTime: 2025-11-25 23:20:48 +0100 CET
-				INFO[0068] updateLastHitTime: 2025-11-25 23:20:49 +0100 CET
-				INFO[0070] updateLastHitTime: 2025-11-25 23:20:49 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:50 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:37 +0100 CET
-				INFO[0071] ping timestamp: 2025-11-25 23:20:53 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:53 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:34 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:39 +0100 CET
-				INFO[0071] ping timestamp: 2025-11-25 23:20:55 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:55 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:30 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:39 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:38 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:35 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:42 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:40 +0100 CET
-				INFO[0071] ping timestamp: 2025-11-25 23:21:01 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:21:01 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:20:41 +0100 CET
-				INFO[0071] ping timestamp: 2025-11-25 23:21:02 +0100 CET
-				INFO[0071] updateLastHitTime: 2025-11-25 23:21:02 +0100 CET
-
-			*/
 			orchestrator.updateLastHitTime(pingTimestamp)
 			return nil
 		}

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 // FilesystemDirectoryPublisher writes tasks to timestamped files in a directory.
@@ -66,13 +68,16 @@ func NewFilesystemDirectoryConsumer(
 
 // Consume implements Consumer.
 func (c *FilesystemDirectoryConsumer) Consume(handler TaskHandlerFunc) error {
+
 	for {
 		select {
 		case <-c.ctx.Done():
+			logrus.Infof("FilesystemDirectoryConsumer stopping due to context done")
 			return nil
 		default:
 			processed, err := c.processNextBatch(handler)
 			if err != nil {
+				logrus.Errorf("FilesystemDirectoryConsumer error: %v", err)
 				return err
 			}
 			if !processed {
@@ -95,6 +100,13 @@ func (c *FilesystemDirectoryConsumer) processNextBatch(handler TaskHandlerFunc) 
 		data, err := os.ReadFile(path) //nolint:gosec // path is constructed from controlled directory
 		if err != nil {
 			return false, fmt.Errorf("failed to read task file %s: %w", file, err)
+		}
+		if len(data) == 0 {
+			logrus.Warnf("discarding empty task file %s (possibly from incomplete write)", file)
+			if err := os.Remove(path); err != nil {
+				return false, fmt.Errorf("failed to remove empty file %s: %w", file, err)
+			}
+			continue
 		}
 		task, err := c.format.Deserialize(data)
 		if err != nil {

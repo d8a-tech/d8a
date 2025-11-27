@@ -133,7 +133,7 @@ export default function () {
             const response = http.post(url, null, params);
 
             check(response, {
-                'status is 200': (r) => r.status === 200,
+                'status is 204': (r) => r.status === 204,
             }, { event_type: eventType });
 
 

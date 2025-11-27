@@ -54,7 +54,15 @@ func TestWorker(t *testing.T) {
 		return nil
 	})
 	settingsRegistry := properties.NewTestSettingRegistry()
-	handler := Handler(context.Background(), backend, tickerStateBackend, closer, requeuer, settingsRegistry)
+	handler := Handler(
+		context.Background(),
+		backend,
+		tickerStateBackend,
+		closer,
+		requeuer,
+		settingsRegistry,
+		EvictWholeProtosessionStrategy,
+	)
 	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{
 			columntests.TestHitOne(),

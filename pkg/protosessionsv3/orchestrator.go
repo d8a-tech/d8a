@@ -7,9 +7,12 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // Closer defines an interface for closing and processing hit sessions
@@ -24,8 +27,22 @@ type Orchestrator struct {
 	requeuer         receiver.Storage
 	settingsRegistry properties.SettingsRegistry
 	timingWheel      *TimingWheel
+	evictionStrategy EvictionStrategy
 	lastHitTime      time.Time
 	lock             sync.Mutex
+
+	orchestrateHist      metric.Float64Histogram
+	conflictCheckHist    metric.Float64Histogram
+	handleBatchHist      metric.Float64Histogram
+	cleanupHist          metric.Float64Histogram
+	processBucketHist    metric.Float64Histogram
+	getProtosessionsHist metric.Float64Histogram
+	closeHist            metric.Float64Histogram
+	requeueHist          metric.Float64Histogram
+	hitsReceivedCounter  metric.Int64Counter
+	hitsClosedCounter    metric.Int64Counter
+	evictionsCounter     metric.Int64Counter
+	processingLagGauge   metric.Float64Gauge
 }
 
 func NewOrchestrator(
@@ -35,13 +52,95 @@ func NewOrchestrator(
 	closer Closer,
 	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
+	evictionStrategy EvictionStrategy,
 ) *Orchestrator {
+	meter := otel.GetMeterProvider().Meter("protosessions")
+
+	orchestrateHist, _ := meter.Float64Histogram(
+		"protosessions.orchestrate.duration",
+		metric.WithDescription("Full orchestration duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	conflictCheckHist, _ := meter.Float64Histogram(
+		"protosessions.conflict_check.duration",
+		metric.WithDescription("Conflict detection duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	handleBatchHist, _ := meter.Float64Histogram(
+		"protosessions.handle_batch.duration",
+		metric.WithDescription("Batch handling duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	cleanupHist, _ := meter.Float64Histogram(
+		"protosessions.cleanup.duration",
+		metric.WithDescription("Cleanup operations duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	processBucketHist, _ := meter.Float64Histogram(
+		"protosessions.process_bucket.duration",
+		metric.WithDescription("Bucket processing duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	getProtosessionsHist, _ := meter.Float64Histogram(
+		"protosessions.get_protosessions.duration",
+		metric.WithDescription("Fetching protosessions for bucket"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	closeHist, _ := meter.Float64Histogram(
+		"protosessions.close.duration",
+		metric.WithDescription("Closing proto-session duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	requeueHist, _ := meter.Float64Histogram(
+		"protosessions.requeue.duration",
+		metric.WithDescription("Requeuing hits duration"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	hitsReceivedCounter, _ := meter.Int64Counter(
+		"protosessions.hits.received",
+		metric.WithDescription("Hits received for live processing"),
+	)
+	hitsClosedCounter, _ := meter.Int64Counter(
+		"protosessions.hits.closed",
+		metric.WithDescription("Hits closed when bucket expires"),
+	)
+	evictionsCounter, _ := meter.Int64Counter(
+		"protosessions.evictions",
+		metric.WithDescription("Evictions triggered"),
+	)
+	processingLagGauge, _ := meter.Float64Gauge(
+		"protosessions.processing.lag",
+		metric.WithDescription("Processing lag in seconds"),
+		metric.WithUnit("s"),
+	)
+
 	o := &Orchestrator{
-		ctx:              ctx,
-		backend:          backend,
-		closer:           closer,
-		requeuer:         requeuer,
-		settingsRegistry: settingsRegistry,
+		ctx:                  ctx,
+		backend:              backend,
+		closer:               closer,
+		requeuer:             requeuer,
+		settingsRegistry:     settingsRegistry,
+		evictionStrategy:     evictionStrategy,
+		orchestrateHist:      orchestrateHist,
+		conflictCheckHist:    conflictCheckHist,
+		handleBatchHist:      handleBatchHist,
+		cleanupHist:          cleanupHist,
+		processBucketHist:    processBucketHist,
+		getProtosessionsHist: getProtosessionsHist,
+		closeHist:            closeHist,
+		requeueHist:          requeueHist,
+		hitsReceivedCounter:  hitsReceivedCounter,
+		hitsClosedCounter:    hitsClosedCounter,
+		evictionsCounter:     evictionsCounter,
+		processingLagGauge:   processingLagGauge,
 	}
 	o.timingWheel = NewTimingWheel(
 		tickerStateBackend,
@@ -57,6 +156,11 @@ func (o *Orchestrator) Orchestrate(
 	ctx context.Context,
 	hitsBatch []*hits.Hit,
 ) *ProtosessionError {
+	orchestrateStart := time.Now()
+	defer func() {
+		o.orchestrateHist.Record(ctx, time.Since(orchestrateStart).Seconds())
+	}()
+
 	if len(hitsBatch) == 0 {
 		return nil
 	}
@@ -103,7 +207,9 @@ func (o *Orchestrator) Orchestrate(
 		requests = append(requests, GetConflictCheckRequests(hit, settings)...)
 	}
 	conflictsByOriginalAuthoritativeClientID := make(map[hits.ClientID]*IdentifierConflictResponse)
+	conflictCheckStart := time.Now()
 	results := o.backend.GetIdentifierConflicts(ctx, requests)
+	o.conflictCheckHist.Record(ctx, time.Since(conflictCheckStart).Seconds())
 	for _, result := range results {
 		if result.HasConflict {
 			conflictsByOriginalAuthoritativeClientID[result.Request.Hit.AuthoritativeClientID] = result
@@ -111,16 +217,17 @@ func (o *Orchestrator) Orchestrate(
 	}
 	protosessionsForEviction := make(map[hits.ClientID][]*hits.Hit)
 	hitsToBeSaved := make([]*hits.Hit, 0)
+	evictionCount := int64(0)
 	for _, hit := range newBatch {
 		if conflict, ok := conflictsByOriginalAuthoritativeClientID[hit.AuthoritativeClientID]; ok {
-			MarkForEviction(hit, conflict.ConflictsWith)
-			if protosessionsForEviction[conflict.ConflictsWith] == nil {
-				protosessionsForEviction[conflict.ConflictsWith] = make([]*hits.Hit, 0)
-			}
-			protosessionsForEviction[conflict.ConflictsWith] = append(protosessionsForEviction[conflict.ConflictsWith], hit)
+			o.evictionStrategy(hit, conflict, &hitsToBeSaved, protosessionsForEviction)
+			evictionCount++
 		} else {
 			hitsToBeSaved = append(hitsToBeSaved, hit)
 		}
+	}
+	if evictionCount > 0 {
+		o.evictionsCounter.Add(ctx, evictionCount)
 	}
 	appendHitsRequests := make([]*AppendHitsToProtoSessionRequest, 0)
 	markProtoSessionClosingForGivenBucketRequests := make([]*MarkProtoSessionClosingForGivenBucketRequest, 0)
@@ -145,12 +252,14 @@ func (o *Orchestrator) Orchestrate(
 			[]*hits.Hit{hit},
 		))
 	}
+	handleBatchStart := time.Now()
 	appendHitsResps, getProtoSessionHitsResps, markProtoSessionClosingForGivenBucketResps := o.backend.HandleBatch(
 		ctx,
 		appendHitsRequests,
 		getProtoSessionHitsRequests,
 		markProtoSessionClosingForGivenBucketRequests,
 	)
+	o.handleBatchHist.Record(ctx, time.Since(handleBatchStart).Seconds())
 	for _, response := range appendHitsResps {
 		if response.Err != nil {
 			return NewProtosessionError(response.Err, true)
@@ -179,13 +288,16 @@ func (o *Orchestrator) Orchestrate(
 	for _, hits := range protosessionsForEviction {
 		allHitsToBeRequeued = append(allHitsToBeRequeued, hits...)
 	}
+	requeueStart := time.Now()
 	err := o.requeuer.Push(allHitsToBeRequeued)
+	o.requeueHist.Record(ctx, time.Since(requeueStart).Seconds())
 	if err != nil {
 		return NewProtosessionError(err, true)
 	}
 
 	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
 	for id := range protosessionsForEviction {
+		logrus.Errorf("removing hit for id %s", id)
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
 	}
 	removeHitMetadataRequests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
@@ -201,12 +313,14 @@ func (o *Orchestrator) Orchestrate(
 
 	}
 
+	cleanupStart := time.Now()
 	removeResponses, removeAllHitRelatedMetadataResponses, _ := o.backend.Cleanup(
 		ctx,
 		removeHitRequests,
 		removeHitMetadataRequests,
 		nil,
 	)
+	o.cleanupHist.Record(ctx, time.Since(cleanupStart).Seconds())
 	for _, removeResponse := range removeResponses {
 		if removeResponse.Err != nil {
 			return NewProtosessionError(removeResponse.Err, true)
@@ -219,6 +333,7 @@ func (o *Orchestrator) Orchestrate(
 	}
 	if len(newBatch) > 0 {
 		o.updateLastHitTime(newBatch[len(newBatch)-1].ServerReceivedTime)
+		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
 	}
 	return nil
 }
@@ -234,12 +349,24 @@ func (o *Orchestrator) processBucket(
 	ctx context.Context,
 	bucketNumber int64,
 ) (BucketNextInstruction, error) {
+	processBucketStart := time.Now()
+	defer func() {
+		o.processBucketHist.Record(ctx, time.Since(processBucketStart).Seconds())
+	}()
+
+	lagSeconds := float64(
+		o.timingWheel.BucketNumber(time.Now().UTC())-bucketNumber,
+	) * o.timingWheel.tickInterval.Seconds()
+	o.processingLagGauge.Record(ctx, lagSeconds)
+
+	getProtosessionsStart := time.Now()
 	responses := o.backend.GetAllProtosessionsForBucket(
 		ctx,
 		[]*GetAllProtosessionsForBucketRequest{
 			NewGetAllProtosessionsForBucketRequest(bucketNumber),
 		},
 	)
+	o.getProtosessionsHist.Record(ctx, time.Since(getProtosessionsStart).Seconds())
 
 	if len(responses) == 0 {
 		return BucketProcessingAdvance, nil
@@ -274,19 +401,24 @@ func (o *Orchestrator) processBucket(
 		)
 
 		// Close the proto-session
+		closeStart := time.Now()
 		err = o.closer.Close(sortedHits)
+		o.closeHist.Record(ctx, time.Since(closeStart).Seconds())
 		if err != nil {
 			return BucketProcessingNoop, err
 		}
+		o.hitsClosedCounter.Add(ctx, int64(len(sortedHits)))
 
 		protoSessionID := sortedHits[0].AuthoritativeClientID
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(protoSessionID))
 	}
 
+	cleanupStart := time.Now()
 	removeResponses, removeAllHitRelatedMetadataResponses, removeBucketMetadataResponses := o.backend.Cleanup(
 		ctx, removeHitRequests, removeAllHitRelatedMetadataRequests, []*RemoveBucketMetadataRequest{
 			NewRemoveBucketMetadataRequest(bucketNumber),
 		})
+	o.cleanupHist.Record(ctx, time.Since(cleanupStart).Seconds())
 	for _, removeResponse := range removeResponses {
 		if removeResponse.Err != nil {
 			return BucketProcessingNoop, removeResponse.Err

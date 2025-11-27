@@ -26,7 +26,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
-	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
@@ -192,18 +191,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						cancel()
 					}()
 
-					boltDB, err := bbolt.Open("/tmp/bolt.db", 0o600, nil)
-					if err != nil {
-						logrus.Fatalf("failed to open bolt db: %v", err)
-					}
-					defer func() {
-						if err := boltDB.Close(); err != nil {
-							logrus.Errorf("failed to close bolt db: %v", err)
-						}
-					}()
-					if err := bolt.EnsureDatabase(boltDB); err != nil {
-						logrus.Fatalf("failed to ensure database: %v", err)
-					}
 					fsPublisher, err := worker.NewFilesystemDirectoryPublisher(
 						"/tmp/worker",
 						worker.NewBinaryMessageFormat(),
@@ -222,6 +209,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						cmd.Int(batcherBatchSizeFlag.Name),
 						time.Millisecond*500,
 					)
+					boltDB, err := bbolt.Open("/tmp/backend.db", 0o600, nil)
+					if err != nil {
+						logrus.Fatalf("failed to open bolt db: %v", err)
+					}
+
 					workerErrChan := make(chan error, 1)
 					go func() {
 						defer cancel()
@@ -237,18 +229,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
 						}
-						cachedKV, err := storage.NewCachedKV(
-							storage.NewMonitoringKV(kv),
-							storage.WithCacheTTL(time.Minute),
-							storage.WithMaxCacheBytes(1024*1024*5), // 5MB
-						)
-						if err != nil {
-							logrus.Fatalf("failed to create cached kv: %v", err)
-						}
-						set, err := bolt.NewBoltSet("/tmp/bolt_set.db")
-						if err != nil {
-							logrus.Fatalf("failed to create bolt set: %v", err)
-						}
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
 								worker.NewGenericTaskHandler(
@@ -256,12 +236,17 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 									encoding.ZlibCBORDecoder,
 									protosessionsv3.Handler(
 										ctx,
-										protosessionsv3.NewNaiveGenericStorageBatchedIOBackend(
-											cachedKV,
-											set,
-											encoding.JSONEncoder,
-											encoding.JSONDecoder,
-										),
+										protosessionsv3.NewDeduplicatingBatchedIOBackend(func() protosessionsv3.BatchedIOBackend {
+											b, err := protosessionsv3.NewBoltBatchedIOBackend(
+												boltDB,
+												encoding.JSONEncoder,
+												encoding.JSONDecoder,
+											)
+											if err != nil {
+												logrus.Fatalf("failed to create bolt batched io backend: %v", err)
+											}
+											return b
+										}()),
 										protosessionsv3.NewGenericStorageTimingWheelBackend(
 											"default",
 											kv,
@@ -284,6 +269,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 										),
 										serverStorage,
 										propertySource(cmd),
+										protosessionsv3.RewriteIDAndUpdateInPlaceStrategy,
 									)),
 							},
 							[]worker.Middleware{},

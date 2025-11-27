@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"context"
 	"strings"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/sirupsen/logrus"
+	"github.com/d8a-tech/d8a/pkg/storage"
 )
 
 // Registry is a registry of drivers for different properties.
@@ -107,34 +108,11 @@ func (r *staticDriverRegistry) Get(_ string) (Driver, error) {
 
 // NewStaticDriverRegistry creates a new static driver registry that always returns the same driver.
 func NewStaticDriverRegistry(driver Driver) Registry {
-	return &staticDriverRegistry{driver: NewLoggingDriver(driver)}
-}
-
-type loggingDriver struct {
-	driver Driver
-}
-
-func (d *loggingDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	logrus.Infof("writing `%d` records to `%s`", len(rows), table)
-	return d.driver.Write(ctx, table, schema, rows)
-}
-
-func (d *loggingDriver) AddColumn(table string, field *arrow.Field) error {
-	logrus.Infof("adding column `%s` to `%s`", field.Name, table)
-	return d.driver.AddColumn(table, field)
-}
-
-func (d *loggingDriver) CreateTable(table string, schema *arrow.Schema) error {
-	logrus.Infof("creating table `%s`", table)
-	return d.driver.CreateTable(table, schema)
-}
-
-func (d *loggingDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
-	logrus.Infof("checking for missing columns in `%s`", table)
-	return d.driver.MissingColumns(table, schema)
-}
-
-// NewLoggingDriver creates a new driver that logs all writes.
-func NewLoggingDriver(driver Driver) Driver {
-	return &loggingDriver{driver: driver}
+	return &staticDriverRegistry{driver: NewBatchingDriver(
+		NewLoggingDriver(driver),
+		5000,
+		time.Second,
+		storage.NewInMemorySet(),
+		make(chan struct{}),
+	)}
 }

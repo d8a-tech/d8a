@@ -53,8 +53,8 @@ func NewBatchingDriver(
 		maxBatchSize: maxBatchSize,
 		stop:         stop,
 		lock:         sync.Mutex{},
-		encoder:      encoding.GobEncoder,
-		decoder:      encoding.GobDecoder,
+		encoder:      encoding.JSONEncoder,
+		decoder:      encoding.JSONDecoder,
 		set:          set,
 		tableProps:   make(map[string]*tableProps),
 	}
