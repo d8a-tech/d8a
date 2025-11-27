@@ -253,19 +253,19 @@ func NewTestBatchedIOBackend(opts ...TestBatchedIOBackendOption) BatchedIOBacken
 
 // TestCloser is a configurable test implementation of Closer
 type TestCloser struct {
-	closeHandler func([]*hits.Hit) error
+	closeHandler func([][]*hits.Hit) error
 }
 
 // Close implements Closer
-func (c *TestCloser) Close(protosession []*hits.Hit) error {
-	return c.closeHandler(protosession)
+func (c *TestCloser) Close(protosessions [][]*hits.Hit) error {
+	return c.closeHandler(protosessions)
 }
 
 // TestCloserOption configures TestCloser
 type TestCloserOption func(*TestCloser)
 
 // WithCloseHandler sets custom handler for closing proto-sessions
-func WithCloseHandler(handler func([]*hits.Hit) error) TestCloserOption {
+func WithCloseHandler(handler func([][]*hits.Hit) error) TestCloserOption {
 	return func(c *TestCloser) {
 		c.closeHandler = handler
 	}
@@ -274,7 +274,7 @@ func WithCloseHandler(handler func([]*hits.Hit) error) TestCloserOption {
 // NewTestCloser creates a test closer with success-like defaults
 func NewTestCloser(opts ...TestCloserOption) Closer {
 	closer := &TestCloser{
-		closeHandler: func(_ []*hits.Hit) error {
+		closeHandler: func(_ [][]*hits.Hit) error {
 			return nil
 		},
 	}

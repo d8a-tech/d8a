@@ -279,7 +279,7 @@ func (m *closeTriggerMiddleware) doCloseProtosession(authoritativeClientID hits.
 			return fmt.Errorf("failed to sort hits: %w", err)
 		}
 		startTime := time.Now()
-		err = m.closer.Close(sortedHits)
+		err = m.closer.Close([][]*hits.Hit{sortedHits})
 		logrus.Tracef("Closing session took: %s", time.Since(startTime))
 		if err != nil {
 			return fmt.Errorf("failed to close session: %w", err)

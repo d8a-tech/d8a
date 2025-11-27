@@ -19,6 +19,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type mockReceiverStorage struct {
@@ -32,11 +33,11 @@ func (m *mockReceiverStorage) Push(hits []*hits.Hit) error {
 
 type mockCloser struct {
 	protosessions.Closer
-	closeFunc func([]*hits.Hit) error
+	closeFunc func([][]*hits.Hit) error
 }
 
-func (m *mockCloser) Close(hits []*hits.Hit) error {
-	return m.closeFunc(hits)
+func (m *mockCloser) Close(protosessions [][]*hits.Hit) error {
+	return m.closeFunc(protosessions)
 }
 
 func hitIDs(hits []*hits.Hit) []string {
@@ -53,10 +54,10 @@ func TestProtosessions(t *testing.T) {
 	handlerSet := storage.NewInMemorySet().(*storage.InMemorySet)         // nolint:forcetypeassert // test code
 	sharedSessionStampKV := storage.NewInMemoryKV().(*storage.InMemoryKV) // nolint:forcetypeassert // test code
 	receiverStorage := &mockReceiverStorage{}
-	lastClosedHits := []*hits.Hit{}
+	lastClosedHits := [][]*hits.Hit{}
 	closer := &mockCloser{
-		closeFunc: func(hits []*hits.Hit) error {
-			lastClosedHits = hits
+		closeFunc: func(protosessions [][]*hits.Hit) error {
+			lastClosedHits = protosessions
 			return nil
 		},
 	}
@@ -151,7 +152,8 @@ func TestProtosessions(t *testing.T) {
 
 	// First and second hit despite different ClientIDs are attributed to the
 	// same proto-session (because of session stamp) and closed together
-	assert.Equal(t, hitIDs([]*hits.Hit{firstHit, secondHit}), hitIDs(lastClosedHits))
+	require.Len(t, lastClosedHits, 1)
+	assert.Equal(t, hitIDs([]*hits.Hit{firstHit, secondHit}), hitIDs(lastClosedHits[0]))
 
 	// The only keys in KVs and Sets are related to the third hit
 	assert.Len(

@@ -17,7 +17,7 @@ import (
 
 // Closer defines an interface for closing and processing hit sessions
 type Closer interface {
-	Close(protosession []*hits.Hit) error
+	Close(protosession [][]*hits.Hit) error
 }
 
 type Orchestrator struct {
@@ -379,6 +379,8 @@ func (o *Orchestrator) processBucket(
 
 	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
 	removeAllHitRelatedMetadataRequests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
+	protoSessionsBatch := make([][]*hits.Hit, 0, len(response.ProtoSessions))
+	totalHits := 0
 
 	for _, protoSessionHits := range response.ProtoSessions {
 		if len(protoSessionHits) == 0 {
@@ -400,17 +402,22 @@ func (o *Orchestrator) processBucket(
 			GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...,
 		)
 
-		// Close the proto-session
+		protoSessionsBatch = append(protoSessionsBatch, sortedHits)
+		totalHits += len(sortedHits)
+
+		protoSessionID := sortedHits[0].AuthoritativeClientID
+		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(protoSessionID))
+	}
+
+	// Close all proto-sessions in batch
+	if len(protoSessionsBatch) > 0 {
 		closeStart := time.Now()
-		err = o.closer.Close(sortedHits)
+		err := o.closer.Close(protoSessionsBatch)
 		o.closeHist.Record(ctx, time.Since(closeStart).Seconds())
 		if err != nil {
 			return BucketProcessingNoop, err
 		}
-		o.hitsClosedCounter.Add(ctx, int64(len(sortedHits)))
-
-		protoSessionID := sortedHits[0].AuthoritativeClientID
-		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(protoSessionID))
+		o.hitsClosedCounter.Add(ctx, int64(totalHits))
 	}
 
 	cleanupStart := time.Now()

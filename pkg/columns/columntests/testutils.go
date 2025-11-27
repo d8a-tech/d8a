@@ -347,7 +347,7 @@ func SetSplitterRegistry(splitterRegistry splitter.Registry) CaseConfigFunc {
 
 func ColumnTestCase(
 	t *testing.T,
-	hits TestHits,
+	testHits TestHits,
 	expectations func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver),
 	theProtocol protocol.Protocol,
 	caseConfigF ...CaseConfigFunc,
@@ -367,7 +367,7 @@ func ColumnTestCase(
 		),
 	)
 	cc := &CaseConfig{
-		hits:              hits,
+		hits:              testHits,
 		warehouseRegistry: warehouseRegistry,
 		columnsRegistry:   columnsRegistry,
 		layoutRegistry:    layoutRegistry,
@@ -417,7 +417,7 @@ func ColumnTestCase(
 	)
 
 	// when
-	err = closer.Close(hits)
+	err = closer.Close([][]*hits.Hit{testHits})
 
 	// then
 	expectations(t, err, warehouseDriver)

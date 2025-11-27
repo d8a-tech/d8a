@@ -20,6 +20,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
+	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
@@ -229,6 +230,16 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
 						}
+						whr := warehouseRegistry(ctx, cmd)
+						cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
+						layoutRegistry := schema.NewStaticLayoutRegistry(
+							map[string]schema.Layout{},
+							schema.NewEmbeddedSessionColumnsLayout(
+								getTableNames().events,
+								getTableNames().sessionsColumnPrefix,
+							),
+						)
+						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySource(cmd))
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
 								worker.NewGenericTaskHandler(
@@ -251,21 +262,20 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											"default",
 											kv,
 										),
-										sessions.NewDirectCloser(
-											sessions.NewSessionWriter(
-												ctx,
-												warehouseRegistry(ctx, cmd),
-												columnsRegistry(cmd), // nolint:contextcheck // false positive
-												schema.NewStaticLayoutRegistry(
-													map[string]schema.Layout{},
-													schema.NewEmbeddedSessionColumnsLayout(
-														getTableNames().events,
-														getTableNames().sessionsColumnPrefix,
+										protosessions.NewShardingCloser(
+											10,
+											func(_ int) protosessions.Closer {
+												return sessions.NewDirectCloser(
+													sessions.NewSessionWriter(
+														ctx,
+														whr,
+														cr,
+														layoutRegistry,
+														splitterRegistry,
 													),
-												),
-												splitter.NewFromPropertySettingsRegistry(propertySource(cmd)),
-											),
-											5*time.Second,
+													5*time.Second,
+												)
+											},
 										),
 										serverStorage,
 										propertySource(cmd),

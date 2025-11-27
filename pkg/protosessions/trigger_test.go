@@ -12,12 +12,19 @@ import (
 )
 
 type testCloser struct {
-	lastProtoSession []*hits.Hit
+	lastProtoSessions [][]*hits.Hit
 }
 
-func (c *testCloser) Close(protosession []*hits.Hit) error {
-	c.lastProtoSession = protosession
+func (c *testCloser) Close(protosessions [][]*hits.Hit) error {
+	c.lastProtoSessions = protosessions
 	return nil
+}
+
+func (c *testCloser) lastProtoSession() []*hits.Hit {
+	if len(c.lastProtoSessions) == 0 {
+		return []*hits.Hit{}
+	}
+	return c.lastProtoSessions[0]
 }
 
 func TestCloserTick(t *testing.T) {
@@ -25,7 +32,7 @@ func TestCloserTick(t *testing.T) {
 	kv := storage.NewInMemoryKV()
 	set := storage.NewInMemorySet()
 	closer := &testCloser{
-		lastProtoSession: []*hits.Hit{},
+		lastProtoSessions: [][]*hits.Hit{},
 	}
 	mw := NewCloseTriggerMiddleware( // nolint:forcetypeassert // it's a test, if panic, it's a bug
 		kv,
@@ -85,12 +92,12 @@ func TestCloserTick(t *testing.T) {
 	// when: first tick closes the 00 (empty, as session duration is 1) bucket
 	require.NoError(t, mw.tick())
 	// then: no hits should be closed
-	require.Equal(t, []*hits.Hit{}, closer.lastProtoSession)
+	require.Equal(t, []*hits.Hit{}, closer.lastProtoSession())
 
 	// when: second tick closes the 01 bucket, containing the first hit
 	require.NoError(t, mw.tick())
 	// then: first hit should be closed and processed
-	require.Equal(t, []*hits.Hit{firstHit}, closer.lastProtoSession)
+	require.Equal(t, []*hits.Hit{firstHit}, closer.lastProtoSession())
 }
 
 func TestCloseTriggerMiddleware_Sorted(t *testing.T) {
