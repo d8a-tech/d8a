@@ -30,7 +30,7 @@ func (p *cachingDeviceParser) Parse(userAgent string) *devicedetector.DeviceInfo
 		return item
 	}
 	deviceInfo := p.dd.Parse(userAgent)
-	p.cache.SetWithTTL(userAgent, deviceInfo, 30, time.Second)
+	p.cache.SetWithTTL(userAgent, deviceInfo, 1, time.Second*30)
 	return deviceInfo
 }
 

@@ -150,10 +150,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						propertySettingsSplitByMaxEventsFlag,
 						monitoringEnabledFlag,
 						monitoringOTelEndpointFlag,
+						pprofPortFlag,
 					},
 					warehouseConfigFlags,
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
+					StartPprofServer(cmd.Int(pprofPortFlag.Name))
+
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
 						ctx, cancel = context.WithCancel(context.Background())

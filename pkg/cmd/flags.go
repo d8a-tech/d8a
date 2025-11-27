@@ -224,6 +224,13 @@ var monitoringOTelEndpointFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "localhost:4317",
 }
 
+var pprofPortFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "pprof-port",
+	Usage:   "Port for pprof HTTP server (0 = disabled)",
+	Sources: defaultSourceChain("PPROF_PORT", "pprof.port"),
+	Value:   0,
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseFlag,
 	clickhouseHostFlag,
