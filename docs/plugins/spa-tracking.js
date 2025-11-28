@@ -6,7 +6,6 @@ function pushPageView() {
         page_location: window.location.href,
         page_referrer: document.referrer
     });
-    console.log(document.location.href, document.title)
 }
 
 if (typeof window !== 'undefined') {
