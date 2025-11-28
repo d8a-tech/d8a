@@ -1,10 +1,10 @@
 warehouse: noop
 
 batcher:
-  batch_timeout: 5s
+  batch_timeout: 1s
 
 closer:
-  session_duration: 10s
+  session_duration: 5s
 
 monitoring:
   enabled: true

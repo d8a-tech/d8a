@@ -22,9 +22,6 @@ const (
 // BucketProcessorFunc processes a single bucket and returns the advancement instruction.
 type BucketProcessorFunc func(ctx context.Context, bucketNumber int64) (BucketNextInstruction, error)
 
-// GetCurrentTimeFunc returns the logical current time for the timing wheel.
-type GetCurrentTimeFunc func() time.Time
-
 // TimingWheelStateBackend provides abstract storage for timing wheel state.
 type TimingWheelStateBackend interface {
 	// GetNextBucket returns the next bucket to process.
@@ -75,14 +72,15 @@ func (m PerBucketMutexes) Drop(bucketNumber int64) {
 
 // TimingWheel implements a timing wheel for scheduling protosession closures.
 type TimingWheel struct {
-	backend        TimingWheelStateBackend
-	tickInterval   time.Duration
-	processor      BucketProcessorFunc
-	getCurrentTime GetCurrentTimeFunc
-	stop           chan struct{}
-	stopped        chan struct{}
-	loopSleep      time.Duration
-	lock           PerBucketMutexes
+	backend          TimingWheelStateBackend
+	tickInterval     time.Duration
+	processor        BucketProcessorFunc
+	currentTime      time.Time
+	firstUpdatedTime time.Time
+	stop             chan struct{}
+	stopped          chan struct{}
+	loopSleep        time.Duration
+	lock             PerBucketMutexes
 }
 
 // NewTimingWheel creates a timing wheel with the given tick interval.
@@ -90,17 +88,15 @@ func NewTimingWheel(
 	backend TimingWheelStateBackend,
 	tickInterval time.Duration,
 	processor BucketProcessorFunc,
-	getCurrentTime GetCurrentTimeFunc,
 ) *TimingWheel {
 	return &TimingWheel{
-		backend:        backend,
-		tickInterval:   tickInterval,
-		processor:      processor,
-		getCurrentTime: getCurrentTime,
-		stop:           make(chan struct{}),
-		stopped:        make(chan struct{}),
-		loopSleep:      tickInterval,
-		lock:           make(PerBucketMutexes),
+		backend:      backend,
+		tickInterval: tickInterval,
+		processor:    processor,
+		stop:         make(chan struct{}),
+		stopped:      make(chan struct{}),
+		loopSleep:    tickInterval,
+		lock:         make(PerBucketMutexes),
 	}
 }
 
@@ -146,8 +142,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	// Default to sleeping between ticks
 	tw.loopSleep = tw.tickInterval
 
-	currentTime := tw.getCurrentTime()
-	if currentTime.IsZero() {
+	if tw.currentTime.IsZero() {
 		logrus.Infof("No events processed yet, skipping timing wheel tick")
 		return nil
 	}
@@ -159,7 +154,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 	// First run - initialize to current bucket
 	if nextBucket == -1 {
-		currentBucket := tw.BucketNumber(currentTime)
+		currentBucket := tw.BucketNumber(tw.firstUpdatedTime)
 		if err := tw.backend.SaveNextBucket(ctx, currentBucket); err != nil {
 			return fmt.Errorf("failed to initialize bucket: %w", err)
 		}
@@ -167,7 +162,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 		return nil
 	}
 
-	currentBucket := tw.BucketNumber(currentTime)
+	currentBucket := tw.BucketNumber(tw.currentTime)
 	tw.lock.Lock(currentBucket)
 	defer tw.lock.Drop(currentBucket)
 
@@ -198,6 +193,21 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// UpdateTime updates the timing wheel's current time if the new time is after the existing time.
+func (tw *TimingWheel) UpdateTime(t time.Time) {
+	if t.After(tw.currentTime) {
+		if tw.firstUpdatedTime.IsZero() {
+			tw.firstUpdatedTime = t
+		}
+		tw.currentTime = t
+	}
+}
+
+// CurrentTime returns the timing wheel's current time.
+func (tw *TimingWheel) CurrentTime() time.Time {
+	return tw.currentTime
 }
 
 func (tw *TimingWheel) BucketNumber(theTime time.Time) int64 {

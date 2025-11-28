@@ -15,11 +15,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-// Closer defines an interface for closing and processing hit sessions
-type Closer interface {
-	Close(protosession [][]*hits.Hit) error
-}
-
 type Orchestrator struct {
 	ctx              context.Context
 	backend          BatchedIOBackend
@@ -28,10 +23,9 @@ type Orchestrator struct {
 	settingsRegistry properties.SettingsRegistry
 	timingWheel      *TimingWheel
 	evictionStrategy EvictionStrategy
-	lastHitTime      time.Time
 	lock             sync.Mutex
 
-	orchestrateHist      metric.Float64Histogram
+	processBatchHist     metric.Float64Histogram
 	conflictCheckHist    metric.Float64Histogram
 	handleBatchHist      metric.Float64Histogram
 	cleanupHist          metric.Float64Histogram
@@ -56,9 +50,9 @@ func NewOrchestrator(
 ) *Orchestrator {
 	meter := otel.GetMeterProvider().Meter("protosessions")
 
-	orchestrateHist, _ := meter.Float64Histogram(
-		"protosessions.orchestrate.duration",
-		metric.WithDescription("Full orchestration duration"),
+	processBatchHist, _ := meter.Float64Histogram(
+		"protosessions.process_batch.duration",
+		metric.WithDescription("Batch processing duration"),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
@@ -129,7 +123,7 @@ func NewOrchestrator(
 		requeuer:             requeuer,
 		settingsRegistry:     settingsRegistry,
 		evictionStrategy:     evictionStrategy,
-		orchestrateHist:      orchestrateHist,
+		processBatchHist:     processBatchHist,
 		conflictCheckHist:    conflictCheckHist,
 		handleBatchHist:      handleBatchHist,
 		cleanupHist:          cleanupHist,
@@ -146,19 +140,19 @@ func NewOrchestrator(
 		tickerStateBackend,
 		1*time.Second,
 		o.processBucket,
-		func() time.Time { return o.lastHitTime },
 	)
 	go o.timingWheel.Start(ctx)
 	return o
 }
 
-func (o *Orchestrator) Orchestrate(
+func (o *Orchestrator) processBatch(
 	ctx context.Context,
 	hitsBatch []*hits.Hit,
 ) *ProtosessionError {
-	orchestrateStart := time.Now()
+	logrus.Infof("Appending to proto-sessions raw hits batch of size `%d`", len(hitsBatch))
+	processBatchStart := time.Now()
 	defer func() {
-		o.orchestrateHist.Record(ctx, time.Since(orchestrateStart).Seconds())
+		o.processBatchHist.Record(ctx, time.Since(processBatchStart).Seconds())
 	}()
 
 	if len(hitsBatch) == 0 {
@@ -189,8 +183,8 @@ func (o *Orchestrator) Orchestrate(
 			continue
 		}
 		defer o.timingWheel.lock.Drop(bucketNumber)
-		if bucketNumber <= o.timingWheel.BucketNumber(o.timingWheel.getCurrentTime()) {
-			logrus.Warnf("Dropping %d hits for bucket %d because it is already expired (current bucket: %d)", len(hits), bucketNumber, o.timingWheel.BucketNumber(o.timingWheel.getCurrentTime()))
+		if bucketNumber <= o.timingWheel.BucketNumber(o.timingWheel.CurrentTime()) {
+			logrus.Warnf("Dropping %d hits for bucket %d because it is already expired (current bucket: %d)", len(hits), bucketNumber, o.timingWheel.BucketNumber(o.timingWheel.CurrentTime()))
 			for _, hit := range hits {
 				hitsToDrop[hit.AuthoritativeClientID] = hit
 			}
@@ -240,6 +234,7 @@ func (o *Orchestrator) Orchestrate(
 		if err != nil {
 			return NewProtosessionError(err, true)
 		}
+
 		markProtoSessionClosingForGivenBucketRequests = append(
 			markProtoSessionClosingForGivenBucketRequests,
 			NewMarkProtoSessionClosingForGivenBucketRequest(
@@ -297,7 +292,6 @@ func (o *Orchestrator) Orchestrate(
 
 	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0)
 	for id := range protosessionsForEviction {
-		logrus.Errorf("removing hit for id %s", id)
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
 	}
 	removeHitMetadataRequests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
@@ -332,16 +326,10 @@ func (o *Orchestrator) Orchestrate(
 		}
 	}
 	if len(newBatch) > 0 {
-		o.updateLastHitTime(newBatch[len(newBatch)-1].ServerReceivedTime)
+		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].ServerReceivedTime)
 		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
 	}
 	return nil
-}
-
-func (o *Orchestrator) updateLastHitTime(theTime time.Time) {
-	if theTime.After(o.lastHitTime) {
-		o.lastHitTime = theTime
-	}
 }
 
 // This is called by the timing wheel to process a bucket.

@@ -17,10 +17,8 @@ func TestTimingWheel_SkipWhenNoEventsProcessed(t *testing.T) {
 		t.Fatal("processor should not be called when no events processed")
 		return BucketProcessingNoop, nil
 	}
-	getCurrentTime := func() time.Time {
-		return time.Time{} // Zero time = no events processed
-	}
-	tw := NewTimingWheel(backend, 1*time.Second, processor, getCurrentTime)
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	// Don't call UpdateTime - simulates no events processed
 
 	// when
 	err := tw.tick(context.Background())
@@ -39,11 +37,8 @@ func TestTimingWheel_InitializeOnFirstRun(t *testing.T) {
 		t.Fatal("processor should not be called on initialization")
 		return BucketProcessingNoop, nil
 	}
-	currentTime := time.Unix(1000, 0)
-	getCurrentTime := func() time.Time {
-		return currentTime
-	}
-	tw := NewTimingWheel(backend, 1*time.Second, processor, getCurrentTime)
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.UpdateTime(time.Unix(1000, 0))
 
 	// when
 	err := tw.tick(context.Background())
@@ -63,11 +58,8 @@ func TestTimingWheel_ProcessBucketWhenReady(t *testing.T) {
 		processedBucket = bucketNumber
 		return BucketProcessingAdvance, nil
 	}
-	currentTime := time.Unix(1001, 0)
-	getCurrentTime := func() time.Time {
-		return currentTime
-	}
-	tw := NewTimingWheel(backend, 1*time.Second, processor, getCurrentTime)
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.UpdateTime(time.Unix(1001, 0))
 
 	// when
 	err := tw.tick(context.Background())
@@ -87,11 +79,8 @@ func TestTimingWheel_SkipWhenBucketNotReady(t *testing.T) {
 		t.Fatal("processor should not be called when bucket not ready")
 		return BucketProcessingNoop, nil
 	}
-	currentTime := time.Unix(1000, 0)
-	getCurrentTime := func() time.Time {
-		return currentTime
-	}
-	tw := NewTimingWheel(backend, 1*time.Second, processor, getCurrentTime)
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.UpdateTime(time.Unix(1000, 0))
 
 	// when
 	err := tw.tick(context.Background())
@@ -109,11 +98,8 @@ func TestTimingWheel_NoopDoesNotAdvance(t *testing.T) {
 	processor := func(_ context.Context, _ int64) (BucketNextInstruction, error) {
 		return BucketProcessingNoop, nil
 	}
-	currentTime := time.Unix(1001, 0)
-	getCurrentTime := func() time.Time {
-		return currentTime
-	}
-	tw := NewTimingWheel(backend, 1*time.Second, processor, getCurrentTime)
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.UpdateTime(time.Unix(1001, 0))
 
 	// when
 	err := tw.tick(context.Background())

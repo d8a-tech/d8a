@@ -20,7 +20,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
@@ -243,6 +242,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							),
 						)
 						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySource(cmd))
+
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
 								worker.NewGenericTaskHandler(
@@ -265,9 +265,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											"default",
 											kv,
 										),
-										protosessions.NewShardingCloser(
+										protosessionsv3.NewShardingCloser(
 											10,
-											func(_ int) protosessions.Closer {
+											func(_ int) protosessionsv3.Closer {
 												return sessions.NewDirectCloser(
 													sessions.NewSessionWriter(
 														ctx,

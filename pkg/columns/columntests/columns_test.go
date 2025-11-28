@@ -298,6 +298,8 @@ func TestEventColumns(t *testing.T) {
 						assert.Error(t, closeErr)
 					} else {
 						require.NoError(t, closeErr)
+						require.Len(t, whd.WriteCalls, 1)
+						require.Len(t, whd.WriteCalls[0].Records, 1)
 						record := whd.WriteCalls[0].Records[0]
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}

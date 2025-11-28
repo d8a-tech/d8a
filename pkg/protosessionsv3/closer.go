@@ -1,5 +1,4 @@
-// Package protosessions provides functionality for aggregating hits into proto-sessions
-package protosessions
+package protosessionsv3
 
 import (
 	"hash/fnv"
@@ -9,9 +8,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Closer defines an interface for closing and processing hit sessions in batches
+// Closer defines an interface for closing and processing hit sessions
 type Closer interface {
-	Close(protosessions [][]*hits.Hit) error
+	Close(protosession [][]*hits.Hit) error
 }
 
 type printingCloser struct {

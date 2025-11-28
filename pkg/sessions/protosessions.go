@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 )
@@ -16,13 +15,13 @@ type SessionWriter interface {
 	Write(sessions ...*schema.Session) error
 }
 
-type directCloser struct {
+type DirectCloser struct {
 	failureSleepDuration time.Duration
 	writer               SessionWriter
 }
 
 // Close implements protosessions.Closer
-func (c *directCloser) Close(protosessions [][]*hits.Hit) error {
+func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
 	sessions := make([]*schema.Session, 0, len(protosessions))
 
 	for _, protosession := range protosessions {
@@ -61,8 +60,8 @@ func (c *directCloser) Close(protosessions [][]*hits.Hit) error {
 
 // NewDirectCloser creates a new protosessions.Closer that writes the session directly to
 // warehouse.Driver, without intermediate queue (suitable only for single-tenant setup)
-func NewDirectCloser(writer SessionWriter, failureSleepDuration time.Duration) protosessions.Closer {
-	return &directCloser{
+func NewDirectCloser(writer SessionWriter, failureSleepDuration time.Duration) *DirectCloser {
+	return &DirectCloser{
 		failureSleepDuration: failureSleepDuration,
 		writer:               writer,
 	}

@@ -41,10 +41,10 @@ func Handler(
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
 		isPing, pingTimestamp := pings.IsTaskAPing(md)
 		if isPing {
-			orchestrator.updateLastHitTime(pingTimestamp)
+			orchestrator.timingWheel.UpdateTime(pingTimestamp)
 			return nil
 		}
-		err := orchestrator.Orchestrate(ctx, h.Hits)
+		err := orchestrator.processBatch(ctx, h.Hits)
 		if err != nil {
 			var errType worker.ErrorType
 			if err.IsFatal() {

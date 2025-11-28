@@ -4,8 +4,11 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/pings"
+	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1130,5 +1133,18 @@ func testConcurrentAccess(t *testing.T, factory func() BatchedIOBackend) {
 
 		assert.NoError(t, getResponses[0].Err)
 		assert.NotEmpty(t, getResponses[0].Hits)
+	})
+}
+
+// SendPingWithTime sends a ping with the given time, advancing the worker time.
+func SendPingWithTime(
+	f func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error,
+	t time.Time,
+) error {
+	return f(map[string]string{
+		pings.IsPingMetadataKey:        pings.IsPingMetadataValue,
+		pings.PingTimestampMetadataKey: t.Format(time.RFC3339),
+	}, &hits.HitProcessingTask{
+		Hits: []*hits.Hit{},
 	})
 }

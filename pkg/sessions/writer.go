@@ -244,6 +244,30 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	return splitSessions, nil
 }
 
+// SessionWriterOption configures the SessionWriter.
+type SessionWriterOption func(*sessionWriterImpl)
+
+// WithConcurrency sets the concurrency limit for parallel writes.
+func WithConcurrency(n int) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.concurrency = n
+	}
+}
+
+// WithWriteTimeout sets the timeout for individual write operations.
+func WithWriteTimeout(d time.Duration) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.writeTimeout = d
+	}
+}
+
+// WithCacheTTL sets the TTL for cached registries.
+func WithCacheTTL(d time.Duration) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.cacheTTL = d
+	}
+}
+
 // NewSessionWriter creates a new SessionWriter with the provided warehouse, column sources, and layout sources.
 // It caches each entity (warehouse, columns, layout) for 5 minutes.
 func NewSessionWriter(
@@ -252,6 +276,7 @@ func NewSessionWriter(
 	columnsRegistry schema.ColumnsRegistry,
 	layouts schema.LayoutRegistry,
 	splitterRegistry splitter.Registry,
+	opts ...SessionWriterOption,
 ) SessionWriter {
 	meter := otel.GetMeterProvider().Meter("sessions")
 	columnCalcDuration, _ := meter.Float64Counter(
@@ -298,7 +323,7 @@ func NewSessionWriter(
 		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
 	)
 
-	return &sessionWriterImpl{
+	w := &sessionWriterImpl{
 		writeTimeout:             30 * time.Second,
 		concurrency:              10,
 		warehouseRegistry:        whr,
@@ -319,6 +344,10 @@ func NewSessionWriter(
 		sessionScopedEventHist:   sessionScopedEventHist,
 		sessionColumnsHist:       sessionColumnsHist,
 	}
+	for _, opt := range opts {
+		opt(w)
+	}
+	return w
 }
 
 func createDefaultCache[T any]() *ristretto.Cache[string, T] {

@@ -224,7 +224,5 @@ func TestNewDirectCloser(t *testing.T) {
 
 	// then
 	assert.NotNil(t, closer)
-	directCloser, ok := closer.(*directCloser)
-	assert.True(t, ok)
-	assert.Equal(t, mockWriter, directCloser.writer)
+	assert.Equal(t, mockWriter, closer.writer)
 }

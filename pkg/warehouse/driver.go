@@ -5,10 +5,8 @@ import (
 	"bytes"
 	"context"
 	"strings"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/d8a-tech/d8a/pkg/storage"
 )
 
 // Registry is a registry of drivers for different properties.
@@ -108,11 +106,5 @@ func (r *staticDriverRegistry) Get(_ string) (Driver, error) {
 
 // NewStaticDriverRegistry creates a new static driver registry that always returns the same driver.
 func NewStaticDriverRegistry(driver Driver) Registry {
-	return &staticDriverRegistry{driver: NewBatchingDriver(
-		NewLoggingDriver(driver),
-		5000,
-		time.Second,
-		storage.NewInMemorySet(),
-		make(chan struct{}),
-	)}
+	return &staticDriverRegistry{driver: NewLoggingDriver(driver)}
 }

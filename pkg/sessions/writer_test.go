@@ -17,14 +17,10 @@ func TestWriter(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	mockDriver := warehouse.NewMockDriver()
-	writer := &sessionWriterImpl{
-		writeTimeout: 30 * time.Second,
-		concurrency:  5,
-		warehouseRegistry: warehouse.NewStaticDriverRegistry(
-			mockDriver,
-		),
-		warehouseCache: createDefaultCache[warehouse.Driver](),
-		columnsRegistry: schema.NewStaticColumnsRegistry(
+	writer := NewSessionWriter(
+		ctx,
+		warehouse.NewStaticDriverRegistry(mockDriver),
+		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
 			schema.NewColumns(
 				[]schema.SessionColumn{},
@@ -32,21 +28,16 @@ func TestWriter(t *testing.T) {
 				[]schema.SessionScopedEventColumn{},
 			),
 		),
-		columnsCache: createDefaultCache[schema.Columns](),
-		layoutRegistry: schema.NewStaticLayoutRegistry(
+		schema.NewStaticLayoutRegistry(
 			map[string]schema.Layout{},
 			schema.NewEmbeddedSessionColumnsLayout(
 				"events",
 				"session_",
 			),
 		),
-		splitterRegistry: splitter.NewStaticRegistry(
-			splitter.NewNoop(),
-		),
-		layoutsCache: createDefaultCache[schema.Layout](),
-		cacheTTL:     5 * time.Minute,
-		parentCtx:    ctx,
-	}
+		splitter.NewStaticRegistry(splitter.NewNoop()),
+		WithConcurrency(5),
+	)
 	sessions := []*schema.Session{
 		{
 			PropertyID: "1",
