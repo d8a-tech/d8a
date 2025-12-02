@@ -202,10 +202,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						ctx,
 						fsPublisher,
 						batchTimeout*5,
-						pings.NewProcessHitsPingTask(encoding.ZlibCBOREncoder),
+						pings.NewProcessHitsPingTask(encoding.GzipJSONEncoder),
 					)
 					serverStorage := receiver.NewBatchingStorage(
-						storagepublisher.NewAdapter(encoding.ZlibCBOREncoder, workerPublisher),
+						storagepublisher.NewAdapter(encoding.GzipJSONEncoder, workerPublisher),
 						cmd.Int(batcherBatchSizeFlag.Name),
 						batchTimeout,
 					)
@@ -244,14 +244,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							[]worker.TaskHandler{
 								worker.NewGenericTaskHandler(
 									hits.HitProcessingTaskName,
-									encoding.ZlibCBORDecoder,
+									encoding.GzipJSONDecoder,
 									protosessionsv3.Handler(
 										ctx,
 										protosessionsv3.NewDeduplicatingBatchedIOBackend(func() protosessionsv3.BatchedIOBackend {
 											b, err := bolt.NewBatchedProtosessionsIOBackend(
 												boltDB,
-												encoding.JSONEncoder,
-												encoding.JSONDecoder,
+												encoding.GzipJSONEncoder,
+												encoding.GzipJSONDecoder,
 											)
 											if err != nil {
 												logrus.Fatalf("failed to create bolt batched io backend: %v", err)

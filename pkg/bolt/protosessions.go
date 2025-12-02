@@ -304,7 +304,6 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 	requests []*protosessionsv3.GetAllProtosessionsForBucketRequest,
 ) []*protosessionsv3.GetAllProtosessionsForBucketResponse {
 	responses := make([]*protosessionsv3.GetAllProtosessionsForBucketResponse, len(requests))
-
 	// Take a snapshot of the map under read lock
 	b.sessionToBucketMu.RLock()
 	mapSnapshot := make(map[hits.ClientID]int64, len(b.sessionToBucketMap))
@@ -312,11 +311,9 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 		mapSnapshot[k] = v
 	}
 	b.sessionToBucketMu.RUnlock()
-
 	err := b.db.View(func(tx *bolt.Tx) error {
 		bucketsBucket := tx.Bucket([]byte(bucketsBucket))
 		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
-
 		for i, request := range requests {
 			bucketKey := b.bucketKey(request.BucketID)
 			keyBucket := bucketsBucket.Bucket(bucketKey)
@@ -324,24 +321,20 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 				responses[i] = protosessionsv3.NewGetAllProtosessionsForBucketResponse([][]*hits.Hit{}, nil)
 				continue
 			}
-
 			var protoSessions [][]*hits.Hit
 			var reqErr error
-
 			err := keyBucket.ForEach(func(clientID, _ []byte) error {
 				sessionID := hits.ClientID(clientID)
 				// Filter: only process if this bucket is the session's latest bucket
 				if latestBucket, ok := mapSnapshot[sessionID]; !ok || latestBucket != request.BucketID {
 					return nil
 				}
-
 				sessionKey := b.protoSessionKey(sessionID)
 				sessionBucket := sessionsBucket.Bucket(sessionKey)
 				if sessionBucket == nil {
 					protoSessions = append(protoSessions, []*hits.Hit{})
 					return nil
 				}
-
 				var sessionHits []*hits.Hit
 				err := sessionBucket.ForEach(func(encoded, _ []byte) error {
 					var decodedHit *hits.Hit
@@ -358,7 +351,6 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 				protoSessions = append(protoSessions, sessionHits)
 				return nil
 			})
-
 			if err != nil {
 				responses[i] = protosessionsv3.NewGetAllProtosessionsForBucketResponse(nil, reqErr)
 			} else {
@@ -367,16 +359,13 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 		}
 		return nil
 	})
-
 	if err != nil {
-		for i, request := range requests {
+		for i := range requests {
 			if responses[i] == nil {
 				responses[i] = protosessionsv3.NewGetAllProtosessionsForBucketResponse(nil, err)
-				_ = request // silence unused warning
 			}
 		}
 	}
-
 	return responses
 }
 
