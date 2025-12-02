@@ -122,7 +122,7 @@ func TestValueTransitions(t *testing.T) {
 					}
 					assert.Equal(t, tc.expected, writeResult)
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 			)
 		})
 	}

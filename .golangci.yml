@@ -55,6 +55,34 @@ linters:
       forbid:
         - pattern: ^metric\.WithAttributes$
           msg: use libs -> monitoring.WithAttributes wrapper instead of metric.WithAttributes directly
+        - pattern: '&IdentifierConflictRequest\{'
+          msg: use NewIdentifierConflictRequest constructor instead of direct struct instantiation
+        - pattern: '&IdentifierConflictResponse\{'
+          msg: use NewIdentifierConflictResponse constructor instead of direct struct instantiation
+        - pattern: '&AppendHitsToProtoSessionRequest\{'
+          msg: use NewAppendHitsToProtoSessionRequest constructor instead of direct struct instantiation
+        - pattern: '&AppendHitsToProtoSessionResponse\{'
+          msg: use NewAppendHitsToProtoSessionResponse constructor instead of direct struct instantiation
+        - pattern: '&GetProtoSessionHitsRequest\{'
+          msg: use NewGetProtoSessionHitsRequest constructor instead of direct struct instantiation
+        - pattern: '&GetProtoSessionHitsResponse\{'
+          msg: use NewGetProtoSessionHitsResponse constructor instead of direct struct instantiation
+        - pattern: '&RemoveProtoSessionHitsRequest\{'
+          msg: use NewRemoveProtoSessionHitsRequest constructor instead of direct struct instantiation
+        - pattern: '&RemoveProtoSessionHitsResponse\{'
+          msg: use NewRemoveProtoSessionHitsResponse constructor instead of direct struct instantiation
+        - pattern: '&RemoveAllHitRelatedMetadataRequest\{'
+          msg: use NewRemoveAllHitRelatedMetadataRequest constructor instead of direct struct instantiation
+        - pattern: '&RemoveAllHitRelatedMetadataResponse\{'
+          msg: use NewRemoveAllHitRelatedMetadataResponse constructor instead of direct struct instantiation
+        - pattern: '&MarkProtoSessionClosingForGivenBucketRequest\{'
+          msg: use NewMarkProtoSessionClosingForGivenBucketRequest constructor instead of direct struct instantiation
+        - pattern: '&MarkProtoSessionClosingForGivenBucketResponse\{'
+          msg: use NewMarkProtoSessionClosingForGivenBucketResponse constructor instead of direct struct instantiation
+        - pattern: '&GetAllProtosessionsForBucketRequest\{'
+          msg: use NewGetAllProtosessionsForBucketRequest constructor instead of direct struct instantiation
+        - pattern: '&GetAllProtosessionsForBucketResponse\{'
+          msg: use NewGetAllProtosessionsForBucketResponse constructor instead of direct struct instantiation
     funlen:
       lines: 65
       statements: 40

@@ -1,0 +1,11 @@
+warehouse: noop
+
+batcher:
+  batch_timeout: 1s
+
+closer:
+  session_duration: 10s
+
+monitoring:
+  enabled: true
+  otel_endpoint: localhost:4317

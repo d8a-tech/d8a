@@ -40,7 +40,7 @@ var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "batcher-batch-timeout",
 	Usage:   "Batch timeout for the batcher",
 	Sources: defaultSourceChain("BATCHER_BATCH_TIMEOUT", "batcher.batch_timeout"),
-	Value:   5 * time.Second,
+	Value:   1 * time.Second,
 }
 
 var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
@@ -208,6 +208,27 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Usage:   "The sessions will be split when the number of events is greater than the value",
 	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"),
 	Value:   1000,
+}
+
+var monitoringEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "monitoring-enabled",
+	Usage:   "Enable OpenTelemetry metrics",
+	Sources: defaultSourceChain("MONITORING_ENABLED", "monitoring.enabled"),
+	Value:   false,
+}
+
+var monitoringOTelEndpointFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "monitoring-otel-endpoint",
+	Usage:   "OTel collector endpoint for metrics",
+	Sources: defaultSourceChain("MONITORING_OTEL_ENDPOINT", "monitoring.otel_endpoint"),
+	Value:   "localhost:4317",
+}
+
+var pprofPortFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "pprof-port",
+	Usage:   "Port for pprof HTTP server (0 = disabled)",
+	Sources: defaultSourceChain("PPROF_PORT", "pprof.port"),
+	Value:   0,
 }
 
 var warehouseConfigFlags = []cli.Flag{

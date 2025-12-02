@@ -21,11 +21,32 @@ type MessageFormat interface {
 }
 
 // binaryMessageFormat implements MessageFormat using a binary format
-type binaryMessageFormat struct{}
+type binaryMessageFormat struct {
+	encoder encoding.EncoderFunc
+	decoder encoding.DecoderFunc
+}
+
+// BinaryMessageFormatOption configures binaryMessageFormat.
+type BinaryMessageFormatOption func(*binaryMessageFormat)
+
+// WithEncoderDecoderPair sets custom encoder and decoder for headers serialization.
+func WithEncoderDecoderPair(enc encoding.EncoderFunc, dec encoding.DecoderFunc) BinaryMessageFormatOption {
+	return func(f *binaryMessageFormat) {
+		f.encoder = enc
+		f.decoder = dec
+	}
+}
 
 // NewBinaryMessageFormat creates a new binary message format implementation
-func NewBinaryMessageFormat() MessageFormat {
-	return &binaryMessageFormat{}
+func NewBinaryMessageFormat(opts ...BinaryMessageFormatOption) MessageFormat {
+	f := &binaryMessageFormat{
+		encoder: encoding.JSONEncoder,
+		decoder: encoding.JSONDecoder,
+	}
+	for _, opt := range opts {
+		opt(f)
+	}
+	return f
 }
 
 // Serialize implements MessageFormat interface
@@ -45,7 +66,7 @@ func (f *binaryMessageFormat) Serialize(t *Task) ([]byte, error) {
 	}
 
 	headersBuf := bytes.NewBuffer(nil)
-	_, err := encoding.JSONEncoder(headersBuf, t.Headers)
+	_, err := f.encoder(headersBuf, t.Headers)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +122,7 @@ func (f *binaryMessageFormat) Deserialize(data []byte) (*Task, error) {
 		return nil, errors.New("message too short for headers")
 	}
 	var headers map[string]string
-	if err := encoding.JSONDecoder(bytes.NewReader(headerBytes), &headers); err != nil {
+	if err := f.decoder(bytes.NewReader(headerBytes), &headers); err != nil {
 		return nil, fmt.Errorf("failed to decode headers: %w", err)
 	}
 

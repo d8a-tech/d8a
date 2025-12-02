@@ -28,10 +28,16 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 	case "bigquery":
 		return createBigQueryWarehouse(ctx, cmd)
 	case "clickhouse":
-		return createClickHouseWarehouse(cmd)
+		return createClickHouseWarehouse(ctx, cmd)
 	case "console", "":
-		return warehouse.NewStaticDriverRegistry(
+		return warehouse.NewStaticBatchedDriverRegistry(
+			ctx,
 			warehouse.NewConsoleDriver(),
+		)
+	case "noop":
+		return warehouse.NewStaticBatchedDriverRegistry(
+			ctx,
+			warehouse.NewNoopDriver(),
 		)
 	default:
 		logrus.Fatalf("unsupported warehouse %s", warehouseType)
@@ -84,7 +90,8 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 	// Create writer based on type
 	writer := createBigQueryWriter(cmd, client, datasetName)
 
-	return warehouse.NewStaticDriverRegistry(
+	return warehouse.NewStaticBatchedDriverRegistry(
+		ctx,
 		whBigQuery.NewBigQueryTableDriver(
 			client,
 			datasetName,
@@ -123,7 +130,7 @@ func createBigQueryWriter(
 	}
 }
 
-func createClickHouseWarehouse(cmd *cli.Command) warehouse.Registry {
+func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	host := cmd.String(clickhouseHostFlag.Name)
 	if host == "" {
 		logrus.Fatalf("clickhouse-host must be set when warehouse=clickhouse")
@@ -160,7 +167,8 @@ func createClickHouseWarehouse(cmd *cli.Command) warehouse.Registry {
 		MaxCompressionBuffer: 10240,
 	}
 
-	return warehouse.NewStaticDriverRegistry(
+	return warehouse.NewStaticBatchedDriverRegistry(
+		ctx,
 		whClickhouse.NewClickHouseTableDriver(
 			options,
 			database,

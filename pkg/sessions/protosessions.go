@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 )
@@ -16,33 +15,42 @@ type SessionWriter interface {
 	Write(sessions ...*schema.Session) error
 }
 
-type directCloser struct {
+type DirectCloser struct {
 	failureSleepDuration time.Duration
 	writer               SessionWriter
 }
 
-func (c *directCloser) Close(protosession []*hits.Hit) error {
-	// Handle empty protosession
-	if len(protosession) == 0 {
+// Close implements protosessions.Closer
+func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
+	sessions := make([]*schema.Session, 0, len(protosessions))
+
+	for _, protosession := range protosessions {
+		if len(protosession) == 0 {
+			continue
+		}
+
+		// Sort events by server received time
+		sort.Slice(protosession, func(i, j int) bool {
+			return protosession[i].ServerReceivedTime.Before(protosession[j].ServerReceivedTime)
+		})
+
+		events := make([]*schema.Event, len(protosession))
+		for i, hit := range protosession {
+			events[i] = &schema.Event{
+				BoundHit: hit,
+				Metadata: make(map[string]any),
+				Values:   make(map[string]any),
+			}
+		}
+		sessions = append(sessions, schema.NewSession(events))
+	}
+
+	if len(sessions) == 0 {
 		return nil
 	}
 
-	// Sort events by server received time
-	sort.Slice(protosession, func(i, j int) bool {
-		return protosession[i].ServerReceivedTime.Before(protosession[j].ServerReceivedTime)
-	})
-
-	events := make([]*schema.Event, len(protosession))
-	for i, hit := range protosession {
-		events[i] = &schema.Event{
-			BoundHit: hit,
-			Metadata: make(map[string]any),
-			Values:   make(map[string]any),
-		}
-	}
-
-	if err := c.writer.Write(schema.NewSession(events)); err != nil {
-		logrus.Errorf("failed to write session: %v, adding Sleep to avoid spamming the warehouse", err)
+	if err := c.writer.Write(sessions...); err != nil {
+		logrus.Errorf("failed to write sessions: %v, adding Sleep to avoid spamming the warehouse", err)
 		time.Sleep(c.failureSleepDuration)
 		return err
 	}
@@ -52,8 +60,8 @@ func (c *directCloser) Close(protosession []*hits.Hit) error {
 
 // NewDirectCloser creates a new protosessions.Closer that writes the session directly to
 // warehouse.Driver, without intermediate queue (suitable only for single-tenant setup)
-func NewDirectCloser(writer SessionWriter, failureSleepDuration time.Duration) protosessions.Closer {
-	return &directCloser{
+func NewDirectCloser(writer SessionWriter, failureSleepDuration time.Duration) *DirectCloser {
+	return &DirectCloser{
 		failureSleepDuration: failureSleepDuration,
 		writer:               writer,
 	}

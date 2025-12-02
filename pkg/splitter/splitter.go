@@ -140,18 +140,18 @@ type fromPropertySettingsRegistry struct {
 }
 
 func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionSplitter, error) {
-	propertySettings, err := r.psr.GetByPropertyID(propertyID)
+	settings, err := r.psr.GetByPropertyID(propertyID)
 	if err != nil {
 		return nil, err
 	}
 	conditions := []Condition{
-		NewTimeSinceFirstEventCondition(propertySettings.SplitByTimeSinceFirstEvent),
-		NewMaxXEventsCondition(propertySettings.SplitByMaxEvents),
+		NewTimeSinceFirstEventCondition(settings.SplitByTimeSinceFirstEvent),
+		NewMaxXEventsCondition(settings.SplitByMaxEvents),
 	}
-	if propertySettings.SplitByUserID {
+	if settings.SplitByUserID {
 		conditions = append(conditions, NewUserIDCondition())
 	}
-	if propertySettings.SplitByCampaign {
+	if settings.SplitByCampaign {
 		conditions = append(conditions, NewUTMCampaignCondition())
 	}
 

@@ -1,0 +1,67 @@
+// OTLP Receiver - receives telemetry data from applications
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.batch.prometheus.input]
+    traces  = [otelcol.processor.batch.jaeger.input]
+    logs    = []
+  }
+}
+
+// Batch processor for metrics to Prometheus
+otelcol.processor.batch "prometheus" {
+  timeout = "200ms"
+  send_batch_size = 100
+  send_batch_max_size = 500
+
+  output {
+    metrics = [otelcol.exporter.otlphttp.prometheus.input]
+  }
+}
+
+// Batch processor for traces to Jaeger
+otelcol.processor.batch "jaeger" {
+  timeout = "200ms"
+  send_batch_size = 100
+  send_batch_max_size = 500
+
+  output {
+    traces = [otelcol.exporter.otlp.jaeger.input]
+  }
+}
+
+// OTLP HTTP Exporter - sends metrics to Prometheus
+otelcol.exporter.otlphttp "prometheus" {
+  client {
+    endpoint = "http://prometheus:9090/api/v1/otlp"
+    tls {
+      insecure = false
+      insecure_skip_verify = false
+    }
+  }
+
+  retry_on_failure {
+    enabled = true
+    initial_interval = "5s"
+    max_interval = "30s"
+    max_elapsed_time = "5m"
+  }
+}
+
+// OTLP gRPC Exporter - sends traces to Jaeger
+otelcol.exporter.otlp "jaeger" {
+  client {
+    endpoint = "jaeger:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+

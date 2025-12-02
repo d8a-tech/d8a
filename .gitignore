@@ -32,3 +32,6 @@ go.work.sum
 
 # System related
 .DS_Store
+
+# Binary
+d8a

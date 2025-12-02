@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -69,8 +68,8 @@ func TestBatchingDriverWrite(t *testing.T) {
 				// Create table properties beforehand
 				driver.lock.Lock()
 				driver.tableProps["existing_table"] = &tableProps{
-					schema:           testSchema,
-					currentBatchSize: 0,
+					schema:  testSchema,
+					records: nil,
 				}
 				driver.lock.Unlock()
 			},
@@ -94,7 +93,7 @@ func TestBatchingDriverWrite(t *testing.T) {
 			schema:        testSchema,
 			records:       testRecords,
 			writeErrors:   []error{errors.New("write failed")},
-			expectedError: false, // Batcher saves the data to the set, so it's not lost
+			expectedError: false, // Batcher keeps data in memory, so it's not lost
 			assertFunc: func(t *testing.T, _ *batchingDriver, mock *MockWarehouseDriver) {
 				// then - should receive error from underlying driver
 				require.Eventually(t, func() bool {
@@ -146,15 +145,14 @@ func TestBatchingDriverWrite(t *testing.T) {
 				WriteErrors: tt.writeErrors,
 			}
 
-			stopCh := make(chan struct{})
-			defer close(stopCh)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			driver, ok := NewBatchingDriver(
+				ctx,
 				mock,
 				tt.maxBatchSize,
 				tt.interval,
-				storage.NewInMemorySet(),
-				stopCh,
 			).(*batchingDriver)
 
 			if tt.setupFunc != nil {
@@ -195,10 +193,10 @@ func TestBatchingDriverWrite(t *testing.T) {
 func TestBatchingDriverWriteTableIsolation(t *testing.T) {
 	// given
 	mock := &MockWarehouseDriver{}
-	stopCh := make(chan struct{})
-	defer close(stopCh)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	driver := NewBatchingDriver(mock, 10, 50*time.Millisecond, storage.NewInMemorySet(), stopCh)
+	driver := NewBatchingDriver(ctx, mock, 10, 50*time.Millisecond)
 
 	testSchema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},

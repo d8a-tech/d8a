@@ -2,16 +2,17 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"testing"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columns/sessioncolumns"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
+	"github.com/d8a-tech/d8a/pkg/properties"
+	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
@@ -19,6 +20,8 @@ import (
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	bbolt "go.etcd.io/bbolt"
 )
 
 type mockReceiverStorage struct {
@@ -31,223 +34,187 @@ func (m *mockReceiverStorage) Push(hits []*hits.Hit) error {
 }
 
 type mockCloser struct {
-	protosessions.Closer
-	closeFunc func([]*hits.Hit) error
+	protosessionsv3.Closer
+	closeFunc func([][]*hits.Hit) error
 }
 
-func (m *mockCloser) Close(hits []*hits.Hit) error {
-	return m.closeFunc(hits)
+func (m *mockCloser) Close(protosessions [][]*hits.Hit) error {
+	return m.closeFunc(protosessions)
 }
 
-func hitIDs(hits []*hits.Hit) []string {
-	ids := make([]string, len(hits))
-	for i, hit := range hits {
+func hitIDs(theHits []*hits.Hit) []string {
+	ids := make([]string, len(theHits))
+	for i, hit := range theHits {
 		ids[i] = hit.ID
 	}
 	sort.Strings(ids)
 	return ids
 }
 
-func TestProtosessions(t *testing.T) {
-	handlerKV := storage.NewInMemoryKV().(*storage.InMemoryKV)            // nolint:forcetypeassert // test code
-	handlerSet := storage.NewInMemorySet().(*storage.InMemorySet)         // nolint:forcetypeassert // test code
-	sharedSessionStampKV := storage.NewInMemoryKV().(*storage.InMemoryKV) // nolint:forcetypeassert // test code
-	receiverStorage := &mockReceiverStorage{}
-	lastClosedHits := []*hits.Hit{}
+func TestProtosessionsV3(t *testing.T) { //nolint:funlen // test
+	// given
+	protoBackendDB, err := bbolt.Open(createTempFile(t), 0o600, nil)
+	require.NoError(t, err)
+	defer func() { _ = protoBackendDB.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	boltBackend, err := bolt.NewBatchedProtosessionsIOBackend(
+		protoBackendDB,
+		encoding.JSONEncoder,
+		encoding.JSONDecoder,
+	)
+	require.NoError(t, err)
+
+	kv := storage.NewInMemoryKV()
+	lastClosedHitBatches := [][]*hits.Hit{}
 	closer := &mockCloser{
-		closeFunc: func(hits []*hits.Hit) error {
-			lastClosedHits = hits
+		closeFunc: func(protosessions [][]*hits.Hit) error {
+			lastClosedHitBatches = append(lastClosedHitBatches, protosessions...)
 			return nil
 		},
 	}
-	closeTrigger := protosessions.NewCloseTriggerMiddleware(
-		handlerKV,
-		handlerSet,
-		5*time.Second,
-		1*time.Second,
-		closer,
-	)
-	protosessions.StopCloseTrigger(closeTrigger)
-	handler := protosessions.Handler(
-		context.Background(),
-		handlerSet,
-		handlerKV,
-		encoding.JSONEncoder,
-		encoding.JSONDecoder,
-		[]protosessions.Middleware{
-			protosessions.NewEvicterMiddleware(sharedSessionStampKV, receiverStorage),
-			closeTrigger,
-		},
-	)
-	// re-pushes the evicted hits to the handler we just created
-	receiverStorage.pushFunc = func(theHits []*hits.Hit) error {
-		err := handler(map[string]string{}, &hits.HitProcessingTask{
-			Hits: theHits,
-		})
-		if err != nil {
-			return err
-		}
-		return nil
+
+	requeuer := &mockReceiverStorage{
+		pushFunc: func(_ []*hits.Hit) error { return nil },
 	}
+	settingsRegistry := properties.NewTestSettingRegistry()
+
+	baseTime := time.Now().UTC()
+	handler := protosessionsv3.Handler(
+		ctx,
+		protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
+		protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+		closer,
+		requeuer,
+		settingsRegistry,
+		protosessionsv3.RewriteIDAndUpdateInPlaceStrategy,
+	)
 
 	// First hit
 	firstHit := hits.New()
+	firstHit.PropertyID = "test-property"
 	firstHit.IP = "127.0.0.1"
-	firstHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
-		Hits: []*hits.Hit{
-			firstHit,
-		},
-	}))
-	assert.Equal(
-		t,
-		handlerKV.KV[fmt.Sprintf("sessions.expiration.%s", firstHit.AuthoritativeClientID)],
-		[]byte("1735689605"),
-	)
-	all, err := handlerSet.All([]byte("sessions.buckets.1735689605"))
-	assert.Nil(t, err)
-	assert.Equal(t, all, [][]byte{[]byte(firstHit.AuthoritativeClientID)})
-	assert.Len(
-		t,
-		handlerSet.HM[fmt.Sprintf("sessions.hits.%s", firstHit.AuthoritativeClientID)],
-		1,
-	)
+	firstHit.ServerReceivedTime = baseTime
 
-	// Tick 00
-	protosessions.DoTick(closeTrigger)
+	// when
+	workerErr := handler(map[string]string{}, &hits.HitProcessingTask{
+		Hits: []*hits.Hit{firstHit},
+	})
 
-	// Second hit
+	// then
+	assert.Nil(t, workerErr)
+
+	// Second hit - same IP (session stamp), should be grouped with first
 	secondHit := hits.New()
+	secondHit.PropertyID = "test-property"
 	secondHit.IP = "127.0.0.1"
-	secondHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).Add(2 * time.Second)
-	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
+	secondHit.ServerReceivedTime = baseTime.Add(2 * time.Second)
+
+	workerErr = handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{secondHit},
-	}))
-	// Should be attributed to the first hit AuthoritativeClientID (session stamp is the same)
-	assert.Len(
-		t,
-		handlerSet.HM[fmt.Sprintf("sessions.hits.%s", firstHit.AuthoritativeClientID)],
-		2,
-	)
-	_, ok := handlerSet.HM[fmt.Sprintf("sessions.hits.%s", secondHit.ClientID)]
-	assert.False(t, ok)
+	})
+	assert.Nil(t, workerErr)
 
-	// Tick to 01
-	protosessions.DoTick(closeTrigger)
-
-	// Third hit - different proto-session, but should allow progressing the tick (relative time)
-	// to a point where the first and second hit are closed
+	// Third hit - different IP, different session
 	thirdHit := hits.New()
+	thirdHit.PropertyID = "test-property"
 	thirdHit.IP = "127.0.0.2"
-	thirdHit.ServerReceivedTime = time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC).Add(10 * time.Second)
-	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
+	thirdHit.ServerReceivedTime = baseTime.Add(35 * time.Second)
+
+	workerErr = handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{thirdHit},
-	}))
+	})
+	assert.Nil(t, workerErr)
 
-	// Ticku Ticku up from 01 to 08
-	for range 7 {
-		protosessions.DoTick(closeTrigger)
-	}
-
-	// First and second hit despite different ClientIDs are attributed to the
-	// same proto-session (because of session stamp) and closed together
-	assert.Equal(t, hitIDs([]*hits.Hit{firstHit, secondHit}), hitIDs(lastClosedHits))
-
-	// The only keys in KVs and Sets are related to the third hit
-	assert.Len(
-		t,
-		handlerKV.KV,
-		2,
-	)
-	for _, expectedKey := range []string{
-		"sessions.buckets.next",
-		fmt.Sprintf("sessions.expiration.%s", thirdHit.AuthoritativeClientID),
-	} {
-		_, ok := handlerKV.KV[expectedKey]
-		assert.True(t, ok, fmt.Sprintf("expected key %s not found", expectedKey))
-	}
-
-	assert.Len(
-		t,
-		handlerSet.HM,
-		2, // sessions.buckets.<bucket for third hit> + sessions.expiration.<third hit AuthoritativeClientID>
+	require.Nil(
+		t, protosessionsv3.SendPingWithTime(handler, thirdHit.ServerReceivedTime.Add(60*time.Second)),
 	)
 
-	assert.Len(
-		t,
-		sharedSessionStampKV.KV,
-		2,
-	)
-	for _, expectedKey := range []string{
-		"sessions.stamps.127.0.0.2",
-		fmt.Sprintf("sessions.stamps.by.client.id.%s", thirdHit.AuthoritativeClientID),
-	} {
-		_, ok := sharedSessionStampKV.KV[expectedKey]
-		assert.True(t, ok, fmt.Sprintf("expected key %s not found", expectedKey))
+	// Wait for timing wheel to process expired buckets
+	require.Eventually(t, func() bool {
+		return len(lastClosedHitBatches) == 2
+	}, 5*time.Second, 100*time.Millisecond, "expected exactly two proto-sessions to close")
+
+	// Verify first and second hit are closed together (same session stamp)
+	found := false
+	for _, closedSession := range lastClosedHitBatches {
+		ids := hitIDs(closedSession)
+		expectedIDs := hitIDs([]*hits.Hit{firstHit, secondHit})
+		if len(ids) == len(expectedIDs) && ids[0] == expectedIDs[0] && ids[1] == expectedIDs[1] {
+			found = true
+			break
+		}
 	}
+	assert.True(t, found, "expected first and second hit to be closed in same session")
 }
 
-func TestProtosessionsWarehouse(t *testing.T) {
-	set := storage.NewInMemorySet()
-	kv := storage.NewInMemoryKV()
-	closerSessionDuration := 1 * time.Second
-	warehouseDriver := &warehouse.MockWarehouseDriver{}
-	cmd := protosessions.NewCloseTriggerMiddleware(
-		storage.NewMonitoringKV(kv),
-		storage.NewMonitoringSet(set),
-		closerSessionDuration,
-		1*time.Second,
-		sessions.NewDirectCloser(
-			sessions.NewSessionWriter(
-				context.Background(),
-				warehouse.NewStaticDriverRegistry(
-					warehouse.NewBatchingDriver(
-						warehouseDriver,
-						1000,
-						time.Millisecond*50,
-						storage.NewInMemorySet(),
-						nil,
-					),
-				),
-				schema.NewStaticColumnsRegistry(
-					map[string]schema.Columns{},
-					schema.NewColumns(
-						[]schema.SessionColumn{
-							sessioncolumns.SessionIDColumn,
-						},
-						[]schema.EventColumn{
-							eventcolumns.EventIDColumn,
-						},
-						[]schema.SessionScopedEventColumn{},
-					),
-				),
-				schema.NewStaticLayoutRegistry(
-					map[string]schema.Layout{},
-					schema.NewEmbeddedSessionColumnsLayout(
-						"events",
-						"session_",
-					),
-				),
-				splitter.NewStaticRegistry(
-					splitter.NewNoop(),
-				),
-			),
-			0,
-		),
-	)
+func TestProtosessionsV3Warehouse(t *testing.T) { //nolint:funlen // test
+	// given
+	protoBackendDB, err := bbolt.Open(createTempFile(t), 0o600, nil)
+	require.NoError(t, err)
+	defer func() { _ = protoBackendDB.Close() }()
 
-	handler := protosessions.Handler(
-		context.Background(),
-		set,
-		kv,
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	boltBackend, err := bolt.NewBatchedProtosessionsIOBackend(
+		protoBackendDB,
 		encoding.JSONEncoder,
 		encoding.JSONDecoder,
-		[]protosessions.Middleware{
-			cmd,
-		},
+	)
+	require.NoError(t, err)
+
+	kv := storage.NewInMemoryKV()
+	warehouseDriver := &warehouse.MockWarehouseDriver{}
+	requeuer := &mockReceiverStorage{
+		pushFunc: func(_ []*hits.Hit) error { return nil },
+	}
+	settingsRegistry := properties.NewTestSettingRegistry()
+
+	sessionWriter := sessions.NewSessionWriter(
+		ctx,
+		warehouse.NewStaticDriverRegistry(
+			warehouse.NewBatchingDriver(
+				ctx,
+				warehouseDriver,
+				1000,
+				time.Millisecond*50,
+			),
+		),
+		schema.NewStaticColumnsRegistry(
+			map[string]schema.Columns{},
+			schema.NewColumns(
+				[]schema.SessionColumn{
+					sessioncolumns.SessionIDColumn,
+				},
+				[]schema.EventColumn{
+					eventcolumns.EventIDColumn,
+				},
+				[]schema.SessionScopedEventColumn{},
+			),
+		),
+		schema.NewStaticLayoutRegistry(
+			map[string]schema.Layout{},
+			schema.NewEmbeddedSessionColumnsLayout("events", "session_"),
+		),
+		splitter.NewStaticRegistry(splitter.NewNoop()),
+	)
+	closer := sessions.NewDirectCloser(sessionWriter, 0)
+
+	handler := protosessionsv3.Handler(
+		ctx,
+		protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
+		protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+		closer,
+		requeuer,
+		settingsRegistry,
+		protosessionsv3.RewriteIDAndUpdateInPlaceStrategy,
 	)
 
-	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
+	// when
+	workerErr := handler(map[string]string{}, &hits.HitProcessingTask{
 		Hits: []*hits.Hit{
 			newHitAfter(0),
 			newHitAfter(0),
@@ -263,22 +230,20 @@ func TestProtosessionsWarehouse(t *testing.T) {
 			newHitAfter(0),
 			newHitAfter(1),
 		},
-	}))
+	})
+	assert.Nil(t, workerErr)
 
-	protosessions.DoTick(cmd)
+	require.Nil(t,
+		protosessionsv3.SendPingWithTime(
+			handler,
+			newHitAfter(32*time.Second).ServerReceivedTime.Add(120*time.Second),
+		),
+	)
 
-	assert.Nil(t, handler(map[string]string{}, &hits.HitProcessingTask{
-		Hits: []*hits.Hit{
-			newHitAfter(2 * time.Second),
-		},
-	}))
-	protosessions.DoTick(cmd)
-
-	// The tick is 50ms, everything should be batched into
-	// ~one batch, but depending on timing, it might be two
+	// then - wait for timing wheel to close sessions and write to warehouse
 	assert.Eventually(t, func() bool {
-		return warehouseDriver.WriteCallCount < 3 && warehouseDriver.WriteCallCount > 0
-	}, 2*time.Second, 10*time.Millisecond)
+		return warehouseDriver.WriteCallCount > 0
+	}, 5*time.Second, 100*time.Millisecond, "expected warehouse write")
 }
 
 var now = time.Now()

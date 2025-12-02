@@ -135,6 +135,27 @@ go run main.go server \
 go test ./...
 ```
 
+## Performa
+
+```bash
+# 30-second CPU profile
+go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+
+# Memory (heap) profile
+go tool pprof http://localhost:6060/debug/pprof/heap
+
+# Goroutines
+go tool pprof http://localhost:6060/debug/pprof/goroutine
+
+# All profiles index
+curl http://localhost:6060/debug/pprof/
+
+# CPU profile
+# Opens web UI
+go tool pprof -http=:8081 http://localhost:6060/debug/pprof/profile?seconds=30
+```
+
+
 ## Contributing
 
 

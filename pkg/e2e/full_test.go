@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/bolt"
-	"github.com/d8a-tech/d8a/pkg/columns/sessioncolumns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -15,7 +14,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
+	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -32,10 +31,8 @@ import (
 )
 
 type runningServer struct {
-	port           int
-	sessionStampKV storage.KV
-	compactorKV    storage.KV
-	logs           *LogCapture
+	port int
+	logs *LogCapture
 }
 
 func TestE2EWroteToWarehouse(t *testing.T) {
@@ -70,13 +67,8 @@ func TestE2EWroteToWarehouse(t *testing.T) {
 
 		require.True(
 			t,
-			runningServer.logs.waitFor("writing `2` records to `events`", 10*time.Second),
-			"expected first proto session closed with 2 events`",
-		)
-		require.True(
-			t,
-			runningServer.logs.waitFor("writing `1` records to `events`", 1*time.Second),
-			"expected second proto session closed with 1 event",
+			runningServer.logs.waitFor("writing `3` records to `events`", 10*time.Second),
+			"all three hits should be written to the warehouse in one write, because of batching`",
 		)
 	})
 }
@@ -99,10 +91,8 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	runningServer := runningServer{
-		port:           17031,
-		sessionStampKV: storage.NewInMemoryKV(),
-		compactorKV:    storage.NewInMemoryKV(),
-		logs:           logCapture,
+		port: 17031,
+		logs: logCapture,
 	}
 
 	dbPath := createTempFile(t)
@@ -114,17 +104,18 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 	if err := bolt.EnsureDatabase(boltDB); err != nil {
 		t.Fatalf("failed to ensure database: %v", err)
 	}
+	batchTimeout := time.Millisecond * 100
 	publisher := publishers.NewPingingPublisher(
 		ctx,
 		bolt.NewPublisher(boltDB, worker.NewBinaryMessageFormat()),
-		time.Millisecond*10,
+		batchTimeout*5,
 		pings.NewProcessHitsPingTask(encoding.JSONEncoder),
 	)
 	serverStorage := storagepublisher.NewAdapter(encoding.JSONEncoder, publisher)
-	partitionedStorage := receiver.NewBatchingStorage(
+	batchedStorage := receiver.NewBatchingStorage(
 		serverStorage,
 		100,
-		time.Millisecond*100,
+		batchTimeout,
 	)
 
 	workerErrChan := make(chan error, 1)
@@ -137,66 +128,58 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 			worker.NewBinaryMessageFormat(),
 		)
 		kv := storage.NewInMemoryKV()
-		set := storage.NewInMemorySet()
+
+		protoBackendDB, err := bbolt.Open(createTempFile(t), 0o600, nil)
+		if err != nil {
+			workerErrChan <- err
+			return
+		}
+		defer func() { _ = protoBackendDB.Close() }()
+
+		boltBackend, err := bolt.NewBatchedProtosessionsIOBackend(
+			protoBackendDB,
+			encoding.JSONEncoder,
+			encoding.JSONDecoder,
+		)
+		if err != nil {
+			workerErrChan <- err
+			return
+		}
+
+		settingsRegistry := properties.NewTestSettingRegistry(
+			properties.WithSessionDuration(2 * time.Second),
+		)
+		mockDriver := warehouse.NewMockDriver()
+		whr := warehouse.NewStaticDriverRegistry(warehouse.NewLoggingDriver(mockDriver))
+		cr := schema.NewStaticColumnsRegistry(
+			map[string]schema.Columns{},
+			schema.NewColumns(
+				[]schema.SessionColumn{},
+				[]schema.EventColumn{},
+				[]schema.SessionScopedEventColumn{},
+			),
+		)
+		layoutRegistry := schema.NewStaticLayoutRegistry(
+			map[string]schema.Layout{},
+			schema.NewEmbeddedSessionColumnsLayout("events", "session_"),
+		)
+		splitterRegistry := splitter.NewFromPropertySettingsRegistry(settingsRegistry)
+		sessionWriter := sessions.NewSessionWriter(ctx, whr, cr, layoutRegistry, splitterRegistry)
+		closer := sessions.NewDirectCloser(sessionWriter, 5*time.Second)
+
 		w := worker.NewWorker(
 			[]worker.TaskHandler{
 				worker.NewGenericTaskHandler(
 					hits.HitProcessingTaskName,
 					encoding.JSONDecoder,
-					protosessions.Handler(
+					protosessionsv3.Handler(
 						ctx,
-						set,
-						kv,
-						encoding.JSONEncoder,
-						encoding.JSONDecoder,
-						[]protosessions.Middleware{
-							protosessions.NewEvicterMiddleware(runningServer.sessionStampKV, partitionedStorage),
-							protosessions.NewCloseTriggerMiddleware(
-								storage.NewMonitoringKV(kv),
-								storage.NewMonitoringSet(set),
-								time.Second*2,
-								time.Second*1,
-								sessions.NewDirectCloser(
-									sessions.NewSessionWriter(
-										ctx,
-										func() warehouse.Registry {
-											return warehouse.NewStaticDriverRegistry(
-												warehouse.NewConsoleDriver(),
-											)
-										}(),
-										func() schema.ColumnsRegistry {
-											return schema.NewStaticColumnsRegistry(
-												map[string]schema.Columns{},
-												schema.NewColumns(
-													[]schema.SessionColumn{
-														sessioncolumns.TotalEventsColumn,
-													},
-													[]schema.EventColumn{},
-													[]schema.SessionScopedEventColumn{},
-												),
-											)
-										}(),
-										schema.NewStaticLayoutRegistry(
-											map[string]schema.Layout{},
-											schema.NewEmbeddedSessionColumnsLayout(
-												"events",
-												"sessions_",
-											),
-										),
-										splitter.NewStaticRegistry(
-											splitter.NewNoop(),
-										),
-									),
-									0,
-								),
-							),
-							protosessions.NewCompactorMiddleware(
-								runningServer.compactorKV,
-								encoding.JSONEncoder,
-								encoding.JSONDecoder,
-								uint32(4*1024),
-							),
-						},
+						protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
+						protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+						closer,
+						batchedStorage,
+						settingsRegistry,
+						protosessionsv3.RewriteIDAndUpdateInPlaceStrategy,
 					),
 				),
 			},
@@ -223,13 +206,13 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 	go func() {
 		serverErr := receiver.Serve(
 			ctx,
-			partitionedStorage,
+			batchedStorage,
 			receiver.NewDummyRawLogStorage(),
 			runningServer.port,
 			protocol.PathProtocolMapping{
 				"/g/collect": ga4.NewGA4Protocol(
 					currency.NewDummyConverter(1),
-					properties.TestPropertySource(),
+					properties.NewTestSettingRegistry(),
 				),
 			},
 			map[string]func(fctx *fasthttp.RequestCtx){},

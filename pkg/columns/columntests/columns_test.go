@@ -298,13 +298,15 @@ func TestEventColumns(t *testing.T) {
 						assert.Error(t, closeErr)
 					} else {
 						require.NoError(t, closeErr)
+						require.Len(t, whd.WriteCalls, 1)
+						require.Len(t, whd.WriteCalls[0].Records, 1)
 						record := whd.WriteCalls[0].Records[0]
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
 				ga4.NewGA4Protocol(
 					currency.NewDummyConverter(1),
-					properties.TestPropertySource()),
+					properties.NewTestSettingRegistry()),
 				EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}
@@ -321,7 +323,7 @@ func TestSessionHitNumber(t *testing.T) {
 				assert.Equal(t, int64(i), record["session_hit_number"])
 			}
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -338,7 +340,7 @@ func TestSessionPageNumber(t *testing.T) {
 			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[1]["session_page_number"])
 			assert.Equal(t, int64(1), whd.WriteCalls[0].Records[2]["session_page_number"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -363,7 +365,7 @@ func TestSessionFirstEventTime(t *testing.T) {
 			assert.Equal(t, expectedFirstTime, whd.WriteCalls[0].Records[1]["session_first_event_time"])
 			assert.Equal(t, expectedFirstTime, whd.WriteCalls[0].Records[2]["session_first_event_time"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -388,7 +390,7 @@ func TestSessionLastEventTime(t *testing.T) {
 			assert.Equal(t, expectedLastTime, whd.WriteCalls[0].Records[1]["session_last_event_time"])
 			assert.Equal(t, expectedLastTime, whd.WriteCalls[0].Records[2]["session_last_event_time"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -403,7 +405,7 @@ func TestSessionTotalEvents(t *testing.T) {
 			assert.Equal(t, 3, whd.WriteCalls[0].Records[1]["session_total_events"])
 			assert.Equal(t, 3, whd.WriteCalls[0].Records[2]["session_total_events"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -419,7 +421,7 @@ func TestSessionReferrer(t *testing.T) {
 			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[1]["session_referrer"])
 			assert.Equal(t, "https://example.com", whd.WriteCalls[0].Records[2]["session_referrer"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 	)
 }
 
@@ -443,7 +445,7 @@ func TestSessionSplitCause(t *testing.T) {
 			assert.Equal(t, TestHitThree().ID, whd.WriteCalls[0].Records[3]["session_id"])
 			assert.Equal(t, "max_events_reached", whd.WriteCalls[0].Records[3]["session_split_cause"])
 		},
-		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 		SetSplitterRegistry(splitter.NewStaticRegistry(
 			splitter.New(
 				splitter.NewMaxXEventsCondition(2),

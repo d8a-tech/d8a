@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	kvBucketName  = "kv"
-	setBucketName = "set"
+	kvBucketName     = "kv"
+	setBucketName    = "set"
+	emptyValueMarker = "__EMPTY_VALUE__"
 )
 
 type boltKV struct {
@@ -188,12 +189,12 @@ func (b *boltSet) Add(key, value []byte) error {
 			return err
 		}
 
-		// Handle empty value case by using a specific key
+		valueKey := value
 		if len(value) == 0 {
-			return keyBucket.Put([]byte("__EMPTY_VALUE__"), []byte{1})
+			valueKey = []byte(emptyValueMarker)
 		}
 
-		return keyBucket.Put(value, []byte{1})
+		return keyBucket.Put(valueKey, []byte{1})
 	})
 }
 
@@ -210,7 +211,7 @@ func (b *boltSet) All(key []byte) ([][]byte, error) {
 		}
 		return keyBucket.ForEach(func(k, _ []byte) error {
 			// Check if it's our special empty value marker
-			if string(k) == "__EMPTY_VALUE__" {
+			if string(k) == emptyValueMarker {
 				values = append(values, []byte{})
 				return nil
 			}
@@ -228,7 +229,7 @@ func (b *boltSet) All(key []byte) ([][]byte, error) {
 	return values, nil
 }
 
-func (b *boltSet) Delete(key []byte) error {
+func (b *boltSet) Drop(key []byte) error {
 	return b.db.Update(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(setBucketName))
 		if bucket == nil {
@@ -239,6 +240,44 @@ func (b *boltSet) Delete(key []byte) error {
 			return nil
 		}
 		return bucket.DeleteBucket(key)
+	})
+}
+
+func (b *boltSet) Delete(key, value []byte) error {
+	if key == nil {
+		return storage.ErrNilKey
+	}
+	if len(key) == 0 {
+		return storage.ErrEmptyKey
+	}
+	if value == nil {
+		return storage.ErrNilValue
+	}
+
+	return b.db.Update(func(tx *bolt.Tx) error {
+		bucket := tx.Bucket([]byte(setBucketName))
+		if bucket == nil {
+			return nil
+		}
+		keyBucket := bucket.Bucket(key)
+		if keyBucket == nil {
+			return nil
+		}
+
+		valueKey := value
+		if len(value) == 0 {
+			valueKey = []byte(emptyValueMarker)
+		}
+
+		if err := keyBucket.Delete(valueKey); err != nil {
+			return err
+		}
+
+		if keyBucket.Stats().KeyN == 0 {
+			return bucket.DeleteBucket(key)
+		}
+
+		return nil
 	})
 }
 
