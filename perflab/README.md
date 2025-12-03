@@ -1,6 +1,6 @@
 # Performance Lab
 
-Local performance testing lab with OpenTelemetry Collector, Prometheus, and Jaeger.
+Local performance testing lab with Alloy, Prometheus, and Jaeger.
 
 ## Setup
 
@@ -18,28 +18,23 @@ docker compose down
 
 - **OTel Collector**: `localhost:4317` (gRPC), `localhost:4318` (HTTP)
 - **Prometheus**: http://localhost:9090
-- **Jaeger UI**: http://localhost:16686
+- **Jaeger UI**: http://localhost:16686 (currently the application does not send traces)
 - **Grafana**: http://localhost:3000
 
-## Testing
+## Usage
 
-Send test telemetry data:
+Launch the server with monitoring enabled:
 ```bash
-go run main.go perflab-test --otel-endpoint localhost:4317 --duration 30s
+go run main.go server --monitoring-enabled --monitoring-otel-endpoint localhost:4317 --monitoring-otel-export-interval 1s --monitoring-otel-insecure true
+```
+or just use the bundled development config file:
+```bash
+go run main.go server --config config.yaml
 ```
 
-Or with custom intervals:
-```bash
-go run main.go perflab-test \
-  --otel-endpoint localhost:4317 \
-  --duration 60s \
-  --trace-interval-ms 500 \
-  --metric-interval-ms 250
-```
+Go to Grafana to see the dashboard: http://localhost:3000
 
-## Verification
+## Production viability
 
-1. **Traces**: Open http://localhost:16686 and search for service "perflab-test"
-2. **Metrics**: Open http://localhost:9090 and query for `perflab_requests` or `perflab_request_duration`
-
+The grafana dashboard and d8a itself with proper `--monitoring-otel-export-interval` should be production viable. All the other configuration here is tuned for performance testing.
 
