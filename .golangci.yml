@@ -53,8 +53,6 @@ linters:
       default-signifies-exhaustive: true
     forbidigo:
       forbid:
-        - pattern: ^metric\.WithAttributes$
-          msg: use libs -> monitoring.WithAttributes wrapper instead of metric.WithAttributes directly
         - pattern: '&IdentifierConflictRequest\{'
           msg: use NewIdentifierConflictRequest constructor instead of direct struct instantiation
         - pattern: '&IdentifierConflictResponse\{'

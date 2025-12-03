@@ -4,8 +4,10 @@ batcher:
   batch_timeout: 1s
 
 closer:
-  session_duration: 10s
+  session_duration: 10m
 
 monitoring:
   enabled: true
   otel_endpoint: localhost:4317
+  otel_export_interval: 1s
+  otel_insecure: true

@@ -147,6 +147,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						propertySettingsSplitByMaxEventsFlag,
 						monitoringEnabledFlag,
 						monitoringOTelEndpointFlag,
+						monitoringOTelExportIntervalFlag,
+						monitoringOTelInsecureFlag,
 						pprofPortFlag,
 					},
 					warehouseConfigFlags,
@@ -167,6 +169,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						ctx,
 						cmd.Bool(monitoringEnabledFlag.Name),
 						cmd.String(monitoringOTelEndpointFlag.Name),
+						cmd.Duration(monitoringOTelExportIntervalFlag.Name),
+						cmd.Bool(monitoringOTelInsecureFlag.Name),
 						"d8a",
 						"1.0.0",
 					)
@@ -198,11 +202,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						logrus.Fatalf("failed to create filesystem directory publisher: %v", err)
 					}
 					batchTimeout := time.Second * 1
-					workerPublisher := publishers.NewPingingPublisher(
+					pingingPublisher := publishers.NewPingingPublisher(
 						ctx,
 						fsPublisher,
 						batchTimeout*5,
 						pings.NewProcessHitsPingTask(encoding.GzipJSONEncoder),
+					)
+					workerPublisher := worker.NewMonitoringPublisher(
+						pingingPublisher,
 					)
 					serverStorage := receiver.NewBatchingStorage(
 						storagepublisher.NewAdapter(encoding.GzipJSONEncoder, workerPublisher),

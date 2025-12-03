@@ -224,6 +224,20 @@ var monitoringOTelEndpointFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "localhost:4317",
 }
 
+var monitoringOTelExportIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "monitoring-otel-export-interval",
+	Usage:   "Interval for exporting metrics to OTel collector",
+	Sources: defaultSourceChain("MONITORING_OTEL_EXPORT_INTERVAL", "monitoring.otel_export_interval"),
+	Value:   30 * time.Second,
+}
+
+var monitoringOTelInsecureFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "monitoring-otel-insecure",
+	Usage:   "Allow insecure (non-TLS) connection to OTel collector",
+	Sources: defaultSourceChain("MONITORING_OTEL_INSECURE", "monitoring.otel_insecure"),
+	Value:   false,
+}
+
 var pprofPortFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "pprof-port",
 	Usage:   "Port for pprof HTTP server (0 = disabled)",

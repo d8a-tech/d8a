@@ -53,7 +53,10 @@ func (m *MetricsSetup) Shutdown(ctx context.Context) error {
 func SetupMetrics(
 	ctx context.Context,
 	enabled bool,
-	otelEndpoint, serviceName, serviceVersion string,
+	otelEndpoint string,
+	exportInterval time.Duration,
+	insecure bool,
+	serviceName, serviceVersion string,
 ) (*MetricsSetup, error) {
 	if !enabled {
 		return &MetricsSetup{meterProvider: nil}, nil
@@ -69,10 +72,14 @@ func SetupMetrics(
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	metricExporter, err := otlpmetricgrpc.New(ctx,
+	exporterOptions := []otlpmetricgrpc.Option{
 		otlpmetricgrpc.WithEndpoint(otelEndpoint),
-		otlpmetricgrpc.WithInsecure(),
-	)
+	}
+	if insecure {
+		exporterOptions = append(exporterOptions, otlpmetricgrpc.WithInsecure())
+	}
+
+	metricExporter, err := otlpmetricgrpc.New(ctx, exporterOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create metric exporter: %w", err)
 	}
@@ -81,10 +88,10 @@ func SetupMetrics(
 		sdkmetric.WithResource(res),
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(
 			metricExporter,
-			sdkmetric.WithInterval(1*time.Second),
+			sdkmetric.WithInterval(exportInterval),
 		)),
 	)
 	otel.SetMeterProvider(meterProvider)
-	logrus.Infof("OTel metrics configured with endpoint %s (export interval: 1s)", otelEndpoint)
+	logrus.Infof("OTel metrics configured with endpoint %s (export interval: %v, insecure: %v)", otelEndpoint, exportInterval, insecure)
 	return &MetricsSetup{meterProvider: meterProvider}, nil
 }
