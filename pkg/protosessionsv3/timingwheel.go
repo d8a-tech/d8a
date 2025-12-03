@@ -143,7 +143,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	tw.loopSleep = tw.tickInterval
 
 	if tw.currentTime.IsZero() {
-		logrus.Infof("No events processed yet, skipping timing wheel tick")
+		logrus.Debugf("No hits processed yet, skipping timing wheel tick")
 		return nil
 	}
 

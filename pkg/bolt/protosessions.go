@@ -16,7 +16,7 @@ import (
 const (
 	identifiersBucket        = "identifiers"
 	protoSessionsBucket      = "protosessions"
-	bucketsBucket            = "buckets"
+	timingWheelBucketsBucket = "buckets"
 	sessionToBucketMapBucket = "sessionToBucket"
 )
 
@@ -25,8 +25,8 @@ type boltBatchedIOBackend struct {
 	encoder encoding.EncoderFunc
 	decoder encoding.DecoderFunc
 
-	sessionToBucketMu  sync.RWMutex
-	sessionToBucketMap map[hits.ClientID]int64
+	sessionToBucketMu            sync.RWMutex
+	lastBucketsForSessionIDCache map[hits.ClientID]int64
 }
 
 // NewBatchedProtosessionsIOBackend creates a BatchedIOBackend using BoltDB with single-transaction batching
@@ -45,7 +45,7 @@ func NewBatchedProtosessionsIOBackend(
 		if _, err := tx.CreateBucketIfNotExists([]byte(protoSessionsBucket)); err != nil {
 			return err
 		}
-		if _, err := tx.CreateBucketIfNotExists([]byte(bucketsBucket)); err != nil {
+		if _, err := tx.CreateBucketIfNotExists([]byte(timingWheelBucketsBucket)); err != nil {
 			return err
 		}
 		mapBucket, err := tx.CreateBucketIfNotExists([]byte(sessionToBucketMapBucket))
@@ -64,10 +64,10 @@ func NewBatchedProtosessionsIOBackend(
 	}
 
 	return &boltBatchedIOBackend{
-		db:                 db,
-		encoder:            encoder,
-		decoder:            decoder,
-		sessionToBucketMap: sessionToBucketMap,
+		db:                           db,
+		encoder:                      encoder,
+		decoder:                      decoder,
+		lastBucketsForSessionIDCache: sessionToBucketMap,
 	}, nil
 }
 
@@ -133,6 +133,51 @@ func (b *boltBatchedIOBackend) GetIdentifierConflicts(
 	}
 
 	return results
+}
+
+// HandleBatch processes append, get, and mark operations in a single transaction
+func (b *boltBatchedIOBackend) HandleBatch(
+	_ context.Context,
+	appendHitsRequests []*protosessionsv3.AppendHitsToProtoSessionRequest,
+	getProtoSessionHitsRequests []*protosessionsv3.GetProtoSessionHitsRequest,
+	markProtoSessionClosingForGivenBucketRequests []*protosessionsv3.MarkProtoSessionClosingForGivenBucketRequest,
+) (
+	[]*protosessionsv3.AppendHitsToProtoSessionResponse,
+	[]*protosessionsv3.GetProtoSessionHitsResponse,
+	[]*protosessionsv3.MarkProtoSessionClosingForGivenBucketResponse,
+) {
+	appendResponses := make([]*protosessionsv3.AppendHitsToProtoSessionResponse, len(appendHitsRequests))
+	getResponses := make([]*protosessionsv3.GetProtoSessionHitsResponse, len(getProtoSessionHitsRequests))
+	markReqs := markProtoSessionClosingForGivenBucketRequests
+	markResponses := make([]*protosessionsv3.MarkProtoSessionClosingForGivenBucketResponse, len(markReqs))
+	mapUpdates := make(map[hits.ClientID]int64)
+
+	err := b.db.Update(func(tx *bolt.Tx) error {
+		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
+		bucketsBucket := tx.Bucket([]byte(timingWheelBucketsBucket))
+		mapBucket := tx.Bucket([]byte(sessionToBucketMapBucket))
+
+		b.processAppendRequests(sessionsBucket, appendHitsRequests, appendResponses)
+		b.processGetRequests(sessionsBucket, getProtoSessionHitsRequests, getResponses)
+		b.processMarkRequests(bucketsBucket, mapBucket, markReqs, markResponses, mapUpdates)
+
+		return nil
+	})
+
+	if err != nil {
+		fillNilAppendResponses(appendResponses, err)
+		fillNilGetResponses(getResponses, err)
+		fillNilMarkResponses(markResponses, err)
+	} else {
+		// Apply map updates after successful transaction
+		b.sessionToBucketMu.Lock()
+		for sessionID, bucketID := range mapUpdates {
+			b.lastBucketsForSessionIDCache[sessionID] = bucketID
+		}
+		b.sessionToBucketMu.Unlock()
+	}
+
+	return appendResponses, getResponses, markResponses
 }
 
 func (b *boltBatchedIOBackend) processAppendRequests(
@@ -228,51 +273,6 @@ func (b *boltBatchedIOBackend) processMarkRequests(
 	}
 }
 
-// HandleBatch processes append, get, and mark operations in a single transaction
-func (b *boltBatchedIOBackend) HandleBatch(
-	_ context.Context,
-	appendHitsRequests []*protosessionsv3.AppendHitsToProtoSessionRequest,
-	getProtoSessionHitsRequests []*protosessionsv3.GetProtoSessionHitsRequest,
-	markProtoSessionClosingForGivenBucketRequests []*protosessionsv3.MarkProtoSessionClosingForGivenBucketRequest,
-) (
-	[]*protosessionsv3.AppendHitsToProtoSessionResponse,
-	[]*protosessionsv3.GetProtoSessionHitsResponse,
-	[]*protosessionsv3.MarkProtoSessionClosingForGivenBucketResponse,
-) {
-	appendResponses := make([]*protosessionsv3.AppendHitsToProtoSessionResponse, len(appendHitsRequests))
-	getResponses := make([]*protosessionsv3.GetProtoSessionHitsResponse, len(getProtoSessionHitsRequests))
-	markReqs := markProtoSessionClosingForGivenBucketRequests
-	markResponses := make([]*protosessionsv3.MarkProtoSessionClosingForGivenBucketResponse, len(markReqs))
-	mapUpdates := make(map[hits.ClientID]int64)
-
-	err := b.db.Update(func(tx *bolt.Tx) error {
-		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
-		bucketsBucket := tx.Bucket([]byte(bucketsBucket))
-		mapBucket := tx.Bucket([]byte(sessionToBucketMapBucket))
-
-		b.processAppendRequests(sessionsBucket, appendHitsRequests, appendResponses)
-		b.processGetRequests(sessionsBucket, getProtoSessionHitsRequests, getResponses)
-		b.processMarkRequests(bucketsBucket, mapBucket, markReqs, markResponses, mapUpdates)
-
-		return nil
-	})
-
-	if err != nil {
-		fillNilAppendResponses(appendResponses, err)
-		fillNilGetResponses(getResponses, err)
-		fillNilMarkResponses(markResponses, err)
-	} else {
-		// Apply map updates after successful transaction
-		b.sessionToBucketMu.Lock()
-		for sessionID, bucketID := range mapUpdates {
-			b.sessionToBucketMap[sessionID] = bucketID
-		}
-		b.sessionToBucketMu.Unlock()
-	}
-
-	return appendResponses, getResponses, markResponses
-}
-
 func fillNilAppendResponses(responses []*protosessionsv3.AppendHitsToProtoSessionResponse, err error) {
 	for i := range responses {
 		if responses[i] == nil {
@@ -306,13 +306,13 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 	responses := make([]*protosessionsv3.GetAllProtosessionsForBucketResponse, len(requests))
 	// Take a snapshot of the map under read lock
 	b.sessionToBucketMu.RLock()
-	mapSnapshot := make(map[hits.ClientID]int64, len(b.sessionToBucketMap))
-	for k, v := range b.sessionToBucketMap {
-		mapSnapshot[k] = v
+	cacheSnapshot := make(map[hits.ClientID]int64, len(b.lastBucketsForSessionIDCache))
+	for k, v := range b.lastBucketsForSessionIDCache {
+		cacheSnapshot[k] = v
 	}
 	b.sessionToBucketMu.RUnlock()
 	err := b.db.View(func(tx *bolt.Tx) error {
-		bucketsBucket := tx.Bucket([]byte(bucketsBucket))
+		bucketsBucket := tx.Bucket([]byte(timingWheelBucketsBucket))
 		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
 		for i, request := range requests {
 			bucketKey := b.bucketKey(request.BucketID)
@@ -326,7 +326,7 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 			err := keyBucket.ForEach(func(clientID, _ []byte) error {
 				sessionID := hits.ClientID(clientID)
 				// Filter: only process if this bucket is the session's latest bucket
-				if latestBucket, ok := mapSnapshot[sessionID]; !ok || latestBucket != request.BucketID {
+				if latestBucket, ok := cacheSnapshot[sessionID]; !ok || latestBucket != request.BucketID {
 					return nil
 				}
 				sessionKey := b.protoSessionKey(sessionID)
@@ -446,7 +446,7 @@ func (b *boltBatchedIOBackend) Cleanup(
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
 		identifiersBucket := tx.Bucket([]byte(identifiersBucket))
-		bucketsBucket := tx.Bucket([]byte(bucketsBucket))
+		bucketsBucket := tx.Bucket([]byte(timingWheelBucketsBucket))
 		mapBucket := tx.Bucket([]byte(sessionToBucketMapBucket))
 
 		mapDeletions = b.removeProtoSessionHits(sessionsBucket, mapBucket, hitsRequests, hitsResponses, mapDeletions)
@@ -464,7 +464,7 @@ func (b *boltBatchedIOBackend) Cleanup(
 		// Apply map deletions after successful transaction
 		b.sessionToBucketMu.Lock()
 		for _, sessionID := range mapDeletions {
-			delete(b.sessionToBucketMap, sessionID)
+			delete(b.lastBucketsForSessionIDCache, sessionID)
 		}
 		b.sessionToBucketMu.Unlock()
 	}

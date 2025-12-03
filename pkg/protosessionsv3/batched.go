@@ -6,6 +6,40 @@ import (
 	"github.com/d8a-tech/d8a/pkg/hits"
 )
 
+// BatchedIOBackend provides batched I/O operations for proto-sessions
+type BatchedIOBackend interface {
+	GetIdentifierConflicts(
+		ctx context.Context,
+		requests []*IdentifierConflictRequest,
+	) []*IdentifierConflictResponse
+	HandleBatch(
+		ctx context.Context,
+		appendHitsRequests []*AppendHitsToProtoSessionRequest,
+		getProtoSessionHitsRequests []*GetProtoSessionHitsRequest,
+		markProtoSessionClosingForGivenBucketRequests []*MarkProtoSessionClosingForGivenBucketRequest,
+	) (
+		[]*AppendHitsToProtoSessionResponse,
+		[]*GetProtoSessionHitsResponse,
+		[]*MarkProtoSessionClosingForGivenBucketResponse,
+	)
+	GetAllProtosessionsForBucket(
+		ctx context.Context,
+		requests []*GetAllProtosessionsForBucketRequest,
+	) []*GetAllProtosessionsForBucketResponse
+	Cleanup(
+		ctx context.Context,
+		hitsRequests []*RemoveProtoSessionHitsRequest,
+		metadataRequests []*RemoveAllHitRelatedMetadataRequest,
+		bucketMetadataRequests []*RemoveBucketMetadataRequest,
+	) (
+		[]*RemoveProtoSessionHitsResponse,
+		[]*RemoveAllHitRelatedMetadataResponse,
+		[]*RemoveBucketMetadataResponse,
+	)
+	// Stops the backend, terminates all the gorutines, frees all the resources
+	Stop(context.Context) error
+}
+
 // IdentifierConflictRequest represents a request to check for identifier conflicts
 type IdentifierConflictRequest struct {
 	Hit               *hits.Hit
@@ -219,38 +253,4 @@ func NewGetAllProtosessionsForBucketResponse(
 		ProtoSessions: protoSessions,
 		Err:           err,
 	}
-}
-
-// BatchedIOBackend provides batched I/O operations for proto-sessions
-type BatchedIOBackend interface {
-	GetIdentifierConflicts(
-		ctx context.Context,
-		requests []*IdentifierConflictRequest,
-	) []*IdentifierConflictResponse
-	HandleBatch(
-		ctx context.Context,
-		appendHitsRequests []*AppendHitsToProtoSessionRequest,
-		getProtoSessionHitsRequests []*GetProtoSessionHitsRequest,
-		markProtoSessionClosingForGivenBucketRequests []*MarkProtoSessionClosingForGivenBucketRequest,
-	) (
-		[]*AppendHitsToProtoSessionResponse,
-		[]*GetProtoSessionHitsResponse,
-		[]*MarkProtoSessionClosingForGivenBucketResponse,
-	)
-	GetAllProtosessionsForBucket(
-		ctx context.Context,
-		requests []*GetAllProtosessionsForBucketRequest,
-	) []*GetAllProtosessionsForBucketResponse
-	Cleanup(
-		ctx context.Context,
-		hitsRequests []*RemoveProtoSessionHitsRequest,
-		metadataRequests []*RemoveAllHitRelatedMetadataRequest,
-		bucketMetadataRequests []*RemoveBucketMetadataRequest,
-	) (
-		[]*RemoveProtoSessionHitsResponse,
-		[]*RemoveAllHitRelatedMetadataResponse,
-		[]*RemoveBucketMetadataResponse,
-	)
-	// Stops the backend, terminates all the gorutines, frees all the resources
-	Stop(context.Context) error
 }
