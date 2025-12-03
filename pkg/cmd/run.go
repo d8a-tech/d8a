@@ -136,6 +136,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						closerSessionDurationFlag,
 						closerTickIntervalFlag,
 						closerSkipCatchingUpFlag,
+						closerSessionJoinBySessionStampFlag,
+						closerSessionJoinByUserIDFlag,
 						dbipEnabled,
 						dbipDestinationDirectory,
 						dbipDownloadTimeoutFlag,
@@ -202,11 +204,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err != nil {
 						logrus.Fatalf("failed to create filesystem directory publisher: %v", err)
 					}
-					batchTimeout := time.Second * 1
 					pingingPublisher := publishers.NewPingingPublisher(
 						ctx,
 						fsPublisher,
-						batchTimeout*5,
+						// Ping interval should match the batch timeout to avoid pinging too often
+						cmd.Duration(batcherBatchTimeoutFlag.Name),
 						pings.NewProcessHitsPingTask(encoding.GzipJSONEncoder),
 					)
 					workerPublisher := worker.NewMonitoringPublisher(
@@ -215,7 +217,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					serverStorage := receiver.NewBatchingStorage(
 						storagepublisher.NewAdapter(encoding.GzipJSONEncoder, workerPublisher),
 						cmd.Int(batcherBatchSizeFlag.Name),
-						batchTimeout,
+						cmd.Duration(batcherBatchTimeoutFlag.Name),
 					)
 					boltDB, err := bbolt.Open(cmd.String(storageBoltDatabasePathFlag.Name), 0o600, nil)
 					if err != nil {
@@ -266,7 +268,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											}
 											return b
 										}()),
-										protosessionsv3.NewGenericStorageTimingWheelBackend(
+										protosessionsv3.NewGenericKVTimingWheelBackend(
 											"default",
 											kv,
 										),
@@ -378,7 +380,8 @@ func propertySource(cmd *cli.Command) properties.SettingsRegistry {
 				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
 
 				SessionDuration:           cmd.Duration(closerSessionDurationFlag.Name),
-				SessionJoinBySessionStamp: true,
+				SessionJoinBySessionStamp: cmd.Bool(closerSessionJoinBySessionStampFlag.Name),
+				SessionJoinByUserID:       cmd.Bool(closerSessionJoinByUserIDFlag.Name),
 			},
 		),
 	)

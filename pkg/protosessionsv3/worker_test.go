@@ -16,7 +16,7 @@ func TestWorker(t *testing.T) {
 	results := make(map[hits.ClientID][]*hits.Hit)
 	clashes := make(map[string]string)
 	evictions := make([]*hits.Hit, 0)
-	tickerStateBackend := NewGenericStorageTimingWheelBackend("protosessions", storage.NewInMemoryKV())
+	tickerStateBackend := NewGenericKVTimingWheelBackend("protosessions", storage.NewInMemoryKV())
 	backend := NewTestBatchedIOBackend(
 		WithAppendHitsHandler(func(request *AppendHitsToProtoSessionRequest) *AppendHitsToProtoSessionResponse {
 			if results[request.ProtoSessionID] == nil {

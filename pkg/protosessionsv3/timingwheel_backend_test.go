@@ -11,7 +11,7 @@ import (
 func TestGenericStorageTickerBackend_FirstRun(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
-	backend := NewGenericStorageTimingWheelBackend("test", kv)
+	backend := NewGenericKVTimingWheelBackend("test", kv)
 	ctx := context.Background()
 
 	// when
@@ -25,7 +25,7 @@ func TestGenericStorageTickerBackend_FirstRun(t *testing.T) {
 func TestGenericStorageTickerBackend_SaveAndGet(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
-	backend := NewGenericStorageTimingWheelBackend("test", kv)
+	backend := NewGenericKVTimingWheelBackend("test", kv)
 	ctx := context.Background()
 
 	// when
@@ -43,8 +43,8 @@ func TestGenericStorageTickerBackend_NamedVsUnnamed(t *testing.T) {
 	// given
 	kv := &storage.InMemoryKV{KV: make(map[string][]byte)}
 
-	namedBackend := NewGenericStorageTimingWheelBackend("wheel1", kv)
-	unnamedBackend := NewGenericStorageTimingWheelBackend("", kv)
+	namedBackend := NewGenericKVTimingWheelBackend("wheel1", kv)
+	unnamedBackend := NewGenericKVTimingWheelBackend("", kv)
 	ctx := context.Background()
 
 	// when

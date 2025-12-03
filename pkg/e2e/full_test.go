@@ -175,7 +175,7 @@ func withRunningServer(t *testing.T, f func(runningServer)) {
 					protosessionsv3.Handler(
 						ctx,
 						protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
-						protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+						protosessionsv3.NewGenericKVTimingWheelBackend("default", kv),
 						closer,
 						batchedStorage,
 						settingsRegistry,

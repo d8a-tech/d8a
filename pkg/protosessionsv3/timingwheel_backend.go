@@ -13,13 +13,13 @@ const (
 	NextBucketKeyPrefix = "timingwheel.next"
 )
 
-type genericStorageTickerBackend struct {
+type genericKVTimingWheelBackend struct {
 	kv   storage.KV
 	name string
 }
 
 // GetNextBucket retrieves the next bucket number to process from storage.
-func (b *genericStorageTickerBackend) GetNextBucket(_ context.Context) (int64, error) {
+func (b *genericKVTimingWheelBackend) GetNextBucket(_ context.Context) (int64, error) {
 	key := b.nextBucketKey()
 	value, err := b.kv.Get([]byte(key))
 	if err != nil {
@@ -40,7 +40,7 @@ func (b *genericStorageTickerBackend) GetNextBucket(_ context.Context) (int64, e
 }
 
 // SaveNextBucket persists the next bucket number to process.
-func (b *genericStorageTickerBackend) SaveNextBucket(_ context.Context, bucketNumber int64) error {
+func (b *genericKVTimingWheelBackend) SaveNextBucket(_ context.Context, bucketNumber int64) error {
 	key := b.nextBucketKey()
 	_, err := b.kv.Set([]byte(key), []byte(strconv.FormatInt(bucketNumber, 10)))
 	if err != nil {
@@ -49,19 +49,19 @@ func (b *genericStorageTickerBackend) SaveNextBucket(_ context.Context, bucketNu
 	return nil
 }
 
-func (b *genericStorageTickerBackend) nextBucketKey() string {
+func (b *genericKVTimingWheelBackend) nextBucketKey() string {
 	if b.name != "" {
 		return fmt.Sprintf("%s.%s", NextBucketKeyPrefix, b.name)
 	}
 	return NextBucketKeyPrefix
 }
 
-// NewGenericStorageTimingWheelBackend creates a TickerStateBackend using generic storage interfaces.
-func NewGenericStorageTimingWheelBackend(
+// NewGenericKVTimingWheelBackend creates a TickerStateBackend using generic storage interfaces.
+func NewGenericKVTimingWheelBackend(
 	name string,
 	kv storage.KV,
 ) TimingWheelStateBackend {
-	return &genericStorageTickerBackend{
+	return &genericKVTimingWheelBackend{
 		kv:   kv,
 		name: name,
 	}

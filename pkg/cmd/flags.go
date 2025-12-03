@@ -64,6 +64,20 @@ var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   1 * time.Second,
 }
 
+var closerSessionJoinBySessionStampFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "closer-session-join-by-session-stamp",
+	Usage:   "If set, sessions will be joined by session stamp",
+	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_SESSION_STAMP", "closer.session_join_by_session_stamp"),
+	Value:   true,
+}
+
+var closerSessionJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "closer-session-join-by-user-id",
+	Usage:   "If set, sessions will be joined by user ID",
+	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_USER_ID", "closer.session_join_by_user_id"),
+	Value:   false,
+}
+
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
 	Usage:   "Use DBIP columns",

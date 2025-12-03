@@ -85,7 +85,7 @@ func TestProtosessionsV3(t *testing.T) { //nolint:funlen // test
 	handler := protosessionsv3.Handler(
 		ctx,
 		protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
-		protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+		protosessionsv3.NewGenericKVTimingWheelBackend("default", kv),
 		closer,
 		requeuer,
 		settingsRegistry,
@@ -206,7 +206,7 @@ func TestProtosessionsV3Warehouse(t *testing.T) { //nolint:funlen // test
 	handler := protosessionsv3.Handler(
 		ctx,
 		protosessionsv3.NewDeduplicatingBatchedIOBackend(boltBackend),
-		protosessionsv3.NewGenericStorageTimingWheelBackend("default", kv),
+		protosessionsv3.NewGenericKVTimingWheelBackend("default", kv),
 		closer,
 		requeuer,
 		settingsRegistry,
