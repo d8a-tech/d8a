@@ -33,5 +33,7 @@ go.work.sum
 # System related
 .DS_Store
 
-# Binary
+# Binary and storage
 d8a
+bolt.db
+queue/

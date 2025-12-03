@@ -238,11 +238,18 @@ var monitoringOTelInsecureFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   false,
 }
 
-var pprofPortFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "pprof-port",
-	Usage:   "Port for pprof HTTP server (0 = disabled)",
-	Sources: defaultSourceChain("PPROF_PORT", "pprof.port"),
-	Value:   0,
+var storageBoltDatabasePathFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-bolt-database-path",
+	Usage:   "Path to the Bolt database file",
+	Sources: defaultSourceChain("STORAGE_BOLT_DATABASE_PATH", "storage.bolt_database_path"),
+	Value:   "./bolt.db",
+}
+
+var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-queue-directory",
+	Usage:   "Directory for the queue storage",
+	Sources: defaultSourceChain("STORAGE_QUEUE_DIRECTORY", "storage.queue_directory"),
+	Value:   "./queue",
 }
 
 var warehouseConfigFlags = []cli.Flag{

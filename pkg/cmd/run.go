@@ -149,7 +149,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						monitoringOTelEndpointFlag,
 						monitoringOTelExportIntervalFlag,
 						monitoringOTelInsecureFlag,
-						pprofPortFlag,
+						storageBoltDatabasePathFlag,
+						storageQueueDirectoryFlag,
 					},
 					warehouseConfigFlags,
 				),
@@ -195,7 +196,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					fsPublisher, err := worker.NewFilesystemDirectoryPublisher(
-						"/tmp/worker",
+						cmd.String(storageQueueDirectoryFlag.Name),
 						worker.NewBinaryMessageFormat(),
 					)
 					if err != nil {
@@ -216,7 +217,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						cmd.Int(batcherBatchSizeFlag.Name),
 						batchTimeout,
 					)
-					boltDB, err := bbolt.Open("/tmp/backend.db", 0o600, nil)
+					boltDB, err := bbolt.Open(cmd.String(storageBoltDatabasePathFlag.Name), 0o600, nil)
 					if err != nil {
 						logrus.Fatalf("failed to open bolt db: %v", err)
 					}
@@ -226,7 +227,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						defer cancel()
 						workerConsumer, err := worker.NewFilesystemDirectoryConsumer(
 							ctx,
-							"/tmp/worker",
+							cmd.String(storageQueueDirectoryFlag.Name),
 							worker.NewBinaryMessageFormat(),
 						)
 						if err != nil {

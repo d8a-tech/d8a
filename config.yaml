@@ -11,3 +11,7 @@ monitoring:
   otel_endpoint: localhost:4317
   otel_export_interval: 1s
   otel_insecure: true
+
+storage:
+  bolt_database_path: /tmp/bolt.db
+  queue_directory: /tmp/d8a-queue
