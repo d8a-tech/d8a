@@ -23,7 +23,7 @@ const (
 )
 
 var (
-	requestCounter    metric.Int64Counter
+	requestCounter     metric.Int64Counter
 	requestLatencyHist metric.Float64Histogram
 )
 
@@ -175,7 +175,6 @@ func Serve(
 		Handler: func(fctx *fasthttp.RequestCtx) { // nolint:contextcheck // fasthttp implements context.Context
 			start := time.Now()
 			path := string(fctx.Path())
-
 			var selectedProtocol protocol.Protocol
 			for pathPrefix, protocol := range protocols {
 				if strings.HasPrefix(path, pathPrefix) {
@@ -199,7 +198,6 @@ func Serve(
 		},
 		Name: "Tracker API",
 	}
-
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})
 	go func() {
@@ -208,7 +206,6 @@ func Serve(
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
-
 		shutdownDone := make(chan struct{})
 		go func() {
 			if err := s.Shutdown(); err != nil {
@@ -216,7 +213,6 @@ func Serve(
 			}
 			close(shutdownDone)
 		}()
-
 		select {
 		case <-shutdownDone:
 			// Normal shutdown completed
@@ -226,7 +222,6 @@ func Serve(
 		}
 		close(shutdownChan)
 	}()
-
 	// Start the server in a goroutine
 	errChan := make(chan error, 1)
 	go func() {

@@ -92,6 +92,9 @@ func SetupMetrics(
 		)),
 	)
 	otel.SetMeterProvider(meterProvider)
-	logrus.Infof("OTel metrics configured with endpoint %s (export interval: %v, insecure: %v)", otelEndpoint, exportInterval, insecure)
+	logrus.Infof(
+		"OTel metrics configured with endpoint %s (export interval: %v, insecure: %v)",
+		otelEndpoint, exportInterval, insecure,
+	)
 	return &MetricsSetup{meterProvider: meterProvider}, nil
 }
