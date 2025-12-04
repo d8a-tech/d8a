@@ -69,6 +69,8 @@ var CoreInterfaces = struct {
 	SSEIsEntry           schema.Interface
 	SSESessionHitNumber  schema.Interface
 	SSESessionPageNumber schema.Interface
+	SSEIsEntryPage       schema.Interface
+	SSEIsExitPage        schema.Interface
 
 	// Session columns
 	SessionID             schema.Interface
@@ -357,6 +359,17 @@ var CoreInterfaces = struct {
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
+	SSEIsEntryPage: schema.Interface{
+		ID:      "core.d8a.tech/events/session_is_entry_page",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_is_entry_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSEIsExitPage: schema.Interface{
+		ID:      "core.d8a.tech/events/session_is_exit_page",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_is_exit_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+
 	SessionID: schema.Interface{
 		ID:      "core.d8a.tech/sessions/id",
 		Version: "1.0.0",

@@ -88,3 +88,43 @@ var eventNextPageTitleColumn = columns.NewValueTransitionColumn(
 			"Returns nil for the first page or when no page change has occurred.",
 	),
 )
+
+var sseIsEntryPageColumn = columns.NewFirstLastMatchingEventColumn(
+	columns.CoreInterfaces.SSEIsEntryPage.ID,
+	columns.CoreInterfaces.SSEIsEntryPage.Field,
+	columns.TransitionAdvanceWhenEventNameIs("page_view"),
+	true,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Is Entry Page",
+		"An integer flag indicating whether this event is the first page view in the session. "+
+			"Returns 1 for the first page view event in the session, 0 for all other events. "+
+			"Returns 0 if there are no page views in the session.",
+	),
+)
+
+var sseIsExitPageColumn = columns.NewFirstLastMatchingEventColumn(
+	columns.CoreInterfaces.SSEIsExitPage.ID,
+	columns.CoreInterfaces.SSEIsExitPage.Field,
+	columns.TransitionAdvanceWhenEventNameIs("page_view"),
+	false,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Is Exit Page",
+		"An integer flag indicating whether this event is the last page view in the session. "+
+			"Returns 1 for the last page view event in the session, 0 for all other events. "+
+			"Returns 0 if there are no page views in the session.",
+	),
+)
