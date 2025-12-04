@@ -344,6 +344,22 @@ func TestSessionPageNumber(t *testing.T) {
 	)
 }
 
+func TestSessionIsEntry(t *testing.T) {
+	// given
+	ColumnTestCase(
+		t,
+		TestHits{TestHitOne(), TestHitTwo(), TestHitThree()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			assert.Equal(t, int64(1), whd.WriteCalls[0].Records[0]["session_is_entry"])
+			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[1]["session_is_entry"])
+			assert.Equal(t, int64(0), whd.WriteCalls[0].Records[2]["session_is_entry"])
+		},
+		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
+	)
+}
+
 func TestSessionFirstEventTime(t *testing.T) {
 	// given
 	th1 := TestHitOne()

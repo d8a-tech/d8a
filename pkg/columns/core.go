@@ -348,7 +348,7 @@ var CoreInterfaces = struct {
 	SSEIsEntry: schema.Interface{
 		ID:      "core.d8a.tech/events/session_is_entry",
 		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "session_is_entry", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+		Field:   &arrow.Field{Name: "session_is_entry", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SSESessionHitNumber: schema.Interface{
 		ID:      "core.d8a.tech/events/session_hit_number",

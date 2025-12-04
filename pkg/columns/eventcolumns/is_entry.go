@@ -14,12 +14,12 @@ var SSEIsEntry = columns.NewSimpleSessionScopedEventColumn(
 			return nil, nil // nolint:nilnil // nil is valid for this column
 		}
 		if i == 0 {
-			return true, nil
+			return int64(1), nil
 		}
-		return false, nil
+		return int64(0), nil
 	},
 	columns.WithSessionScopedEventColumnDocs(
 		"Session Is Entry Event",
-		"A boolean flag indicating whether this event is the first event (entry point) of the session. True for the first event in the session, false for all subsequent events.", // nolint:lll // it's a description
+		"An integer flag indicating whether this event is the first event (entry point) of the session. Returns 1 for the first event in the session, 0 for all subsequent events.", // nolint:lll // it's a description
 	),
 )
