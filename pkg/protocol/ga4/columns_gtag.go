@@ -53,14 +53,28 @@ var eventPagePathColumn = columns.URLElementColumn(
 	),
 )
 
-var eventPageLocationColumn = columns.FromQueryParamEventColumn(
+var eventPageLocationColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPageLocation.ID,
 	columns.CoreInterfaces.EventPageLocation.Field,
-	"dl",
+	func(event *schema.Event) (any, error) {
+		if len(event.BoundHit.QueryParams) == 0 {
+			return "", nil
+		}
+		originalURL := event.BoundHit.QueryParams.Get("dl")
+		if originalURL == "" {
+			return "", nil
+		}
+		cleanedURL, _, err := columns.StripExcludedParams(originalURL)
+		if err != nil {
+			return nil, err
+		}
+		columns.WriteOriginalPageLocation(event, originalURL)
+		return cleanedURL, nil
+	},
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnDocs(
 		"Page Location",
-		"The complete URL of the page where the event occurred, including protocol, domain, path, and query parameters (e.g., 'https://www.example.com/products/shoes?color=red&size=10').", // nolint:lll // it's a description
+		"The complete URL of the page where the event occurred, including protocol, domain, path, and query parameters (e.g., 'https://www.example.com/products/shoes?color=red&size=10'). Tracking parameters (UTM, click IDs) are excluded once extracted into dedicated columns.", // nolint:lll // it's a description
 	),
 )
 
@@ -162,10 +176,11 @@ var sessionEngagementColumn = columns.FromQueryParamSessionColumn(
 	),
 )
 
-var gtmDebugColumn = columns.FromPageURLEventColumn(
+var gtmDebugColumn = columns.FromPageURLParamEventColumn(
 	ProtocolInterfaces.EventGtmDebug.ID,
 	ProtocolInterfaces.EventGtmDebug.Field,
 	"gtm_debug",
+	false,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventGtmDebug.ID)),
 	),

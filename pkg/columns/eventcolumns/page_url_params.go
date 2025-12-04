@@ -5,10 +5,11 @@ import (
 )
 
 // UtmMarketingTacticColumn is the column for the UTM marketing tactic of an event
-var UtmMarketingTacticColumn = columns.FromPageURLEventColumn(
+var UtmMarketingTacticColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmMarketingTactic.ID,
 	columns.CoreInterfaces.EventUtmMarketingTactic.Field,
 	"utm_marketing_tactic",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmMarketingTactic.ID)),
 	),
@@ -19,10 +20,11 @@ var UtmMarketingTacticColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmSourcePlatformColumn is the column for the UTM source platform of an event
-var UtmSourcePlatformColumn = columns.FromPageURLEventColumn(
+var UtmSourcePlatformColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmSourcePlatform.ID,
 	columns.CoreInterfaces.EventUtmSourcePlatform.Field,
 	"utm_source_platform",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmSourcePlatform.ID)),
 	),
@@ -33,10 +35,11 @@ var UtmSourcePlatformColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmTermColumn is the column for the UTM term of an event
-var UtmTermColumn = columns.FromPageURLEventColumn(
+var UtmTermColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmTerm.ID,
 	columns.CoreInterfaces.EventUtmTerm.Field,
 	"utm_term",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmTerm.ID)),
 	),
@@ -47,10 +50,11 @@ var UtmTermColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmContentColumn is the column for the UTM content of an event
-var UtmContentColumn = columns.FromPageURLEventColumn(
+var UtmContentColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmContent.ID,
 	columns.CoreInterfaces.EventUtmContent.Field,
 	"utm_content",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmContent.ID)),
 	),
@@ -61,10 +65,11 @@ var UtmContentColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmSourceColumn is the column for the UTM source of an event
-var UtmSourceColumn = columns.FromPageURLEventColumn(
+var UtmSourceColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmSource.ID,
 	columns.CoreInterfaces.EventUtmSource.Field,
 	"utm_source",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmSource.ID)),
 	),
@@ -75,10 +80,11 @@ var UtmSourceColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmMediumColumn is the column for the UTM medium of an event
-var UtmMediumColumn = columns.FromPageURLEventColumn(
+var UtmMediumColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmMedium.ID,
 	columns.CoreInterfaces.EventUtmMedium.Field,
 	"utm_medium",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmMedium.ID)),
 	),
@@ -89,10 +95,11 @@ var UtmMediumColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmCampaignColumn is the column for the UTM campaign of an event
-var UtmCampaignColumn = columns.FromPageURLEventColumn(
+var UtmCampaignColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmCampaign.ID,
 	columns.CoreInterfaces.EventUtmCampaign.Field,
 	"utm_campaign",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmCampaign.ID)),
 	),
@@ -103,10 +110,11 @@ var UtmCampaignColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmIDColumn is the column for the UTM ID of an event
-var UtmIDColumn = columns.FromPageURLEventColumn(
+var UtmIDColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmID.ID,
 	columns.CoreInterfaces.EventUtmID.Field,
 	"utm_id",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmID.ID)),
 	),
@@ -117,10 +125,11 @@ var UtmIDColumn = columns.FromPageURLEventColumn(
 )
 
 // UtmCreativeFormatColumn is the column for the UTM creative format of an event
-var UtmCreativeFormatColumn = columns.FromPageURLEventColumn(
+var UtmCreativeFormatColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventUtmCreativeFormat.ID,
 	columns.CoreInterfaces.EventUtmCreativeFormat.Field,
 	"utm_creative_format",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventUtmCreativeFormat.ID)),
 	),

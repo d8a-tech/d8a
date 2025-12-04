@@ -335,31 +335,42 @@ func AlwaysNilEventColumn(
 	}, options...)
 }
 
-// FromPageURLEventColumn creates a new event column from a UTM tag
-func FromPageURLEventColumn(
+// FromPageURLParamEventColumn creates a new event column from a URL parameter.
+// If excludeFromPageLocation is true, the parameter will be registered for exclusion from page location URLs.
+func FromPageURLParamEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	utmTag string,
+	param string,
+	excludeFromPageLocation bool,
 	options ...EventColumnOptions,
 ) schema.EventColumn {
+	if excludeFromPageLocation {
+		RegisterURLParamForExclusion(param)
+	}
 	options = append(options, WithEventColumnDependsOn(schema.DependsOnEntry{
 		Interface:        CoreInterfaces.EventPageLocation.ID,
 		GreaterOrEqualTo: "1.0.0",
 	}))
 	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
-		pageLocation, ok := event.Values[CoreInterfaces.EventPageLocation.Field.Name]
-		if !ok {
-			return nil, nil
+		// Try to read from original URL in metadata first (if parameters were stripped)
+		originalURL := ReadOriginalPageLocation(event)
+		if originalURL == "" {
+			// Fall back to page_location value (may be cleaned or original)
+			pageLocation, ok := event.Values[CoreInterfaces.EventPageLocation.Field.Name]
+			if !ok {
+				return nil, nil
+			}
+			pageLocationStr, ok := pageLocation.(string)
+			if !ok {
+				return nil, nil
+			}
+			originalURL = pageLocationStr
 		}
-		pageLocationStr, ok := pageLocation.(string)
-		if !ok {
-			return nil, nil
-		}
-		parsed, err := url.Parse(pageLocationStr)
+		parsed, err := url.Parse(originalURL)
 		if err != nil {
 			return nil, err
 		}
-		return parsed.Query().Get(utmTag), nil
+		return parsed.Query().Get(param), nil
 	}, options...)
 }
 
