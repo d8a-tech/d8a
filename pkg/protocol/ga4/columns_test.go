@@ -474,9 +474,10 @@ func TestEventColumns(t *testing.T) {
 			description: "Page location strips click ID parameters",
 		},
 		{
-			name:        "EventPageLocation_StripsAllTrackingParams",
-			param:       "dl",
-			value:       "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
+			name:  "EventPageLocation_StripsAllTrackingParams",
+			param: "dl",
+			value: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
+				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
 			expected:    "https://example.com/page?baz=qux&foo=bar",
 			fieldName:   "page_location",
 			description: "Page location strips all tracking parameters (UTM and click IDs)",

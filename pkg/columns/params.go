@@ -16,7 +16,7 @@ const (
 var (
 	// urlParamsBlacklist is a singleton registry of URL parameters that should be
 	// excluded from page location URLs once they've been extracted into dedicated columns.
-	urlParamsBlacklist = make(map[string]bool)
+	urlParamsBlacklist   = make(map[string]bool)
 	urlParamsBlacklistMu sync.RWMutex
 )
 
@@ -48,7 +48,7 @@ func GetExcludedURLParams() map[string]bool {
 
 // StripExcludedParams removes excluded URL parameters from a URL string.
 // Returns the cleaned URL and the original URL.
-func StripExcludedParams(urlStr string) (cleaned string, original string, err error) {
+func StripExcludedParams(urlStr string) (cleaned, original string, err error) {
 	original = urlStr
 	if urlStr == "" {
 		return urlStr, original, nil
@@ -104,4 +104,3 @@ func ReadOriginalPageLocation(event *schema.Event) string {
 	}
 	return originalStr
 }
-
