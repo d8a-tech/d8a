@@ -748,6 +748,61 @@ func NewValueTransitionColumn(
 	)
 }
 
+// NewFirstLastMatchingEventColumn creates a session-scoped event column that marks
+// the first or last event matching a predicate with 1, and all other events with 0.
+// This is useful for marking entry/exit pages, where only the first/last page_view
+// in a session should be marked.
+func NewFirstLastMatchingEventColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	matches TransitionAdvanceFunction,
+	isFirst bool,
+	options ...SessionScopedEventColumnOptions,
+) schema.SessionScopedEventColumn {
+	cacheKey := fmt.Sprintf("cache-firstlast-%s-%v", id, isFirst)
+	return NewSimpleSessionScopedEventColumn(
+		id,
+		field,
+		func(s *schema.Session, i int) (any, error) {
+			var result []int64
+			resultAny, ok := s.Metadata[cacheKey]
+			if ok {
+				result, ok = resultAny.([]int64)
+				if ok {
+					return result[i], nil
+				}
+			}
+
+			// Find all matching event indices
+			matchingIndices := make([]int, 0)
+			for idx, event := range s.Events {
+				if matches(event) {
+					matchingIndices = append(matchingIndices, idx)
+				}
+			}
+
+			// Initialize result array with zeros
+			result = make([]int64, len(s.Events))
+			for idx := range result {
+				result[idx] = 0
+			}
+
+			// Mark first or last matching event
+			if len(matchingIndices) > 0 {
+				if isFirst {
+					result[matchingIndices[0]] = 1
+				} else {
+					result[matchingIndices[len(matchingIndices)-1]] = 1
+				}
+			}
+
+			s.Metadata[cacheKey] = result
+			return result[i], nil
+		},
+		options...,
+	)
+}
+
 // TotalEventsOfGivenNameColumn creates a session column that counts the total number
 // of events with the given event names.
 func TotalEventsOfGivenNameColumn(
