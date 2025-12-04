@@ -3,10 +3,11 @@ package eventcolumns
 import "github.com/d8a-tech/d8a/pkg/columns"
 
 // ClickIDsGclidColumn is the column for the GCLID of an event
-var ClickIDsGclidColumn = columns.FromPageURLEventColumn(
+var ClickIDsGclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDGclid.ID,
 	columns.CoreInterfaces.EventClickIDGclid.Field,
 	"gclid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGclid.ID)),
 	),
@@ -17,10 +18,11 @@ var ClickIDsGclidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsDclidColumn is the column for the DCLID of an event
-var ClickIDsDclidColumn = columns.FromPageURLEventColumn(
+var ClickIDsDclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDDclid.ID,
 	columns.CoreInterfaces.EventClickIDDclid.Field,
 	"dclid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDDclid.ID)),
 	),
@@ -31,10 +33,11 @@ var ClickIDsDclidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsSrsltidColumn is the column for the SRSLTID of an event
-var ClickIDsSrsltidColumn = columns.FromPageURLEventColumn(
+var ClickIDsSrsltidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDSrsltid.ID,
 	columns.CoreInterfaces.EventClickIDSrsltid.Field,
 	"srsltid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDSrsltid.ID)),
 	),
@@ -45,10 +48,11 @@ var ClickIDsSrsltidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsGbraidColumn is the column for the GBRAID of an event
-var ClickIDsGbraidColumn = columns.FromPageURLEventColumn(
+var ClickIDsGbraidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDGbraid.ID,
 	columns.CoreInterfaces.EventClickIDGbraid.Field,
 	"gbraid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGbraid.ID)),
 	),
@@ -59,10 +63,11 @@ var ClickIDsGbraidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsWbraidColumn is the column for the WBRAID of an event
-var ClickIDsWbraidColumn = columns.FromPageURLEventColumn(
+var ClickIDsWbraidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDWbraid.ID,
 	columns.CoreInterfaces.EventClickIDWbraid.Field,
 	"wbraid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDWbraid.ID)),
 	),
@@ -73,10 +78,11 @@ var ClickIDsWbraidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsFbclidColumn is the column for the FBCLID of an event
-var ClickIDsFbclidColumn = columns.FromPageURLEventColumn(
+var ClickIDsFbclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDFbclid.ID,
 	columns.CoreInterfaces.EventClickIDFbclid.Field,
 	"fbclid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDFbclid.ID)),
 	),
@@ -87,10 +93,11 @@ var ClickIDsFbclidColumn = columns.FromPageURLEventColumn(
 )
 
 // ClickIDsMsclkidColumn is the column for the MSCLKID of an event
-var ClickIDsMsclkidColumn = columns.FromPageURLEventColumn(
+var ClickIDsMsclkidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDMsclkid.ID,
 	columns.CoreInterfaces.EventClickIDMsclkid.Field,
 	"msclkid",
+	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDMsclkid.ID)),
 	),
