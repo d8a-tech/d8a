@@ -15,4 +15,8 @@ type Settings struct {
 	SplitByCampaign            bool
 	SplitByTimeSinceFirstEvent time.Duration
 	SplitByMaxEvents           int
+
+	SessionDuration           time.Duration
+	SessionJoinBySessionStamp bool
+	SessionJoinByUserID       bool
 }

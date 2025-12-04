@@ -2262,7 +2262,7 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 				columntests.EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}
@@ -3275,7 +3275,7 @@ func TestSessionColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.TestPropertySource()),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 				tc.caseConfigFuncs...)
 		})
 	}

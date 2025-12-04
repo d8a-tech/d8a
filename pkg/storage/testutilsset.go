@@ -9,7 +9,7 @@ import (
 )
 
 // SetTestSuite is a generic test suite for Set implementations
-func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
+func SetTestSuite(t *testing.T, set Set) { //nolint:funlen,gocognit // it's a test suite
 	t.Run("Add and All", func(t *testing.T) {
 		// given
 		testCases := []struct {
@@ -108,7 +108,7 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 		assert.True(t, emptyValueFound, "Empty value should be stored and retrieved")
 
 		// Clean up for next tests
-		err = set.Delete(testKey)
+		err = set.Drop(testKey)
 		assert.NoError(t, err)
 	})
 
@@ -130,11 +130,136 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 		assert.Equal(t, 1, len(values), "Set should be idempotent and not store duplicates")
 
 		// Clean up
-		err = set.Delete(key)
+		err = set.Drop(key)
 		assert.NoError(t, err)
 	})
 
-	t.Run("Delete", func(t *testing.T) {
+	t.Run("Delete input validation", func(t *testing.T) {
+		// given
+		testCases := []struct {
+			name  string
+			key   []byte
+			value []byte
+		}{
+			{
+				name:  "nil key",
+				value: []byte("value"),
+			},
+			{
+				name:  "empty key",
+				key:   []byte{},
+				value: []byte("value"),
+			},
+			{
+				name: "nil value",
+				key:  []byte("key"),
+			},
+		}
+
+		for _, tc := range testCases {
+			tc := tc
+			t.Run(tc.name, func(t *testing.T) {
+				// when
+				err := set.Delete(tc.key, tc.value)
+
+				// then
+				assert.Error(t, err)
+			})
+		}
+	})
+
+	t.Run("Delete value operations", func(t *testing.T) {
+		t.Run("delete specific value", func(t *testing.T) {
+			// given
+			key := []byte("delete-specific")
+			values := [][]byte{[]byte("alpha"), []byte("beta")}
+			for _, value := range values {
+				err := set.Add(key, value)
+				assert.NoError(t, err)
+			}
+
+			// when
+			err := set.Delete(key, values[0])
+
+			// then
+			assert.NoError(t, err)
+
+			// when
+			got, err := set.All(key)
+
+			// then
+			assert.NoError(t, err)
+			assert.Equal(t, 1, len(got))
+			assert.True(t, bytes.Equal(values[1], got[0]))
+
+			// cleanup
+			err = set.Drop(key)
+			assert.NoError(t, err)
+		})
+
+		t.Run("delete empty value", func(t *testing.T) {
+			// given
+			key := []byte("delete-empty")
+			err := set.Add(key, []byte{})
+			assert.NoError(t, err)
+
+			// when
+			err = set.Delete(key, []byte{})
+
+			// then
+			assert.NoError(t, err)
+
+			// when
+			got, err := set.All(key)
+
+			// then
+			assert.NoError(t, err)
+			assert.Empty(t, got)
+
+			// cleanup
+			err = set.Drop(key)
+			assert.NoError(t, err)
+		})
+
+		t.Run("delete non-existent value", func(t *testing.T) {
+			// given
+			key := []byte("delete-missing-value")
+			err := set.Add(key, []byte("existing"))
+			assert.NoError(t, err)
+
+			// when
+			err = set.Delete(key, []byte("missing"))
+
+			// then
+			assert.NoError(t, err)
+
+			// when
+			got, err := set.All(key)
+
+			// then
+			assert.NoError(t, err)
+			assert.Len(t, got, 1)
+			assert.True(t, bytes.Equal([]byte("existing"), got[0]))
+
+			// cleanup
+			err = set.Drop(key)
+			assert.NoError(t, err)
+		})
+
+		t.Run("delete from missing key", func(t *testing.T) {
+			// given
+			key := []byte("missing-key")
+			value := []byte("value")
+
+			// when
+			err := set.Delete(key, value)
+
+			// then
+			assert.NoError(t, err)
+		})
+	})
+
+	t.Run("Drop", func(t *testing.T) {
 		// given
 		testCases := []struct {
 			name  string
@@ -154,8 +279,8 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 				err := set.Add(tc.key, tc.value)
 				assert.NoError(t, err)
 
-				// when - delete the key
-				err = set.Delete(tc.key)
+				// when - drop the key
+				err = set.Drop(tc.key)
 
 				// then
 				assert.NoError(t, err)
@@ -165,17 +290,17 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 
 				// then
 				assert.NoError(t, err)
-				assert.Empty(t, values, "All returned non-empty slice after Delete")
+				assert.Empty(t, values, "All returned non-empty slice after Drop")
 			})
 		}
 	})
 
-	t.Run("Delete non-existent key", func(t *testing.T) {
+	t.Run("Drop non-existent key", func(t *testing.T) {
 		// given
 		nonExistentKey := []byte("nonexistent")
 
 		// when
-		err := set.Delete(nonExistentKey)
+		err := set.Drop(nonExistentKey)
 
 		// then
 		assert.NoError(t, err)
@@ -212,7 +337,7 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 			"Expected %d unique values after concurrent operations", numGoroutines*numOperations)
 
 		// Check concurrent delete works
-		err = set.Delete(key)
+		err = set.Drop(key)
 		assert.NoError(t, err)
 
 		// Verify values are gone
@@ -255,7 +380,7 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 		}
 
 		// Clean up
-		err = set.Delete(key)
+		err = set.Drop(key)
 		assert.NoError(t, err)
 	})
 
@@ -284,7 +409,7 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen // it's a test suite
 		assert.Equal(t, 5000, len(values[0]), "Retrieved value should have correct length")
 
 		// Clean up
-		err = set.Delete(key)
+		err = set.Drop(key)
 		assert.NoError(t, err)
 	})
 }

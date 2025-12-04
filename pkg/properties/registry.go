@@ -6,8 +6,8 @@ import (
 
 // SettingsRegistry is a registry of property configurations.
 type SettingsRegistry interface {
-	GetByMeasurementID(trackingID string) (Settings, error)
-	GetByPropertyID(propertyID string) (Settings, error)
+	GetByMeasurementID(trackingID string) (*Settings, error)
+	GetByPropertyID(propertyID string) (*Settings, error)
 }
 
 // StaticSettingsRegistry is a static property settings
@@ -19,36 +19,36 @@ type StaticSettingsRegistry struct {
 }
 
 // GetByMeasurementID gets a property configuration by tracking ID.
-func (s StaticSettingsRegistry) GetByMeasurementID(trackingID string) (Settings, error) {
+func (s StaticSettingsRegistry) GetByMeasurementID(trackingID string) (*Settings, error) {
 	property, ok := s.tid[trackingID]
 	if !ok {
 		if s.defaultConfig != nil {
-			return *s.defaultConfig, nil
+			return s.defaultConfig, nil
 		}
-		return Settings{}, fmt.Errorf("unknown property tracking ID: %s", trackingID)
+		return nil, fmt.Errorf("unknown property tracking ID: %s", trackingID)
 	}
-	return *property, nil
+	return property, nil
 }
 
 // GetByPropertyID gets a property configuration by property ID.
-func (s StaticSettingsRegistry) GetByPropertyID(propertyID string) (Settings, error) {
+func (s StaticSettingsRegistry) GetByPropertyID(propertyID string) (*Settings, error) {
 	property, ok := s.pid[propertyID]
 	if !ok {
 		if s.defaultConfig != nil {
-			return *s.defaultConfig, nil
+			return s.defaultConfig, nil
 		}
-		return Settings{}, fmt.Errorf("unknown property ID: %s", propertyID)
+		return nil, fmt.Errorf("unknown property ID: %s", propertyID)
 	}
-	return *property, nil
+	return property, nil
 }
 
 // StaticSettingsRegistryOptions are options for the static property source.
 type StaticSettingsRegistryOptions func(s *StaticSettingsRegistry)
 
 // WithDefaultConfig sets the default configuration for the static property source.
-func WithDefaultConfig(config Settings) StaticSettingsRegistryOptions {
+func WithDefaultConfig(settings *Settings) StaticSettingsRegistryOptions {
 	return func(s *StaticSettingsRegistry) {
-		s.defaultConfig = &config
+		s.defaultConfig = settings
 	}
 }
 

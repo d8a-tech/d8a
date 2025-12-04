@@ -86,6 +86,7 @@ func (bs *BatchingStorage) flushLocked() error {
 		logrus.Errorf("Storage push failed: %v", err)
 		return fmt.Errorf("failed to push data: %w", err)
 	}
+
 	return nil
 }
 

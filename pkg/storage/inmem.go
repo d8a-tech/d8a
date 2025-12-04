@@ -166,6 +166,35 @@ func (h *InMemorySet) Add(key, value []byte) error {
 	return nil
 }
 
+// Delete removes a specific value from the in-memory set for the given key.
+func (h *InMemorySet) Delete(key, value []byte) error {
+	if key == nil {
+		return ErrNilKey
+	}
+	if len(key) == 0 {
+		return ErrEmptyKey
+	}
+	if value == nil {
+		return ErrNilValue
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	keyStr := string(key)
+	values := h.HM[keyStr]
+	if values == nil {
+		return nil
+	}
+
+	delete(values, string(value))
+	if len(values) == 0 {
+		delete(h.HM, keyStr)
+	}
+
+	return nil
+}
+
 // All returns all values in the in-memory set for the given key.
 func (h *InMemorySet) All(key []byte) ([][]byte, error) {
 	h.mu.RLock()
@@ -178,8 +207,8 @@ func (h *InMemorySet) All(key []byte) ([][]byte, error) {
 	return values, nil
 }
 
-// Delete removes a value from the in-memory set for the given key.
-func (h *InMemorySet) Delete(key []byte) error {
+// Drop removes a value from the in-memory set for the given key.
+func (h *InMemorySet) Drop(key []byte) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.HM, string(key))

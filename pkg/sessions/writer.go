@@ -7,10 +7,13 @@ import (
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/dgraph-io/ristretto/v2"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -35,10 +38,70 @@ type sessionWriterImpl struct {
 
 	splitterRegistry splitter.Registry
 	parentCtx        context.Context
+
+	sessionsProcessedCounter metric.Int64Counter
+	writeCallsCounter        metric.Int64Counter
+	prepareDepsHist          metric.Float64Histogram
+	splitterHist             metric.Float64Histogram
+	eventColumnsHist         metric.Float64Histogram
+	sessionScopedEventHist   metric.Float64Histogram
+	sessionColumnsHist       metric.Float64Histogram
 }
 
 // Compile-time check to ensure SessionWriter implements SessionWriterInterface
 var _ SessionWriter = (*sessionWriterImpl)(nil)
+
+var (
+	sessionsProcessedCounter metric.Int64Counter
+	writeCallsCounter        metric.Int64Counter
+	prepareDepsHist          metric.Float64Histogram
+	splitterHist             metric.Float64Histogram
+	eventColumnsHist         metric.Float64Histogram
+	sessionScopedEventHist   metric.Float64Histogram
+	sessionColumnsHist       metric.Float64Histogram
+)
+
+func init() {
+	meter := otel.GetMeterProvider().Meter("sessions")
+	sessionsProcessedCounter, _ = meter.Int64Counter(
+		"sessions.processed",
+		metric.WithDescription("Number of sessions processed"),
+	)
+	writeCallsCounter, _ = meter.Int64Counter(
+		"sessions.write.calls",
+		metric.WithDescription("Number of Write calls"),
+	)
+	prepareDepsHist, _ = meter.Float64Histogram(
+		"sessions.prepare_deps.duration",
+		metric.WithDescription("Duration of prepareDeps"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	splitterHist, _ = meter.Float64Histogram(
+		"sessions.splitter.duration",
+		metric.WithDescription("Duration of session splitting"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	eventColumnsHist, _ = meter.Float64Histogram(
+		"sessions.write.event_columns.duration",
+		metric.WithDescription("Duration of writing event columns"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	sessionScopedEventHist, _ = meter.Float64Histogram(
+		"sessions.write.session_scoped_event_columns.duration",
+		metric.WithDescription("Duration of writing session-scoped event columns"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	sessionColumnsHist, _ = meter.Float64Histogram(
+		"sessions.write.session_columns.duration",
+		metric.WithDescription("Duration of writing session columns"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+}
 
 func (m *sessionWriterImpl) getSchemaForWriting(propertyID, table string) (*arrow.Schema, error) {
 	layout, err := m.getLayout(propertyID)
@@ -86,11 +149,17 @@ func (m *sessionWriterImpl) getLayout(propertyID string) (schema.Layout, error) 
 // should be written, then executes the writes in parallel for every table. It waits for
 // all the writes to complete and returns an error if any of the writes fail.
 func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
+	ctx := m.parentCtx
+	m.writeCallsCounter.Add(ctx, 1)
+
+	prepareDepsStart := time.Now()
 	writeDeps, err := m.prepareDeps(sessions)
+	m.prepareDepsHist.Record(ctx, time.Since(prepareDepsStart).Seconds())
 	if err != nil {
 		return err
 	}
-	allSplitSessions := []*schema.Session{}
+
+	allSplitSessions := make([]*schema.Session, 0, len(sessions)*2)
 	for _, session := range sessions {
 		splitSessions, err := m.writeColumnValuesAndSplit(writeDeps.columns, session)
 		if err != nil {
@@ -99,12 +168,14 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 		allSplitSessions = append(allSplitSessions, splitSessions...)
 	}
 
-	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout, 1000).ToRows(writeDeps.columns, allSplitSessions...)
+	m.sessionsProcessedCounter.Add(ctx, int64(len(sessions)))
+
+	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout).ToRows(writeDeps.columns, allSplitSessions...)
 	if err != nil {
 		return err
 	}
 
-	g, ctx := errgroup.WithContext(m.parentCtx)
+	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(m.concurrency)
 	for _, allRowsForGivenTable := range perTableRows {
 		table, rows := allRowsForGivenTable.Table, allRowsForGivenTable.Rows
@@ -113,9 +184,9 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 			if err != nil {
 				return err
 			}
-			ctx, cancel := context.WithTimeout(ctx, m.writeTimeout)
+			gCtx, cancel := context.WithTimeout(gCtx, m.writeTimeout)
 			defer cancel()
-			return writeDeps.warehouse.Write(ctx, table, schema, rows)
+			return writeDeps.warehouse.Write(gCtx, table, schema, rows)
 		})
 	}
 	return g.Wait()
@@ -167,6 +238,9 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	columns schema.Columns,
 	session *schema.Session,
 ) ([]*schema.Session, error) {
+	ctx := m.parentCtx
+
+	eventColumnsStart := time.Now()
 	for _, column := range columns.Event {
 		for _, event := range session.Events {
 			if err := column.Write(event); err != nil {
@@ -174,15 +248,21 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 			}
 		}
 	}
-	splitter, err := m.splitterRegistry.Splitter(session.PropertyID)
+	m.eventColumnsHist.Record(ctx, time.Since(eventColumnsStart).Seconds())
+
+	splitterObj, err := m.splitterRegistry.Splitter(session.PropertyID)
 	if err != nil {
 		return nil, err
 	}
-	splitSessions, err := splitter.Split(session)
+	splitterStart := time.Now()
+	splitSessions, err := splitterObj.Split(session)
+	m.splitterHist.Record(ctx, time.Since(splitterStart).Seconds())
 	if err != nil {
 		return nil, err
 	}
+
 	for _, splitSession := range splitSessions {
+		sessionScopedEventStart := time.Now()
 		for _, column := range columns.SessionScopedEvent {
 			for i := range splitSession.Events {
 				if err := column.Write(splitSession, i); err != nil {
@@ -190,14 +270,42 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 				}
 			}
 		}
+		m.sessionScopedEventHist.Record(ctx, time.Since(sessionScopedEventStart).Seconds())
+
+		sessionColumnsStart := time.Now()
 		for _, column := range columns.Session {
 			if err := column.Write(splitSession); err != nil {
 				return nil, err
 			}
 		}
+		m.sessionColumnsHist.Record(ctx, time.Since(sessionColumnsStart).Seconds())
 	}
 
 	return splitSessions, nil
+}
+
+// SessionWriterOption configures the SessionWriter.
+type SessionWriterOption func(*sessionWriterImpl)
+
+// WithConcurrency sets the concurrency limit for parallel writes.
+func WithConcurrency(n int) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.concurrency = n
+	}
+}
+
+// WithWriteTimeout sets the timeout for individual write operations.
+func WithWriteTimeout(d time.Duration) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.writeTimeout = d
+	}
+}
+
+// WithCacheTTL sets the TTL for cached registries.
+func WithCacheTTL(d time.Duration) SessionWriterOption {
+	return func(w *sessionWriterImpl) {
+		w.cacheTTL = d
+	}
 }
 
 // NewSessionWriter creates a new SessionWriter with the provided warehouse, column sources, and layout sources.
@@ -208,20 +316,32 @@ func NewSessionWriter(
 	columnsRegistry schema.ColumnsRegistry,
 	layouts schema.LayoutRegistry,
 	splitterRegistry splitter.Registry,
+	opts ...SessionWriterOption,
 ) SessionWriter {
-	return &sessionWriterImpl{
-		writeTimeout:      30 * time.Second,
-		concurrency:       10,
-		warehouseRegistry: whr,
-		warehouseCache:    createDefaultCache[warehouse.Driver](),
-		columnsRegistry:   columnsRegistry,
-		columnsCache:      createDefaultCache[schema.Columns](),
-		layoutRegistry:    layouts,
-		layoutsCache:      createDefaultCache[schema.Layout](),
-		cacheTTL:          5 * time.Minute,
-		parentCtx:         parentCtx,
-		splitterRegistry:  splitterRegistry,
+	w := &sessionWriterImpl{
+		writeTimeout:             30 * time.Second,
+		concurrency:              10,
+		warehouseRegistry:        whr,
+		warehouseCache:           createDefaultCache[warehouse.Driver](),
+		columnsRegistry:          columnsRegistry,
+		columnsCache:             createDefaultCache[schema.Columns](),
+		layoutRegistry:           layouts,
+		layoutsCache:             createDefaultCache[schema.Layout](),
+		cacheTTL:                 5 * time.Minute,
+		parentCtx:                parentCtx,
+		splitterRegistry:         splitterRegistry,
+		sessionsProcessedCounter: sessionsProcessedCounter,
+		writeCallsCounter:        writeCallsCounter,
+		prepareDepsHist:          prepareDepsHist,
+		splitterHist:             splitterHist,
+		eventColumnsHist:         eventColumnsHist,
+		sessionScopedEventHist:   sessionScopedEventHist,
+		sessionColumnsHist:       sessionColumnsHist,
 	}
+	for _, opt := range opts {
+		opt(w)
+	}
+	return w
 }
 
 func createDefaultCache[T any]() *ristretto.Cache[string, T] {

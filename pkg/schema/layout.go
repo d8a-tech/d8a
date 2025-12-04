@@ -1,8 +1,6 @@
 package schema
 
 import (
-	"fmt"
-
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
@@ -93,15 +91,26 @@ func (m *eventsWithEmbeddedSessionColumnsLayout) ToRows(
 	_ Columns,
 	sessions ...*Session,
 ) ([]TableRows, error) {
-	allValues := make([]map[string]any, 0, len(sessions))
+	totalEvents := 0
 	for _, session := range sessions {
+		totalEvents += len(session.Events)
+	}
+	allValues := make([]map[string]any, 0, totalEvents)
+
+	for _, session := range sessions {
+		// Pre-compute prefixed keys once per session to avoid fmt.Sprintf per event
+		prefixedSessionValues := make(map[string]any, len(session.Values))
+		for k, v := range session.Values {
+			prefixedSessionValues[m.sessionColumnsPrefix+k] = v
+		}
+
 		for _, event := range session.Events {
-			eventValuesCopy := make(map[string]any)
+			eventValuesCopy := make(map[string]any, len(event.Values)+len(prefixedSessionValues))
 			for k, v := range event.Values {
 				eventValuesCopy[k] = v
 			}
-			for k, v := range session.Values {
-				eventValuesCopy[fmt.Sprintf("%s%s", m.sessionColumnsPrefix, k)] = v
+			for k, v := range prefixedSessionValues {
+				eventValuesCopy[k] = v
 			}
 			allValues = append(allValues, eventValuesCopy)
 		}

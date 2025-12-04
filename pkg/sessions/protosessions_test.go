@@ -129,7 +129,7 @@ func TestDirectCloser_Close(t *testing.T) {
 			closer := NewDirectCloser(mockWriter, 0)
 
 			// when
-			err := closer.Close(tt.protosession)
+			err := closer.Close([][]*hits.Hit{tt.protosession})
 
 			// then
 			if tt.expectedError {
@@ -177,7 +177,7 @@ func TestDirectCloser_Close_EmptyProtosession(t *testing.T) {
 	var protosession []*hits.Hit
 
 	// when
-	err := closer.Close(protosession)
+	err := closer.Close([][]*hits.Hit{protosession})
 
 	// then
 	assert.NoError(t, err)
@@ -199,7 +199,7 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 	closer := NewDirectCloser(mockWriter, 0*time.Second)
 
 	// when
-	err := closer.Close(protosession)
+	err := closer.Close([][]*hits.Hit{protosession})
 
 	// then
 	assert.NoError(t, err)
@@ -224,7 +224,5 @@ func TestNewDirectCloser(t *testing.T) {
 
 	// then
 	assert.NotNil(t, closer)
-	directCloser, ok := closer.(*directCloser)
-	assert.True(t, ok)
-	assert.Equal(t, mockWriter, directCloser.writer)
+	assert.Equal(t, mockWriter, closer.writer)
 }

@@ -40,7 +40,7 @@ var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "batcher-batch-timeout",
 	Usage:   "Batch timeout for the batcher",
 	Sources: defaultSourceChain("BATCHER_BATCH_TIMEOUT", "batcher.batch_timeout"),
-	Value:   5 * time.Second,
+	Value:   1 * time.Second,
 }
 
 var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
@@ -62,6 +62,20 @@ var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Usage:   "Tick interval for the closer",
 	Sources: defaultSourceChain("CLOSER_TICK_INTERVAL", "closer.tick_interval"),
 	Value:   1 * time.Second,
+}
+
+var closerSessionJoinBySessionStampFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "closer-session-join-by-session-stamp",
+	Usage:   "If set, sessions will be joined by session stamp",
+	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_SESSION_STAMP", "closer.session_join_by_session_stamp"),
+	Value:   true,
+}
+
+var closerSessionJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "closer-session-join-by-user-id",
+	Usage:   "If set, sessions will be joined by user ID",
+	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_USER_ID", "closer.session_join_by_user_id"),
+	Value:   false,
 }
 
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
@@ -208,6 +222,48 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Usage:   "The sessions will be split when the number of events is greater than the value",
 	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"),
 	Value:   1000,
+}
+
+var monitoringEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "monitoring-enabled",
+	Usage:   "Enable OpenTelemetry metrics",
+	Sources: defaultSourceChain("MONITORING_ENABLED", "monitoring.enabled"),
+	Value:   false,
+}
+
+var monitoringOTelEndpointFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "monitoring-otel-endpoint",
+	Usage:   "OTel collector endpoint for metrics",
+	Sources: defaultSourceChain("MONITORING_OTEL_ENDPOINT", "monitoring.otel_endpoint"),
+	Value:   "localhost:4317",
+}
+
+var monitoringOTelExportIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "monitoring-otel-export-interval",
+	Usage:   "Interval for exporting metrics to OTel collector",
+	Sources: defaultSourceChain("MONITORING_OTEL_EXPORT_INTERVAL", "monitoring.otel_export_interval"),
+	Value:   30 * time.Second,
+}
+
+var monitoringOTelInsecureFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "monitoring-otel-insecure",
+	Usage:   "Allow insecure (non-TLS) connection to OTel collector",
+	Sources: defaultSourceChain("MONITORING_OTEL_INSECURE", "monitoring.otel_insecure"),
+	Value:   false,
+}
+
+var storageBoltDatabasePathFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-bolt-database-path",
+	Usage:   "Path to the Bolt database file",
+	Sources: defaultSourceChain("STORAGE_BOLT_DATABASE_PATH", "storage.bolt_database_path"),
+	Value:   "./bolt.db",
+}
+
+var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-queue-directory",
+	Usage:   "Directory for the queue storage",
+	Sources: defaultSourceChain("STORAGE_QUEUE_DIRECTORY", "storage.queue_directory"),
+	Value:   "./queue",
 }
 
 var warehouseConfigFlags = []cli.Flag{
