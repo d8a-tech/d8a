@@ -5,13 +5,13 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/encoding"
-	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
+	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/stretchr/testify/require"
 	bolt "go.etcd.io/bbolt"
 )
 
 func TestBoltBatchedIOBackend(t *testing.T) {
-	factory := func() protosessionsv3.BatchedIOBackend {
+	factory := func() protosessions.BatchedIOBackend {
 		// Create temp file for each test
 		f, err := os.CreateTemp("", "bolt-test-*.db")
 		require.NoError(t, err)
@@ -36,5 +36,5 @@ func TestBoltBatchedIOBackend(t *testing.T) {
 		return backend
 	}
 
-	protosessionsv3.BatchedIOBackendTestSuite(t, factory)
+	protosessions.BatchedIOBackendTestSuite(t, factory)
 }

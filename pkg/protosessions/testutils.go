@@ -1,5 +1,5 @@
 //nolint:dupl,funlen // test utils
-package protosessionsv3
+package protosessions
 
 import (
 	"context"

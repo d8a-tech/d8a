@@ -20,7 +20,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protosessionsv3"
+	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -255,9 +255,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 								worker.NewGenericTaskHandler(
 									hits.HitProcessingTaskName,
 									encoding.GzipJSONDecoder,
-									protosessionsv3.Handler(
+									protosessions.Handler(
 										ctx,
-										protosessionsv3.NewDeduplicatingBatchedIOBackend(func() protosessionsv3.BatchedIOBackend {
+										protosessions.NewDeduplicatingBatchedIOBackend(func() protosessions.BatchedIOBackend {
 											b, err := bolt.NewBatchedProtosessionsIOBackend(
 												boltDB,
 												encoding.GzipJSONEncoder,
@@ -268,13 +268,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											}
 											return b
 										}()),
-										protosessionsv3.NewGenericKVTimingWheelBackend(
+										protosessions.NewGenericKVTimingWheelBackend(
 											"default",
 											kv,
 										),
-										protosessionsv3.NewShardingCloser(
+										protosessions.NewShardingCloser(
 											10,
-											func(_ int) protosessionsv3.Closer {
+											func(_ int) protosessions.Closer {
 												return sessions.NewDirectCloser(
 													sessions.NewSessionWriter(
 														ctx,
@@ -289,7 +289,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 										),
 										serverStorage,
 										propertySource(cmd),
-										protosessionsv3.RewriteIDAndUpdateInPlaceStrategy,
+										protosessions.RewriteIDAndUpdateInPlaceStrategy,
 									)),
 							},
 							[]worker.Middleware{},

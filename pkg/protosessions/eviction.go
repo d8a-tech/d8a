@@ -1,4 +1,4 @@
-package protosessionsv3
+package protosessions
 
 import "github.com/d8a-tech/d8a/pkg/hits"
 

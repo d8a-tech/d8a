@@ -1,4 +1,4 @@
-package protosessionsv3
+package protosessions
 
 import (
 	"hash/fnv"
