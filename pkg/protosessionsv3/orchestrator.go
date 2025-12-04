@@ -327,7 +327,7 @@ func (o *Orchestrator) seedOutdatedHits(
 		newBatch = append(newBatch, bucketHits...)
 	}
 
-	return newBatch, hitsToDrop, nil
+	return sortHitsByServerReceivedTime(newBatch), hitsToDrop, nil
 }
 
 // checkIdentifierConflicts queries the backend for identifier conflicts across all hits in the batch.

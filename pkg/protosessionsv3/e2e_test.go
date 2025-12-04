@@ -105,7 +105,7 @@ func TestWorker_TableDriven(t *testing.T) {
 			evictionStrategy: RewriteIDAndUpdateInPlaceStrategy,
 		},
 		{
-			name: "user_id_evicts_whole_proto_session",
+			name: "user_id_evicts_whole_proto_session 1",
 			hits: []AtOffset{
 				{0, makeHit("client-a", nil, ptr("user-123"))},
 				{1, makeHit("client-a", nil, ptr("user-123"))},
