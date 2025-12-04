@@ -379,6 +379,16 @@ var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 	),
 )
 
+var sessionTotalPurchasesColumn = columns.TotalEventsOfGivenNameColumn(
+	columns.CoreInterfaces.SessionTotalPurchases.ID,
+	columns.CoreInterfaces.SessionTotalPurchases.Field,
+	[]string{PurchaseEventType},
+	columns.WithSessionColumnDocs(
+		"Session Total Purchases",
+		fmt.Sprintf("The total number of purchases (event name: %s) in the session.", PurchaseEventType), // nolint:lll // it's a description
+	),
+)
+
 var sessionTotalScrollsColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalScrolls.ID,
 	columns.CoreInterfaces.SessionTotalScrolls.Field,

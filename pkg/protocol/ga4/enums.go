@@ -26,4 +26,6 @@ const (
 	VideoProgressEventType = "video_progress"
 	// FileDownloadEventType is the event type for file downloads
 	FileDownloadEventType = "file_download"
+	// PurchaseEventType is the event type for purchases
+	PurchaseEventType = "purchase"
 )

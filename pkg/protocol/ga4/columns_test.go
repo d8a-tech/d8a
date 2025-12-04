@@ -3006,6 +3006,39 @@ func TestSessionColumns(t *testing.T) {
 			},
 		},
 		{
+			name:        "SessionTotalPurchases",
+			expected:    2,
+			fieldName:   "session_total_purchases",
+			description: "Session total purchases",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "purchase"),
+				columntests.EnsureQueryParam(1, "en", "purchase"),
+			},
+		},
+		{
+			name:        "SessionTotalPurchases_Single",
+			expected:    1,
+			fieldName:   "session_total_purchases",
+			description: "Session total purchases",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "purchase"),
+				columntests.EnsureQueryParam(1, "en", "page_view"),
+			},
+		},
+		{
+			name:        "SessionTotalPurchases_Zero",
+			expected:    0,
+			fieldName:   "session_total_purchases",
+			description: "Session total purchases",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureQueryParam(1, "en", "scroll"),
+			},
+		},
+		{
 			name:        "SessionTotalScrolls",
 			expected:    2,
 			fieldName:   "session_total_scrolls",

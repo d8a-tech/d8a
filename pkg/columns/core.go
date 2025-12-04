@@ -101,6 +101,7 @@ var CoreInterfaces = struct {
 	// Totals
 	SessionTotalPageViews         schema.Interface
 	SessionUniquePageViews        schema.Interface
+	SessionTotalPurchases         schema.Interface
 	SessionTotalScrolls           schema.Interface
 	SessionTotalOutboundClicks    schema.Interface
 	SessionUniqueOutboundClicks   schema.Interface
@@ -484,6 +485,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/unique_page_views",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_unique_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionTotalPurchases: schema.Interface{
+		ID:      "core.d8a.tech/sessions/total_purchases",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_total_purchases", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionTotalScrolls: schema.Interface{
 		ID:      "core.d8a.tech/sessions/total_scrolls",
