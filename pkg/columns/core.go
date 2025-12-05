@@ -69,6 +69,7 @@ var CoreInterfaces = struct {
 	SSEIsEntry           schema.Interface
 	SSESessionHitNumber  schema.Interface
 	SSESessionPageNumber schema.Interface
+	SSETimeOnPage        schema.Interface
 	SSEIsEntryPage       schema.Interface
 	SSEIsExitPage        schema.Interface
 
@@ -359,6 +360,11 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/events/session_page_number",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_page_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSETimeOnPage: schema.Interface{
+		ID:      "core.d8a.tech/events/time_on_page",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "time_on_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SSEIsEntryPage: schema.Interface{
 		ID:      "core.d8a.tech/events/session_is_entry_page",

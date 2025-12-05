@@ -382,6 +382,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventNextPageLocationColumn,
 			eventPreviousPageTitleColumn,
 			eventNextPageTitleColumn,
+			sseTimeOnPageColumn,
 			sseIsEntryPageColumn,
 			sseIsExitPageColumn,
 		},

@@ -814,6 +814,88 @@ func NewFirstLastMatchingEventColumn(
 	)
 }
 
+// NewTimeOnPageColumn creates a session-scoped event column that calculates time spent on a page
+// based on the interval between subsequent page view events, or using other events
+// timestamps if no subsequent page view was recorded.
+// The isPageViewEvent function is dependency-injected to allow protocol-specific page view detection.
+func NewTimeOnPageColumn(
+	id schema.InterfaceID,
+	field *arrow.Field,
+	isPageViewEvent TransitionAdvanceFunction,
+	options ...SessionScopedEventColumnOptions,
+) schema.SessionScopedEventColumn {
+	return NewSimpleSessionScopedEventColumn(
+		id,
+		field,
+		func(s *schema.Session, i int) (any, error) {
+			if len(s.Events) == 0 {
+				return nil, nil // nolint:nilnil // nil is valid for this column
+			}
+
+			// Find all page_view event indices
+			pageViewIndices := make([]int, 0)
+			for idx, event := range s.Events {
+				if isPageViewEvent(event) {
+					pageViewIndices = append(pageViewIndices, idx)
+				}
+			}
+
+			// If session doesn't start with page_view, treat first event as page_view
+			if len(pageViewIndices) == 0 || (len(pageViewIndices) > 0 && pageViewIndices[0] != 0) {
+				// Insert 0 at the beginning if not already there
+				if len(pageViewIndices) == 0 || pageViewIndices[0] != 0 {
+					pageViewIndices = append([]int{0}, pageViewIndices...)
+				}
+			}
+
+			// Find which page_view this event belongs to (the most recent page_view at or before this event)
+			currentPageViewIdx := -1
+			for _, pvIdx := range pageViewIndices {
+				if pvIdx <= i {
+					currentPageViewIdx = pvIdx
+				} else {
+					break
+				}
+			}
+
+			// If event is before any page_view, assign to first page_view
+			if currentPageViewIdx == -1 && len(pageViewIndices) > 0 {
+				currentPageViewIdx = pageViewIndices[0]
+			}
+
+			// If no page_view found, return nil
+			if currentPageViewIdx == -1 {
+				return nil, nil // nolint:nilnil // nil is valid for this column
+			}
+
+			// Find the next page_view after current one
+			nextPageViewIdx := -1
+			for _, pvIdx := range pageViewIndices {
+				if pvIdx > currentPageViewIdx {
+					nextPageViewIdx = pvIdx
+					break
+				}
+			}
+
+			// Calculate time_on_page
+			currentPageViewTime := s.Events[currentPageViewIdx].BoundHit.ServerReceivedTime
+
+			if nextPageViewIdx != -1 {
+				// There's a next page_view, calculate time from current page_view to next
+				nextPageViewTime := s.Events[nextPageViewIdx].BoundHit.ServerReceivedTime
+				timeOnPage := int64(nextPageViewTime.Sub(currentPageViewTime).Seconds())
+				return timeOnPage, nil
+			}
+
+			// No next page_view, use last event's time
+			lastEventTime := s.Events[len(s.Events)-1].BoundHit.ServerReceivedTime
+			timeOnPage := int64(lastEventTime.Sub(currentPageViewTime).Seconds())
+			return timeOnPage, nil
+		},
+		options...,
+	)
+}
+
 // TotalEventsOfGivenNameColumn creates a session column that counts the total number
 // of events with the given event names.
 func TotalEventsOfGivenNameColumn(
