@@ -2,6 +2,7 @@ package ga4
 
 import (
 	"net/url"
+	"strconv"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -164,15 +165,35 @@ var eventGa4SessionNumberColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var sessionEngagementColumn = columns.FromQueryParamSessionColumn(
+var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionIsEngaged.ID,
 	ProtocolInterfaces.SessionIsEngaged.Field,
-	"seg",
+	func(session *schema.Session) (any, error) {
+		// Check if ANY event in the session is engaged
+		for _, event := range session.Events {
+			if event.BoundHit.QueryParams == nil {
+				continue
+			}
+			segValue := event.BoundHit.QueryParams.Get("seg")
+			if segValue == "" {
+				continue
+			}
+			// Try to parse as int64
+			casted, err := strconv.ParseInt(segValue, 10, 64)
+			if err != nil {
+				continue
+			}
+			// If any event has a non-zero engagement value, session is engaged
+			if casted != 0 {
+				return int64(1), nil
+			}
+		}
+		return int64(0), nil
+	},
 	columns.WithSessionColumnRequired(false),
-	columns.WithSessionColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.SessionIsEngaged.ID)),
 	columns.WithSessionColumnDocs(
 		"Session Is Engaged",
-		"Session engagement indicator. Typically set to 1 for engaged sessions (sessions with meaningful user interaction).", // nolint:lll // it's a description
+		"Session engagement indicator. Set to 1 if ANY event in the session is engaged (sessions with meaningful user interaction).", // nolint:lll // it's a description
 	),
 )
 
