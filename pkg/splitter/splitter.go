@@ -44,14 +44,14 @@ type Context struct {
 	FirstEvent *schema.Event
 	// ColumnValues stores the last seen value for each column name.
 	// Conditions can use this to track value changes without re-scanning all events.
-	ColumnValues map[string]interface{}
+	ColumnValues map[string]any
 }
 
 // NewSplitContext creates a new context for session splitting.
 func NewSplitContext() *Context {
 	return &Context{
 		EventCount:   0,
-		ColumnValues: make(map[string]interface{}),
+		ColumnValues: make(map[string]any),
 	}
 }
 

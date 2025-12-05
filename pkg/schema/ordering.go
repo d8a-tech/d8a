@@ -18,7 +18,7 @@ type InterfaceOrdering struct {
 
 // NewInterfaceDefinitionOrderKeeper creates a new OrderKeeper instance, that tracks
 // the order of columns using the definition position in structs.
-func NewInterfaceDefinitionOrderKeeper(structs ...interface{}) *InterfaceOrdering {
+func NewInterfaceDefinitionOrderKeeper(structs ...any) *InterfaceOrdering {
 	ordering := &InterfaceOrdering{
 		order: make(map[InterfaceID]int),
 	}
@@ -29,7 +29,7 @@ func NewInterfaceDefinitionOrderKeeper(structs ...interface{}) *InterfaceOrderin
 }
 
 // RegisterInterfaceStruct walks through a struct containing Interface fields and registers their order.
-func (o *InterfaceOrdering) registerInterfaceStruct(s interface{}) {
+func (o *InterfaceOrdering) registerInterfaceStruct(s any) {
 	v := reflect.ValueOf(s)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
