@@ -2325,7 +2325,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_Empty",
-			expected:    nil,
+			expected:    int64(0),
 			fieldName:   "session_is_engaged",
 			description: "Empty session engagement should be nil",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2335,12 +2335,68 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_Invalid",
-			expected:    nil,
+			expected:    int64(0),
 			fieldName:   "session_is_engaged",
 			description: "Invalid session engagement should be nil",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureQueryParam(0, "seg", "invalid"),
+			},
+		},
+		{
+			name:        "SessionEngagement_FirstEventEngaged",
+			expected:    int64(1),
+			fieldName:   "session_is_engaged",
+			description: "Session is engaged if first event is engaged, even if last is not",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", "1"),
+				columntests.EnsureQueryParam(1, "seg", ""),
+			},
+		},
+		{
+			name:        "SessionEngagement_MiddleEventEngaged",
+			expected:    int64(1),
+			fieldName:   "session_is_engaged",
+			description: "Session is engaged if middle event is engaged",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", ""),
+				columntests.EnsureQueryParam(1, "seg", "1"),
+				columntests.EnsureQueryParam(2, "seg", ""),
+			},
+		},
+		{
+			name:        "SessionEngagement_LastEventEngaged",
+			expected:    int64(1),
+			fieldName:   "session_is_engaged",
+			description: "Session is engaged if last event is engaged",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", ""),
+				columntests.EnsureQueryParam(1, "seg", "1"),
+			},
+		},
+		{
+			name:        "SessionEngagement_NoEventsEngaged",
+			expected:    int64(0),
+			fieldName:   "session_is_engaged",
+			description: "Session is not engaged if no events are engaged",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", ""),
+				columntests.EnsureQueryParam(1, "seg", ""),
+			},
+		},
+		{
+			name:        "SessionEngagement_AllEventsEngaged",
+			expected:    int64(1),
+			fieldName:   "session_is_engaged",
+			description: "Session is engaged if all events are engaged",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "seg", "1"),
+				columntests.EnsureQueryParam(1, "seg", "1"),
 			},
 		},
 		{
