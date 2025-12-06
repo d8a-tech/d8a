@@ -45,7 +45,7 @@ func getServerFlags() []cli.Flag {
 			monitoringOTelEndpointFlag,
 			monitoringOTelExportIntervalFlag,
 			monitoringOTelInsecureFlag,
-			storageBoltDatabasePathFlag,
+			storageBoltDirectoryFlag,
 			storageQueueDirectoryFlag,
 		},
 		warehouseConfigFlags,

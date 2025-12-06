@@ -11,14 +11,14 @@ Prerequisites:
 - Docker installed, with `docker compose` command available
 - Basic Unix knowledge (creating files, directories, etc.)
 
-## Step 1: Crate configuration file
+## Step 1: Create configuration file
 
 First create a config file (you can learn more about the configuration options in the [configuration reference](./articles/config)):
 
 ```bash
 cat > config.yaml <<EOF
 storage:
-  bolt_database_path: /storage/bolt.db
+  bolt_directory: /storage/
   queue_directory: /storage/d8a-queue
 
 sessions:

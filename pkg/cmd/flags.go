@@ -238,11 +238,11 @@ var monitoringOTelInsecureFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   false,
 }
 
-var storageBoltDatabasePathFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "storage-bolt-database-path",
-	Usage:   "File path to the BoltDB database used for storing proto-session data, identifier metadata, and timing wheel bucket information. This database persists session state across restarts and is essential for session management functionality.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("STORAGE_BOLT_DATABASE_PATH", "storage.bolt_database_path"),
-	Value:   "./bolt.db",
+var storageBoltDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-bolt-directory",
+	Usage:   "Directory path where BoltDB database files are stored. This directory hosts two databases: 'bolt.db' for proto-session data, identifier metadata, and timing wheel bucket information, and 'bolt_kv.db' for key-value storage. These databases persist session state across restarts and are essential for session management functionality.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_BOLT_DIRECTORY", "storage.bolt_directory"),
+	Value:   ".",
 }
 
 var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{

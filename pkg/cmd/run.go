@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -192,7 +193,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						cmd.Int(receiverBatchSizeFlag.Name),
 						cmd.Duration(receiverBatchTimeoutFlag.Name),
 					)
-					boltDB, err := bbolt.Open(cmd.String(storageBoltDatabasePathFlag.Name), 0o600, nil)
+					boltDBPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt.db")
+					boltDB, err := bbolt.Open(boltDBPath, 0o600, nil)
 					if err != nil {
 						logrus.Fatalf("failed to open bolt db: %v", err)
 					}
@@ -208,7 +210,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						if err != nil {
 							logrus.Fatalf("failed to create worker consumer: %v", err)
 						}
-						kv, err := bolt.NewBoltKV("/tmp/bolt_kv.db")
+						boltKVPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt_kv.db")
+						kv, err := bolt.NewBoltKV(boltKVPath)
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
 						}
