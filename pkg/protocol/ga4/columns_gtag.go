@@ -216,9 +216,10 @@ var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 				continue
 			}
 
-			if eventNameStr == PurchaseEventType {
+			switch eventNameStr {
+			case PurchaseEventType:
 				latestPurchaseIndex = i
-			} else if eventNameStr == AddToCartEventType {
+			case AddToCartEventType:
 				addToCartIndices = append(addToCartIndices, i)
 			}
 		}
