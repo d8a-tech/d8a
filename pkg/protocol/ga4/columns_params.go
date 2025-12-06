@@ -247,6 +247,10 @@ var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventEcommerceShippingValue.ID,
 	ProtocolInterfaces.EventEcommerceShippingValue.Field,
 	func(event *schema.Event) (any, error) {
+		eventName := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+		if eventName != PurchaseEventType && eventName != RefundEventType {
+			return float64(0), nil
+		}
 		shipping := event.Values[ProtocolInterfaces.EventParamShipping.Field.Name]
 		if shipping == nil {
 			return float64(0), nil
@@ -259,7 +263,7 @@ var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Shipping Value",
-		"The shipping cost associated with the transaction, extracted from the params_shipping parameter, with zero as default if not present.", // nolint:lll // it's a description
+		"The shipping cost associated with the transaction, extracted from the params_shipping parameter, with zero as default if not present. Only populated for purchase and refund events.", // nolint:lll // it's a description
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{

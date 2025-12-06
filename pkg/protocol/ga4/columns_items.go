@@ -303,7 +303,7 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn(
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
 	func(event *schema.Event, item map[string]any) (float64, error) {
-		if event.Values[columns.CoreInterfaces.EventName.Field.Name] == RefundEventType {
+		if event.Values[columns.CoreInterfaces.EventName.Field.Name] != PurchaseEventType {
 			return float64(0), nil
 		}
 		if item["item_revenue"] == nil {
@@ -317,7 +317,7 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn(
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Purchase Revenue",
-		"The total purchase revenue calculated by summing item_revenue across all items in the event. Zero for refund events. Represents the total transaction value from purchased items.", // nolint:lll // it's a description
+		"The total purchase revenue calculated by summing item_revenue across all items in the event. Only populated for purchase events. Represents the total transaction value from purchased items.", // nolint:lll // it's a description
 	),
 )
 
