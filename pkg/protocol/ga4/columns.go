@@ -182,7 +182,8 @@ var ProtocolInterfaces = struct {
 	EventPreviousPageTitle    schema.Interface
 
 	// Session engagement
-	SessionIsEngaged schema.Interface
+	SessionIsEngaged     schema.Interface
+	SessionAbandonedCart schema.Interface
 
 	// Item params
 	EventParamItemProductID schema.Interface
@@ -917,6 +918,11 @@ var ProtocolInterfaces = struct {
 		ID:      "ga4.protocols.d8a.tech/session/is_engaged",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionAbandonedCart: schema.Interface{
+		ID:      "ga4.protocols.d8a.tech/session/abandoned_cart",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_abandoned_cart", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventParamItemProductID: schema.Interface{
 		ID:      "ga4.protocols.d8a.tech/event/item/params_product_id",

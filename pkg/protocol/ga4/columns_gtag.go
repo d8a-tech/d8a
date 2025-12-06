@@ -197,6 +197,65 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	),
 )
 
+var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
+	ProtocolInterfaces.SessionAbandonedCart.ID,
+	ProtocolInterfaces.SessionAbandonedCart.Field,
+	func(session *schema.Session) (any, error) {
+		// Find the latest purchase event index
+		latestPurchaseIndex := -1
+		// Find all add_to_cart event indices
+		addToCartIndices := []int{}
+
+		for i, event := range session.Events {
+			eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+			if !ok {
+				continue
+			}
+			eventNameStr, ok := eventName.(string)
+			if !ok {
+				continue
+			}
+
+			if eventNameStr == PurchaseEventType {
+				latestPurchaseIndex = i
+			} else if eventNameStr == AddToCartEventType {
+				addToCartIndices = append(addToCartIndices, i)
+			}
+		}
+
+		// If no add_to_cart events, cart is not abandoned
+		if len(addToCartIndices) == 0 {
+			return int64(0), nil
+		}
+
+		// If there's an add_to_cart but no purchase, cart is abandoned
+		if latestPurchaseIndex == -1 {
+			return int64(1), nil
+		}
+
+		// Find the latest add_to_cart event index
+		latestAddToCartIndex := addToCartIndices[len(addToCartIndices)-1]
+
+		// If the latest add_to_cart is after the latest purchase, cart is abandoned
+		if latestAddToCartIndex > latestPurchaseIndex {
+			return int64(1), nil
+		}
+
+		return int64(0), nil
+	},
+	columns.WithSessionColumnRequired(false),
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        columns.CoreInterfaces.EventName.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Abandoned Cart",
+		"Session abandoned cart indicator. Set to 1 if there's an add_to_cart event but no purchase event, or if add_to_cart occurs after the latest purchase event.", // nolint:lll // it's a description
+	),
+)
+
 var gtmDebugColumn = columns.FromPageURLParamEventColumn(
 	ProtocolInterfaces.EventGtmDebug.ID,
 	ProtocolInterfaces.EventGtmDebug.Field,

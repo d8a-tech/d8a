@@ -28,4 +28,6 @@ const (
 	FileDownloadEventType = "file_download"
 	// PurchaseEventType is the event type for purchases
 	PurchaseEventType = "purchase"
+	// AddToCartEventType is the event type for add to cart
+	AddToCartEventType = "add_to_cart"
 )
