@@ -29,112 +29,98 @@ var serverPortFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   8080,
 }
 
-var batcherBatchSizeFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "batcher-batch-size",
-	Usage:   "Batch size for the batcher",
-	Sources: defaultSourceChain("BATCHER_BATCH_SIZE", "batcher.batch_size"),
+var receiverBatchSizeFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "receiver-batch-size",
+	Usage:   "Maximum number of hits to accumulate before flushing to the queue storage. When this many hits are received, they are immediately flushed even if the timeout hasn't been reached.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("RECEIVER_BATCH_SIZE", "receiver.batch_size"),
 	Value:   5000,
 }
 
-var batcherBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "batcher-batch-timeout",
-	Usage:   "Batch timeout for the batcher",
-	Sources: defaultSourceChain("BATCHER_BATCH_TIMEOUT", "batcher.batch_timeout"),
+var receiverBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "receiver-batch-timeout",
+	Usage:   "Maximum time to wait before flushing accumulated hits to the queue storage. Hits are flushed when either this timeout is reached or the batch size limit is exceeded, whichever comes first.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("RECEIVER_BATCH_TIMEOUT", "receiver.batch_timeout"),
 	Value:   1 * time.Second,
 }
 
-var closerSessionDurationFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "closer-session-duration",
-	Usage:   "Session duration for the closer",
-	Sources: defaultSourceChain("CLOSER_SESSION_DURATION", "closer.session_duration"),
-	Value:   1 * time.Minute,
+var sessionsDurationFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "sessions-duration",
+	Usage:   "Maximum time period of inactivity after which a proto-session is considered expired and ready to be closed. The system uses a timing wheel to schedule session closures based on each hit's server received time plus this duration. After this period elapses without new hits, the proto-session is finalized and written to the warehouse as a completed session.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("SESSIONS_DURATION", "sessions.duration"),
+	Value:   30 * time.Minute,
 }
 
-var closerSkipCatchingUpFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "closer-skip-catching-up",
-	Usage:   "If set, the closer will skip the catching up process",
-	Sources: defaultSourceChain("CLOSER_SKIP_CATCHING_UP", "closer.skip_catching_up"),
-	Value:   false,
-}
-
-var closerTickIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "closer-tick-interval",
-	Usage:   "Tick interval for the closer",
-	Sources: defaultSourceChain("CLOSER_TICK_INTERVAL", "closer.tick_interval"),
-	Value:   1 * time.Second,
-}
-
-var closerSessionJoinBySessionStampFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "closer-session-join-by-session-stamp",
-	Usage:   "If set, sessions will be joined by session stamp",
-	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_SESSION_STAMP", "closer.session_join_by_session_stamp"),
+var sessionsJoinBySessionStampFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "sessions-join-by-session-stamp",
+	Usage:   "When enabled, the system will merge proto-sessions that share the same session stamp identifier, even if they have different client IDs. This allows tracking user sessions across different devices or browsers when they share a common session identifier, enabling cross-device session continuity for authenticated or identified users.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("SESSIONS_JOIN_BY_SESSION_STAMP", "sessions.join_by_session_stamp"),
 	Value:   true,
 }
 
-var closerSessionJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "closer-session-join-by-user-id",
-	Usage:   "If set, sessions will be joined by user ID",
-	Sources: defaultSourceChain("CLOSER_SESSION_JOIN_BY_USER_ID", "closer.session_join_by_user_id"),
+var sessionsJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "sessions-join-by-user-id",
+	Usage:   "When enabled, the system will merge proto-sessions that share the same user ID, even if they have different client IDs. This enables cross-device session tracking for authenticated users, allowing hits from different devices or browsers to be grouped into a single session when they share the same authenticated user identifier. Only hits that include a user ID value will participate in this joining behavior.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("SESSIONS_JOIN_BY_USER_ID", "sessions.join_by_user_id"),
 	Value:   false,
 }
 
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
-	Usage:   "Use DBIP columns",
+	Usage:   "When enabled, adds geolocation column implementations (city, country, etc.) using DB-IP database. On program startup, downloads the DB-IP database from the OCI registry (ghcr.io/d8a-tech). The database is cached locally and reused on subsequent runs if already present.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("DBIP_ENABLED", "dbip.enabled"),
 	Value:   false,
 }
 
 var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 	Name:    "dbip-destination-directory",
-	Usage:   "Destination directory for the DBIP files used by the DBIP columns",
+	Usage:   "Directory where the DB-IP database files are stored after downloading from the OCI registry. If the database already exists at this location, the download is skipped. Defaults to a temporary directory if not specified.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("DBIP_DESTINATION_DIRECTORY", "dbip.destination_directory"),
 	Value:   filepath.Join(os.TempDir(), "dbip"),
 }
 
 var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "dbip-download-timeout",
-	Usage:   "Timeout for the DBIP download",
+	Usage:   "Maximum time to wait for downloading the DB-IP MaxMind database from the OCI registry during program startup. If the download exceeds this timeout, the program will fail to start with DBIP columns enabled.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("DBIP_DOWNLOAD_TIMEOUT", "dbip.download_timeout"),
 	Value:   60 * time.Second,
 }
 
 var warehouseFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "warehouse",
-	Usage:   "Target warehouse driver (console, clickhouse, or bigquery)",
+	Usage:   "Target warehouse driver (clickhouse, bigquery, console, or noop)",
 	Sources: defaultSourceChain("WAREHOUSE", "warehouse"),
 	Value:   "console",
 }
 
 var clickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-host",
-	Usage:   "ClickHouse host",
+	Usage:   "ClickHouse host. Only applicable when warehouse is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "clickhouse.host"),
 }
 
 var clickhousePortFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-port",
-	Usage:   "ClickHouse port",
+	Usage:   "ClickHouse port. Only applicable when warehouse is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "clickhouse.port"),
 	Value:   "9000",
 }
 
 var clickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-database",
-	Usage:   "ClickHouse database name",
+	Usage:   "ClickHouse database name. Only applicable when warehouse is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "clickhouse.database"),
 }
 
 var clickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-username",
-	Usage:   "ClickHouse username",
+	Usage:   "ClickHouse username. Only applicable when warehouse is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "clickhouse.username"),
 	Value:   "",
 }
 
 var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-password",
-	Usage:   "ClickHouse password",
+	Usage:   "ClickHouse password. Only applicable when warehouse is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
 	Value:   "",
 }
@@ -142,74 +128,74 @@ var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 // BigQuery flags
 var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-project-id",
-	Usage:   "BigQuery GCP project ID",
+	Usage:   "BigQuery GCP project ID. Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_PROJECT_ID", "bigquery.project_id"),
 }
 
 var bigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-dataset-name",
-	Usage:   "BigQuery dataset name",
+	Usage:   "BigQuery dataset name. Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_DATASET_NAME", "bigquery.dataset_name"),
 }
 
 var bigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-creds-json",
-	Usage:   "BigQuery service account JSON (raw or base64)",
+	Usage:   "BigQuery service account JSON (raw or base64). Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_CREDS_JSON", "bigquery.creds_json"),
 }
 
 var bigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-writer-type",
-	Usage:   "BigQuery writer type (loadjob or streaming)",
+	Usage:   "BigQuery writer type (loadjob or streaming). Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_WRITER_TYPE", "bigquery.writer_type"),
 	Value:   "loadjob",
 }
 
 var bigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "bigquery-query-timeout",
-	Usage:   "BigQuery query timeout",
+	Usage:   "BigQuery query timeout. Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_QUERY_TIMEOUT", "bigquery.query_timeout"),
 	Value:   30 * time.Second,
 }
 
 var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "bigquery-table-creation-timeout",
-	Usage:   "BigQuery table creation timeout",
+	Usage:   "BigQuery table creation timeout. Only applicable when warehouse is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_TABLE_CREATION_TIMEOUT", "bigquery.table_creation_timeout"),
 	Value:   10 * time.Second,
 }
 
 var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "property-id",
-	Usage:   "Property ID, used as a source for specific columns",
+	Usage:   "Property ID, used to satisfy interfaces required by d8a cloud. Ends up as column in the warehouse.",
 	Sources: defaultSourceChain("PROPERTY_ID", "property.id"),
-	Value:   "-",
+	Value:   "default",
 }
 
 var propertyNameFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "property-name",
-	Usage:   "Property name, used as a source for specific columns",
+	Usage:   "Property name, used to satisfy interfaces required by d8a cloud. Ends up as column in the warehouse.",
 	Sources: defaultSourceChain("PROPERTY_NAME", "property.name"),
-	Value:   "Unknown Property",
+	Value:   "Default property",
 }
 
 var propertySettingsSplitByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "property-settings-split-by-user-id",
-	Usage:   "If set, the sessions will be split when the user ID value changes",
+	Usage:   "When enabled, splits a session into multiple sessions when the user ID value changes between events. This ensures that events from different authenticated users are not grouped into the same session.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_USER_ID", "property.settings.split_by_user_id"),
 	Value:   true,
 }
 
 var propertySettingsSplitByCampaignFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "property-settings-split-by-campaign",
-	Usage:   "If set, the sessions will be split when the UTM campaign value changes",
+	Usage:   "When enabled, splits a session into multiple sessions when the UTM campaign parameter value changes between events. This allows tracking separate sessions for different marketing campaigns within the same user visit.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_CAMPAIGN", "property.settings.split_by_campaign"),
 	Value:   true,
 }
 
 var propertySettingsSplitByTimeSinceFirstEventFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:  "property-settings-split-by-time-since-first-event",
-	Usage: "The sessions will be split when the time since first event is greater than the duration",
+	Usage: "Splits a session into multiple sessions when the time elapsed since the first event exceeds this duration. This prevents extremely long sessions from being grouped together, creating more meaningful session boundaries.", //nolint:lll // it's a description
 	Sources: defaultSourceChain(
 		"PROPERTY_SETTINGS_SPLIT_BY_TIME_SINCE_FIRST_EVENT",
 		"property.settings.split_by_time_since_first_event",
@@ -219,7 +205,7 @@ var propertySettingsSplitByTimeSinceFirstEventFlag *cli.DurationFlag = &cli.Dura
 
 var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "property-settings-split-by-max-events",
-	Usage:   "The sessions will be split when the number of events is greater than the value",
+	Usage:   "Splits a session into multiple sessions when the number of events exceeds this value. This prevents sessions with excessive event counts from being stored as a single large session.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"),
 	Value:   1000,
 }
@@ -252,16 +238,16 @@ var monitoringOTelInsecureFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   false,
 }
 
-var storageBoltDatabasePathFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "storage-bolt-database-path",
-	Usage:   "Path to the Bolt database file",
-	Sources: defaultSourceChain("STORAGE_BOLT_DATABASE_PATH", "storage.bolt_database_path"),
-	Value:   "./bolt.db",
+var storageBoltDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-bolt-directory",
+	Usage:   "Directory path where BoltDB database files are stored. This directory hosts two databases: 'bolt.db' for proto-session data, identifier metadata, and timing wheel bucket information, and 'bolt_kv.db' for key-value storage. These databases persist session state across restarts and are essential for session management functionality.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_BOLT_DIRECTORY", "storage.bolt_directory"),
+	Value:   ".",
 }
 
 var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "storage-queue-directory",
-	Usage:   "Directory for the queue storage",
+	Usage:   "Directory path where batched hits are stored in a filesystem-based queue before being processed by background workers. This directory acts as a persistent buffer between the receiver and the session processing pipeline.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("STORAGE_QUEUE_DIRECTORY", "storage.queue_directory"),
 	Value:   "./queue",
 }

@@ -39,6 +39,9 @@ jobs:
       - name: Generate column documentation
         run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/articles/database-schema.md
       
+      - name: Generate configuration documentation
+        run: go run main.go config-docs >> docs/docs/articles/config.md
+
       - name: Build docs
         working-directory: docs
         run: npm run build

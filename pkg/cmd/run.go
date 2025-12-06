@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -128,34 +129,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			{
 				Name:  "server",
 				Usage: "Start d8a demo server",
-				Flags: mergeFlags(
-					[]cli.Flag{
-						serverPortFlag,
-						batcherBatchSizeFlag,
-						batcherBatchTimeoutFlag,
-						closerSessionDurationFlag,
-						closerTickIntervalFlag,
-						closerSkipCatchingUpFlag,
-						closerSessionJoinBySessionStampFlag,
-						closerSessionJoinByUserIDFlag,
-						dbipEnabled,
-						dbipDestinationDirectory,
-						dbipDownloadTimeoutFlag,
-						propertyIDFlag,
-						propertyNameFlag,
-						propertySettingsSplitByUserIDFlag,
-						propertySettingsSplitByCampaignFlag,
-						propertySettingsSplitByTimeSinceFirstEventFlag,
-						propertySettingsSplitByMaxEventsFlag,
-						monitoringEnabledFlag,
-						monitoringOTelEndpointFlag,
-						monitoringOTelExportIntervalFlag,
-						monitoringOTelInsecureFlag,
-						storageBoltDatabasePathFlag,
-						storageQueueDirectoryFlag,
-					},
-					warehouseConfigFlags,
-				),
+				Flags: getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
@@ -208,7 +182,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						ctx,
 						fsPublisher,
 						// Ping interval should match the batch timeout to avoid pinging too often
-						cmd.Duration(batcherBatchTimeoutFlag.Name),
+						cmd.Duration(receiverBatchTimeoutFlag.Name),
 						pings.NewProcessHitsPingTask(encoding.GzipJSONEncoder),
 					)
 					workerPublisher := worker.NewMonitoringPublisher(
@@ -216,10 +190,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					)
 					serverStorage := receiver.NewBatchingStorage(
 						storagepublisher.NewAdapter(encoding.GzipJSONEncoder, workerPublisher),
-						cmd.Int(batcherBatchSizeFlag.Name),
-						cmd.Duration(batcherBatchTimeoutFlag.Name),
+						cmd.Int(receiverBatchSizeFlag.Name),
+						cmd.Duration(receiverBatchTimeoutFlag.Name),
 					)
-					boltDB, err := bbolt.Open(cmd.String(storageBoltDatabasePathFlag.Name), 0o600, nil)
+					boltDBPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt.db")
+					boltDB, err := bbolt.Open(boltDBPath, 0o600, nil)
 					if err != nil {
 						logrus.Fatalf("failed to open bolt db: %v", err)
 					}
@@ -235,7 +210,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						if err != nil {
 							logrus.Fatalf("failed to create worker consumer: %v", err)
 						}
-						kv, err := bolt.NewBoltKV("/tmp/bolt_kv.db")
+						boltKVPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt_kv.db")
+						kv, err := bolt.NewBoltKV(boltKVPath)
 						if err != nil {
 							logrus.Fatalf("failed to create bolt kv: %v", err)
 						}
@@ -358,6 +334,19 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return migrate(ctx, cmd, cmd.String("property-id"))
 				},
 			},
+			{
+				Name:  "config-docs",
+				Usage: "Generate configuration documentation from flags",
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					flags := getServerFlags()
+					output, err := generateConfigDocs(flags)
+					if err != nil {
+						return fmt.Errorf("failed to generate config docs: %w", err)
+					}
+					fmt.Print(output)
+					return nil
+				},
+			},
 		},
 	}
 
@@ -379,9 +368,9 @@ func propertySource(cmd *cli.Command) properties.SettingsRegistry {
 				SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
 				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
 
-				SessionDuration:           cmd.Duration(closerSessionDurationFlag.Name),
-				SessionJoinBySessionStamp: cmd.Bool(closerSessionJoinBySessionStampFlag.Name),
-				SessionJoinByUserID:       cmd.Bool(closerSessionJoinByUserIDFlag.Name),
+				SessionDuration:           cmd.Duration(sessionsDurationFlag.Name),
+				SessionJoinBySessionStamp: cmd.Bool(sessionsJoinBySessionStampFlag.Name),
+				SessionJoinByUserID:       cmd.Bool(sessionsJoinByUserIDFlag.Name),
 			},
 		),
 	)

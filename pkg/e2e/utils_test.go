@@ -106,20 +106,18 @@ func createTempConfig(t *testing.T, port int) string {
 
 	configContent := fmt.Sprintf(`warehouse: noop
 
-batcher:
+receiver:
   batch_size: 100
   batch_timeout: 100ms
 
-closer:
-  session_duration: 2s
-  tick_interval: 1s
-  skip_catching_up: true
+sessions:
+  duration: 2s
 
 monitoring:
   enabled: false
 
 storage:
-  bolt_database_path: %s/bolt.db
+  bolt_directory: %s/
   queue_directory: %s/queue
 
 server:

@@ -25,6 +25,9 @@ RUN mkdir -p /root/.cache/go-build
 RUN --mount=type=cache,target="/root/.cache/go-build",rw CGO_ENABLED=0 go build \
     -o /home/go/app ./main.go
 
+
+RUN mkdir -p /storage && chown 1000:1000 /storage
+
 # Prod stage, wraps build stage result in distroless image
 FROM distroless AS prod
 
@@ -34,9 +37,12 @@ ENV VERSION=${VERSION}
 
 ENV GIN_MODE=release
 
+
+
 USER 1000:1000
 
 COPY --from=compile --chown=1000:1000 /home/go/app /bin/app
+COPY --from=compile --chown=1000:1000 /storage /storage
 
 ENTRYPOINT ["/bin/app"]
 

@@ -13,5 +13,5 @@ monitoring:
   otel_insecure: true
 
 storage:
-  bolt_database_path: /tmp/bolt.db
+  bolt_directory: /tmp/
   queue_directory: /tmp/d8a-queue
