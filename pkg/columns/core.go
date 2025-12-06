@@ -74,7 +74,12 @@ var CoreInterfaces = struct {
 	SSEIsExitPage        schema.Interface
 
 	// Session columns
-	SessionID             schema.Interface
+	SessionID schema.Interface
+
+	SessionSource schema.Interface
+	SessionMedium schema.Interface
+	SessionTerm   schema.Interface
+
 	SessionReferrer       schema.Interface
 	SessionDuration       schema.Interface
 	SessionTotalEvents    schema.Interface
@@ -381,6 +386,21 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/id",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+	},
+	SessionSource: schema.Interface{
+		ID:      "core.d8a.tech/sessions/source",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_source", Type: arrow.BinaryTypes.String},
+	},
+	SessionMedium: schema.Interface{
+		ID:      "core.d8a.tech/sessions/medium",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_medium", Type: arrow.BinaryTypes.String},
+	},
+	SessionTerm: schema.Interface{
+		ID:      "core.d8a.tech/sessions/term",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_term", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionReferrer: schema.Interface{
 		ID:      "core.d8a.tech/sessions/referrer",

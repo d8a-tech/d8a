@@ -318,6 +318,10 @@ func (t TestHits) EnsureQueryParam(hitNum int, param string, value string) {
 	t[hitNum].QueryParams.Set(param, value)
 }
 
+func (t TestHits) EnsureHeader(hitNum int, header string, value string) {
+	t[hitNum].Headers.Set(header, value)
+}
+
 type CaseConfig struct {
 	hits              TestHits
 	warehouseRegistry warehouse.Registry
@@ -330,6 +334,12 @@ type CaseConfigFunc func(t *testing.T, c *CaseConfig)
 func EnsureQueryParam(hitNum int, param string, value string) CaseConfigFunc {
 	return func(t *testing.T, c *CaseConfig) {
 		c.hits.EnsureQueryParam(hitNum, param, value)
+	}
+}
+
+func EnsureHeader(hitNum int, header string, value string) CaseConfigFunc {
+	return func(t *testing.T, c *CaseConfig) {
+		c.hits.EnsureHeader(hitNum, header, value)
 	}
 }
 

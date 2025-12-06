@@ -116,6 +116,16 @@ func FromQueryParamSessionColumn(
 	}, options...)
 }
 
+func ExctractFieldValue(field string) func(*schema.Event) (any, error) {
+	return func(event *schema.Event) (any, error) {
+		v, ok := event.Values[field]
+		if !ok {
+			return nil, nil // nolint:nilnil // nil is valid for this column
+		}
+		return v, nil
+	}
+}
+
 // NthEventMatchingPredicateValueColumn creates a session column that extracts a value from the nth event
 // that matches the given predicate. This allows protocol-specific filtering (e.g., only page view events).
 // Supports negative indices to count from the end (e.g., -1 for last matching event).
@@ -123,7 +133,7 @@ func NthEventMatchingPredicateValueColumn(
 	columnID schema.InterfaceID,
 	field *arrow.Field,
 	n int,
-	extractedField string,
+	extract func(*schema.Event) (any, error),
 	matches func(*schema.Event) bool,
 	options ...SessionColumnOptions,
 ) schema.SessionColumn {
@@ -148,11 +158,8 @@ func NthEventMatchingPredicateValueColumn(
 			if index < 0 || index >= len(matchingEvents) {
 				return nil, nil // nolint:nilnil // nil is valid for this column
 			}
-			v, ok := matchingEvents[index].Values[extractedField]
-			if !ok {
-				return nil, nil // nolint:nilnil // nil is valid for this column
-			}
-			return v, nil
+
+			return extract(matchingEvents[index])
 		},
 		options...,
 	)
@@ -655,8 +662,8 @@ func defaultDocumentation(intf schema.Interface, displayName, description string
 	}
 }
 
-// TransitionAdvanceFunction allows setting constraints for TransitionColumns
-type TransitionAdvanceFunction func(event *schema.Event) bool
+// EventBoolPredicateFunc allows setting constraints for TransitionColumns
+type EventBoolPredicateFunc func(event *schema.Event) bool
 
 // TransitionTransformerFunction allows transforming the consecutive values chain
 type TransitionTransformerFunction func([]string)
@@ -695,7 +702,7 @@ func NewValueTransitionColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
 	chainFieldName string,
-	advance TransitionAdvanceFunction,
+	advance EventBoolPredicateFunc,
 	direction TransitionDirection,
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
@@ -766,7 +773,7 @@ func NewValueTransitionColumn(
 func NewFirstLastMatchingEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	matches TransitionAdvanceFunction,
+	matches EventBoolPredicateFunc,
 	isFirst bool,
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
@@ -821,7 +828,7 @@ func NewFirstLastMatchingEventColumn(
 func NewTimeOnPageColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	isPageViewEvent TransitionAdvanceFunction,
+	isPageViewEvent EventBoolPredicateFunc,
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
 	cacheKey := fmt.Sprintf("cache-timeonpage-%s", id)
