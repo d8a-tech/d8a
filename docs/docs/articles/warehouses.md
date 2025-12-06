@@ -57,6 +57,10 @@ Now that you have the service account JSON file, it's time to add it to your d8a
 
 #### Step 2: Add Configuration to config.yaml
 
+:::info Tip
+   Full configuration reference is available [here](./config.md#--bigquery-creds-json).
+:::
+
 Open your `config.yaml` file and add the BigQuery configuration:
 
 ```yaml
@@ -87,6 +91,10 @@ ClickHouse is a fast, open-source column-oriented database management system. Co
 
 ### Configuration
 
+:::info Tip
+   Full configuration reference is available [here](./config.md#--clickhouse-database).
+:::
+
 Add the following to your `config.yaml` file:
 
 ```yaml
@@ -98,13 +106,6 @@ clickhouse:
   username: default
   password: "your-password"
 ```
-
-**Configuration fields:**
-- `host`: ClickHouse server hostname or IP address
-- `port`: ClickHouse native protocol port (default: `9000`)
-- `database`: Database name (d8a will create it if it doesn't exist)
-- `username`: ClickHouse username
-- `password`: ClickHouse password
 
 ### Important Notes
 
