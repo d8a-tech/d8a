@@ -1,5 +1,10 @@
 # Warehouses
 
+D8a supports multiple warehouse destinations for your analytics data. This flexibility allows you to choose the data warehouse that best fits your infrastructure, compliance requirements, and analytical needs.
+
+Currently supported warehouses:
+- **BigQuery**: Google's cloud data warehouse for large-scale analytics
+- **ClickHouse**: Fast, open-source column-oriented database
 
 ## BigQuery
 
@@ -34,7 +39,9 @@ d8a needs a service account to authenticate with BigQuery. Here's how to create 
    - You can type "BigQuery Admin" in the role search box to find it quickly
 2. Click **CONTINUE**, then **DONE**
 
-**Why BigQuery Admin?** This role allows d8a, among others, to create and modify tables, and write data. Before `v1.0.0` we will research minimum required permissions and update this guide accordingly.
+:::note
+Why BigQuery Admin? This role allows d8a, among others, to create and modify tables, and write data. There is an open issue to research the minimal permissions needed for v1.0.0 and update this guide accordingly.
+:::
 
 #### Step 3: Download the Key
 
@@ -109,7 +116,7 @@ clickhouse:
 ### Important Notes
 
 - **Engine Support**: d8a currently supports only the `MergeTree` engine. Tables are created with `ENGINE = MergeTree()`.
-- **Distributed/Replicated Setups**: Distributed and Replicated table setups are not supported at the moment. Use a single ClickHouse instance or wait for d8a to support it.
+- **Distributed/Replicated Setups**: Distributed and Replicated table setups are not supported at the moment. Use a single ClickHouse instance.
 
 ### Verifying Your Setup
 

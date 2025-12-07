@@ -54,11 +54,11 @@ You can also see the full demo [here](https://lookerstudio.google.com/reporting/
 
 ## Running 
 
-### Using Docker
+### Production setup using Docker
 
-For non-development setups, please use official [Getting started guide](https://docs.d8a.tech/getting-started).
+See the [Getting started guide](https://docs.d8a.tech/getting-started).
 
-### From Source (for development)
+### Development setup (from source)
 
 1. Run it.
 
@@ -71,6 +71,8 @@ go run main.go server --config config.dev.yaml
 ```bash
 curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=page_view&cid=ag9" -X POST
 ```
+
+3. Check the console output to verify events are being processed.
 
 
 ## Testing
