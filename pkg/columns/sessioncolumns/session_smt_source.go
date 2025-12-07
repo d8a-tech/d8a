@@ -13,7 +13,6 @@ import (
 )
 
 var sessionSourceMediumTermDetector = NewCompositeSourceMediumTermDetector(
-	NewFromUTMParamsSourceMediumTermDetector(),
 	NewPageLocationParamsSourceMediumTermDetector(
 		IfHasQueryParam("gclid", SessionSourceMediumTerm{Source: "google", Medium: "cpc", Term: ""}),
 		IfHasQueryParam("gbraid", SessionSourceMediumTerm{Source: "google", Medium: "cpc", Term: ""}),
@@ -108,51 +107,95 @@ type compositeSourceMediumTermDetector struct {
 }
 
 func (d *compositeSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
+	var result SessionSourceMediumTerm
+	var found bool
+
+	parsed := ensureParsedURLs(event)
+
+	// Run all detectors first
 	for _, detector := range d.detectors {
 		sourceMediumTerm, ok := detector.Detect(event)
 		if ok {
-			return sourceMediumTerm, true
+			result = sourceMediumTerm
+			found = true
+			break
 		}
 	}
-	return SessionSourceMediumTerm{}, false
+
+	if !found {
+		return SessionSourceMediumTerm{}, false
+	}
+
+	// Apply UTM parameter overrides from page location if they exist
+	if parsed.pageQP != nil {
+		if utmSource := parsed.pageQP.Get("utm_source"); utmSource != "" {
+			result.Source = utmSource
+		}
+		if utmMedium := parsed.pageQP.Get("utm_medium"); utmMedium != "" {
+			result.Medium = utmMedium
+		}
+		if utmTerm := parsed.pageQP.Get("utm_term"); utmTerm != "" {
+			result.Term = utmTerm
+		}
+	}
+
+	return result, true
 }
 
 func NewCompositeSourceMediumTermDetector(detectors ...SourceMediumTermDetector) SourceMediumTermDetector {
 	return &compositeSourceMediumTermDetector{detectors: detectors}
 }
 
-type fromUTMParamsSourceMediumTermDetector struct {
+const parsedURLsMetadataKey = "session_smt_parsed_urls"
+
+type parsedURLs struct {
+	pageURL      *url.URL
+	pageQP       url.Values
+	refURL       *url.URL
+	refQP        url.Values
+	refHost      string
+	refHostNoWWW string
+	refRaw       string
 }
 
-func (d *fromUTMParamsSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
-	source, ok := event.Values[columns.CoreInterfaces.EventUtmSource.Field.Name]
-	if !ok {
-		return SessionSourceMediumTerm{}, false
+func ensureParsedURLs(event *schema.Event) *parsedURLs {
+	if event.Metadata == nil {
+		event.Metadata = make(map[string]any)
 	}
-	sourceStr, ok := source.(string)
-	if !ok {
-		return SessionSourceMediumTerm{}, false
-	}
-	medium, ok := event.Values[columns.CoreInterfaces.EventUtmMedium.Field.Name]
-	if !ok {
-		return SessionSourceMediumTerm{}, false
-	}
-	mediumStr, ok := medium.(string)
-	if !ok {
-		return SessionSourceMediumTerm{}, false
-	}
-	termStr := ""
-	term, ok := event.Values[columns.CoreInterfaces.EventUtmTerm.Field.Name]
-	if ok {
-		if termStrVal, ok := term.(string); ok {
-			termStr = termStrVal
+	if cached, ok := event.Metadata[parsedURLsMetadataKey]; ok {
+		if parsed, ok := cached.(*parsedURLs); ok && parsed != nil {
+			return parsed
 		}
 	}
-	return SessionSourceMediumTerm{Source: sourceStr, Medium: mediumStr, Term: termStr}, true
+
+	result := &parsedURLs{}
+
+	pageRaw := columns.ReadOriginalPageLocation(event)
+	if pageRaw != "" {
+		if parsed, err := url.Parse(pageRaw); err == nil {
+			result.pageURL = parsed
+			result.pageQP = parsed.Query()
+		}
+	}
+
+	refRaw := event.BoundHit.Headers.Get("Referer")
+	if refRaw != "" {
+		if parsed, err := url.Parse(refRaw); err == nil {
+			result.refRaw = refRaw
+			result.refURL = parsed
+			result.refQP = parsed.Query()
+			result.refHost = strings.ToLower(parsed.Hostname())
+			result.refHostNoWWW = trimWWW(result.refHost)
+		}
+	}
+
+	event.Metadata[parsedURLsMetadataKey] = result
+	return result
 }
 
-func NewFromUTMParamsSourceMediumTermDetector() SourceMediumTermDetector {
-	return &fromUTMParamsSourceMediumTermDetector{}
+func trimWWW(host string) string {
+	host = strings.ToLower(host)
+	return strings.TrimPrefix(host, "www.")
 }
 
 type directSourceMediumTermDetector struct {
@@ -171,14 +214,12 @@ type pageLocationParamsSourceMediumTermDetector struct {
 }
 
 func (d *pageLocationParamsSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
-	pageLocation := columns.ReadOriginalPageLocation(event)
-	parsed, err := url.Parse(pageLocation)
-	if err != nil {
+	parsed := ensureParsedURLs(event)
+	if parsed.pageQP == nil {
 		return SessionSourceMediumTerm{}, false
 	}
-	qp := parsed.Query()
 	for _, condition := range d.conditions {
-		sourceMediumTerm, ok := condition(qp)
+		sourceMediumTerm, ok := condition(parsed.pageQP)
 		if ok {
 			return sourceMediumTerm, true
 		}
@@ -221,55 +262,17 @@ type fromRefererSourceMediumTermDetector struct {
 }
 
 func (d *fromRefererSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
-	referrer := d.cleanedReferer(event.BoundHit.Headers.Get("Referer"))
-	if referrer == "" {
+	parsedURLs := ensureParsedURLs(event)
+	if parsedURLs.refHost == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	parsed, err := url.Parse(event.BoundHit.Headers.Get("Referer"))
-	if err != nil {
-		return SessionSourceMediumTerm{}, false
-	}
-	qp := parsed.Query()
 	for _, condition := range d.conditions {
-		sourceMediumTerm, ok := condition(referrer, qp)
+		sourceMediumTerm, ok := condition(parsedURLs.refHost, parsedURLs.refQP)
 		if ok {
 			return sourceMediumTerm, true
 		}
 	}
 	return SessionSourceMediumTerm{}, false
-}
-
-func (d *fromRefererSourceMediumTermDetector) cleanedReferer(referer string) string {
-	if referer == "" {
-		return ""
-	}
-	parsed, err := url.Parse(referer)
-	if err != nil {
-		return ""
-	}
-	hostname := parsed.Hostname()
-	if hostname == "" {
-		return ""
-	}
-	hostname = strings.ToLower(hostname)
-	return hostname
-}
-
-func normalizeRefererDomain(referer string) string {
-	if referer == "" {
-		return ""
-	}
-	parsed, err := url.Parse(referer)
-	if err != nil {
-		return ""
-	}
-	hostname := parsed.Hostname()
-	if hostname == "" {
-		return ""
-	}
-	hostname = strings.ToLower(hostname)
-	hostname = strings.TrimPrefix(hostname, "www.")
-	return hostname
 }
 
 type searchEngineEntry struct {
@@ -313,34 +316,7 @@ func NewSearchEngineSsourceMediumTermDetector() (SourceMediumTermDetector, error
 	for searchEngineName, searchEngine := range searchEngines {
 		for _, entry := range searchEngine {
 			for _, urlPattern := range entry.URLs {
-				if strings.Contains(urlPattern, "{}") {
-					theRegex := regexp.MustCompile(strings.ReplaceAll(
-						regexp.QuoteMeta(urlPattern), "\\{\\}", ".*"))
-					conditions = append(
-						conditions,
-						NewFromRefererRegexCondition(
-							theRegex,
-							func(qp url.Values) SessionSourceMediumTerm {
-								return SessionSourceMediumTerm{
-									Source: strings.ToLower(searchEngineName),
-									Medium: "organic",
-									Term:   tryMatchTerm(qp, entry),
-								}
-							},
-						),
-					)
-				} else {
-					conditions = append(
-						conditions,
-						NewFromRefererExactMatchCondition(urlPattern, func(qp url.Values) SessionSourceMediumTerm {
-							return SessionSourceMediumTerm{
-								Source: strings.ToLower(searchEngineName),
-								Medium: "organic",
-								Term:   tryMatchTerm(qp, entry),
-							}
-						}),
-					)
-				}
+				appendSearchEngineCondition(&conditions, searchEngineName, entry, urlPattern)
 			}
 		}
 	}
@@ -350,15 +326,84 @@ func NewSearchEngineSsourceMediumTermDetector() (SourceMediumTermDetector, error
 }
 
 func tryMatchTerm(qp url.Values, searchEngineEntry searchEngineEntry) string {
-	logrus.Error(searchEngineEntry)
 	// This does only match for non-regex params, should be fine for now,
-	// the engines using path params are rare and regexes add too much performance overhead
+	// the engines using path params are rare, regexes add too much performance overhead
+	// and almost all browser strip referer query params anyway
 	for _, param := range searchEngineEntry.Params {
 		if qp.Get(param) != "" {
 			return qp.Get(param)
 		}
 	}
 	return ""
+}
+
+func appendSearchEngineCondition(
+	conditions *[]refererCondition,
+	searchEngineName string,
+	entry searchEngineEntry,
+	urlPattern string,
+) {
+	if strings.Contains(urlPattern, "{}") {
+		if strings.HasPrefix(urlPattern, "{}") && !strings.Contains(urlPattern[2:], "{}") {
+			suffix := strings.TrimPrefix(urlPattern, "{}")
+			*conditions = append(*conditions, searchEngineSuffixCondition(searchEngineName, entry, suffix))
+			return
+		}
+		if strings.HasSuffix(urlPattern, "{}") && !strings.Contains(urlPattern[:len(urlPattern)-2], "{}") {
+			prefix := strings.TrimSuffix(urlPattern, "{}")
+			*conditions = append(*conditions, searchEnginePrefixCondition(searchEngineName, entry, prefix))
+			return
+		}
+		*conditions = append(*conditions, searchEngineRegexCondition(searchEngineName, entry, urlPattern))
+		return
+	}
+
+	*conditions = append(*conditions, searchEngineExactCondition(searchEngineName, entry, urlPattern))
+}
+
+// Prefer edge-only wildcard string checks to dodge regex work in the hot path.
+func searchEngineSuffixCondition(searchEngineName string, entry searchEngineEntry, suffix string) refererCondition {
+	return func(cleanedReferer string, qp url.Values) (SessionSourceMediumTerm, bool) {
+		if strings.HasSuffix(cleanedReferer, suffix) {
+			return searchEngineResult(searchEngineName, entry, qp), true
+		}
+		return SessionSourceMediumTerm{}, false
+	}
+}
+
+// Prefer edge-only wildcard string checks to dodge regex work in the hot path.
+func searchEnginePrefixCondition(searchEngineName string, entry searchEngineEntry, prefix string) refererCondition {
+	return func(cleanedReferer string, qp url.Values) (SessionSourceMediumTerm, bool) {
+		if strings.HasPrefix(cleanedReferer, prefix) {
+			return searchEngineResult(searchEngineName, entry, qp), true
+		}
+		return SessionSourceMediumTerm{}, false
+	}
+}
+
+func searchEngineRegexCondition(searchEngineName string, entry searchEngineEntry, urlPattern string) refererCondition {
+	theRegex := regexp.MustCompile(strings.ReplaceAll(
+		regexp.QuoteMeta(urlPattern), "\\{\\}", ".*"))
+	return NewFromRefererRegexCondition(
+		theRegex,
+		func(qp url.Values) SessionSourceMediumTerm {
+			return searchEngineResult(searchEngineName, entry, qp)
+		},
+	)
+}
+
+func searchEngineExactCondition(searchEngineName string, entry searchEngineEntry, urlPattern string) refererCondition {
+	return NewFromRefererExactMatchCondition(urlPattern, func(qp url.Values) SessionSourceMediumTerm {
+		return searchEngineResult(searchEngineName, entry, qp)
+	})
+}
+
+func searchEngineResult(searchEngineName string, entry searchEngineEntry, qp url.Values) SessionSourceMediumTerm {
+	return SessionSourceMediumTerm{
+		Source: strings.ToLower(searchEngineName),
+		Medium: "organic",
+		Term:   tryMatchTerm(qp, entry),
+	}
 }
 
 // NewSocialsSourceMediumTermDetector returns a new source medium term detector for socials.yaml
@@ -473,19 +518,18 @@ type mailRefererSourceMediumTermDetector struct {
 }
 
 func (d *mailRefererSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
-	referer := event.BoundHit.Headers.Get("Referer")
-	if referer == "" {
+	parsed := ensureParsedURLs(event)
+	if parsed.refRaw == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	if !strings.Contains(referer, "mail.") {
+	if !strings.Contains(parsed.refRaw, "mail.") {
 		return SessionSourceMediumTerm{}, false
 	}
-	normalizedDomain := normalizeRefererDomain(referer)
-	if normalizedDomain == "" {
+	if parsed.refHostNoWWW == "" {
 		return SessionSourceMediumTerm{}, false
 	}
 	return SessionSourceMediumTerm{
-		Source: normalizedDomain,
+		Source: parsed.refHostNoWWW,
 		Medium: "email",
 		Term:   "",
 	}, true
@@ -500,27 +544,22 @@ type genericReferralSourceMediumTermDetector struct {
 }
 
 func (d *genericReferralSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
-	referer := event.BoundHit.Headers.Get("Referer")
-	if referer == "" {
+	parsed := ensureParsedURLs(event)
+	if parsed.refHostNoWWW == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	refererDomain := normalizeRefererDomain(referer)
-	if refererDomain == "" {
+	if parsed.pageURL == nil {
 		return SessionSourceMediumTerm{}, false
 	}
-	pageLocation := columns.ReadOriginalPageLocation(event)
-	if pageLocation == "" {
-		return SessionSourceMediumTerm{}, false
-	}
-	pageDomain := normalizeRefererDomain(pageLocation)
+	pageDomain := trimWWW(parsed.pageURL.Hostname())
 	if pageDomain == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	if refererDomain == pageDomain {
+	if parsed.refHostNoWWW == pageDomain {
 		return SessionSourceMediumTerm{}, false
 	}
 	return SessionSourceMediumTerm{
-		Source: refererDomain,
+		Source: parsed.refHostNoWWW,
 		Medium: "referral",
 		Term:   "",
 	}, true
