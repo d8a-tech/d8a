@@ -54,7 +54,7 @@ Now that you have the service account JSON file, it's time to add it to your d8a
 - **Project ID**: You can find this in the Google Cloud Console at the top of the page, or in the downloaded JSON file (look for the `project_id` field)
 - **Dataset Name**: The name of your BigQuery dataset. If you don't have one yet, create it in the BigQuery console, or d8a will create it for you if the service account has the necessary permissions
 
-### Step 2: Add Configuration to config.yaml
+### Step 2: Add the configuration to config.yaml
 
 :::info Tip
    Full configuration reference is available [here](/articles/config.md#--bigquery-creds-json).
