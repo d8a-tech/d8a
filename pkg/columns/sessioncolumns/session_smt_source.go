@@ -139,7 +139,36 @@ func (d *compositeSourceMediumTermDetector) Detect(event *schema.Event) (Session
 		}
 	}
 
-	return result, true
+	return normalizeSMT(result), true
+}
+
+func normalizeSMT(smt SessionSourceMediumTerm) SessionSourceMediumTerm {
+	return SessionSourceMediumTerm{
+		Source: normalizeSMTValue(smt.Source),
+		Medium: normalizeSMTValue(smt.Medium),
+		Term:   normalizeSMTValue(smt.Term),
+	}
+}
+
+func normalizeSMTValue(value string) string {
+	// Convert to lowercase
+	value = strings.ToLower(value)
+
+	// Replace spaces with hyphens
+	value = strings.ReplaceAll(value, " ", "-")
+
+	// Remove special characters: /, \, ?, &, =, #
+	value = strings.ReplaceAll(value, "/", "")
+	value = strings.ReplaceAll(value, "\\", "")
+	value = strings.ReplaceAll(value, "?", "")
+	value = strings.ReplaceAll(value, "&", "")
+	value = strings.ReplaceAll(value, "=", "")
+	value = strings.ReplaceAll(value, "#", "")
+
+	// Remove leading/trailing whitespace
+	value = strings.TrimSpace(value)
+
+	return value
 }
 
 func NewCompositeSourceMediumTermDetector(detectors ...SourceMediumTermDetector) SourceMediumTermDetector {
@@ -184,7 +213,11 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 			result.refRaw = refRaw
 			result.refURL = parsed
 			result.refQP = parsed.Query()
-			result.refHost = strings.ToLower(parsed.Hostname())
+			result.refHost = strings.ReplaceAll(
+				strings.ToLower(parsed.Hostname()),
+				" ",
+				"-",
+			)
 			result.refHostNoWWW = trimWWW(result.refHost)
 		}
 	}

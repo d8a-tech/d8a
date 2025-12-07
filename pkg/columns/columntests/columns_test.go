@@ -624,6 +624,20 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_MessyPlatformNamNormalized",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureHeader(0, "Referer", "https://videa.seznam.cz/foobar"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("seznam-videa"),
+					s("organic"),
+					s(""),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_YouTubeOverridenByUtmTags",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
