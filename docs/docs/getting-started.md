@@ -8,12 +8,13 @@ Welcome to Divine Data (d8a)! This guide will help you get up and running with d
 
 Prerequisites:
 - Unix shell (Linux, macOS, WSL, etc.)
-- Docker installed with the `docker compose` command available
+- Docker installed with the `docker compose` command
 - Basic Unix knowledge (creating files, directories, etc.)
 
-## Step 1: Create configuration file
+## Step 1: Create a configuration file
 
-First create a config file (you can learn more about the configuration options in the [configuration reference](./articles/config)):
+First, create a config file (you can learn more about the configuration options in the [configuration reference](/articles/config)):
+
 
 ```bash
 cat > config.yaml <<EOF
@@ -22,7 +23,7 @@ storage:
   queue_directory: /storage/d8a-queue
 
 sessions:
-  duration: 10s # Adjust this after the testing phase to production value
+  duration: 10s # Adjust this after the testing phase to a production value
 
 warehouse: clickhouse
 clickhouse:
@@ -34,12 +35,11 @@ clickhouse:
 EOF
 ```
 
+:::note
+This configuration sets up d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session duration. If you'd like to use a different warehouse, please check the [warehouses](/articles/warehouses) article.
+:::
 
-
-This particular config configures d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session duration.
-
-If you'd like to use a different warehouse, please check the [warehouses](./articles/warehouses) article.   
-## Step 2: Create docker compose file
+## Step 2: Create a docker compose file
 
 ```bash
 cat > docker-compose.yml <<EOF
@@ -100,7 +100,7 @@ Your d8a instance should be available at `http://localhost:8080`. You may now se
 curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=page_view&cid=ag9" -X POST
 ```
 
-D8a server setup is now complete. If you'd like to hook up a domain and use SSL, you need a reverse proxy like Nginx. You can find resources for setting up reverse proxies in the [Nginx documentation](https://nginx.org/en/docs/beginners_guide.html) or [Apache HTTP Server documentation](https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html).
+Your d8a server setup is now complete. If you'd like to hook up a domain and use SSL, you need a reverse proxy like Nginx. You can find resources for setting up reverse proxies in the [Nginx documentation](https://nginx.org/en/docs/beginners_guide.html) or [Apache HTTP Server documentation](https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html).
 
 
 ## Step 4: Reconfigure Your GA4 Setup
@@ -119,6 +119,6 @@ Choose the method that best fits your needs based on whether you want to continu
 
 After completing all the steps:
 - Verify that events are being received by your d8a instance in the warehouse of your choice
-- For BigQuery, you can copy the official Looker Studio dashboard: (https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd/page/p_53ep5k8umd)
+- For BigQuery, you can copy the official [Looker Studio dashboard](https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd/page/p_53ep5k8umd)
 - Review the [database schema](/articles/database-schema) to understand the data structure
 

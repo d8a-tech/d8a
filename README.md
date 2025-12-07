@@ -54,7 +54,7 @@ You can also see the full demo [here](https://lookerstudio.google.com/reporting/
 
 ## Running 
 
-### Production setup using Docker
+### Production setup (using docker)
 
 See the [Getting started guide](https://docs.d8a.tech/getting-started).
 
@@ -80,10 +80,6 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 ```bash
 go test ./...
 ```
-
-## Contributing
-
-TODO
 
 ## Documentation
 
