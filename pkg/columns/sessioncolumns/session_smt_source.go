@@ -32,7 +32,7 @@ var sessionSourceMediumTermDetector = NewCompositeSourceMediumTermDetector(
 	NewMailRefererSourceMediumTermDetector(),
 	must(NewSocialsSourceMediumTermDetector()),
 	must(NewAISourceMediumTermDetector()),
-	must(NewSearchEngineSsourceMediumTermDetector()),
+	must(NewSearchEngineSourceMediumTermDetector()),
 	NewGenericReferralSourceMediumTermDetector(),
 	NewDirectSourceMediumTermDetector(),
 )
@@ -338,8 +338,8 @@ func NewFromRefererExactMatchCondition(
 	}
 }
 
-// NewSearchEngineSsourceMediumTermDetector returns a new source medium term detector for search engines.
-func NewSearchEngineSsourceMediumTermDetector() (SourceMediumTermDetector, error) {
+// NewSearchEngineSourceMediumTermDetector returns a new source medium term detector for search engines.
+func NewSearchEngineSourceMediumTermDetector() (SourceMediumTermDetector, error) {
 	searchEngines := make(map[string][]searchEngineEntry)
 	err := yaml.Unmarshal(searchEnginesYAML, &searchEngines)
 	if err != nil {
