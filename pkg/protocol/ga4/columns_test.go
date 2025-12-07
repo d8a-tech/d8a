@@ -3499,50 +3499,36 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 		caseConfigFuncs []columntests.CaseConfigFunc
 		expected        map[string][]*string
 	}{
-		// {
-		// 	name: "SessionSourceMediumTerm_PipeUtmTags",
-		// 	hits: columntests.TestHits{columntests.TestHitOne()},
-		// 	caseConfigFuncs: []columntests.CaseConfigFunc{
-		// 		columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=google&utm_medium=cpc&utm_term=keyword"),
-		// 	},
-		// 	expected: map[string][]*string{
-		// 		columntests.TestHitOne().ID: {
-		// 			s("google"),
-		// 			s("cpc"),
-		// 			s("keyword"),
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "SessionSourceMediumTerm_Direct",
-		// 	hits: columntests.TestHits{columntests.TestHitOne()},
-		// 	caseConfigFuncs: []columntests.CaseConfigFunc{
-		// 		columntests.EnsureQueryParam(0, "dl", "https://example.com/page"),
-		// 	},
-		// 	expected: map[string][]*string{
-		// 		columntests.TestHitOne().ID: {
-		// 			s("direct"),
-		// 			s("none"),
-		// 			s(""),
-		// 		},
-		// 	},
-		// },
-		// {
-		// 	name: "SessionSourceMediumTerm_PageLocationParamsGclid",
-		// 	hits: columntests.TestHits{columntests.TestHitOne()},
-		// 	caseConfigFuncs: []columntests.CaseConfigFunc{
-		// 		columntests.EnsureQueryParam(0, "dl", "https://example.com/page?gclid=1234567890"),
-		// 	},
-		// 	expected: map[string][]*string{
-		// 		columntests.TestHitOne().ID: {
-		// 			s("google"),
-		// 			s("cpc"),
-		// 			s(""),
-		// 		},
-		// 	},
-		// },
 		{
-			name: "SessionSourceMediumTerm_FromReferer",
+			name: "SessionSourceMediumTerm_PipeUtmTags",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=google&utm_medium=cpc&utm_term=keyword"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("google"),
+					s("cpc"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_PageLocationParamsGclid",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?gclid=1234567890"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("google"),
+					s("cpc"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_SearchEngine",
 			hits: columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureHeader(0, "Referer", "https://google.com/search?q=keyword"),
@@ -3551,12 +3537,12 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 				columntests.TestHitOne().ID: {
 					s("google"),
 					s("organic"),
-					s(""),
+					s("keyword"),
 				},
 			},
 		},
 		{
-			name: "SessionSourceMediumTerm_FromRefererRegex",
+			name: "SessionSourceMediumTerm_SearchEngine_RegexMatcher",
 			hits: columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureHeader(0, "Referer", "https://google.gr/search?q=keyword"),
@@ -3565,6 +3551,176 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 				columntests.TestHitOne().ID: {
 					s("google"),
 					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_NonGoogle",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://www.baidu.com/s?wd=keyword"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("baidu"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Facebook",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://facebook.com/post/123"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("facebook"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Twitter",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://twitter.com/user/status/123"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("twitter"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_ChatGPT",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://chatgpt.com/chat"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("chatgpt"),
+					s("ai"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Gemini",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://gemini.google.com/app"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("gemini"),
+					s("ai"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YouTube",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://youtube.com/watch?v=123"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("youtube"),
+					s("video"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Vimeo",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://vimeo.com/123456"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("vimeo"),
+					s("video"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Gmail",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://gmail.com"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("gmail"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_MailReferer",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureHeader(0, "Referer", "https://www.mail.example.com/path?query=value"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("mail.example.com"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_GenericReferral",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "dl", "https://www.example.com/page"),
+				columntests.EnsureHeader(0, "Referer", "https://www.other-site.com/blog/article?id=123"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("other-site.com"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_GenericReferral_MatchesPageLocation",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "dl", "https://www.example.com/page"),
+				columntests.EnsureHeader(0, "Referer", "https://www.example.com/blog/article?id=123"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("direct"),
+					s("none"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Direct",
+			hits: columntests.TestHits{columntests.TestHitOne()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/page"),
+			},
+			expected: map[string][]*string{
+				columntests.TestHitOne().ID: {
+					s("direct"),
+					s("none"),
 					s(""),
 				},
 			},

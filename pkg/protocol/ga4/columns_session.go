@@ -518,15 +518,3 @@ var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
 		fmt.Sprintf("The unique number of file downloads (event name: %s) in the session. Deduplicated by %s.", FileDownloadEventType, ProtocolInterfaces.EventParamLinkURL.Field.Name), // nolint:lll // it's a description
 	),
 )
-
-var sessionSourceColumn = columns.SessionSourceColumn(
-	isPageViewEvent,
-)
-
-var sessionMediumColumn = columns.SessionMediumColumn(
-	isPageViewEvent,
-)
-
-var sessionTermColumn = columns.SessionTermColumn(
-	isPageViewEvent,
-)

@@ -84,6 +84,9 @@ func sessionColumns() []schema.SessionColumn {
 		sessioncolumns.TotalEventsColumn,
 		sessioncolumns.ReferrerColumn,
 		sessioncolumns.SplitCauseColumn,
+		sessioncolumns.SessionSourceColumn,
+		sessioncolumns.SessionMediumColumn,
+		sessioncolumns.SessionTermColumn,
 	}
 }
 

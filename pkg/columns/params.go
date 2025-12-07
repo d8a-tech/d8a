@@ -90,30 +90,6 @@ func WriteOriginalPageLocation(event *schema.Event, originalURL string) {
 	event.Metadata[MetadataKeyOriginalPageLocation] = originalURL
 }
 
-// WriteSessionSourceMediumTerm stores the session source, medium, and term in the event metadata.
-func WriteSessionSourceMediumTerm(event *schema.Event, sourceMediumTerm SessionSourceMediumTerm) {
-	if event.Metadata == nil {
-		event.Metadata = make(map[string]any)
-	}
-	event.Metadata[MetadataKeySessionSourceMediumTerm] = sourceMediumTerm
-}
-
-// ReadSessionSourceMediumTerm retrieves the session source, medium, and term from event metadata.
-func ReadSessionSourceMediumTerm(event *schema.Event) SessionSourceMediumTerm {
-	if event.Metadata == nil {
-		return SessionSourceMediumTerm{}
-	}
-	sourceMediumTerm, ok := event.Metadata[MetadataKeySessionSourceMediumTerm]
-	if !ok {
-		return SessionSourceMediumTerm{}
-	}
-	sourceMediumTermObj, ok := sourceMediumTerm.(SessionSourceMediumTerm)
-	if !ok {
-		return SessionSourceMediumTerm{}
-	}
-	return sourceMediumTermObj
-}
-
 // ReadOriginalPageLocation retrieves the original page location from event metadata.
 // Returns empty string if not found.
 func ReadOriginalPageLocation(event *schema.Event) string {
