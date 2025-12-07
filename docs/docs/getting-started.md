@@ -69,7 +69,7 @@ services:
     volumes:
       - ./config.yaml:/config.yaml:ro
       - d8a-data:/storage
-    command: server --config /config.yaml --sessions-duration 10s
+    command: server --config /config.yaml
     networks:
       - d8a-network
     depends_on:
