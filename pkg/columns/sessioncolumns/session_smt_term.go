@@ -22,6 +22,6 @@ var SessionTermColumn = columns.NthEventMatchingPredicateValueColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session Term",
-		"The term of the session.",
+		"Search keyword or campaign term extracted from referrer query parameters or UTM tags.", // nolint:lll // it's a description
 	),
 )

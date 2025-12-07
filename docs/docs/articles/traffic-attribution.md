@@ -128,3 +128,7 @@ Detection executes once per session on the first event. The landing page URL and
 Reference lists (search engines, social networks, video platforms, etc.) are maintained as YAML files in [`pkg/columns/sessioncolumns/smt/`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/). Developers can inspect or extend these lists as needed.
 
 Core logic: [`pkg/columns/sessioncolumns/session_smt_source.go`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/session_smt_source.go)
+
+## Attribution
+
+Search engine and social network definitions are derived from the [Matomo searchengine-and-social-list](https://github.com/matomo-org/searchengine-and-social-list) project, available under [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/).

@@ -71,7 +71,7 @@ var SessionSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session Source",
-		"The source of the session.",
+		"Traffic origin (e.g., google, facebook, direct) detected from referrer, click IDs, or UTM parameters.", // nolint:lll // it's a description
 	),
 )
 
