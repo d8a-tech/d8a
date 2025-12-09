@@ -25,7 +25,7 @@ Detection follows a priority order. The first matching rule determines the initi
 
 ### 1. Paid advertising click IDs
 
-Landing page URLs containing specific query parameters are immediately classified as paid traffic. Examples:
+Sessions with landing page URLs containing specific query parameters are immediately classified as paid traffic (medium=cpc). Examples:
 
 | Parameter | Source | Medium |
 |:----------|:-------|:-------|
@@ -41,21 +41,21 @@ Referrers from video hosting sites are classified as `medium=video`. Sources inc
 
 ### 3. Email providers
 
-Referrers from webmail interfaces are classified as `medium=email`. Includes Gmail, Outlook, Yahoo Mail, ProtonMail, and others (full list in [`pkg/columns/sessioncolumns/smt/emails.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/emails.yaml)).
+Referrers from webmail interfaces are classified as `medium=email`. This includes Gmail, Outlook, Yahoo Mail, ProtonMail, and others (full list in [`pkg/columns/sessioncolumns/smt/emails.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/emails.yaml)).
 
 Additionally, any referrer containing `mail.` in the hostname (e.g., `mail.company.com`) is automatically treated as email with the normalized domain as the source.
 
 ### 4. Social media
 
-Referrers from social networks are classified as `medium=social`. Includes Facebook, Instagram, Twitter/X, LinkedIn, Reddit, TikTok, Pinterest, and many others (full list in [`pkg/columns/sessioncolumns/smt/socials.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/socials.yaml)).
+Referrers from social networks are classified as `medium=social`. This includes Facebook, Instagram, Twitter/X, LinkedIn, Reddit, TikTok, Pinterest, and many others (full list in [`pkg/columns/sessioncolumns/smt/socials.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/socials.yaml)).
 
 ### 5. AI assistants and search
 
-Referrers from AI chat interfaces are classified as `medium=ai`. Includes ChatGPT, Claude, Perplexity, and others (full list in [`pkg/columns/sessioncolumns/smt/ai.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/ai.yaml)).
+Referrers from AI chat interfaces are classified as `medium=ai`. This includes ChatGPT, Claude, Perplexity, and others (full list in [`pkg/columns/sessioncolumns/smt/ai.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/ai.yaml)).
 
 ### 6. Search engines
 
-Referrers from search engines are classified as `medium=organic`. Includes Google, Bing, DuckDuckGo, Yahoo, Baidu, Yandex, and hundreds of regional/specialized engines (full list in [`pkg/columns/sessioncolumns/smt/searchengines.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/searchengines.yaml)).
+Referrers from search engines are classified as `medium=organic`. This includes Google, Bing, DuckDuckGo, Yahoo, Baidu, Yandex, and hundreds of regional/specialized engines (full list in [`pkg/columns/sessioncolumns/smt/searchengines.yaml`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/searchengines.yaml)).
 
 The system attempts to extract the search term from the referrer's query parameters (e.g., `q`, `query`, `p`). However, most modern browsers strip query parameters from referrers for privacy, so terms are rarely available unless explicitly passed via UTM tags.
 
@@ -67,11 +67,11 @@ Any external referrer (from a different domain than your site) that doesn't matc
 
 If no referrer exists and no paid click IDs are present, traffic is classified as `source=direct`, `medium=none`. This includes:
 
-- Typing the URL directly into the browser.
-- Clicking bookmarks.
-- Links from native mobile apps.
-- Links from documents (PDFs, Office files).
-- Secure (HTTPS) to non-secure (HTTP) transitions that strip referrers.
+- Typing the URL directly into the browser
+- Clicking bookmarks
+- Links from native mobile apps
+- Links from documents (PDFs, Office files)
+- Secure (HTTPS) to non-secure (HTTP) transitions that strip referrers
 
 ## UTM parameter overrides
 
@@ -121,13 +121,11 @@ Each parameter is applied independently. If you only provide `utm_source`, the d
 - No referrer
 - Result: `source=direct, medium=none`
 
-## Technical implementation
-
-Detection executes once per session on the first event. The landing page URL and referrer are parsed and cached to avoid repeated parsing. The source/medium/term tuple is stored on the session and reused by related columns.
+## Technical implementation (for developers)
 
 Reference lists (search engines, social networks, video platforms, etc.) are maintained as YAML files in [`pkg/columns/sessioncolumns/smt/`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/smt/). Developers can inspect or extend these lists as needed.
 
-Core logic: [`pkg/columns/sessioncolumns/session_smt_source.go`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/session_smt_source.go)
+Core logic: [`pkg/columns/sessioncolumns/session_smt_source.go`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/session_smt_source.go), other columns take values computed by `source` column from cache.
 
 ## Attribution
 

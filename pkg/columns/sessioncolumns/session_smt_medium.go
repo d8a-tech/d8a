@@ -22,6 +22,6 @@ var SessionMediumColumn = columns.NthEventMatchingPredicateValueColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session Medium",
-		"Marketing channel (e.g., organic, cpc, social, email, referral) classifying how traffic arrived.", // nolint:lll // it's a description
+		"Marketing channel (e.g., organic, cpc, social, email, referral) classifying how traffic arrived. For details, see the D8A documentation on traffic attribution.", // nolint:lll // it's a description
 	),
 )
