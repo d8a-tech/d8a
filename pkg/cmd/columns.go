@@ -5,9 +5,50 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
+
+// arrowTypeToUserFriendly converts Arrow type names to user-friendly type names
+func arrowTypeToUserFriendly(arrowTypeName string) string {
+	result := arrowTypeName
+
+	// Replace Arrow types with user-friendly equivalents
+	replacements := map[string]string{
+		"utf8":                  "String",
+		"int64":                 "Int64",
+		"int32":                 "Int32",
+		"int16":                 "Int16",
+		"int8":                  "Int8",
+		"uint64":                "UInt64",
+		"uint32":                "UInt32",
+		"uint16":                "UInt16",
+		"uint8":                 "UInt8",
+		"float64":               "Float64",
+		"float32":               "Float32",
+		"double":                "Float64",
+		"bool":                  "Boolean",
+		"date32":                "Date",
+		"date64":                "Date",
+		"timestamp[s, tz=UTC]":  "Datetime (s, UTC)",
+		"timestamp[ms, tz=UTC]": "Datetime (ms, UTC)",
+		"timestamp[us, tz=UTC]": "Datetime (us, UTC)",
+		"timestamp[ns, tz=UTC]": "Datetime (ns, UTC)",
+		"timestamp[s]":          "Datetime (s)",
+		"timestamp[ms]":         "Datetime (ms)",
+		"timestamp[us]":         "Datetime (us)",
+		"timestamp[ns]":         "Datetime (ns)",
+		"struct<":               "Object<",
+		"list<":                 "Array<",
+	}
+
+	for old, new := range replacements {
+		result = strings.ReplaceAll(result, old, new)
+	}
+
+	return result
+}
 
 type columnsFormatter interface {
 	Format(columns schema.Columns) (string, error)
@@ -23,39 +64,27 @@ func (f *consoleColumnsFormatter) Format(columns schema.Columns) (string, error)
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
-		if docs.DisplayName == "" {
-			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
-		} else {
-			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
-		}
+		result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 	}
 	result += "Session-scoped event columns:\n"
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
-		if docs.DisplayName == "" {
-			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
-		} else {
-			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
-		}
+		result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 	}
 	result += "Session columns:\n"
 	for _, col := range columns.Session {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
-		if docs.DisplayName == "" {
-			result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
-		} else {
-			result += fmt.Sprintf("%s (%s) [%s]: %s\n", docs.DisplayName, docs.ColumnName, typeName, docs.Description)
-		}
+		result += fmt.Sprintf("%s [%s]: %s\n", docs.ColumnName, typeName, docs.Description)
 	}
 	return result, nil
 }
@@ -73,45 +102,45 @@ func (f *jsonColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		columnsJSON = append(columnsJSON, map[string]any{
-			"scope":        "event",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
+			"scope":        "event",
+			"type":         typeName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
-			"type":         typeName,
 		})
 	}
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		columnsJSON = append(columnsJSON, map[string]any{
-			"scope":        "session-scoped-event",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
+			"scope":        "session-scoped-event",
+			"type":         typeName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
-			"type":         typeName,
 		})
 	}
 	for _, col := range columns.Session {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		columnsJSON = append(columnsJSON, map[string]any{
-			"scope":        "session",
 			"name":         docs.ColumnName,
 			"display_name": docs.DisplayName,
+			"scope":        "session",
+			"type":         typeName,
 			"description":  docs.Description,
 			"interface_id": docs.InterfaceID,
-			"type":         typeName,
 		})
 	}
 	jsonBytes, err := json.MarshalIndent(columnsJSON, "", "  ")
@@ -133,7 +162,7 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	writer := csv.NewWriter(&buf)
 
 	// Write header
-	if err := writer.Write([]string{"scope", "interface_id", "name", "display_name", "type", "description"}); err != nil {
+	if err := writer.Write([]string{"name", "display_name", "scope", "type", "description", "interface_id"}); err != nil {
 		return "", fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
@@ -142,10 +171,10 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		if err := writer.Write([]string{
-			"event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
+			docs.ColumnName, docs.DisplayName, "event", typeName, docs.Description, docs.InterfaceID,
 		}); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
@@ -156,10 +185,10 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		row := []string{
-			"session-scoped-event", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
+			docs.ColumnName, docs.DisplayName, "session-scoped-event", typeName, docs.Description, docs.InterfaceID,
 		}
 		if err := writer.Write(row); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
@@ -171,10 +200,10 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		docs := col.Docs()
 		typeName := ""
 		if docs.Type != nil {
-			typeName = docs.Type.Type.String()
+			typeName = arrowTypeToUserFriendly(docs.Type.Type.String())
 		}
 		if err := writer.Write([]string{
-			"session", docs.InterfaceID, docs.ColumnName, docs.DisplayName, typeName, docs.Description,
+			docs.ColumnName, docs.DisplayName, "session", typeName, docs.Description, docs.InterfaceID,
 		}); err != nil {
 			return "", fmt.Errorf("failed to write CSV row: %w", err)
 		}
@@ -200,8 +229,8 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 	var buf bytes.Buffer
 
 	// Write table header
-	buf.WriteString("| Name | Display Name | Type | Description |\n")
-	buf.WriteString("|------|--------------|------|-------------|\n")
+	buf.WriteString("| Name | Display Name | Scope | Type | Description |\n")
+	buf.WriteString("|------|--------------|-------|------|-------------|\n")
 
 	// Write event columns
 	for _, col := range columns.Event {
@@ -212,17 +241,14 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 		}
 		typeDisplay := ""
 		if typeName != "" {
-			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+			friendlyType := arrowTypeToUserFriendly(typeName)
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(friendlyType))
 		}
 		description := docs.Description
-		if description != "" {
-			description += fmt.Sprintf(" Column scope: `event`, Column interface: `%s`.", docs.InterfaceID)
-		} else {
-			description = fmt.Sprintf("Column scope: `event`, Column interface:`%s`.", docs.InterfaceID)
-		}
-		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
 			escapeMarkdownCell(docs.ColumnName),
 			escapeMarkdownCell(docs.DisplayName),
+			"`event`",
 			typeDisplay,
 			escapeMarkdownCell(description)))
 	}
@@ -236,17 +262,14 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 		}
 		typeDisplay := ""
 		if typeName != "" {
-			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+			friendlyType := arrowTypeToUserFriendly(typeName)
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(friendlyType))
 		}
 		description := docs.Description
-		if description != "" {
-			description += fmt.Sprintf(" Column scope: `session-scoped-event`, Column interface: `%s`.", docs.InterfaceID)
-		} else {
-			description = fmt.Sprintf("Column scope: `session-scoped-event`, Column interface: `%s`.", docs.InterfaceID)
-		}
-		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
 			escapeMarkdownCell(docs.ColumnName),
 			escapeMarkdownCell(docs.DisplayName),
+			"`session-scoped-event`",
 			typeDisplay,
 			escapeMarkdownCell(description)))
 	}
@@ -260,17 +283,14 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 		}
 		typeDisplay := ""
 		if typeName != "" {
-			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(typeName))
+			friendlyType := arrowTypeToUserFriendly(typeName)
+			typeDisplay = fmt.Sprintf("`%s`", escapeMarkdownType(friendlyType))
 		}
 		description := docs.Description
-		if description != "" {
-			description += fmt.Sprintf(" Column scope: `session`, Column interface: `%s`.", docs.InterfaceID)
-		} else {
-			description = fmt.Sprintf("Column scope: `session`, Column interface: `%s`.", docs.InterfaceID)
-		}
-		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+		buf.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
 			escapeMarkdownCell(docs.ColumnName),
 			escapeMarkdownCell(docs.DisplayName),
+			"`session`",
 			typeDisplay,
 			escapeMarkdownCell(description)))
 	}

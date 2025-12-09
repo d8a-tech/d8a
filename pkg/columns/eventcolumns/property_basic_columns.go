@@ -31,5 +31,9 @@ func PropertyNameColumn(psr properties.SettingsRegistry) schema.EventColumn {
 			}
 			return property.PropertyName, nil
 		},
+		columns.WithEventColumnDocs(
+			"Property Name",
+			"The name of the property (website or app) that sent this event.", // nolint:lll // it's a description
+		),
 	)
 }
