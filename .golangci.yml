@@ -117,6 +117,7 @@ linters:
           - dupl
           - funlen
           - gosec
+          - gocognit
         path: _test\.go
     paths:
       - third_party$

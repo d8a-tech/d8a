@@ -24,7 +24,7 @@ var sessionEntryPageLocationColumn = columns.NthEventMatchingPredicateValueColum
 	columns.CoreInterfaces.SessionEntryPageLocation.ID,
 	columns.CoreInterfaces.SessionEntryPageLocation.Field,
 	0,
-	columns.CoreInterfaces.EventPageLocation.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageLocation.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -46,7 +46,7 @@ var sessionExitPageLocationColumn = columns.NthEventMatchingPredicateValueColumn
 	columns.CoreInterfaces.SessionExitPageLocation.ID,
 	columns.CoreInterfaces.SessionExitPageLocation.Field,
 	-1,
-	columns.CoreInterfaces.EventPageLocation.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageLocation.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -68,7 +68,7 @@ var sessionEntryPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionEntryPageTitle.ID,
 	columns.CoreInterfaces.SessionEntryPageTitle.Field,
 	0,
-	columns.CoreInterfaces.EventPageTitle.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageTitle.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -90,7 +90,7 @@ var sessionExitPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionExitPageTitle.ID,
 	columns.CoreInterfaces.SessionExitPageTitle.Field,
 	-1,
-	columns.CoreInterfaces.EventPageTitle.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageTitle.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -112,7 +112,7 @@ var sessionSecondPageLocationColumn = columns.NthEventMatchingPredicateValueColu
 	columns.CoreInterfaces.SessionSecondPageLocation.ID,
 	columns.CoreInterfaces.SessionSecondPageLocation.Field,
 	1,
-	columns.CoreInterfaces.EventPageLocation.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageLocation.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -134,7 +134,7 @@ var sessionSecondPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionSecondPageTitle.ID,
 	columns.CoreInterfaces.SessionSecondPageTitle.Field,
 	1,
-	columns.CoreInterfaces.EventPageTitle.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventPageTitle.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -156,7 +156,7 @@ var sessionUtmMarketingTacticColumn = columns.NthEventMatchingPredicateValueColu
 	columns.CoreInterfaces.SessionUtmMarketingTactic.ID,
 	columns.CoreInterfaces.SessionUtmMarketingTactic.Field,
 	0,
-	columns.CoreInterfaces.EventUtmMarketingTactic.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmMarketingTactic.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -178,7 +178,7 @@ var sessionUtmSourcePlatformColumn = columns.NthEventMatchingPredicateValueColum
 	columns.CoreInterfaces.SessionUtmSourcePlatform.ID,
 	columns.CoreInterfaces.SessionUtmSourcePlatform.Field,
 	0,
-	columns.CoreInterfaces.EventUtmSourcePlatform.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmSourcePlatform.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -200,7 +200,7 @@ var sessionUtmTermColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmTerm.ID,
 	columns.CoreInterfaces.SessionUtmTerm.Field,
 	0,
-	columns.CoreInterfaces.EventUtmTerm.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmTerm.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -222,7 +222,7 @@ var sessionUtmContentColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmContent.ID,
 	columns.CoreInterfaces.SessionUtmContent.Field,
 	0,
-	columns.CoreInterfaces.EventUtmContent.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmContent.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -244,7 +244,7 @@ var sessionUtmSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmSource.ID,
 	columns.CoreInterfaces.SessionUtmSource.Field,
 	0,
-	columns.CoreInterfaces.EventUtmSource.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmSource.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -266,7 +266,7 @@ var sessionUtmMediumColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmMedium.ID,
 	columns.CoreInterfaces.SessionUtmMedium.Field,
 	0,
-	columns.CoreInterfaces.EventUtmMedium.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmMedium.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -288,7 +288,7 @@ var sessionUtmCampaignColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmCampaign.ID,
 	columns.CoreInterfaces.SessionUtmCampaign.Field,
 	0,
-	columns.CoreInterfaces.EventUtmCampaign.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmCampaign.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -310,7 +310,7 @@ var sessionUtmIDColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionUtmID.ID,
 	columns.CoreInterfaces.SessionUtmID.Field,
 	0,
-	columns.CoreInterfaces.EventUtmID.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmID.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -332,7 +332,7 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 	columns.CoreInterfaces.SessionUtmCreativeFormat.ID,
 	columns.CoreInterfaces.SessionUtmCreativeFormat.Field,
 	0,
-	columns.CoreInterfaces.EventUtmCreativeFormat.Field.Name,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventUtmCreativeFormat.Field.Name),
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{

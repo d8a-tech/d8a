@@ -11,6 +11,8 @@ const (
 	// MetadataKeyOriginalPageLocation is the key used to store the original page location
 	// (with tracking parameters) in event metadata.
 	MetadataKeyOriginalPageLocation = "original_page_location"
+
+	MetadataKeySessionSourceMediumTerm = "session_source_medium_term"
 )
 
 var (
