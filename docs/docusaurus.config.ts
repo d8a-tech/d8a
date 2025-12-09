@@ -5,8 +5,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 // This runs in Node.js - Don't use client-side code here (browser APIs, JSX...)
 
 const config: Config = {
-  title: 'd8a.tech',
-  tagline: 'Documentation',
+  title: 'd8a.tech - Documentation',
+  tagline: 'd8a (Divine Data) is an open-source clickstream analytics that\'s fully compatible with GA4 tracking protocols.',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
