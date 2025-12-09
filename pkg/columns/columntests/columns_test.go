@@ -26,7 +26,14 @@ func TestEventColumns(t *testing.T) {
 		description string
 	}{
 		// Required fields
-
+		{
+			name:        "EventName_Valid",
+			param:       "en",
+			value:       "page_view",
+			expected:    "page_view",
+			fieldName:   "name",
+			description: "Required event name field",
+		},
 		{
 			name:        "EventUtmMarketingTactic_Valid",
 			param:       "dl",

@@ -256,24 +256,3 @@ func (s *Server) Run(ctx context.Context) error {
 		return nil
 	}
 }
-
-// Serve starts the HTTP server with the given storage backend and port
-// Deprecated: Use NewServer and Run instead
-func Serve(
-	ctx context.Context,
-	storage Storage,
-	rawLogStorage RawLogStorage,
-	port int,
-	protocols protocol.PathProtocolMapping,
-	otherHandlers map[string]func(fctx *fasthttp.RequestCtx),
-) error {
-	s := NewServer(
-		storage,
-		rawLogStorage,
-		HitValidatingRuleSet(1024*128), // 128KB
-		protocols,
-		otherHandlers,
-		port,
-	)
-	return s.Run(ctx)
-}

@@ -233,7 +233,6 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	return schema.Columns{
 		Event: []schema.EventColumn{
 			eventMeasurementIDColumn,
-			eventNameColumn,
 			eventPageTitleColumn,
 			eventPageReferrerColumn,
 			eventPagePathColumn,

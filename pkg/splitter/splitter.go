@@ -30,8 +30,8 @@ var AllCauses = []SplitCause{
 	SplitCauseTimeSinceFirstEvent,
 }
 
-// SessionSplitter splits a session into multiple sessions based on conditions.
-type SessionSplitter interface {
+// SessionModifier splits a session into multiple sessions based on conditions.
+type SessionModifier interface {
 	Split(*schema.Session) ([]*schema.Session, error)
 }
 
@@ -117,14 +117,14 @@ func (s *splitterImpl) initializeContext(ctx *Context, event *schema.Event) {
 }
 
 // NewNoop creates a new session splitter that does not split the session.
-func NewNoop() SessionSplitter {
+func NewNoop() SessionModifier {
 	return &splitterImpl{
 		conditions: []Condition{},
 	}
 }
 
 // New creates a new session splitter with the given conditions.
-func New(conditions ...Condition) SessionSplitter {
+func New(conditions ...Condition) SessionModifier {
 	return &splitterImpl{
 		conditions: conditions,
 	}
@@ -132,14 +132,14 @@ func New(conditions ...Condition) SessionSplitter {
 
 // Registry provides session splitters for properties.
 type Registry interface {
-	Splitter(propertyID string) (SessionSplitter, error)
+	Splitter(propertyID string) (SessionModifier, error)
 }
 
 type fromPropertySettingsRegistry struct {
 	psr properties.SettingsRegistry
 }
 
-func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionSplitter, error) {
+func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionModifier, error) {
 	settings, err := r.psr.GetByPropertyID(propertyID)
 	if err != nil {
 		return nil, err
@@ -166,14 +166,14 @@ func NewFromPropertySettingsRegistry(psr properties.SettingsRegistry) Registry {
 }
 
 type staticRegistry struct {
-	splitter SessionSplitter
+	splitter SessionModifier
 }
 
-func (r *staticRegistry) Splitter(_ string) (SessionSplitter, error) {
+func (r *staticRegistry) Splitter(_ string) (SessionModifier, error) {
 	return r.splitter, nil
 }
 
 // NewStaticRegistry always returns the same splitter.
-func NewStaticRegistry(splitter SessionSplitter) Registry {
+func NewStaticRegistry(splitter SessionModifier) Registry {
 	return &staticRegistry{splitter: splitter}
 }

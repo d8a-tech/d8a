@@ -406,23 +406,6 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "measurement_id",
 			description: "Empty measurement ID should be nil",
 		},
-		{
-			name:        "EventName_Valid",
-			param:       "en",
-			value:       "page_view",
-			expected:    "page_view",
-			fieldName:   "name",
-			description: "Required event name field",
-		},
-		{
-			name:        "EventName_Empty",
-			param:       "en",
-			value:       "",
-			expected:    nil,
-			expectedErr: true,
-			fieldName:   "name",
-			description: "Empty event name should be nil",
-		},
 
 		// Optional document fields
 		{
@@ -2135,7 +2118,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.QueryParams.Set("en", "page_view")
+				hit.EventName = "page_view"
 				return hit
 			}(),
 			},
@@ -2149,7 +2132,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.QueryParams.Set("en", "page_view")
+				hit.EventName = "page_view"
 				return hit
 			}(),
 			},
@@ -2163,7 +2146,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.QueryParams.Set("en", "page_view")
+				hit.EventName = "page_view"
 				return hit
 			}(),
 			},
@@ -2382,7 +2365,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is abandoned when there's add_to_cart but no purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "add_to_cart"),
+				columntests.EnsureEventName(0, "add_to_cart"),
 			},
 		},
 		{
@@ -2392,8 +2375,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is not abandoned when add_to_cart is before purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "add_to_cart"),
-				columntests.EnsureQueryParam(1, "en", "purchase"),
+				columntests.EnsureEventName(0, "add_to_cart"),
+				columntests.EnsureEventName(1, "purchase"),
 			},
 		},
 		{
@@ -2403,8 +2386,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is abandoned when add_to_cart is after purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "purchase"),
-				columntests.EnsureQueryParam(1, "en", "add_to_cart"),
+				columntests.EnsureEventName(0, "purchase"),
+				columntests.EnsureEventName(1, "add_to_cart"),
 			},
 		},
 		{
@@ -2414,9 +2397,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is abandoned when add_to_cart is the last event",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "purchase"),
-				columntests.EnsureQueryParam(2, "en", "add_to_cart"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "purchase"),
+				columntests.EnsureEventName(2, "add_to_cart"),
 			},
 		},
 		{
@@ -2426,9 +2409,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is abandoned when add_to_cart follows purchase with one event in between",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "purchase"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
-				columntests.EnsureQueryParam(2, "en", "add_to_cart"),
+				columntests.EnsureEventName(0, "purchase"),
+				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(2, "add_to_cart"),
 			},
 		},
 		{
@@ -2443,10 +2426,10 @@ func TestSessionColumns(t *testing.T) {
 				columntests.TestHitFour(),
 			},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "add_to_cart"),
-				columntests.EnsureQueryParam(1, "en", "purchase"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
-				columntests.EnsureQueryParam(3, "en", "add_to_cart"),
+				columntests.EnsureEventName(0, "add_to_cart"),
+				columntests.EnsureEventName(1, "purchase"),
+				columntests.EnsureEventName(2, "page_view"),
+				columntests.EnsureEventName(3, "add_to_cart"),
 			},
 		},
 		{
@@ -2456,9 +2439,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is not abandoned when all add_to_cart events are before purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "add_to_cart"),
-				columntests.EnsureQueryParam(1, "en", "add_to_cart"),
-				columntests.EnsureQueryParam(2, "en", "purchase"),
+				columntests.EnsureEventName(0, "add_to_cart"),
+				columntests.EnsureEventName(1, "add_to_cart"),
+				columntests.EnsureEventName(2, "purchase"),
 			},
 		},
 		{
@@ -2468,8 +2451,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is not abandoned when there are no add_to_cart events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "purchase"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "purchase"),
 			},
 		},
 		{
@@ -2479,7 +2462,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is not abandoned when there's only purchase event",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "purchase"),
+				columntests.EnsureEventName(0, "purchase"),
 			},
 		},
 		{
@@ -2489,7 +2472,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page location from single page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/entry"),
 			},
 		},
@@ -2500,11 +2483,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page location from first of multiple page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
 			},
 		},
@@ -2515,11 +2498,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page location ignores non-page-view events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/ignored"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page"),
-				columntests.EnsureQueryParam(2, "en", "scroll"),
+				columntests.EnsureEventName(2, "scroll"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/also-ignored"),
 			},
 		},
@@ -2530,8 +2513,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page location is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "click"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -2541,7 +2524,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page location from single page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/exit"),
 			},
 		},
@@ -2552,11 +2535,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page location from last of multiple page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
 			},
 		},
@@ -2567,11 +2550,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page location ignores non-page-view events at end",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/last-page"),
-				columntests.EnsureQueryParam(2, "en", "click"),
+				columntests.EnsureEventName(2, "click"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/ignored"),
 			},
 		},
@@ -2582,8 +2565,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page location is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "click"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -2593,7 +2576,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page title from single page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "Entry Page"),
 			},
 		},
@@ -2604,11 +2587,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page title from first of multiple page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "First Page"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dt", "Second Page"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dt", "Third Page"),
 			},
 		},
@@ -2619,7 +2602,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Entry page title is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 			},
 		},
 		{
@@ -2629,7 +2612,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page title from single page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "Exit Page"),
 			},
 		},
@@ -2640,11 +2623,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page title from last of multiple page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "First Page"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dt", "Second Page"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dt", "Third Page"),
 			},
 		},
@@ -2655,7 +2638,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Exit page title is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 			},
 		},
 		{
@@ -2665,9 +2648,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page location from second page view",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
 			},
 		},
@@ -2678,11 +2661,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page location from three page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/third"),
 			},
 		},
@@ -2693,7 +2676,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page location is nil with only one page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/only"),
 			},
 		},
@@ -2709,13 +2692,13 @@ func TestSessionColumns(t *testing.T) {
 				columntests.TestHitOne(),
 			},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
-				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureEventName(1, "click"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/ignored"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dl", "https://example.com/second-page"),
-				columntests.EnsureQueryParam(3, "en", "scroll"),
+				columntests.EnsureEventName(3, "scroll"),
 			},
 		},
 		{
@@ -2725,8 +2708,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page location is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "click"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -2736,9 +2719,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page title from second page view",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "First Page"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dt", "Second Page"),
 			},
 		},
@@ -2749,11 +2732,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page title from three page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "First Page"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dt", "Second Page"),
-				columntests.EnsureQueryParam(2, "en", "page_view"),
+				columntests.EnsureEventName(2, "page_view"),
 				columntests.EnsureQueryParam(2, "dt", "Third Page"),
 			},
 		},
@@ -2764,7 +2747,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page title is nil with only one page view",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dt", "Only Page"),
 			},
 		},
@@ -2775,7 +2758,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Second page title is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 			},
 		},
 		{
@@ -2785,9 +2768,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM marketing tactic",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_marketing_tactic=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_marketing_tactic=1338"),
 			},
 		},
@@ -2798,9 +2781,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM marketing tactic is the first page view's UTM marketing tactic",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_marketing_tactic=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_marketing_tactic=1338"),
 			},
 		},
@@ -2811,9 +2794,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM marketing tactic is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_marketing_tactic=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_marketing_tactic=1338"),
 			},
 		},
@@ -2824,9 +2807,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM source platform",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source_platform=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source_platform=1338"),
 			},
 		},
@@ -2837,9 +2820,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM source platform is the first page view's UTM source platform",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source_platform=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source_platform=1338"),
 			},
 		},
@@ -2850,9 +2833,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM source platform is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source_platform=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source_platform=1338"),
 			},
 		},
@@ -2863,9 +2846,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM term",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_term=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_term=1338"),
 			},
 		},
@@ -2876,9 +2859,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM term is the first page view's UTM term",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_term=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_term=1338"),
 			},
 		},
@@ -2889,9 +2872,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM term is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_term=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_term=1338"),
 			},
 		},
@@ -2902,9 +2885,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM content",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_content=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_content=1338"),
 			},
 		},
@@ -2915,9 +2898,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM content is the first page view's UTM content",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_content=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_content=1338"),
 			},
 		},
@@ -2928,9 +2911,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM content is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_content=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_content=1338"),
 			},
 		},
@@ -2941,9 +2924,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM source",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source=1338"),
 			},
 		},
@@ -2954,9 +2937,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM source is the first page view's UTM source",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source=1338"),
 			},
 		},
@@ -2967,9 +2950,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM source is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_source=1338"),
 			},
 		},
@@ -2980,9 +2963,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM medium",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_medium=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_medium=1338"),
 			},
 		},
@@ -2993,9 +2976,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM medium is the first page view's UTM medium",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_medium=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_medium=1338"),
 			},
 		},
@@ -3006,9 +2989,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM medium is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_medium=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_medium=1338"),
 			},
 		},
@@ -3019,9 +3002,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM campaign",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_campaign=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_campaign=1338"),
 			},
 		},
@@ -3032,9 +3015,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM campaign is the first page view's UTM campaign",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_campaign=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_campaign=1338"),
 			},
 		},
@@ -3045,9 +3028,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM campaign is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_campaign=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_campaign=1338"),
 			},
 		},
@@ -3058,9 +3041,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM ID",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_id=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_id=1338"),
 			},
 		},
@@ -3071,9 +3054,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM ID is the first page view's UTM ID",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_id=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_id=1338"),
 			},
 		},
@@ -3084,9 +3067,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM ID is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_id=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_id=1338"),
 			},
 		},
@@ -3097,9 +3080,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Valid UTM creative format",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_creative_format=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_creative_format=1338"),
 			},
 		},
@@ -3110,9 +3093,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM creative format is the first page view's UTM creative format",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_creative_format=1337"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_creative_format=1338"),
 			},
 		},
@@ -3123,9 +3106,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session UTM creative format is nil when no page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page?utm_creative_format=1337"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page?utm_creative_format=1338"),
 			},
 		},
@@ -3136,8 +3119,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3147,8 +3130,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -3158,9 +3141,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page"),
 			},
 		},
@@ -3171,9 +3154,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique page views",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/page1"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/page2"),
 			},
 		},
@@ -3184,8 +3167,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total purchases",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "purchase"),
-				columntests.EnsureQueryParam(1, "en", "purchase"),
+				columntests.EnsureEventName(0, "purchase"),
+				columntests.EnsureEventName(1, "purchase"),
 			},
 		},
 		{
@@ -3195,8 +3178,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total purchases",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "purchase"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "purchase"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3206,8 +3189,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total purchases",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -3217,8 +3200,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total scrolls",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "scroll"),
-				columntests.EnsureQueryParam(1, "en", "scroll"),
+				columntests.EnsureEventName(0, "scroll"),
+				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
 		{
@@ -3228,8 +3211,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total scrolls",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3239,8 +3222,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
-				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
+				columntests.EnsureEventName(1, "click"),
 			},
 		},
 		{
@@ -3250,8 +3233,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3261,9 +3244,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/page"),
-				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureEventName(1, "click"),
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/page"),
 			},
 		},
@@ -3274,9 +3257,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/page1"),
-				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureEventName(1, "click"),
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/page2"),
 			},
 		},
@@ -3287,9 +3270,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "click"),
+				columntests.EnsureEventName(0, "click"),
 				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/page"),
-				columntests.EnsureQueryParam(1, "en", "click"),
+				columntests.EnsureEventName(1, "click"),
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/page"),
 			},
 		},
@@ -3300,8 +3283,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total site searches",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "view_search_results"),
-				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureEventName(0, "view_search_results"),
+				columntests.EnsureEventName(1, "search"),
 			},
 		},
 		{
@@ -3311,8 +3294,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total site searches",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3322,11 +3305,11 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique site searches",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "view_search_results"),
+				columntests.EnsureEventName(0, "view_search_results"),
 				columntests.EnsureQueryParam(0, "ep.search_term", "search_term1"),
-				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureEventName(1, "search"),
 				columntests.EnsureQueryParam(1, "ep.search_term", "search_term1"),
-				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureEventName(1, "search"),
 				columntests.EnsureQueryParam(1, "ep.search_term", "search_term1"),
 			},
 		},
@@ -3337,9 +3320,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique site searches",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "view_search_results"),
+				columntests.EnsureEventName(0, "view_search_results"),
 				columntests.EnsureQueryParam(0, "ep.search_term", "search_term1"),
-				columntests.EnsureQueryParam(1, "en", "search"),
+				columntests.EnsureEventName(1, "search"),
 				columntests.EnsureQueryParam(1, "ep.search_term", "search_term2"),
 			},
 		},
@@ -3350,8 +3333,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total form interactions",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "form_submit"),
-				columntests.EnsureQueryParam(1, "en", "form_start"),
+				columntests.EnsureEventName(0, "form_submit"),
+				columntests.EnsureEventName(1, "form_start"),
 			},
 		},
 		{
@@ -3361,8 +3344,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total form interactions",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3372,9 +3355,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique form interactions",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "form_submit"),
+				columntests.EnsureEventName(0, "form_submit"),
 				columntests.EnsureQueryParam(0, "ep.form_id", "form_id1"),
-				columntests.EnsureQueryParam(1, "en", "form_start"),
+				columntests.EnsureEventName(1, "form_start"),
 				columntests.EnsureQueryParam(1, "ep.form_id", "form_id1"),
 			},
 		},
@@ -3385,8 +3368,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total video engagements",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "video_start"),
-				columntests.EnsureQueryParam(1, "en", "video_complete"),
+				columntests.EnsureEventName(0, "video_start"),
+				columntests.EnsureEventName(1, "video_complete"),
 			},
 		},
 		{
@@ -3396,8 +3379,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total video engagements",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3407,9 +3390,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total video engagements",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "video_start"),
+				columntests.EnsureEventName(0, "video_start"),
 				columntests.EnsureQueryParam(0, "ep.video_url", "https://example.com/video1"),
-				columntests.EnsureQueryParam(1, "en", "video_complete"),
+				columntests.EnsureEventName(1, "video_complete"),
 				columntests.EnsureQueryParam(1, "ep.video_url", "https://example.com/video2"),
 			},
 		},
@@ -3420,8 +3403,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total file downloads",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "file_download"),
-				columntests.EnsureQueryParam(1, "en", "file_download"),
+				columntests.EnsureEventName(0, "file_download"),
+				columntests.EnsureEventName(1, "file_download"),
 			},
 		},
 		{
@@ -3431,8 +3414,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total file downloads",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "page_view"),
-				columntests.EnsureQueryParam(1, "en", "page_view"),
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(1, "page_view"),
 			},
 		},
 		{
@@ -3442,9 +3425,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique file downloads",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "file_download"),
+				columntests.EnsureEventName(0, "file_download"),
 				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/file1"),
-				columntests.EnsureQueryParam(1, "en", "file_download"),
+				columntests.EnsureEventName(1, "file_download"),
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/file1"),
 			},
 		},
@@ -3455,9 +3438,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session unique file downloads",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "en", "file_download"),
+				columntests.EnsureEventName(0, "file_download"),
 				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/file1"),
-				columntests.EnsureQueryParam(1, "en", "file_download"),
+				columntests.EnsureEventName(1, "file_download"),
 				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/file2"),
 			},
 		},

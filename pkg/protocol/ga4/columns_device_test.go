@@ -196,7 +196,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 	for _, tc := range eventColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
-			hit.QueryParams.Add("en", "page_view")
+			hit.EventName = PageViewEventType
 			for key, values := range tc.headers {
 				for _, value := range values {
 					hit.Headers.Add(key, value)

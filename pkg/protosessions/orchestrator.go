@@ -149,6 +149,7 @@ func NewOrchestrator(
 		processBucketAlreadyRan: false,
 		nextBucketRequests:      make(chan []*GetAllProtosessionsForBucketRequest),
 		nextBucketResponses:     make(chan []*GetAllProtosessionsForBucketResponse),
+		lastFailedResponses:     make(chan []*GetAllProtosessionsForBucketResponse, 1),
 
 		// metrics
 		processBatchHist:     processBatchHist,
@@ -543,6 +544,7 @@ func (o *Orchestrator) processBucket(
 
 	o.getProtosessionsHist.Record(ctx, time.Since(getProtosessionsStart).Seconds())
 
+	// The batch contains data from single bucket anyway
 	if len(responses) == 0 {
 		return nil
 	}
@@ -559,6 +561,7 @@ func (o *Orchestrator) processBucket(
 		response.ProtoSessions,
 	)
 	if err != nil {
+		o.lastFailedResponses <- responses
 		return err
 	}
 
@@ -566,12 +569,14 @@ func (o *Orchestrator) processBucket(
 	// computing session-level aggregates from hits and publishing them to the warehouse.
 	// After this point, the session data is persisted and proto-session state can be discarded.
 	if err := o.closeBatch(ctx, protoSessionsBatch, totalHits); err != nil {
+		o.lastFailedResponses <- responses
 		return err
 	}
 
 	// Cleanup phase: now that sessions are persisted, we remove all transient proto-session state.
 	// This includes the hit data, identifier conflict metadata, and the bucket registration itself.
 	if err := o.cleanupBucket(ctx, bucketNumber, removeHitReqs, removeMetadataReqs); err != nil {
+		o.lastFailedResponses <- responses
 		return err
 	}
 
@@ -584,7 +589,7 @@ func (o *Orchestrator) recordAndWarnLag(ctx context.Context, bucketNumber int64)
 		o.timingWheel.BucketNumber(time.Now().UTC())-bucketNumber,
 	) * o.timingWheel.tickInterval
 	if lag > time.Minute && time.Since(o.lastLagWarn) > time.Second {
-		logrus.Warnf("Processing lag is high: %s, catching up...", lag)
+		logrus.Warnf("Processing lag is high: %s", lag)
 		o.lastLagWarn = time.Now()
 	}
 	o.processingLagGauge.Record(ctx, lag.Seconds())
@@ -699,7 +704,6 @@ func (o *Orchestrator) cleanupBucket(
 // processBucket's look-ahead pattern. It decouples bucket data fetching from processing,
 // allowing the timing wheel to hide storage latency during catch-up.
 func (o *Orchestrator) prefillNextBuckets() {
-	// TODO: rethink prefill logic in the case of failed processing
 	for {
 		select {
 		case <-o.ctx.Done():
@@ -708,7 +712,11 @@ func (o *Orchestrator) prefillNextBuckets() {
 		case requests := <-o.nextBucketRequests:
 			responses := o.backend.GetAllProtosessionsForBucket(o.ctx, requests)
 			for _, response := range responses {
-				// TODO: what if now error happens?
+				if response.Err != nil {
+					logrus.Errorf("Error prefilling next buckets: %v", response.Err)
+					time.Sleep(o.timingWheel.tickInterval)
+					continue
+				}
 			}
 			o.nextBucketResponses <- responses
 		}

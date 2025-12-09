@@ -130,9 +130,8 @@ func TestItemsColumnRefund(t *testing.T) {
 					"pr1",
 					"id"+tc.itemID+"~pr"+fmt.Sprintf("%.2f", tc.price)+"~qt"+fmt.Sprintf("%.0f", tc.quantity),
 				),
-				columntests.EnsureQueryParam(
+				columntests.EnsureEventName(
 					0,
-					"en",
 					tc.eventName,
 				),
 			)
@@ -451,9 +450,8 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			// given
 
 			refFuncs := []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(
+				columntests.EnsureEventName(
 					0,
-					"en",
 					tc.eventName,
 				),
 			}

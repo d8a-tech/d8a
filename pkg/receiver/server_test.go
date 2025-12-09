@@ -48,6 +48,7 @@ func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	theHit.Host = string(request.Host)
 	theHit.Path = string(request.Path)
 	theHit.Method = string(request.Method)
+	theHit.EventName = "page_view"
 	theHit.Headers = url.Values{}
 	for key, values := range request.Headers {
 		for _, value := range values {

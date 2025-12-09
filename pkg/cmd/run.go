@@ -28,6 +28,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
+	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -128,7 +129,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			},
 			{
 				Name:  "server",
-				Usage: "Start d8a demo server",
+				Usage: "Start D8A server. Full configuration reference: https://docs.d8a.tech/articles/config",
 				Flags: getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if ctx == nil {
@@ -292,7 +293,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					server := receiver.NewServer(
 						serverStorage,
 						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(1024*128), // 128KB
+						receiver.HitValidatingRuleSet(1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name))),
 						protocol.PathProtocolMapping{
 							"/g/collect": ga4.NewGA4Protocol(
 								currencyConverter,

@@ -8,18 +8,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-var eventNameColumn = columns.FromQueryParamEventColumn(
-	columns.CoreInterfaces.EventName.ID,
-	columns.CoreInterfaces.EventName.Field,
-	"en",
-	columns.WithEventColumnRequired(true),
-	columns.WithEventColumnCast(columns.StrErrIfEmpty(columns.CoreInterfaces.EventName.ID)),
-	columns.WithEventColumnDocs(
-		"Event Name",
-		"The name of the event. This identifies the action the user performed (e.g., 'page_view', 'click', 'purchase', 'sign_up').", // nolint:lll // it's a description
-	),
-)
-
 var eventPageTitleColumn = columns.FromQueryParamEventColumn(
 	columns.CoreInterfaces.EventPageTitle.ID,
 	columns.CoreInterfaces.EventPageTitle.Field,

@@ -119,6 +119,7 @@ func (tw *TimingWheel) loop(ctx context.Context) {
 		case <-ticker.C:
 			if err := tw.tick(ctx); err != nil {
 				logrus.Errorf("TimingWheel tick failed: %s", err)
+				tw.loopSleep = tw.tickInterval
 			}
 			// Update ticker interval in case loopSleep changed
 			if tw.loopSleep > 0 {

@@ -29,6 +29,7 @@ func getServerFlags() []cli.Flag {
 			serverPortFlag,
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
+			receiverMaxHitKbytesFlag,
 			sessionsDurationFlag,
 			sessionsJoinBySessionStampFlag,
 			sessionsJoinByUserIDFlag,

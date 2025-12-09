@@ -51,6 +51,7 @@ func DefaultColumnRegistry(
 func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
 	return []schema.EventColumn{
 		eventcolumns.EventIDColumn,
+		eventcolumns.EventNameColumn,
 		eventcolumns.IPAddressColumn,
 		eventcolumns.ClientIDColumn,
 		eventcolumns.UserIDColumn,

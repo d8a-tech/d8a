@@ -24,6 +24,7 @@ var testHitOne = &hits.Hit{
 	AuthoritativeClientID: "ag9",
 	ClientID:              "ag9",
 	PropertyID:            "G-5T0Z13HKP4",
+	EventName:             "page_view",
 	IP:                    "127.0.0.1",
 	Host:                  "localhost.d8astage.xyz",
 	ServerReceivedTime:    time.Now(),
@@ -95,6 +96,7 @@ var testHitTwo = &hits.Hit{
 	IP:                    "127.0.0.2",
 	Host:                  "localhost.d8astage.xyz",
 	ServerReceivedTime:    time.Now(),
+	EventName:             "scroll",
 	QueryParams: url.Values{
 		"v":                    []string{"2"},
 		"tid":                  []string{"G-5T0Z13HKP4"},
@@ -164,6 +166,7 @@ var testHitThree = &hits.Hit{
 	IP:                    "127.0.0.1",
 	Host:                  "localhost.d8astage.xyz",
 	ServerReceivedTime:    time.Now(),
+	EventName:             "page_view",
 	QueryParams: url.Values{
 		"v":            []string{"2"},
 		"tid":          []string{"G-5T0Z13HKP4"},
@@ -230,6 +233,7 @@ var testHitFour = &hits.Hit{
 	IP:                    "127.0.0.11", // From X-Forwarded-For header
 	Host:                  "localhost.d8astage.xyz",
 	ServerReceivedTime:    time.Now(),
+	EventName:             "user_engagement",
 	QueryParams: url.Values{
 		"v":            []string{"2"},
 		"tid":          []string{"G-5T0Z13HKP4"},
@@ -326,6 +330,12 @@ type CaseConfig struct {
 	splitterRegistry  splitter.Registry
 }
 type CaseConfigFunc func(t *testing.T, c *CaseConfig)
+
+func EnsureEventName(hitNum int, eventName string) CaseConfigFunc {
+	return func(t *testing.T, c *CaseConfig) {
+		c.hits[hitNum].EventName = eventName
+	}
+}
 
 func EnsureQueryParam(hitNum int, param string, value string) CaseConfigFunc {
 	return func(t *testing.T, c *CaseConfig) {
