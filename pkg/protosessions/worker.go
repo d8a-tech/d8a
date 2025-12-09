@@ -46,7 +46,7 @@ func Handler(
 		err := orchestrator.processBatch(ctx, h.Hits)
 		if err != nil {
 			var errType worker.ErrorType
-			if err.IsFatal() {
+			if err.IsRetryable() {
 				errType = worker.ErrTypeRetryable
 			} else {
 				errType = worker.ErrTypeDroppable

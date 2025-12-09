@@ -116,9 +116,17 @@ func TestHandleRequest(t *testing.T) {
 			// given
 			storage := &mockStorage{err: tt.storageErr}
 			ctx := tt.request()
+			server := NewServer(
+				storage,
+				NewDummyRawLogStorage(),
+				HitValidatingRuleSet(1024*128), // 128KB
+				tt.protocolMap,
+				map[string]func(fctx *fasthttp.RequestCtx){},
+				8080,
+			)
 
 			// when
-			handleRequest(ctx, storage, NewDummyRawLogStorage(), tt.protocolMap["/collect"])
+			server.handleRequest(ctx, tt.protocolMap["/collect"])
 
 			// then
 			fmt.Println(string(ctx.Response.Body()))

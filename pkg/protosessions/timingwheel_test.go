@@ -2,6 +2,7 @@ package protosessions
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -13,9 +14,9 @@ func TestTimingWheel_SkipWhenNoEventsProcessed(t *testing.T) {
 	backend := &mockTickerBackend{
 		nextBucket: -1,
 	}
-	processor := func(_ context.Context, _ int64) (BucketNextInstruction, error) {
+	processor := func(_ context.Context, _ int64) error {
 		t.Fatal("processor should not be called when no events processed")
-		return BucketProcessingNoop, nil
+		return nil
 	}
 	tw := NewTimingWheel(backend, 1*time.Second, processor)
 	// Don't call UpdateTime - simulates no events processed
@@ -33,9 +34,9 @@ func TestTimingWheel_InitializeOnFirstRun(t *testing.T) {
 	backend := &mockTickerBackend{
 		nextBucket: -1,
 	}
-	processor := func(_ context.Context, _ int64) (BucketNextInstruction, error) {
+	processor := func(_ context.Context, _ int64) error {
 		t.Fatal("processor should not be called on initialization")
-		return BucketProcessingNoop, nil
+		return nil
 	}
 	tw := NewTimingWheel(backend, 1*time.Second, processor)
 	tw.UpdateTime(time.Unix(1000, 0))
@@ -54,9 +55,9 @@ func TestTimingWheel_ProcessBucketWhenReady(t *testing.T) {
 		nextBucket: 1000,
 	}
 	var processedBucket int64
-	processor := func(_ context.Context, bucketNumber int64) (BucketNextInstruction, error) {
+	processor := func(_ context.Context, bucketNumber int64) error {
 		processedBucket = bucketNumber
-		return BucketProcessingAdvance, nil
+		return nil
 	}
 	tw := NewTimingWheel(backend, 1*time.Second, processor)
 	tw.UpdateTime(time.Unix(1001, 0))
@@ -75,9 +76,9 @@ func TestTimingWheel_SkipWhenBucketNotReady(t *testing.T) {
 	backend := &mockTickerBackend{
 		nextBucket: 1000,
 	}
-	processor := func(_ context.Context, _ int64) (BucketNextInstruction, error) {
+	processor := func(_ context.Context, _ int64) error {
 		t.Fatal("processor should not be called when bucket not ready")
-		return BucketProcessingNoop, nil
+		return nil
 	}
 	tw := NewTimingWheel(backend, 1*time.Second, processor)
 	tw.UpdateTime(time.Unix(1000, 0))
@@ -90,13 +91,13 @@ func TestTimingWheel_SkipWhenBucketNotReady(t *testing.T) {
 	assert.Equal(t, int64(1000), backend.nextBucket) // Should not advance
 }
 
-func TestTimingWheel_NoopDoesNotAdvance(t *testing.T) {
+func TestTimingWheel_ErrorDoesNotAdvance(t *testing.T) {
 	// given
 	backend := &mockTickerBackend{
 		nextBucket: 1000,
 	}
-	processor := func(_ context.Context, _ int64) (BucketNextInstruction, error) {
-		return BucketProcessingNoop, nil
+	processor := func(_ context.Context, _ int64) error {
+		return errors.New("processor error")
 	}
 	tw := NewTimingWheel(backend, 1*time.Second, processor)
 	tw.UpdateTime(time.Unix(1001, 0))
@@ -105,7 +106,7 @@ func TestTimingWheel_NoopDoesNotAdvance(t *testing.T) {
 	err := tw.tick(context.Background())
 
 	// then
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, int64(1000), backend.nextBucket) // Should not advance
 }
 

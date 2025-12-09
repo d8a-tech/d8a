@@ -1,10 +1,10 @@
 warehouse: console
 
-batcher:
+receiver:
   batch_timeout: 1s
 
-closer:
-  session_duration: 10s
+sessions:
+  duration: 5s
 
 monitoring:
   enabled: false

@@ -112,15 +112,13 @@ func TestOrchestrator_ProcessBucket(t *testing.T) {
 			)
 
 			// when
-			result, err := orchestrator.processBucket(ctx, 100)
+			err := orchestrator.processBucket(ctx, 100)
 
 			// then
 			if tc.expectError {
 				assert.Error(t, err)
-				assert.Equal(t, BucketProcessingNoop, result)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, BucketProcessingAdvance, result)
 				assert.Len(t, closedSessions, tc.expectClosedCount)
 				assert.Len(t, cleanedIDs, tc.expectCleanedCount)
 			}
@@ -173,11 +171,10 @@ func TestOrchestrator_ProcessBucket_SortsHitsByTime(t *testing.T) {
 	)
 
 	// when
-	result, err := orchestrator.processBucket(ctx, 100)
+	err := orchestrator.processBucket(ctx, 100)
 
 	// then
 	assert.NoError(t, err)
-	assert.Equal(t, BucketProcessingAdvance, result)
 	assert.Len(t, receivedSessions, 1)
 
 	sortedHits := receivedSessions[0]
@@ -225,7 +222,7 @@ func TestOrchestrator_ProcessBucket_CleanupBucketMetadata(t *testing.T) {
 	)
 
 	// when
-	_, err := orchestrator.processBucket(ctx, 100)
+	err := orchestrator.processBucket(ctx, 100)
 
 	// then
 	assert.NoError(t, err)
@@ -274,7 +271,7 @@ func TestOrchestrator_ProcessBucket_SkipsEmptyProtosessions(t *testing.T) {
 	)
 
 	// when
-	_, err := orchestrator.processBucket(ctx, 100)
+	err := orchestrator.processBucket(ctx, 100)
 
 	// then
 	assert.NoError(t, err)
@@ -351,12 +348,11 @@ func TestOrchestrator_ProcessBucket_CleanupErrors(t *testing.T) {
 			)
 
 			// when
-			result, err := orchestrator.processBucket(ctx, 100)
+			err := orchestrator.processBucket(ctx, 100)
 
 			// then
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), tc.expectErrMatch)
-			assert.Equal(t, BucketProcessingNoop, result)
 		})
 	}
 }

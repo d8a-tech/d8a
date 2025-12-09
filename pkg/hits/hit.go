@@ -4,6 +4,7 @@ package hits
 import (
 	"net/url"
 	"time"
+	"unsafe"
 
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type Hit struct {
 	// This ID should not be used for reporting and is only internal detail of the tracker.
 	AuthoritativeClientID ClientID `cbor:"ai"`
 	ClientID              ClientID `cbor:"ci"`
+	EventName             string   `cbor:"en"`
 	// PropertyID uses GA nomenclature. In other than GA protocols, it holds the analogous concept, like app, website, etc
 	PropertyID         string            `cbor:"pi"`
 	IP                 string            `cbor:"ip"`
@@ -60,22 +62,35 @@ func New() *Hit {
 	}
 }
 
-// Size returns the total byte size of the Hit struct including all its fields
+// Size returns the total byte size of the Hit struct including all its fields.
+// This includes the struct itself, all string data, slice data, and map overhead.
 func (h *Hit) Size() uint32 {
 	var size uint32
 
-	// Fixed size fields
+	// Base struct size (includes all pointers and fixed-size fields)
+	size += util.SafeIntToUint32(int(unsafe.Sizeof(*h)))
+
+	// String data sizes (strings in Go store data separately from the struct)
 	size += util.SafeIntToUint32(len(h.ID))
 	size += util.SafeIntToUint32(len(h.AuthoritativeClientID))
 	size += util.SafeIntToUint32(len(h.ClientID))
+	size += util.SafeIntToUint32(len(h.PropertyID))
 	size += util.SafeIntToUint32(len(h.IP))
 	size += util.SafeIntToUint32(len(h.Host))
-	size += 256 // Estimated size of time.Time
-	size += util.SafeIntToUint32(len(h.Body))
 	size += util.SafeIntToUint32(len(h.Path))
 	size += util.SafeIntToUint32(len(h.Method))
 
-	// QueryParams size
+	// time.Time is 24 bytes (3 int64 fields), already included in unsafe.Sizeof
+
+	// Slice data size
+	size += util.SafeIntToUint32(len(h.Body))
+
+	// UserID pointer and data
+	if h.UserID != nil {
+		size += util.SafeIntToUint32(len(*h.UserID))
+	}
+
+	// QueryParams size (url.Values is map[string][]string)
 	for key, values := range h.QueryParams {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {
@@ -83,7 +98,7 @@ func (h *Hit) Size() uint32 {
 		}
 	}
 
-	// Headers size
+	// Headers size (url.Values is map[string][]string)
 	for key, values := range h.Headers {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {

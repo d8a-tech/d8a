@@ -111,8 +111,26 @@ var HitBodyNotNil = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 	return nil
 })
 
+// TotalHitSizeDoesNotExceed validates that the total size of the hit does not exceed the max allowed size.
+func TotalHitSizeDoesNotExceed(maxHitSizeBytes uint32) HitValidatingRule {
+	return NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
+		if hit.Size() > maxHitSizeBytes {
+			return fmt.Errorf("hit size exceeds max allowed size of %d bytes", maxHitSizeBytes)
+		}
+		return nil
+	})
+}
+
+// EventNameNotEmpty validates that EventName is not empty.
+var EventNameNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
+	if hit.EventName == "" {
+		return fmt.Errorf("hit.EventName can not be empty")
+	}
+	return nil
+})
+
 // HitValidatingRuleSet returns a complete set of validation rules for hits.
-func HitValidatingRuleSet() HitValidatingRule {
+func HitValidatingRuleSet(maxHitSizeBytes uint32) HitValidatingRule {
 	return NewMultipleHitValidatingRule(
 		ClientIDNotEmpty,
 		PropertyIDNotEmpty,
@@ -122,5 +140,7 @@ func HitValidatingRuleSet() HitValidatingRule {
 		HitPathNotEmpty,
 		HitMethodNotEmpty,
 		HitBodyNotNil,
+		TotalHitSizeDoesNotExceed(maxHitSizeBytes),
+		EventNameNotEmpty,
 	)
 }

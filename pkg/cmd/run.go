@@ -289,11 +289,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					// Start server and handle its error
-					serverErr := receiver.Serve(
-						ctx,
+					server := receiver.NewServer(
 						serverStorage,
 						receiver.NewNoopRawLogStorage(),
-						cmd.Int(serverPortFlag.Name),
+						receiver.HitValidatingRuleSet(1024*128), // 128KB
 						protocol.PathProtocolMapping{
 							"/g/collect": ga4.NewGA4Protocol(
 								currencyConverter,
@@ -306,7 +305,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 								fctx.SetBodyString("OK")
 							},
 						},
+						cmd.Int(serverPortFlag.Name),
 					)
+					serverErr := server.Run(ctx)
 					if serverErr != nil {
 						logrus.Errorf("Server error: %v", serverErr)
 						cancel()

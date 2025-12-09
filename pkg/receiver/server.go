@@ -57,10 +57,37 @@ func statusGroup(statusCode int) string {
 	}
 }
 
-func handleRequest(
-	ctx *fasthttp.RequestCtx,
+// Server holds all server-related dependencies and configuration
+type Server struct {
+	storage         Storage
+	rawLogStorage   RawLogStorage
+	validationRules HitValidatingRule
+	protocols       protocol.PathProtocolMapping
+	otherHandlers   map[string]func(fctx *fasthttp.RequestCtx)
+	port            int
+}
+
+// NewServer creates a new Server instance with the provided dependencies
+func NewServer(
 	storage Storage,
 	rawLogStorage RawLogStorage,
+	validationRules HitValidatingRule,
+	protocols protocol.PathProtocolMapping,
+	otherHandlers map[string]func(fctx *fasthttp.RequestCtx),
+	port int,
+) *Server {
+	return &Server{
+		storage:         storage,
+		rawLogStorage:   rawLogStorage,
+		validationRules: validationRules,
+		protocols:       protocols,
+		otherHandlers:   otherHandlers,
+		port:            port,
+	}
+}
+
+func (s *Server) handleRequest(
+	ctx *fasthttp.RequestCtx,
 	selectedProtocol protocol.Protocol,
 ) {
 	start := time.Now()
@@ -84,12 +111,12 @@ func handleRequest(
 	if _, err := ctx.Request.WriteTo(b); err != nil {
 		logrus.Errorf("Failed to write raw request: %v", err)
 	}
-	if err := rawLogStorage.Store(b); err != nil {
+	if err := s.rawLogStorage.Store(b); err != nil {
 		logrus.Errorf("Failed to store raw log: %v", err)
 	}
 	var err error
 
-	hits, err := createHits(ctx, selectedProtocol)
+	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		recordRequestMetrics(path, fasthttp.StatusBadRequest, start)
@@ -101,7 +128,7 @@ func handleRequest(
 		hit.IP = realIP(ctx)
 	}
 
-	err = storage.Push(hits)
+	err = s.storage.Push(hits)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		recordRequestMetrics(path, fasthttp.StatusInternalServerError, start)
@@ -128,9 +155,7 @@ func recordRequestMetrics(path string, statusCode int, start time.Time) {
 		))
 }
 
-var hitValidatingRuleSet = HitValidatingRuleSet()
-
-func createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, error) {
+func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, error) {
 	queryParams := map[string][]string{}
 	for key, value := range ctx.QueryArgs().All() {
 		queryParams[string(key)] = append(queryParams[string(key)], string(value))
@@ -154,7 +179,7 @@ func createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, err
 	}
 
 	for _, hit := range hits {
-		if err := hitValidatingRuleSet.Validate(hit); err != nil {
+		if err := s.validationRules.Validate(hit); err != nil {
 			return nil, err
 		}
 	}
@@ -162,31 +187,24 @@ func createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, err
 	return hits, nil
 }
 
-// Serve starts the HTTP server with the given storage backend and port
-func Serve(
-	ctx context.Context,
-	storage Storage,
-	rawLogStorage RawLogStorage,
-	port int,
-	protocols protocol.PathProtocolMapping,
-	otherHandlers map[string]func(fctx *fasthttp.RequestCtx),
-) error {
-	s := &fasthttp.Server{
+// Run starts the HTTP server and blocks until the context is cancelled or an error occurs
+func (s *Server) Run(ctx context.Context) error {
+	httpServer := &fasthttp.Server{
 		Handler: func(fctx *fasthttp.RequestCtx) { // nolint:contextcheck // fasthttp implements context.Context
 			start := time.Now()
 			path := string(fctx.Path())
 			var selectedProtocol protocol.Protocol
-			for pathPrefix, protocol := range protocols {
+			for pathPrefix, protocol := range s.protocols {
 				if strings.HasPrefix(path, pathPrefix) {
 					selectedProtocol = protocol
 					break
 				}
 			}
 			if selectedProtocol != nil {
-				handleRequest(fctx, storage, rawLogStorage, selectedProtocol)
+				s.handleRequest(fctx, selectedProtocol)
 				return
 			}
-			for pathPrefix, handler := range otherHandlers {
+			for pathPrefix, handler := range s.otherHandlers {
 				if strings.HasPrefix(path, pathPrefix) {
 					handler(fctx)
 					recordRequestMetrics(path, fctx.Response.StatusCode(), start)
@@ -208,7 +226,7 @@ func Serve(
 		defer cancel()
 		shutdownDone := make(chan struct{})
 		go func() {
-			if err := s.Shutdown(); err != nil {
+			if err := httpServer.Shutdown(); err != nil {
 				fmt.Printf("Error shutting down server: %v\n", err)
 			}
 			close(shutdownDone)
@@ -225,8 +243,8 @@ func Serve(
 	// Start the server in a goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		logrus.Infof("Starting server on port %d", port)
-		if err := s.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port)); err != nil {
+		logrus.Infof("Starting server on port %d", s.port)
+		if err := httpServer.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", s.port)); err != nil {
 			errChan <- err
 		}
 	}()
@@ -237,4 +255,25 @@ func Serve(
 	case <-shutdownChan:
 		return nil
 	}
+}
+
+// Serve starts the HTTP server with the given storage backend and port
+// Deprecated: Use NewServer and Run instead
+func Serve(
+	ctx context.Context,
+	storage Storage,
+	rawLogStorage RawLogStorage,
+	port int,
+	protocols protocol.PathProtocolMapping,
+	otherHandlers map[string]func(fctx *fasthttp.RequestCtx),
+) error {
+	s := NewServer(
+		storage,
+		rawLogStorage,
+		HitValidatingRuleSet(1024*128), // 128KB
+		protocols,
+		otherHandlers,
+		port,
+	)
+	return s.Run(ctx)
 }
