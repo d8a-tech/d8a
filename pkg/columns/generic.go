@@ -495,17 +495,23 @@ func CastToBool(_ schema.InterfaceID) func(any) (any, error) {
 	}
 }
 
+// Sanity check - max writable string length
+const MaxStringLength = 8096
+
 // StrErrIfEmpty casts a value to string or returns an error if conversion fails or value is empty
 func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
-		_, ok := value.(string)
+		valueStr, ok := value.(string)
 		if !ok {
 			return nil, fmt.Errorf("%s: value is not a string: %v", ifID, value)
 		}
-		if value == "" {
+		if valueStr == "" {
 			return nil, fmt.Errorf("%s: value is empty: %v", ifID, value)
 		}
-		return value, nil
+		if len(valueStr) > MaxStringLength {
+			return valueStr[:MaxStringLength], nil
+		}
+		return valueStr, nil
 	}
 }
 
@@ -515,6 +521,9 @@ func CastToString(_ schema.InterfaceID) func(any) (any, error) {
 		valueStr, ok := value.(string)
 		if !ok {
 			return nil, errors.New("value is not a string")
+		}
+		if len(valueStr) > MaxStringLength {
+			return valueStr[:MaxStringLength], nil
 		}
 		return valueStr, nil
 	}
@@ -544,6 +553,9 @@ func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
 		}
 		if valueStr == "" {
 			return nil, nil
+		}
+		if len(valueStr) > MaxStringLength {
+			return valueStr[:MaxStringLength], nil
 		}
 		return valueStr, nil
 	}

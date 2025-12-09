@@ -25,6 +25,7 @@ type Orchestrator struct {
 
 	nextBucketRequests  chan []*GetAllProtosessionsForBucketRequest
 	nextBucketResponses chan []*GetAllProtosessionsForBucketResponse
+	lastFailedResponses chan []*GetAllProtosessionsForBucketResponse
 
 	processBucketAlreadyRan bool
 
@@ -148,6 +149,7 @@ func NewOrchestrator(
 		processBucketAlreadyRan: false,
 		nextBucketRequests:      make(chan []*GetAllProtosessionsForBucketRequest),
 		nextBucketResponses:     make(chan []*GetAllProtosessionsForBucketResponse),
+		lastFailedResponses:     make(chan []*GetAllProtosessionsForBucketResponse, 1),
 
 		// metrics
 		processBatchHist:     processBatchHist,
@@ -176,7 +178,7 @@ func NewOrchestrator(
 func (o *Orchestrator) processBatch(
 	ctx context.Context,
 	hitsBatch []*hits.Hit,
-) *ProtosessionError {
+) ProtosessionError {
 	// Dear reader, welcome to the heart of this project.
 	// Here we receive a batch of hits and need to glue each of them to its session. From bird's eye view:
 	// 1. We check if hits have identifier conflicts with other sessions.
@@ -209,7 +211,7 @@ func (o *Orchestrator) processBatch(
 	// This logic is not relevant in OSS, but it's important for Cloud, which supports partitioning.
 	newBatch, hitsToDrop, err := o.seedOutdatedHits(hitsBatch, batchSettingsRegistry)
 	if err != nil {
-		return NewProtosessionError(err, true)
+		return err
 	}
 
 	// Now we have a list of hits, that are not being processed by the timing wheel yet.
@@ -217,7 +219,7 @@ func (o *Orchestrator) processBatch(
 	// The BatchingIOBackend interface allows efficient batching of I/O operations for this orchestrator.
 	conflicts, err := o.checkIdentifierConflicts(ctx, newBatch, batchSettingsRegistry)
 	if err != nil {
-		return NewProtosessionError(err, true)
+		return err
 	}
 
 	// Apply eviction strategy to conflicting hits. This orchestrator uses strategy pattern to allow for different
@@ -244,7 +246,7 @@ func (o *Orchestrator) processBatch(
 		hitsToBeSaved, protosessionsForEviction, batchSettingsRegistry,
 	)
 	if err != nil {
-		return NewProtosessionError(err, true)
+		return NewErrorCausingTaskRetry(err)
 	}
 
 	// Execute the batch: append hits, fetch evicted proto-session hits, mark buckets.
@@ -285,12 +287,12 @@ func (o *Orchestrator) processBatch(
 func (o *Orchestrator) seedOutdatedHits(
 	hitsBatch []*hits.Hit,
 	registry properties.SettingsRegistry,
-) ([]*hits.Hit, map[hits.ClientID]*hits.Hit, error) {
+) ([]*hits.Hit, map[hits.ClientID]*hits.Hit, ProtosessionError) {
 	uniqueBuckets := make(map[int64][]*hits.Hit)
 	for _, hit := range hitsBatch {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		bucketNumber := o.timingWheel.BucketNumber(hit.ServerReceivedTime.Add(settings.SessionDuration))
 		uniqueBuckets[bucketNumber] = append(uniqueBuckets[bucketNumber], hit)
@@ -335,12 +337,12 @@ func (o *Orchestrator) checkIdentifierConflicts(
 	ctx context.Context,
 	newBatch []*hits.Hit,
 	registry properties.SettingsRegistry,
-) (map[hits.ClientID]*IdentifierConflictResponse, error) {
+) (map[hits.ClientID]*IdentifierConflictResponse, ProtosessionError) {
 	var requests []*IdentifierConflictRequest
 	for _, hit := range newBatch {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
-			return nil, err
+			return nil, NewErrorCausingTaskRetry(err)
 		}
 		requests = append(requests, GetConflictCheckRequests(hit, settings)...)
 	}
@@ -387,7 +389,7 @@ func (o *Orchestrator) buildSaveRequests(
 	[]*AppendHitsToProtoSessionRequest,
 	[]*MarkProtoSessionClosingForGivenBucketRequest,
 	[]*GetProtoSessionHitsRequest,
-	error,
+	ProtosessionError,
 ) {
 	appendReqs := make([]*AppendHitsToProtoSessionRequest, 0, len(hitsToBeSaved))
 	markReqs := make([]*MarkProtoSessionClosingForGivenBucketRequest, 0, len(hitsToBeSaved))
@@ -395,7 +397,7 @@ func (o *Orchestrator) buildSaveRequests(
 	for _, hit := range hitsToBeSaved {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		markReqs = append(markReqs, NewMarkProtoSessionClosingForGivenBucketRequest(
 			hit.AuthoritativeClientID,
@@ -419,15 +421,15 @@ func (o *Orchestrator) buildSaveRequests(
 func (o *Orchestrator) checkHandleBatchResponses(
 	appendResps []*AppendHitsToProtoSessionResponse,
 	markResps []*MarkProtoSessionClosingForGivenBucketResponse,
-) *ProtosessionError {
+) ProtosessionError {
 	for _, response := range appendResps {
 		if response.Err != nil {
-			return NewProtosessionError(response.Err, true)
+			return NewErrorCausingTaskRetry(response.Err)
 		}
 	}
 	for _, response := range markResps {
 		if response.Err != nil {
-			return NewProtosessionError(response.Err, true)
+			return NewErrorCausingTaskRetry(response.Err)
 		}
 	}
 	return nil
@@ -438,10 +440,10 @@ func (o *Orchestrator) processEvictedProtosessions(
 	ctx context.Context,
 	getResps []*GetProtoSessionHitsResponse,
 	protosessionsForEviction map[hits.ClientID][]*hits.Hit,
-) *ProtosessionError {
+) ProtosessionError {
 	for _, response := range getResps {
 		if response.Err != nil {
-			return NewProtosessionError(response.Err, true)
+			return NewErrorCausingTaskRetry(response.Err)
 		}
 		for _, hit := range response.Hits {
 			protosessionsForEviction[hit.AuthoritativeClientID] = append(
@@ -459,7 +461,7 @@ func (o *Orchestrator) processEvictedProtosessions(
 	err := o.requeuer.Push(allHitsToBeRequeued)
 	o.requeueHist.Record(ctx, time.Since(requeueStart).Seconds())
 	if err != nil {
-		return NewProtosessionError(err, true)
+		return NewErrorCausingTaskRetry(err)
 	}
 	return nil
 }
@@ -470,7 +472,7 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 	hitsToDrop map[hits.ClientID]*hits.Hit,
 	protosessionsForEviction map[hits.ClientID][]*hits.Hit,
 	registry properties.SettingsRegistry,
-) *ProtosessionError {
+) ProtosessionError {
 	removeHitRequests := make([]*RemoveProtoSessionHitsRequest, 0, len(protosessionsForEviction))
 	for id := range protosessionsForEviction {
 		removeHitRequests = append(removeHitRequests, NewRemoveProtoSessionHitsRequest(id))
@@ -480,7 +482,7 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 	for _, hit := range hitsToDrop {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
-			return NewProtosessionError(err, true)
+			return NewErrorCausingTaskRetry(err)
 		}
 		removeHitMetadataRequests = append(
 			removeHitMetadataRequests,
@@ -496,12 +498,12 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 
 	for _, resp := range removeResponses {
 		if resp.Err != nil {
-			return NewProtosessionError(resp.Err, true)
+			return NewErrorCausingTaskRetry(resp.Err)
 		}
 	}
 	for _, resp := range removeMetadataResponses {
 		if resp.Err != nil {
-			return NewProtosessionError(resp.Err, true)
+			return NewErrorCausingTaskRetry(resp.Err)
 		}
 	}
 	return nil
@@ -513,7 +515,7 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 func (o *Orchestrator) processBucket(
 	ctx context.Context,
 	passedBucketNumber int64,
-) (BucketNextInstruction, error) {
+) error {
 	// We process bucket N-1 when timing wheel signals N, to be able to prefetch the next bucket (see below)
 	bucketNumber := passedBucketNumber - 1
 	processBucketStart := time.Now()
@@ -533,16 +535,23 @@ func (o *Orchestrator) processBucket(
 	getProtosessionsStart := time.Now()
 	// This blocks until the prefetch worker delivers the data (either freshly fetched
 	// or already waiting from the previous iteration's look-ahead).
-	responses := <-o.nextBucketResponses
+	var responses []*GetAllProtosessionsForBucketResponse
+	select {
+	case responses = <-o.lastFailedResponses:
+	default:
+		responses = <-o.nextBucketResponses
+	}
+
 	o.getProtosessionsHist.Record(ctx, time.Since(getProtosessionsStart).Seconds())
 
+	// The batch contains data from single bucket anyway
 	if len(responses) == 0 {
-		return BucketProcessingAdvance, nil
+		return nil
 	}
 
 	response := responses[0]
 	if response.Err != nil {
-		return BucketProcessingNoop, response.Err
+		return response.Err
 	}
 
 	// We collect all proto-sessions and their cleanup requests, then batch-process them.
@@ -552,23 +561,26 @@ func (o *Orchestrator) processBucket(
 		response.ProtoSessions,
 	)
 	if err != nil {
-		return BucketProcessingNoop, err
+		o.lastFailedResponses <- responses
+		return err
 	}
 
 	// This is the moment proto-sessions become actual sessions. The Closer is responsible for
 	// computing session-level aggregates from hits and publishing them to the warehouse.
 	// After this point, the session data is persisted and proto-session state can be discarded.
 	if err := o.closeBatch(ctx, protoSessionsBatch, totalHits); err != nil {
-		return BucketProcessingNoop, err
+		o.lastFailedResponses <- responses
+		return err
 	}
 
 	// Cleanup phase: now that sessions are persisted, we remove all transient proto-session state.
 	// This includes the hit data, identifier conflict metadata, and the bucket registration itself.
 	if err := o.cleanupBucket(ctx, bucketNumber, removeHitReqs, removeMetadataReqs); err != nil {
-		return BucketProcessingNoop, err
+		o.lastFailedResponses <- responses
+		return err
 	}
 
-	return BucketProcessingAdvance, nil
+	return nil
 }
 
 // recordAndWarnLag calculates processing lag and emits a warning if it exceeds threshold.
@@ -577,7 +589,7 @@ func (o *Orchestrator) recordAndWarnLag(ctx context.Context, bucketNumber int64)
 		o.timingWheel.BucketNumber(time.Now().UTC())-bucketNumber,
 	) * o.timingWheel.tickInterval
 	if lag > time.Minute && time.Since(o.lastLagWarn) > time.Second {
-		logrus.Warnf("Processing lag is high: %s, catching up...", lag)
+		logrus.Warnf("Processing lag is high: %s", lag)
 		o.lastLagWarn = time.Now()
 	}
 	o.processingLagGauge.Record(ctx, lag.Seconds())
@@ -699,6 +711,13 @@ func (o *Orchestrator) prefillNextBuckets() {
 			return
 		case requests := <-o.nextBucketRequests:
 			responses := o.backend.GetAllProtosessionsForBucket(o.ctx, requests)
+			for _, response := range responses {
+				if response.Err != nil {
+					logrus.Errorf("Error prefilling next buckets: %v", response.Err)
+					time.Sleep(o.timingWheel.tickInterval)
+					continue
+				}
+			}
 			o.nextBucketResponses <- responses
 		}
 	}

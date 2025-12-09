@@ -1,21 +1,33 @@
 package protosessions
 
-type ProtosessionError struct {
-	err     error
-	isFatal bool
+type ProtosessionError interface {
+	Error() string
+	IsRetryable() bool
 }
 
-func (e *ProtosessionError) Error() string {
+type protosessionErrorImpl struct {
+	err         error
+	isRetryable bool
+}
+
+func (e *protosessionErrorImpl) Error() string {
 	return e.err.Error()
 }
 
-func (e *ProtosessionError) IsFatal() bool {
-	return e.isFatal
+func (e *protosessionErrorImpl) IsRetryable() bool {
+	return e.isRetryable
 }
 
-func NewProtosessionError(err error, isFatal bool) *ProtosessionError {
-	return &ProtosessionError{
-		err:     err,
-		isFatal: isFatal,
+func NewErrorCausingTaskDrop(err error) ProtosessionError {
+	return &protosessionErrorImpl{
+		err:         err,
+		isRetryable: false,
+	}
+}
+
+func NewErrorCausingTaskRetry(err error) ProtosessionError {
+	return &protosessionErrorImpl{
+		err:         err,
+		isRetryable: true,
 	}
 }

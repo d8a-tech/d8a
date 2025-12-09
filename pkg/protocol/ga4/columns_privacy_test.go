@@ -105,7 +105,7 @@ func TestEventPrivacyColumns(t *testing.T) {
 	for _, tc := range eventColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
-			hit.QueryParams.Add("en", "foo_event")
+			hit.EventName = "foo_event"
 			// given
 			columntests.ColumnTestCase(
 				t,

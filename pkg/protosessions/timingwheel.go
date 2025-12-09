@@ -9,18 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// BucketNextInstruction indicates how the timing wheel should advance after processing.
-type BucketNextInstruction string
-
-const (
-	// BucketProcessingAdvance indicates the bucket was processed and wheel should advance.
-	BucketProcessingAdvance BucketNextInstruction = "advance"
-	// BucketProcessingNoop indicates the bucket processing was skipped, don't advance.
-	BucketProcessingNoop BucketNextInstruction = "noop"
-)
-
-// BucketProcessorFunc processes a single bucket and returns the advancement instruction.
-type BucketProcessorFunc func(ctx context.Context, bucketNumber int64) (BucketNextInstruction, error)
+// BucketProcessorFunc processes a single bucket. Returns nil on success (wheel advances),
+// or an error on failure (wheel does not advance).
+type BucketProcessorFunc func(ctx context.Context, bucketNumber int64) error
 
 // TimingWheelStateBackend provides abstract storage for timing wheel state.
 type TimingWheelStateBackend interface {
@@ -128,6 +119,7 @@ func (tw *TimingWheel) loop(ctx context.Context) {
 		case <-ticker.C:
 			if err := tw.tick(ctx); err != nil {
 				logrus.Errorf("TimingWheel tick failed: %s", err)
+				tw.loopSleep = tw.tickInterval
 			}
 			// Update ticker interval in case loopSleep changed
 			if tw.loopSleep > 0 {
@@ -178,17 +170,13 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	// Set loopSleep to minimal duration to enable fast catch-up
 	tw.loopSleep = time.Nanosecond
 
-	result, err := tw.processor(ctx, nextBucket)
+	err = tw.processor(ctx, nextBucket)
 	if err != nil {
 		return fmt.Errorf("bucket processor failed: %w", err)
 	}
 
-	if result == BucketProcessingNoop {
-		return nil
-	}
-
-	// Advance to next bucket
-	if err := tw.backend.SaveNextBucket(ctx, nextBucket+1); err != nil {
+	// Advance to next bucket on success (no error)
+	if err = tw.backend.SaveNextBucket(ctx, nextBucket+1); err != nil {
 		return fmt.Errorf("failed to save next bucket: %w", err)
 	}
 

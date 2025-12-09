@@ -24,6 +24,7 @@ func simpleHitsWithTime(h [][4]any) columntests.TestHits {
 		if !ok {
 			panic("event type must be string")
 		}
+		allHits[i].EventName = eventType
 		allHits[i].QueryParams.Add("en", eventType)
 		if hit[1] != nil {
 			pageLocation, ok := hit[1].(string)

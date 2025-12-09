@@ -43,6 +43,13 @@ var receiverBatchTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   1 * time.Second,
 }
 
+var receiverMaxHitKbytesFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "receiver-max-hit-kbytes",
+	Usage:   "Maximum size of a hit in kilobytes. Tracking requests are rejected if they contain a hit, which exceeds this size.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("RECEIVER_MAX_HIT_KBYTES", "receiver.max_hit_kbytes"),
+	Value:   128,
+}
+
 var sessionsDurationFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "sessions-duration",
 	Usage:   "Maximum time period of inactivity after which a proto-session is considered expired and ready to be closed. The system uses a timing wheel to schedule session closures based on each hit's server received time plus this duration. After this period elapses without new hits, the proto-session is finalized and written to the warehouse as a completed session.", //nolint:lll // it's a description

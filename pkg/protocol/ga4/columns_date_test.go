@@ -65,7 +65,7 @@ func TestEventDateColumns(t *testing.T) {
 	for _, tc := range eventColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
-			hit.QueryParams.Add("en", "foo_event")
+			hit.EventName = "foo_event"
 			warsaw, err := time.LoadLocation("Europe/Warsaw")
 			require.NoError(t, err)
 			// 1 AM Warsaw time = midnight UTC (Warsaw is UTC+1 in January)

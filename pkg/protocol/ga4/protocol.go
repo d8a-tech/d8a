@@ -86,6 +86,11 @@ func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hi
 		return nil, err
 	}
 
+	hit.EventName, err = p.EventName(request)
+	if err != nil {
+		return nil, err
+	}
+
 	hit.Body = body
 	hit.Host = string(request.Host)
 	hit.Path = string(request.Path)
@@ -212,6 +217,14 @@ func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
 	return &userID, nil
 }
 
+func (p *ga4Protocol) EventName(request *protocol.Request) (string, error) {
+	eventName := request.QueryParams.Get("en")
+	if eventName == "" {
+		return "", errors.New("`en` is a required query parameter for ga4 protocol")
+	}
+	return eventName, nil
+}
+
 func (p *ga4Protocol) Interfaces() any {
 	return ProtocolInterfaces
 }
@@ -220,7 +233,6 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	return schema.Columns{
 		Event: []schema.EventColumn{
 			eventMeasurementIDColumn,
-			eventNameColumn,
 			eventPageTitleColumn,
 			eventPageReferrerColumn,
 			eventPagePathColumn,
