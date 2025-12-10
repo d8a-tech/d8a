@@ -67,7 +67,7 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
+    image: 'img/d8a-social-card.jpg',
     navbar: {
       title: 'd8a.tech',
       logo: {
