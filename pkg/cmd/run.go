@@ -221,8 +221,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						layoutRegistry := schema.NewStaticLayoutRegistry(
 							map[string]schema.Layout{},
 							schema.NewEmbeddedSessionColumnsLayout(
-								getTableNames().events,
-								getTableNames().sessionsColumnPrefix,
+								getTableNames(cmd).events,
+								getTableNames(cmd).sessionsColumnPrefix,
 							),
 						)
 						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySource(cmd))

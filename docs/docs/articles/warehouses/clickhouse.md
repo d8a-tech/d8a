@@ -11,7 +11,8 @@ ClickHouse is a fast, open-source column-oriented database management system. Co
 Add the following to your `config.yaml` file:
 
 ```yaml
-warehouse: clickhouse
+warehouse:
+  driver: clickhouse
 clickhouse:
   host: localhost
   port: "9000"

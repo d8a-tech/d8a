@@ -25,7 +25,8 @@ storage:
 sessions:
   duration: 10s # Adjust this after the testing phase to a production value
 
-warehouse: clickhouse
+warehouse:
+  driver: clickhouse
 clickhouse:
   host: clickhouse
   port: "9000"

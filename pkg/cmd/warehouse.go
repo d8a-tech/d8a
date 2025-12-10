@@ -19,9 +19,9 @@ import (
 )
 
 func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry {
-	warehouseType := strings.ToLower(cmd.String(warehouseFlag.Name))
+	warehouseType := strings.ToLower(cmd.String(warehouseDriverFlag.Name))
 	if warehouseType == "" {
-		warehouseType = warehouseFlag.Value
+		warehouseType = warehouseDriverFlag.Value
 	}
 
 	switch warehouseType {
@@ -48,17 +48,17 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	projectID := cmd.String(bigQueryProjectIDFlag.Name)
 	if projectID == "" {
-		logrus.Fatalf("bigquery-project-id must be set when warehouse=bigquery")
+		logrus.Fatalf("bigquery-project-id must be set when warehouse-driver=bigquery")
 	}
 
 	datasetName := cmd.String(bigQueryDatasetNameFlag.Name)
 	if datasetName == "" {
-		logrus.Fatalf("bigquery-dataset-name must be set when warehouse=bigquery")
+		logrus.Fatalf("bigquery-dataset-name must be set when warehouse-driver=bigquery")
 	}
 
 	credsJSON := strings.TrimSpace(cmd.String(bigQueryCredsJSONFlag.Name))
 	if credsJSON == "" {
-		logrus.Fatalf("bigquery-creds-json must be set when warehouse=bigquery")
+		logrus.Fatalf("bigquery-creds-json must be set when warehouse-driver=bigquery")
 	}
 
 	// Support base64-encoded JSON for convenience
@@ -133,7 +133,7 @@ func createBigQueryWriter(
 func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	host := cmd.String(clickhouseHostFlag.Name)
 	if host == "" {
-		logrus.Fatalf("clickhouse-host must be set when warehouse=clickhouse")
+		logrus.Fatalf("clickhouse-host must be set when warehouse-driver=clickhouse")
 	}
 
 	port := cmd.String(clickhousePortFlag.Name)
@@ -143,7 +143,7 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 
 	database := cmd.String(clickhouseDatabaseFlag.Name)
 	if database == "" {
-		logrus.Fatalf("clickhouse-database must be set when warehouse=clickhouse")
+		logrus.Fatalf("clickhouse-database must be set when warehouse-driver=clickhouse")
 	}
 
 	options := &clickhouse.Options{
