@@ -104,6 +104,15 @@ var CoreInterfaces = struct {
 	SessionUtmCreativeFormat  schema.Interface
 	SessionUtmMarketingTactic schema.Interface
 
+	// Session Click IDs
+	SessionClickIDGclid   schema.Interface
+	SessionClickIDDclid   schema.Interface
+	SessionClickIDGbraid  schema.Interface
+	SessionClickIDSrsltid schema.Interface
+	SessionClickIDWbraid  schema.Interface
+	SessionClickIDFbclid  schema.Interface
+	SessionClickIDMsclkid schema.Interface
+
 	// Totals
 	SessionTotalPageViews         schema.Interface
 	SessionUniquePageViews        schema.Interface
@@ -501,6 +510,41 @@ var CoreInterfaces = struct {
 		ID:      "core.d8a.tech/sessions/utm_marketing_tactic",
 		Version: "1.0.0",
 		Field:   &arrow.Field{Name: "session_utm_marketing_tactic", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDGclid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_gclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_gclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDDclid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_dclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_dclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDGbraid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_gbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_gbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDSrsltid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_srsltid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_srsltid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDWbraid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_wbraid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_wbraid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDFbclid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_fbclid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_fbclid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionClickIDMsclkid: schema.Interface{
+		ID:      "core.d8a.tech/sessions/click_id_msclkid",
+		Version: "1.0.0",
+		Field:   &arrow.Field{Name: "session_click_id_msclkid", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionTotalPageViews: schema.Interface{
 		ID:      "core.d8a.tech/sessions/total_page_views",
