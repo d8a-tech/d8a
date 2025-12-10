@@ -1,4 +1,4 @@
-# Configuration Reference
+# Configuration reference
 
 ## Introduction
 

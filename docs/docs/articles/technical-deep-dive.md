@@ -56,7 +56,7 @@ The tracking pipeline, it its essence looks as follows:
 
 6. After the columns machinery creates rows for specific tables, it writes it to `warehouse.Driver` implementation. The types of columns are defined in columns machinery using Apache Arrow types, the drivers are resonsible for mapping them to their native types. 
 
-## 1. Hit Creation
+## 1. Hit creation
 
 ```mermaid
 flowchart LR
@@ -98,7 +98,7 @@ Basically it wraps all the HTTP request fields with some additional info, usable
 
 The two above are obiosuly protocol-specific, that's why `receiver` delegates the parsing of HTTP request when creating those, to the respective `protocol.Protocol` implementation.
 
-## 2. Receiver Storage & Batching
+## 2. Receiver storage & batching
 
 ```mermaid
 flowchart LR
@@ -117,7 +117,7 @@ type Storage interface {
 
 In theory it can be any storage, which gives a lot of flexibility in future configurations. Currently, all the passed hits are batched  and pushed to a `worker.Publisher` implementation. This means, that you can have as many `receivers` as you want, but on the other side of the queue (`worker.Consumer`) you'll have only one instance.
 
-## 3. Queue Processing
+## 3. Queue processing
 
 ```mermaid
 flowchart LR
@@ -176,7 +176,7 @@ w := worker.NewWorker(
 )
 ```
 
-## 4. Protosession Logic
+## 4. Protosession logic
 
 ```mermaid
 flowchart LR
@@ -216,7 +216,7 @@ type Closer interface {
 
 It's prepared for asynchronous closing, where the task system described in [Queue Processing](#3-queue-processing) is used. Currently, the closing is done in-place, the `Close` method synchronously writes the session to the warehouse. This is not perfect, but it's a good compromise for now.
 
-## 5. Columns Machinery
+## 5. Columns machinery
 
 ### 5.1 Columns
 

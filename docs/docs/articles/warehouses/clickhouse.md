@@ -20,12 +20,12 @@ clickhouse:
   password: "your-password"
 ```
 
-## Important Notes
+## Important notes
 
 - **Engine Support**: d8a currently supports only the `MergeTree` engine. Tables are created with `ENGINE = MergeTree()`.
 - **Distributed/Replicated Setups**: Distributed and Replicated table setups are not supported at the moment. Use a single ClickHouse instance.
 
-## Verifying Your Setup
+## Verifying your setup
 
 After configuring ClickHouse, start d8a and check the logs. You should see messages indicating successful connection to ClickHouse.
 

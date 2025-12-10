@@ -18,9 +18,9 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 `https://www.google-analytics.com/g/collect`
 
 
-## Query Parameters
+## Query parameters
 
-### Request Parameters
+### Request parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -35,7 +35,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `_s` | int64 | Hit Counter - indicates this is the nth hit/event sent in the current session | No |
 | `richsstsse` | string | richsstsse parameter | No |
 
-### Event Parameters
+### Event parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -46,7 +46,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `_c` | bool | is Conversion - indicates if event is a conversion | No |
 | `_ee` | bool | External Event - indicates if event is external | No |
 
-### Shared Parameters
+### Shared parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -64,7 +64,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `gcd` | string | Google Consent Default | No |
 | `_glv` | bool | is Google Linker Valid | No |
 
-### E-commerce Parameters
+### E-commerce parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -80,7 +80,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `cs` | string | Creative Slot | No |
 | `li` | string | Location ID | No |
 
-### Campaign Attribution Parameters
+### Campaign attribution parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -93,7 +93,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `cmt` | string | Campaign Marketing Tactic | No |
 | `_rnd` | string | GCLID Deduper | No |
 
-### User & Session Parameters
+### User & session parameters
 
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
@@ -111,7 +111,7 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `gdid` | string | Google Developer ID | No |
 | `_uc` | string | User Country | No |
 
-### Item Parameters
+### Item parameters
 
 Used within item objects (pr[0-9]{1,200}):
 
@@ -140,7 +140,7 @@ Used within item objects (pr[0-9]{1,200}):
 | `pi` | string | Item Promotion ID | No |
 | `pn` | string | Item Promotion Name | No |
 
-### Client Parameters
+### Client parameters
 
 Client Hints data:
 
