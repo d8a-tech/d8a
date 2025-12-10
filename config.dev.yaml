@@ -1,4 +1,6 @@
-warehouse: console
+warehouse:
+  driver: console
+  table: events_dev
 
 receiver:
   batch_timeout: 1s

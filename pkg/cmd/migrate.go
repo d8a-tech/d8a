@@ -33,8 +33,8 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
 		schema.NewStaticLayoutRegistry(
 			map[string]schema.Layout{},
 			schema.NewEmbeddedSessionColumnsLayout(
-				getTableNames().events,
-				getTableNames().sessionsColumnPrefix,
+				getTableNames(cmd).events,
+				getTableNames(cmd).sessionsColumnPrefix,
 			),
 		),
 		schema.NewInterfaceDefinitionOrderKeeper(

@@ -63,7 +63,8 @@ Now that you have the service account JSON file, it's time to add it to your d8a
 Open your `config.yaml` file and add the BigQuery configuration:
 
 ```yaml
-warehouse: bigquery
+warehouse:
+  driver: bigquery
 bigquery:
   project_id: your-gcp-project-id
   dataset_name: your-dataset-name

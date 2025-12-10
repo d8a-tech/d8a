@@ -92,42 +92,49 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   60 * time.Second,
 }
 
-var warehouseFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "warehouse",
+var warehouseDriverFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-driver",
 	Usage:   "Target warehouse driver (clickhouse, bigquery, console, or noop)",
-	Sources: defaultSourceChain("WAREHOUSE", "warehouse"),
+	Sources: defaultSourceChain("WAREHOUSE_DRIVER", "warehouse.driver"),
 	Value:   "console",
+}
+
+var warehouseTableFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-table",
+	Usage:   "Target warehouse table name.",
+	Sources: defaultSourceChain("WAREHOUSE_TABLE", "warehouse.table"),
+	Value:   "events",
 }
 
 var clickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-host",
-	Usage:   "ClickHouse host. Only applicable when warehouse is set to 'clickhouse'.",
+	Usage:   "ClickHouse host. Only applicable when warehouse-driver is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "clickhouse.host"),
 }
 
 var clickhousePortFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-port",
-	Usage:   "ClickHouse port. Only applicable when warehouse is set to 'clickhouse'.",
+	Usage:   "ClickHouse port. Only applicable when warehouse-driver is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "clickhouse.port"),
 	Value:   "9000",
 }
 
 var clickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-database",
-	Usage:   "ClickHouse database name. Only applicable when warehouse is set to 'clickhouse'.",
+	Usage:   "ClickHouse database name. Only applicable when warehouse-driver is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "clickhouse.database"),
 }
 
 var clickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-username",
-	Usage:   "ClickHouse username. Only applicable when warehouse is set to 'clickhouse'.",
+	Usage:   "ClickHouse username. Only applicable when warehouse-driver is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "clickhouse.username"),
 	Value:   "",
 }
 
 var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-password",
-	Usage:   "ClickHouse password. Only applicable when warehouse is set to 'clickhouse'.",
+	Usage:   "ClickHouse password. Only applicable when warehouse-driver is set to 'clickhouse'.",
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
 	Value:   "",
 }
@@ -135,39 +142,39 @@ var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 // BigQuery flags
 var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-project-id",
-	Usage:   "BigQuery GCP project ID. Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery GCP project ID. Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_PROJECT_ID", "bigquery.project_id"),
 }
 
 var bigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-dataset-name",
-	Usage:   "BigQuery dataset name. Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery dataset name. Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_DATASET_NAME", "bigquery.dataset_name"),
 }
 
 var bigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-creds-json",
-	Usage:   "BigQuery service account JSON (raw or base64). Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery service account JSON (raw or base64). Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_CREDS_JSON", "bigquery.creds_json"),
 }
 
 var bigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-writer-type",
-	Usage:   "BigQuery writer type (loadjob or streaming). Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery writer type (loadjob or streaming). Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_WRITER_TYPE", "bigquery.writer_type"),
 	Value:   "loadjob",
 }
 
 var bigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "bigquery-query-timeout",
-	Usage:   "BigQuery query timeout. Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery query timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_QUERY_TIMEOUT", "bigquery.query_timeout"),
 	Value:   30 * time.Second,
 }
 
 var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "bigquery-table-creation-timeout",
-	Usage:   "BigQuery table creation timeout. Only applicable when warehouse is set to 'bigquery'.",
+	Usage:   "BigQuery table creation timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
 	Sources: defaultSourceChain("BIGQUERY_TABLE_CREATION_TIMEOUT", "bigquery.table_creation_timeout"),
 	Value:   10 * time.Second,
 }
@@ -260,7 +267,8 @@ var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 }
 
 var warehouseConfigFlags = []cli.Flag{
-	warehouseFlag,
+	warehouseDriverFlag,
+	warehouseTableFlag,
 	clickhouseHostFlag,
 	clickhousePortFlag,
 	clickhouseDatabaseFlag,
