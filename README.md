@@ -3,7 +3,7 @@
 # Divine Data (d8a)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Docs](https://img.shields.io/badge/docs-d8a-1F7AE0.svg)](https://d8a-tech.github.io/d8a/docs/getting-started)
+[![Docs](https://img.shields.io/badge/docs-d8a-1F7AE0.svg)](https://d8a-tech.github.io/d8a/getting-started)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
 Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, has clean schema, can be deployed anywhere, including your cloud or on-premises. 
