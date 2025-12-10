@@ -2,7 +2,7 @@
 
 This guide explains how to configure d8a to use Google BigQuery as your data warehouse. BigQuery is Google's cloud data warehouse that can handle large-scale analytics workloads.
 
-## What You Need
+## What you need
 
 Before configuring BigQuery, make sure you have:
 - A Google Cloud Platform (GCP) account
@@ -12,11 +12,11 @@ Before configuring BigQuery, make sure you have:
 
 You'll also need to create a service account with BigQuery Admin permissions and download its credentials. We'll walk through that next.
 
-## Getting Credentials
+## Getting credentials
 
 d8a needs a service account to authenticate with BigQuery. Here's how to create one and get the credentials:
 
-### Step 1: Create the Service Account
+### Step 1: Create the service account
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/)
 2. Select your project from the dropdown at the top
@@ -25,7 +25,7 @@ d8a needs a service account to authenticate with BigQuery. Here's how to create 
 5. Give it a name (e.g., "d8a-bigquery-writer") and optionally add a description
 6. Click **CREATE AND CONTINUE**
 
-### Step 2: Grant Permissions
+### Step 2: Grant permissions
 
 1. In the "Grant this service account access to project" section, find and select the **BigQuery Admin** role
    - You can type "BigQuery Admin" in the role search box to find it quickly
@@ -35,7 +35,7 @@ d8a needs a service account to authenticate with BigQuery. Here's how to create 
 Why BigQuery Admin? This role allows d8a, among other things, to create and modify tables, and write data.
 :::
 
-### Step 3: Download the Key
+### Step 3: Download the key
 
 1. Find your newly created service account in the list and click on it
 2. Go to the **KEYS** tab
@@ -45,11 +45,11 @@ Why BigQuery Admin? This role allows d8a, among other things, to create and modi
 
 **Important:** Keep this file secure! It contains credentials that allow access to your BigQuery data. You'll need to copy its contents into your configuration file next.
 
-## Configuring Credentials
+## Configuring credentials
 
 Now that you have the service account JSON file, it's time to add it to your d8a configuration.
 
-### Step 1: Get Your Project ID and Dataset Name
+### Step 1: Get your project ID and dataset name
 
 - **Project ID**: You can find this in the Google Cloud Console at the top of the page, or in the downloaded JSON file (look for the `project_id` field)
 - **Dataset Name**: The name of your BigQuery dataset. If you don't have one yet, create it in the BigQuery console, or d8a will create it for you if the service account has the necessary permissions
@@ -79,7 +79,7 @@ bigquery:
     Make sure the indentation is correct. The JSON should be indented with spaces to align under `creds_json:`. The `|` after `creds_json:` allows multi-line strings in YAML.
 :::
 
-## Verifying Your Setup
+## Verifying your setup
 
 After configuring BigQuery, start d8a and check the logs. You should see messages indicating successful connection to BigQuery.
 

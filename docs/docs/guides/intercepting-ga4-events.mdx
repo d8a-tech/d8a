@@ -1,10 +1,10 @@
-# Intercepting GA4 Events
+# Intercepting GA4 events
 
 This guide covers methods for intercepting Google Analytics 4 (GA4) events. Choose the method that best fits your needs.
 
 ---
 
-## Method 1: Duplicate GA4 Requests (Recommended)
+## Method 1: Duplicate GA4 requests (recommended)
 
 This method keeps your existing GA4 setup intact while duplicating events to a custom endpoint. Your data will continue flowing to Google Analytics as normal.
 
@@ -358,7 +358,7 @@ var hitbox_endpoint = "https://example.org/g/collect"; // Replace it with your e
 
 ---
 
-## Method 2: Redirect All GA4 Requests
+## Method 2: Redirect all GA4 requests
 
 ⚠️ **Warning:** This method will stop sending data to your GA4 property. Use only if you want to completely redirect tracking to your d8a instance.
 
@@ -379,7 +379,7 @@ var hitbox_endpoint = "https://example.org/g/collect"; // Replace it with your e
 
 ---
 
-## Testing Your Setup
+## Testing your setup
 
 After implementing either method:
 

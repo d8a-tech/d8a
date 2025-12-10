@@ -23,7 +23,7 @@ Detection follows a priority order. The first matching rule determines the initi
 
 ## Detection rules (in priority order)
 
-### 1. Paid advertising click IDs
+### 1. Paid advertising click ids
 
 Sessions with landing page URLs containing specific query parameters are immediately classified as paid traffic (medium=cpc). Examples:
 
