@@ -304,6 +304,10 @@ func (d *fromRefererSourceMediumTermDetector) Detect(event *schema.Event) (Sessi
 		if ok {
 			return sourceMediumTerm, true
 		}
+		sourceMediumTerm, ok = condition(parsedURLs.refHostNoWWW, parsedURLs.refQP)
+		if ok {
+			return sourceMediumTerm, true
+		}
 	}
 	return SessionSourceMediumTerm{}, false
 }

@@ -533,6 +533,34 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_GoogleWWW",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureHeader(0, "Referer", "https://www.google.com/search?q=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("google"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_IlseNL",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureHeader(0, "Referer", "https://www.ilse.nl/search?search_for=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("ilse-nl"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_SearchEngine_RegexMatcher",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
