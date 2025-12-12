@@ -91,7 +91,6 @@ func (s *Server) handleRequest(
 	selectedProtocol protocol.Protocol,
 ) {
 	start := time.Now()
-	path := string(ctx.Path())
 
 	// Always set CORS headers
 	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
@@ -102,7 +101,7 @@ func (s *Server) handleRequest(
 	// Handle preflight requests early
 	if string(ctx.Method()) == fasthttp.MethodOptions {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
-		recordRequestMetrics(path, fasthttp.StatusNoContent, start)
+		recordRequestMetrics(fasthttp.StatusNoContent, start)
 		return
 	}
 
@@ -119,7 +118,7 @@ func (s *Server) handleRequest(
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
-		recordRequestMetrics(path, fasthttp.StatusBadRequest, start)
+		recordRequestMetrics(fasthttp.StatusBadRequest, start)
 		return
 	}
 
@@ -131,28 +130,24 @@ func (s *Server) handleRequest(
 	err = s.storage.Push(hits)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		recordRequestMetrics(path, fasthttp.StatusInternalServerError, start)
+		recordRequestMetrics(fasthttp.StatusInternalServerError, start)
 		return
 	}
 
 	// Successful request should return 204 No Content
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
-	recordRequestMetrics(path, fasthttp.StatusNoContent, start)
+	recordRequestMetrics(fasthttp.StatusNoContent, start)
 }
 
-func recordRequestMetrics(path string, statusCode int, start time.Time) {
+func recordRequestMetrics(statusCode int, start time.Time) {
 	statusGroup := statusGroup(statusCode)
 	duration := time.Since(start).Seconds()
 
 	requestCounter.Add(context.Background(), 1,
 		metric.WithAttributes(
-			attribute.String("path", path),
 			attribute.String("status_group", statusGroup),
 		))
-	requestLatencyHist.Record(context.Background(), duration,
-		metric.WithAttributes(
-			attribute.String("path", path),
-		))
+	requestLatencyHist.Record(context.Background(), duration)
 }
 
 func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, error) {
@@ -207,12 +202,12 @@ func (s *Server) Run(ctx context.Context) error {
 			for pathPrefix, handler := range s.otherHandlers {
 				if strings.HasPrefix(path, pathPrefix) {
 					handler(fctx)
-					recordRequestMetrics(path, fctx.Response.StatusCode(), start)
+					recordRequestMetrics(fctx.Response.StatusCode(), start)
 					return
 				}
 			}
 			fctx.SetStatusCode(fasthttp.StatusNotFound)
-			recordRequestMetrics(path, fasthttp.StatusNotFound, start)
+			recordRequestMetrics(fasthttp.StatusNotFound, start)
 		},
 		Name: "Tracker API",
 	}
