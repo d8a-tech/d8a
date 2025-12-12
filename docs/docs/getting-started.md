@@ -108,13 +108,7 @@ Your d8a server setup is now complete. If you'd like to hook up a domain and use
 
 After d8a is up and running, you'll need to reconfigure your current GA4 setup to send traffic to the d8a product. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
 
-Follow the [Intercepting GA4 Events](/guides/intercepting-ga4-events) guide to configure your Google Tag Manager implementation to send data to your d8a endpoint.
-
-The guide covers multiple methods:
-- **Method 1 (Recommended)**: Duplicate GA4 requests to keep your existing GA4 setup intact while also sending data to d8a
-- **Method 2**: Redirect all GA4 requests to d8a for complete control over your data
-
-Choose the method that best fits your needs based on whether you want to continue sending data to Google Analytics or fully migrate to d8a.
+Follow the [Intercepting GA4 events](/guides/intercepting-ga4-events) guide to configure your Google Tag Manager implementation to send data to your d8a endpoint.
 
 ## Next steps
 

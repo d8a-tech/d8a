@@ -1,6 +1,16 @@
+import TOCInline from '@theme/TOCInline';
+
+
 # Intercepting GA4 events
 
 This guide covers methods for intercepting Google Analytics 4 (GA4) events. Choose the method that best fits your needs.
+
+**Methods 1 and 2** are for **web tracking** (client-side GTM), while **Method 3** is for **server-side tracking** (server-side GTM).
+
+**Table of contents:**
+
+
+<TOCInline toc={toc} maxHeadingLevel={2} />
 
 ---
 
@@ -356,6 +366,8 @@ var hitbox_endpoint = "https://example.org/g/collect"; // Replace it with your e
    - Submit the changes and publish your container
    - Test thoroughly to ensure both GA4 and your custom endpoint receive events
 
+You can now [test your web tracking setup](#testing-your-web-tracking-setup).
+
 ---
 
 ## Method 2: Redirect all GA4 requests
@@ -376,12 +388,7 @@ var hitbox_endpoint = "https://example.org/g/collect"; // Replace it with your e
    - In the tag Configuration settings, add a new parameter called `server_container_url`
    - Set its value to your endpoint URL, e.g.  `https://example.org/g/collect`
 
-
----
-
-## Testing your setup
-
-After implementing either method:
+## Testing your web tracking setup
 
 1. **Open Browser DevTools**
    - Go to Network tab
@@ -399,3 +406,65 @@ After implementing either method:
    - Enable Preview mode in GTM
    - Verify tags fire in the correct sequence
    - Check for any errors in the console
+
+---
+
+## Method 3: Duplicate requests in Google Tag Manager server-side
+
+This method duplicates GA4 requests at the server-side container level, which is useful for server-side tracking implementations.
+
+:::note
+This method assumes you already have a working GA4 client configured in your Google Tag Manager server-side container. If you haven't set up server-side GTM yet, please configure your GA4 client first.
+:::
+
+### Steps:
+
+1. **Create a User-Agent Variable**
+   - Go to **Variables** in your server-side GTM container
+   - Click **New** to create a new variable
+   - Choose **Request Header** as the variable type
+   - Set the **Variable Name** to: `User-Agent`
+   - Set the **Header Name** to: `User-Agent`
+   - Save the variable
+
+2. **Create an X-Forwarded-For Variable**
+   - Create another new variable
+   - Choose **Request Header** as the variable type
+   - Set the **Variable Name** to: `X-Forwarded-For`
+   - Set the **Header Name** to: `X-Forwarded-For`
+   - Save the variable
+
+3. **Add the JSON HTTP Request Tag Template**
+   - Go to **Templates** in your server-side GTM container
+   - Click **Search Gallery**
+   - Search for and add the **JSON HTTP request** tag template from the community gallery
+
+4. **Create a New Tag**
+   - Go to **Tags** and click **New**
+   - Choose the **JSON HTTP request** tag template you just added
+   - Configure the tag:
+     - **Destination URL**: `<your-d8a-instance-url>{{Request Path}}?{{Query String}}`
+       - Replace `<your-d8a-installation-url>` with your d8a endpoint URL (e.g., `https://example.org`)
+       - For example, your completed Destination URL should look like:  
+         `https://example.org{{Request Path}}?{{Query String}}`
+       :::note
+       `{{Request Path}}` and `{{Query String}}` are built-in variables available in server-side GTM.
+       :::
+   - In the **Request Headers** section, add two entries:
+     - **First entry:**
+       - **Key**: `User-Agent`
+       - **Value**: `{{User-Agent}}`
+     - **Second entry:**
+       - **Key**: `X-Forwarded-For`
+       - **Value**: `{{X-Forwarded-For}}`
+
+5. **Configure the Trigger**
+   - In the **Triggering** section, select the same trigger that you use for your GA4 traffic. This ensures the tag fires whenever GA4 events are processed
+
+6. **Save and Publish**
+   - Save your tag
+   - Submit the changes and publish your server-side container
+
+## Testing your server-side tracking setup
+
+To test your server-side setup, use the debug mode in Google Tag Manager server-side. This enables you to verify that requests are duplicated correctly to your d8a endpoint. The final URL and d8a server response will be available in the Console tab.
