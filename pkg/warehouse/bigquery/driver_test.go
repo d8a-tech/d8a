@@ -95,6 +95,7 @@ func createEmulatorDriver(t *testing.T) testDriverConfig {
      tables: []
 `)),
 		tcbigquery.WithProjectID(projectID),
+		testcontainers.WithImagePlatform("linux/amd64"), // Force AMD64 platform for ARM64 compatibility
 	)
 	require.NoError(t, err)
 
