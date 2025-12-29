@@ -214,7 +214,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Returning User",
-		"Set to 1 if the first page view event indicates GA4 session number 2+ for the user; otherwise 0.", // nolint:lll // it's a description
+		"Set to 1 if any event in the session indicates GA4 session number 2+ for the user; otherwise 0.", // nolint:lll // it's a description
 	),
 )
 
