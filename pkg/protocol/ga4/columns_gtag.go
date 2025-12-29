@@ -185,6 +185,39 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	),
 )
 
+var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
+	ProtocolInterfaces.SessionReturningUser.ID,
+	ProtocolInterfaces.SessionReturningUser.Field,
+	func(session *schema.Session) (any, error) {
+		// Mark as returning if ANY event in the session has GA session number 2+.
+		for _, event := range session.Events {
+			raw, ok := event.Values[ProtocolInterfaces.GaSessionNumber.Field.Name]
+			if !ok || raw == nil {
+				continue
+			}
+			v, ok := raw.(int64)
+			if !ok {
+				continue
+			}
+			if v >= 2 {
+				return int64(1), nil
+			}
+		}
+		return int64(0), nil
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface:        ProtocolInterfaces.GaSessionNumber.ID,
+			GreaterOrEqualTo: "1.0.0",
+		},
+	),
+	columns.WithSessionColumnRequired(false),
+	columns.WithSessionColumnDocs(
+		"Session Returning User",
+		"Set to 1 if any event in the session indicates GA4 session number 2+ for the user; otherwise 0.", // nolint:lll // it's a description
+	),
+)
+
 var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionAbandonedCart.ID,
 	ProtocolInterfaces.SessionAbandonedCart.Field,
