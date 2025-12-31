@@ -44,10 +44,10 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events sorted by server received time - mixed order",
 			protosession: []*hits.Hit{
-				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time3},
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
-				{ID: "hit4", PropertyID: "prop1", ServerReceivedTime: time4},
-				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
+				{ID: "hit3", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time3}},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
+				{ID: "hit4", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time4}},
+				{ID: "hit2", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time2}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3, time4},
 			expectedCalls: 1,
@@ -55,9 +55,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events already in correct order",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
-				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
-				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time3},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
+				{ID: "hit2", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time2}},
+				{ID: "hit3", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time3}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
@@ -65,9 +65,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events in reverse order",
 			protosession: []*hits.Hit{
-				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time3},
-				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
+				{ID: "hit3", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time3}},
+				{ID: "hit2", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time2}},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
@@ -75,7 +75,7 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "single event",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1},
 			expectedCalls: 1,
@@ -89,9 +89,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events with same timestamp",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
-				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time1},
-				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time2},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
+				{ID: "hit2", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
+				{ID: "hit3", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time2}},
 			},
 			expectedOrder: []time.Time{time1, time1, time2},
 			expectedCalls: 1,
@@ -99,9 +99,10 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events with invalid time format - should not crash",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)},
-				{ID: "hit2", PropertyID: "prop1", ServerReceivedTime: time2},
-				{ID: "hit3", PropertyID: "prop1", ServerReceivedTime: time1},
+				{ID: "hit1", PropertyID: "prop1",
+					ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				{ID: "hit2", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time2}},
+				{ID: "hit3", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
 			},
 			// Invalid times should maintain original order relative to each other
 			// Valid times should be sorted
@@ -111,7 +112,7 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "writer returns error",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", ServerReceivedTime: time1},
+				{ID: "hit1", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1},
 			writerError:   assert.AnError,
@@ -152,7 +153,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				// Verify events are sorted by ServerReceivedTime
 				actualOrder := make([]time.Time, len(session.Events))
 				for i, event := range session.Events {
-					actualOrder[i] = event.BoundHit.ServerReceivedTime
+					actualOrder[i] = event.BoundHit.MustServerAttributes().ServerReceivedTime
 				}
 				assert.Equal(t, tt.expectedOrder, actualOrder)
 
@@ -160,7 +161,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				for i, event := range session.Events {
 					assert.NotNil(t, event.BoundHit)
 					assert.NotNil(t, event.Values)
-					assert.Equal(t, tt.expectedOrder[i], event.BoundHit.ServerReceivedTime)
+					assert.Equal(t, tt.expectedOrder[i], event.BoundHit.MustServerAttributes().ServerReceivedTime)
 				}
 			} else {
 				// If no writer call was expected, verify no sessions were written
@@ -190,9 +191,9 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 
 	// given
 	protosession := []*hits.Hit{
-		{ID: "first", PropertyID: "prop1", ServerReceivedTime: baseTime},
-		{ID: "second", PropertyID: "prop1", ServerReceivedTime: baseTime},
-		{ID: "third", PropertyID: "prop1", ServerReceivedTime: baseTime},
+		{ID: "first", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: baseTime}},
+		{ID: "second", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: baseTime}},
+		{ID: "third", PropertyID: "prop1", ServerAttributes: &hits.ServerAttributes{ServerReceivedTime: baseTime}},
 	}
 
 	mockWriter := &mockSessionWriter{}
@@ -211,7 +212,7 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 
 	// All events should have the same timestamp
 	for _, event := range session.Events {
-		assert.Equal(t, baseTime, event.BoundHit.ServerReceivedTime)
+		assert.Equal(t, baseTime, event.BoundHit.MustServerAttributes().ServerReceivedTime)
 	}
 }
 

@@ -108,10 +108,10 @@ func FromQueryParamSessionColumn(
 			return nil, nil
 		}
 		lastEvent := session.Events[len(session.Events)-1]
-		if lastEvent.BoundHit.QueryParams == nil {
+		if lastEvent.BoundHit.MustServerAttributes().QueryParams == nil {
 			return nil, nil
 		}
-		value := lastEvent.BoundHit.QueryParams.Get(queryParam)
+		value := lastEvent.BoundHit.MustServerAttributes().QueryParams.Get(queryParam)
 		return value, nil
 	}, options...)
 }
@@ -324,10 +324,10 @@ func FromQueryParamEventColumn(
 	options ...EventColumnOptions,
 ) schema.EventColumn {
 	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
-		if len(event.BoundHit.QueryParams) == 0 {
+		if len(event.BoundHit.MustServerAttributes().QueryParams) == 0 {
 			return nil, nil
 		}
-		return event.BoundHit.QueryParams.Get(queryParam), nil
+		return event.BoundHit.MustServerAttributes().QueryParams.Get(queryParam), nil
 	}, options...)
 }
 
@@ -516,11 +516,11 @@ func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
 }
 
 // CastToString casts a value to string or returns nil if conversion fails
-func CastToString(_ schema.InterfaceID) func(any) (any, error) {
+func CastToString(i schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
 		valueStr, ok := value.(string)
 		if !ok {
-			return nil, errors.New("value is not a string")
+			return nil, fmt.Errorf("%s: value is not a string: %v", i, value)
 		}
 		if len(valueStr) > MaxStringLength {
 			return valueStr[:MaxStringLength], nil
@@ -549,7 +549,7 @@ func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
 		}
 		valueStr, ok := value.(string)
 		if !ok {
-			return nil, errors.New("value is not a string")
+			return nil, errors.New("StrNilIfErrorOrEmpty: value is not a string")
 		}
 		if valueStr == "" {
 			return nil, nil
@@ -876,12 +876,12 @@ func NewTimeOnPageColumn(
 			}
 			// Pre-calculate time_on_page for all events (O(n))
 			result = make([]int64, len(s.Events))
-			lastEventTime := s.Events[len(s.Events)-1].BoundHit.ServerReceivedTime
+			lastEventTime := s.Events[len(s.Events)-1].BoundHit.MustServerAttributes().ServerReceivedTime
 
 			// For each page view, calculate time_on_page for all events belonging to it
 			for pvIdx := 0; pvIdx < len(pageViewIndices); pvIdx++ {
 				currentPageViewIdx := pageViewIndices[pvIdx]
-				currentPageViewTime := s.Events[currentPageViewIdx].BoundHit.ServerReceivedTime
+				currentPageViewTime := s.Events[currentPageViewIdx].BoundHit.MustServerAttributes().ServerReceivedTime
 
 				// Determine the end index for events belonging to this page view
 				var endIdx int
@@ -898,7 +898,7 @@ func NewTimeOnPageColumn(
 				if pvIdx+1 < len(pageViewIndices) {
 					// There's a next page_view, calculate time from current page_view to next
 					nextPageViewIdx := pageViewIndices[pvIdx+1]
-					nextPageViewTime := s.Events[nextPageViewIdx].BoundHit.ServerReceivedTime
+					nextPageViewTime := s.Events[nextPageViewIdx].BoundHit.MustServerAttributes().ServerReceivedTime
 					timeOnPage = int64(nextPageViewTime.Sub(currentPageViewTime).Seconds())
 				} else {
 					// No next page_view, use last event's time

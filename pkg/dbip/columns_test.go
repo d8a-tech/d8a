@@ -17,7 +17,7 @@ import (
 func TestDBIPColumns(t *testing.T) {
 	t.Skip("Skipping test as it has external dependencies - run it only on demand")
 	th1 := columntests.TestHitOne()
-	th1.IP = "80.68.239.25"
+	th1.ServerAttributes.IP = "80.68.239.25"
 	columntests.ColumnTestCase(
 		t,
 		columntests.TestHits{th1},

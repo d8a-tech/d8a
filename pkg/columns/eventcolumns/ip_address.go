@@ -11,7 +11,7 @@ var IPAddressColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventIPAddress.ID,
 	columns.CoreInterfaces.EventIPAddress.Field,
 	func(event *schema.Event) (any, error) {
-		return event.BoundHit.IP, nil
+		return event.BoundHit.MustServerAttributes().IP, nil
 	},
 	columns.WithEventColumnDocs(
 		"IP Address",

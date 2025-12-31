@@ -61,7 +61,7 @@ func getDeviceInfo(event *schema.Event) (*devicedetector.DeviceInfo, error) {
 			return typedUA, nil
 		}
 	}
-	newUa := dd.Parse(event.BoundHit.Headers.Get("User-Agent"))
+	newUa := dd.Parse(event.BoundHit.MustServerAttributes().Headers.Get("User-Agent"))
 	event.Metadata["user_agent"] = newUa
 	return newUa, nil
 }
@@ -70,7 +70,7 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.DeviceCategory.ID,
 	columns.CoreInterfaces.DeviceCategory.Field,
 	func(event *schema.Event) (any, error) {
-		paramV := event.BoundHit.QueryParams.Get("uamb")
+		paramV := event.BoundHit.MustServerAttributes().QueryParams.Get("uamb")
 		if paramV != "" {
 			isMobile, err := util.StrToBool(paramV)
 			if err == nil && isMobile {
@@ -154,11 +154,11 @@ var deviceLanguageColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.DeviceLanguage.ID,
 	columns.CoreInterfaces.DeviceLanguage.Field,
 	func(event *schema.Event) (any, error) {
-		paramV := event.BoundHit.QueryParams.Get("ul")
+		paramV := event.BoundHit.MustServerAttributes().QueryParams.Get("ul")
 		if paramV != "" {
 			return paramV, nil
 		}
-		acceptLanguage := event.BoundHit.Headers.Get("Accept-Language")
+		acceptLanguage := event.BoundHit.MustServerAttributes().Headers.Get("Accept-Language")
 		if acceptLanguage != "" {
 			return acceptLanguage, nil
 		}

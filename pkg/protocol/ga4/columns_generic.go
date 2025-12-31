@@ -22,7 +22,7 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 		field,
 		func(event *schema.Event) (any, error) {
 			if queryParam != "" {
-				paramV := event.BoundHit.QueryParams.Get(queryParam)
+				paramV := event.BoundHit.MustServerAttributes().QueryParams.Get(queryParam)
 				if paramV != "" {
 					return paramV, nil
 				}

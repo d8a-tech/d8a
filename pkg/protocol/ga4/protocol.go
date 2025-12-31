@@ -3,6 +3,7 @@ package ga4
 import (
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -91,18 +92,18 @@ func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hi
 		return nil, err
 	}
 
-	hit.Body = body
-	hit.Host = string(request.Host)
-	hit.Path = string(request.Path)
-	hit.Method = string(request.Method)
+	hit.ServerAttributes.Body = body
+	hit.ServerAttributes.Host = string(request.Host)
+	hit.ServerAttributes.Path = string(request.Path)
+	hit.ServerAttributes.Method = string(request.Method)
 
-	headers := url.Values{}
+	headers := http.Header{}
 	for key, values := range request.Headers {
 		for _, value := range values {
 			headers.Add(key, value)
 		}
 	}
-	hit.Headers = headers
+	hit.ServerAttributes.Headers = headers
 
 	return hit, nil
 }
@@ -120,7 +121,7 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 			queryParams.Add(key, value)
 		}
 	}
-	hit.QueryParams = queryParams
+	hit.ServerAttributes.QueryParams = queryParams
 
 	return hit, nil
 }
@@ -188,7 +189,7 @@ func (p *ga4Protocol) createHitFromMergedParams(
 		return nil, err
 	}
 
-	hit.QueryParams = mergedParams
+	hit.ServerAttributes.QueryParams = mergedParams
 
 	return hit, nil
 }

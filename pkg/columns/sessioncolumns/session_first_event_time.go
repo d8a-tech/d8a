@@ -13,7 +13,7 @@ var FirstEventTimeColumn = columns.NewSimpleSessionColumn(
 		if len(session.Events) == 0 {
 			return nil, columns.NewBrokenSessionError("session has no events")
 		}
-		return session.Events[0].BoundHit.ServerReceivedTime.Unix(), nil
+		return session.Events[0].BoundHit.MustServerAttributes().ServerReceivedTime.Unix(), nil
 	},
 	columns.WithSessionColumnDocs(
 		"Session First Event Time",

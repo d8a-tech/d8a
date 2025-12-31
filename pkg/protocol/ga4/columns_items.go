@@ -33,7 +33,7 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 		ProtocolInterfaces.EventItems.Field,
 		func(event *schema.Event) (any, error) {
 			var items []any
-			for qp, values := range event.BoundHit.QueryParams {
+			for qp, values := range event.BoundHit.MustServerAttributes().QueryParams {
 				if strings.HasPrefix(qp, "pr") {
 					for _, value := range values {
 						if item := parseItem(event, value); item != nil {

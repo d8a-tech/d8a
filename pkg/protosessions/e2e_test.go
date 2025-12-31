@@ -192,7 +192,7 @@ func makeHit(clientID string, sessionStamp, userID *string) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	if sessionStamp != nil {
-		h.QueryParams.Set("sessionStamp", *sessionStamp)
+		h.ServerAttributes.QueryParams.Set("sessionStamp", *sessionStamp)
 	}
 	h.PropertyID = "test-property"
 	h.UserID = userID
@@ -202,7 +202,7 @@ func makeHit(clientID string, sessionStamp, userID *string) *hits.Hit {
 func applyOffsets(baseTime time.Time, wrapped []AtOffset) []*hits.Hit {
 	result := make([]*hits.Hit, len(wrapped))
 	for i, ao := range wrapped {
-		ao.Hit.ServerReceivedTime = baseTime.Add(time.Duration(ao.Seconds) * time.Second)
+		ao.Hit.ServerAttributes.ServerReceivedTime = baseTime.Add(time.Duration(ao.Seconds) * time.Second)
 		result[i] = ao.Hit
 	}
 	return result

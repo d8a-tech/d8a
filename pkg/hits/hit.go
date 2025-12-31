@@ -2,16 +2,55 @@
 package hits
 
 import (
+	"net/http"
 	"net/url"
 	"time"
 	"unsafe"
 
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // ClientID represents an ID stored client-side. Be it cookie or device ID.
 type ClientID string
+
+type ProtocolAttributes struct {
+	AuthoritativeClientID ClientID `cbor:"ai"`
+	ClientID              ClientID `cbor:"ci"`
+	EventName             string   `cbor:"en"`
+	PropertyID            string   `cbor:"pi"`
+	UserID                *string  `cbor:"uid"`
+}
+
+type ServerAttributes struct {
+	IP                 string      `cbor:"ip"`
+	Host               string      `cbor:"h"`
+	ServerReceivedTime time.Time   `cbor:"srt"`
+	QueryParams        url.Values  `cbor:"qp"`
+	Body               []byte      `cbor:"bd"`
+	Path               string      `cbor:"p"`
+	Method             string      `cbor:"m"`
+	Headers            http.Header `cbor:"he"`
+}
+
+func (s *ServerAttributes) Clone() *ServerAttributes {
+	queryParamsCopy := url.Values{}
+	for key, values := range s.QueryParams {
+		queryParamsCopy[key] = make([]string, len(values))
+		copy(queryParamsCopy[key], values)
+	}
+	return &ServerAttributes{
+		IP:                 s.IP,
+		Host:               s.Host,
+		ServerReceivedTime: s.ServerReceivedTime,
+		QueryParams:        queryParamsCopy,
+		Body:               s.Body,
+		Path:               s.Path,
+		Method:             s.Method,
+		Headers:            s.Headers.Clone(),
+	}
+}
 
 // Hit stores information about a single `/collect` endpoint call
 type Hit struct {
@@ -26,39 +65,59 @@ type Hit struct {
 	ClientID              ClientID `cbor:"ci"`
 	EventName             string   `cbor:"en"`
 	// PropertyID uses GA nomenclature. In other than GA protocols, it holds the analogous concept, like app, website, etc
-	PropertyID         string            `cbor:"pi"`
-	IP                 string            `cbor:"ip"`
-	Host               string            `cbor:"h"`
-	ServerReceivedTime time.Time         `cbor:"srt"`
-	QueryParams        url.Values        `cbor:"qp"`
-	Body               []byte            `cbor:"bd"`
-	Path               string            `cbor:"p"`
-	Method             string            `cbor:"m"`
-	Headers            url.Values        `cbor:"he"`
-	Metadata           map[string]string `cbor:"md"`
-	UserID             *string           `cbor:"uid"`
+	PropertyID string  `cbor:"pi"`
+	UserID     *string `cbor:"uid"`
+
+	Metadata         map[string]string `cbor:"md"`
+	ServerAttributes *ServerAttributes `cbor:"sa"`
 }
 
 // SessionStamp returns a unique identifier for the session
 func (h *Hit) SessionStamp() string {
-	directSessionStamp := h.QueryParams.Get("sessionStamp")
+	directSessionStamp := h.ServerAttributes.QueryParams.Get("sessionStamp")
 	if directSessionStamp != "" {
 		return directSessionStamp
 	}
-	return h.IP
+	return h.ServerAttributes.IP
+}
+
+func (h *Hit) MustServerAttributes() *ServerAttributes {
+	if h.ServerAttributes == nil {
+		logrus.Errorf("server attributes are nil for hit %s, that should not happen", h.ID)
+		h.ServerAttributes = &ServerAttributes{
+			Headers:            http.Header{},
+			QueryParams:        url.Values{},
+			ServerReceivedTime: time.Now(),
+		}
+	}
+	return h.ServerAttributes
 }
 
 // New creates a new Hit with random ID and current time
 func New() *Hit {
 	clientID := uuid.New().String()
 	return &Hit{
-		Metadata:              map[string]string{},
-		Headers:               url.Values{},
-		QueryParams:           url.Values{},
+		Metadata: map[string]string{},
+		ServerAttributes: &ServerAttributes{
+			Headers:            http.Header{},
+			QueryParams:        url.Values{},
+			ServerReceivedTime: time.Now(),
+		},
 		ID:                    uuid.New().String(),
 		ClientID:              ClientID(clientID),
 		AuthoritativeClientID: ClientID(clientID),
-		ServerReceivedTime:    time.Now(),
+	}
+}
+
+// NewWithServerAttributes creates a new Hit with the given ServerAttributes
+func NewWithServerAttributes(serverAttributes *ServerAttributes) *Hit {
+	clientID := uuid.New().String()
+	return &Hit{
+		Metadata:              map[string]string{},
+		ServerAttributes:      serverAttributes,
+		ID:                    uuid.New().String(),
+		ClientID:              ClientID(clientID),
+		AuthoritativeClientID: ClientID(clientID),
 	}
 }
 
@@ -75,15 +134,15 @@ func (h *Hit) Size() uint32 {
 	size += util.SafeIntToUint32(len(h.AuthoritativeClientID))
 	size += util.SafeIntToUint32(len(h.ClientID))
 	size += util.SafeIntToUint32(len(h.PropertyID))
-	size += util.SafeIntToUint32(len(h.IP))
-	size += util.SafeIntToUint32(len(h.Host))
-	size += util.SafeIntToUint32(len(h.Path))
-	size += util.SafeIntToUint32(len(h.Method))
+	size += util.SafeIntToUint32(len(h.MustServerAttributes().IP))
+	size += util.SafeIntToUint32(len(h.MustServerAttributes().Host))
+	size += util.SafeIntToUint32(len(h.MustServerAttributes().Path))
+	size += util.SafeIntToUint32(len(h.MustServerAttributes().Method))
 
 	// time.Time is 24 bytes (3 int64 fields), already included in unsafe.Sizeof
 
 	// Slice data size
-	size += util.SafeIntToUint32(len(h.Body))
+	size += util.SafeIntToUint32(len(h.ServerAttributes.Body))
 
 	// UserID pointer and data
 	if h.UserID != nil {
@@ -91,7 +150,7 @@ func (h *Hit) Size() uint32 {
 	}
 
 	// QueryParams size (url.Values is map[string][]string)
-	for key, values := range h.QueryParams {
+	for key, values := range h.ServerAttributes.QueryParams {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {
 			size += util.SafeIntToUint32(len(value))
@@ -99,7 +158,7 @@ func (h *Hit) Size() uint32 {
 	}
 
 	// Headers size (url.Values is map[string][]string)
-	for key, values := range h.Headers {
+	for key, values := range h.ServerAttributes.Headers {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {
 			size += util.SafeIntToUint32(len(value))
@@ -121,22 +180,7 @@ func (h *Hit) Copy() Hit {
 	hitCopy := *h
 
 	// Deep copy url.Values for QueryParams
-	if h.QueryParams != nil {
-		hitCopy.QueryParams = make(url.Values)
-		for key, values := range h.QueryParams {
-			hitCopy.QueryParams[key] = make([]string, len(values))
-			copy(hitCopy.QueryParams[key], values)
-		}
-	}
-
-	// Deep copy url.Values for Headers
-	if h.Headers != nil {
-		hitCopy.Headers = make(url.Values)
-		for key, values := range h.Headers {
-			hitCopy.Headers[key] = make([]string, len(values))
-			copy(hitCopy.Headers[key], values)
-		}
-	}
+	hitCopy.ServerAttributes = h.ServerAttributes.Clone()
 
 	// Deep copy Metadata map
 	if h.Metadata != nil {
