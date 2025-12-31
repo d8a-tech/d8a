@@ -31,7 +31,10 @@ func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
 
 		// Sort events by server received time
 		sort.Slice(protosession, func(i, j int) bool {
-			return protosession[i].ServerReceivedTime.Before(protosession[j].ServerReceivedTime)
+			return protosession[i].MustServerAttributes().
+				ServerReceivedTime.Before(
+				protosession[j].MustServerAttributes().ServerReceivedTime,
+			)
 		})
 
 		events := make([]*schema.Event, len(protosession))

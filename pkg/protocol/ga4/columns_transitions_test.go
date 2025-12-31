@@ -17,9 +17,9 @@ func simpleHits(h [][3]string) columntests.TestHits {
 	for i, hit := range h {
 		allHits[i] = hits.New()
 		allHits[i].EventName = hit[0]
-		allHits[i].QueryParams.Add("en", hit[0])
-		allHits[i].QueryParams.Add("dl", hit[1])
-		allHits[i].QueryParams.Add("dt", hit[2])
+		allHits[i].ServerAttributes.QueryParams.Add("en", hit[0])
+		allHits[i].ServerAttributes.QueryParams.Add("dl", hit[1])
+		allHits[i].ServerAttributes.QueryParams.Add("dt", hit[2])
 	}
 	return allHits
 }

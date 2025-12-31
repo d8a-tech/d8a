@@ -336,7 +336,8 @@ func TestSessionHitNumber(t *testing.T) {
 
 func TestSessionPageNumber(t *testing.T) {
 	thThree := TestHitThree()
-	thThree.QueryParams.Set("dl", "https%3A%2F%2Fd8a-tech.github.io%2Fanalytics-playground%2Ffoobar.html")
+	thThree.MustServerAttributes().QueryParams.Set("dl",
+		"https%3A%2F%2Fd8a-tech.github.io%2Fanalytics-playground%2Ffoobar.html")
 	ColumnTestCase(
 		t,
 		TestHits{TestHitOne(), TestHitTwo(), thThree},
@@ -373,9 +374,9 @@ func TestSessionFirstEventTime(t *testing.T) {
 	th2 := TestHitTwo()
 	th3 := TestHitThree()
 	baseTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	th1.ServerReceivedTime = baseTime
-	th2.ServerReceivedTime = baseTime.Add(5 * time.Second)
-	th3.ServerReceivedTime = baseTime.Add(10 * time.Second)
+	th1.MustServerAttributes().ServerReceivedTime = baseTime
+	th2.MustServerAttributes().ServerReceivedTime = baseTime.Add(5 * time.Second)
+	th3.MustServerAttributes().ServerReceivedTime = baseTime.Add(10 * time.Second)
 
 	ColumnTestCase(
 		t,
@@ -398,9 +399,9 @@ func TestSessionLastEventTime(t *testing.T) {
 	th2 := TestHitTwo()
 	th3 := TestHitThree()
 	baseTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
-	th1.ServerReceivedTime = baseTime
-	th2.ServerReceivedTime = baseTime.Add(5 * time.Second)
-	th3.ServerReceivedTime = baseTime.Add(10 * time.Second)
+	th1.MustServerAttributes().ServerReceivedTime = baseTime
+	th2.MustServerAttributes().ServerReceivedTime = baseTime.Add(5 * time.Second)
+	th3.MustServerAttributes().ServerReceivedTime = baseTime.Add(10 * time.Second)
 
 	ColumnTestCase(
 		t,

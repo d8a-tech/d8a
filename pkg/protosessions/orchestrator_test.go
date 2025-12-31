@@ -179,8 +179,10 @@ func TestOrchestrator_ProcessBucket_SortsHitsByTime(t *testing.T) {
 
 	sortedHits := receivedSessions[0]
 	assert.Len(t, sortedHits, 3)
-	assert.True(t, sortedHits[0].ServerReceivedTime.Before(sortedHits[1].ServerReceivedTime))
-	assert.True(t, sortedHits[1].ServerReceivedTime.Before(sortedHits[2].ServerReceivedTime))
+	assert.True(t, sortedHits[0].MustServerAttributes().ServerReceivedTime.
+		Before(sortedHits[1].MustServerAttributes().ServerReceivedTime))
+	assert.True(t, sortedHits[1].MustServerAttributes().ServerReceivedTime.
+		Before(sortedHits[2].MustServerAttributes().ServerReceivedTime))
 }
 
 func TestOrchestrator_ProcessBucket_CleanupBucketMetadata(t *testing.T) {
@@ -362,7 +364,7 @@ func makeTimedHit(clientID string, offsetSeconds int) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	h.PropertyID = "test-property"
-	h.ServerReceivedTime = time.Date(2025, 1, 1, 12, 0, offsetSeconds, 0, time.UTC)
+	h.ServerAttributes.ServerReceivedTime = time.Date(2025, 1, 1, 12, 0, offsetSeconds, 0, time.UTC)
 	return h
 }
 
@@ -371,6 +373,6 @@ func makeTimedHitAt(clientID string, t time.Time) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	h.PropertyID = "test-property"
-	h.ServerReceivedTime = t
+	h.ServerAttributes.ServerReceivedTime = t
 	return h
 }

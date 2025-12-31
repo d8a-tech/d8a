@@ -23,6 +23,11 @@ type Request struct {
 	Body        io.Reader
 }
 
+type ProtocolIngestEndpoint struct {
+	Methods []string
+	Path    string
+}
+
 // Protocol defines the interface for different tracking protocol implementations.
 type Protocol interface {
 	ID() string

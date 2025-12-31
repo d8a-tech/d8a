@@ -207,7 +207,7 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 		}
 	}
 
-	refRaw := event.BoundHit.Headers.Get("Referer")
+	refRaw := event.BoundHit.MustServerAttributes().Headers.Get("Referer")
 	if refRaw != "" {
 		if parsed, err := url.Parse(refRaw); err == nil {
 			result.refRaw = refRaw

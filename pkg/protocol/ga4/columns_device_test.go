@@ -199,7 +199,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			hit.EventName = PageViewEventType
 			for key, values := range tc.headers {
 				for _, value := range values {
-					hit.Headers.Add(key, value)
+					hit.ServerAttributes.Headers.Add(key, value)
 				}
 			}
 			// given

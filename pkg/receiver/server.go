@@ -123,8 +123,13 @@ func (s *Server) handleRequest(
 	}
 
 	for _, hit := range hits {
+		if hit.ServerAttributes == nil {
+			ctx.Error(fmt.Sprintf("server attributes are nil for hit %s", hit.ID), fasthttp.StatusInternalServerError)
+			recordRequestMetrics(fasthttp.StatusInternalServerError, start)
+			return
+		}
+		hit.ServerAttributes.IP = realIP(ctx)
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
-		hit.IP = realIP(ctx)
 	}
 
 	err = s.storage.Push(hits)

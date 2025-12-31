@@ -3,7 +3,7 @@ package receiver
 import (
 	"fmt"
 	"io"
-	"net/url"
+	"net/http"
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -45,17 +45,20 @@ func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 	theHit.ClientID = hits.ClientID("test_client_id")
 	theHit.AuthoritativeClientID = theHit.ClientID
 	theHit.PropertyID = "test_property_id"
-	theHit.Host = string(request.Host)
-	theHit.Path = string(request.Path)
-	theHit.Method = string(request.Method)
+	theHit.ServerAttributes = &hits.ServerAttributes{
+		Host:        string(request.Host),
+		Path:        string(request.Path),
+		Method:      string(request.Method),
+		Headers:     http.Header{},
+		QueryParams: request.QueryParams,
+	}
 	theHit.EventName = "page_view"
-	theHit.Headers = url.Values{}
 	for key, values := range request.Headers {
 		for _, value := range values {
-			theHit.Headers.Add(key, value)
+			theHit.ServerAttributes.Headers.Add(key, value)
 		}
 	}
-	theHit.QueryParams = request.QueryParams
+	theHit.ServerAttributes.QueryParams = request.QueryParams
 	var err error
 	var body []byte
 	if request.Body != nil {
@@ -64,7 +67,7 @@ func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 			return nil, err
 		}
 	}
-	theHit.Body = body
+	theHit.ServerAttributes.Body = body
 	return []*hits.Hit{theHit}, m.err
 }
 
@@ -99,13 +102,13 @@ func TestHandleRequest(t *testing.T) {
 			storageErr:     nil,
 			expectedStatus: fasthttp.StatusNoContent,
 			validateHit: func(t *testing.T, hit *hits.Hit) {
-				assert.Equal(t, "192.168.1.1", hit.IP)
-				assert.Equal(t, "example.com", hit.Host)
-				assert.Equal(t, "/collect", hit.Path)
-				assert.Equal(t, "GET", hit.Method)
-				assert.Equal(t, []string{"value1"}, hit.QueryParams["param1"])
-				assert.Equal(t, []string{"value2"}, hit.QueryParams["param2"])
-				assert.Equal(t, []string{"test-agent"}, hit.Headers["User-Agent"])
+				assert.Equal(t, "192.168.1.1", hit.ServerAttributes.IP)
+				assert.Equal(t, "example.com", hit.ServerAttributes.Host)
+				assert.Equal(t, "/collect", hit.ServerAttributes.Path)
+				assert.Equal(t, "GET", hit.ServerAttributes.Method)
+				assert.Equal(t, []string{"value1"}, hit.ServerAttributes.QueryParams["param1"])
+				assert.Equal(t, []string{"value2"}, hit.ServerAttributes.QueryParams["param2"])
+				assert.Equal(t, []string{"test-agent"}, hit.ServerAttributes.Headers["User-Agent"])
 				assert.Equal(t, "test_client_id", string(hit.ClientID))
 				assert.Equal(t, "test_protocol", hit.Metadata[HitProtocolMetadataKey])
 			},
