@@ -364,7 +364,7 @@ func makeTimedHit(clientID string, offsetSeconds int) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	h.PropertyID = "test-property"
-	h.ServerAttributes.ServerReceivedTime = time.Date(2025, 1, 1, 12, 0, offsetSeconds, 0, time.UTC)
+	h.Request.ServerReceivedTime = time.Date(2025, 1, 1, 12, 0, offsetSeconds, 0, time.UTC)
 	return h
 }
 
@@ -373,6 +373,6 @@ func makeTimedHitAt(clientID string, t time.Time) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	h.PropertyID = "test-property"
-	h.ServerAttributes.ServerReceivedTime = t
+	h.Request.ServerReceivedTime = t
 	return h
 }

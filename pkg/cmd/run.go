@@ -32,7 +32,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
-	"github.com/valyala/fasthttp"
 	"go.etcd.io/bbolt"
 )
 
@@ -294,17 +293,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						serverStorage,
 						receiver.NewNoopRawLogStorage(),
 						receiver.HitValidatingRuleSet(1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name))),
-						protocol.PathProtocolMapping{
-							"/g/collect": ga4.NewGA4Protocol(
+						[]protocol.Protocol{
+							ga4.NewGA4Protocol(
 								currencyConverter,
 								propertySource(cmd),
 							),
-						},
-						map[string]func(fctx *fasthttp.RequestCtx){
-							"/healthz": func(fctx *fasthttp.RequestCtx) {
-								fctx.SetStatusCode(fasthttp.StatusOK)
-								fctx.SetBodyString("OK")
-							},
 						},
 						cmd.Int(serverPortFlag.Name),
 					)

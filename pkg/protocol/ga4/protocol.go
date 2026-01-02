@@ -2,8 +2,6 @@ package ga4
 
 import (
 	"errors"
-	"io"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/valyala/fasthttp"
 )
 
 type ga4Protocol struct {
@@ -23,15 +22,9 @@ func (p *ga4Protocol) ID() string {
 	return "ga4"
 }
 
-func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
-	// Read the request body
-	body, err := io.ReadAll(request.Body)
-	if err != nil {
-		return nil, err
-	}
-
+func (p *ga4Protocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
 	// Parse body into lines (each line represents a hit)
-	bodyStr := strings.TrimSpace(string(body))
+	bodyStr := strings.TrimSpace(string(request.Body))
 	var bodyLines []string
 	if bodyStr != "" {
 		bodyLines = strings.Split(bodyStr, "\n")
@@ -39,7 +32,7 @@ func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 
 	// If no body lines, create one hit with just query parameters
 	if len(bodyLines) == 0 {
-		hit, err := p.createHitFromQueryParams(request, body)
+		hit, err := p.createHitFromQueryParams(request, request.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +49,7 @@ func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 			continue // Skip empty lines
 		}
 
-		hit, err := p.createHitFromLine(request, line, body)
+		hit, err := p.createHitFromLine(request, line, request.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +60,7 @@ func (p *ga4Protocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
 }
 
 // createHitBase creates a hit with common fields populated from the request
-func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitBase(request *hits.Request, _ []byte) (*hits.Hit, error) {
 	hit := hits.New()
 
 	clientID, err := p.ClientID(request)
@@ -92,24 +85,13 @@ func (p *ga4Protocol) createHitBase(request *protocol.Request, body []byte) (*hi
 		return nil, err
 	}
 
-	hit.ServerAttributes.Body = body
-	hit.ServerAttributes.Host = string(request.Host)
-	hit.ServerAttributes.Path = string(request.Path)
-	hit.ServerAttributes.Method = string(request.Method)
-
-	headers := http.Header{}
-	for key, values := range request.Headers {
-		for _, value := range values {
-			headers.Add(key, value)
-		}
-	}
-	hit.ServerAttributes.Headers = headers
+	hit.Request = request.Clone()
 
 	return hit, nil
 }
 
 // createHitFromQueryParams creates a hit using only query parameters
-func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitFromQueryParams(request *hits.Request, body []byte) (*hits.Hit, error) {
 	hit, err := p.createHitBase(request, body)
 	if err != nil {
 		return nil, err
@@ -121,34 +103,24 @@ func (p *ga4Protocol) createHitFromQueryParams(request *protocol.Request, body [
 			queryParams.Add(key, value)
 		}
 	}
-	hit.ServerAttributes.QueryParams = queryParams
+	hit.Request.QueryParams = queryParams
 
 	return hit, nil
 }
 
 // createHitFromLine creates a hit by merging query parameters with line-specific parameters
-func (p *ga4Protocol) createHitFromLine(request *protocol.Request, line string, body []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitFromLine(request *hits.Request, line string, body []byte) (*hits.Hit, error) {
 	mergedParams, err := p.mergeQueryParamsWithLine(request.QueryParams, line)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a temporary request with merged parameters for extracting common fields
-	tempRequest := &protocol.Request{
-		QueryParams: mergedParams,
-		Headers:     request.Headers,
-		Host:        request.Host,
-		Path:        request.Path,
-		Method:      request.Method,
-		Body:        request.Body,
-	}
 
-	hit, err := p.createHitFromMergedParams(tempRequest, body, mergedParams)
-	if err != nil {
-		return nil, err
-	}
+	requestCopy := request.Clone()
+	requestCopy.QueryParams = mergedParams
 
-	return hit, nil
+	return p.createHitFromMergedParams(requestCopy, request.Body, mergedParams)
 }
 
 // mergeQueryParamsWithLine merges query parameters with line parameters (line params override)
@@ -180,7 +152,7 @@ func (p *ga4Protocol) mergeQueryParamsWithLine(queryParams url.Values, line stri
 
 // createHitFromMergedParams creates a hit using merged parameters
 func (p *ga4Protocol) createHitFromMergedParams(
-	request *protocol.Request,
+	request *hits.Request,
 	body []byte,
 	mergedParams url.Values,
 ) (*hits.Hit, error) {
@@ -189,12 +161,12 @@ func (p *ga4Protocol) createHitFromMergedParams(
 		return nil, err
 	}
 
-	hit.ServerAttributes.QueryParams = mergedParams
+	hit.Request.QueryParams = mergedParams
 
 	return hit, nil
 }
 
-func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
+func (p *ga4Protocol) ClientID(request *hits.Request) (string, error) {
 	cid := request.QueryParams.Get("cid")
 	if cid == "" {
 		return "", errors.New("`cid` is a required query parameter for ga4 protocol")
@@ -202,7 +174,7 @@ func (p *ga4Protocol) ClientID(request *protocol.Request) (string, error) {
 	return cid, nil
 }
 
-func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
+func (p *ga4Protocol) PropertyID(request *hits.Request) (string, error) {
 	property, err := p.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
 	if err != nil {
 		return "", err
@@ -210,7 +182,7 @@ func (p *ga4Protocol) PropertyID(request *protocol.Request) (string, error) {
 	return property.PropertyID, nil
 }
 
-func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
+func (p *ga4Protocol) UserID(request *hits.Request) (*string, error) {
 	userID := request.QueryParams.Get("uid")
 	if userID == "" {
 		return nil, nil // nolint:nilnil // nil is valid for user ID
@@ -218,7 +190,7 @@ func (p *ga4Protocol) UserID(request *protocol.Request) (*string, error) {
 	return &userID, nil
 }
 
-func (p *ga4Protocol) EventName(request *protocol.Request) (string, error) {
+func (p *ga4Protocol) EventName(request *hits.Request) (string, error) {
 	eventName := request.QueryParams.Get("en")
 	if eventName == "" {
 		return "", errors.New("`en` is a required query parameter for ga4 protocol")
@@ -228,6 +200,15 @@ func (p *ga4Protocol) EventName(request *protocol.Request) (string, error) {
 
 func (p *ga4Protocol) Interfaces() any {
 	return ProtocolInterfaces
+}
+
+func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
+	return []protocol.ProtocolEndpoint{
+		{
+			Methods: []string{fasthttp.MethodPost},
+			Path:    "/g/collect",
+		},
+	}
 }
 
 func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all columns

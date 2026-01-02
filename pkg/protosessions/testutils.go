@@ -301,7 +301,7 @@ func NewTestCloser(opts ...TestCloserOption) Closer {
 func testHit(clientID hits.ClientID, ip string) *hits.Hit {
 	return &hits.Hit{
 		AuthoritativeClientID: clientID,
-		ServerAttributes: &hits.ServerAttributes{
+		Request: &hits.Request{
 			IP: ip,
 		},
 	}

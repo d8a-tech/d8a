@@ -1,8 +1,8 @@
 package receiver
 
 import (
+	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"testing"
 
@@ -39,35 +39,36 @@ func (m *mockProtocol) Interfaces() any {
 	return struct{}{}
 }
 
-func (m *mockProtocol) Hits(request *protocol.Request) ([]*hits.Hit, error) {
+func (m *mockProtocol) Endpoints() []protocol.ProtocolEndpoint {
+	return []protocol.ProtocolEndpoint{
+		{
+			Methods: []string{fasthttp.MethodPost},
+			Path:    "/collect",
+		},
+	}
+}
+
+func (m *mockProtocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
 	theHit := hits.New()
 
 	theHit.ClientID = hits.ClientID("test_client_id")
 	theHit.AuthoritativeClientID = theHit.ClientID
 	theHit.PropertyID = "test_property_id"
-	theHit.ServerAttributes = &hits.ServerAttributes{
-		Host:        string(request.Host),
-		Path:        string(request.Path),
-		Method:      string(request.Method),
+	theHit.Request = &hits.Request{
+		Host:        request.Host,
+		Path:        request.Path,
+		Method:      request.Method,
 		Headers:     http.Header{},
 		QueryParams: request.QueryParams,
 	}
 	theHit.EventName = "page_view"
 	for key, values := range request.Headers {
 		for _, value := range values {
-			theHit.ServerAttributes.Headers.Add(key, value)
+			theHit.Request.Headers.Add(key, value)
 		}
 	}
-	theHit.ServerAttributes.QueryParams = request.QueryParams
-	var err error
-	var body []byte
-	if request.Body != nil {
-		body, err = io.ReadAll(request.Body)
-		if err != nil {
-			return nil, err
-		}
-	}
-	theHit.ServerAttributes.Body = body
+	theHit.Request.QueryParams = request.QueryParams
+	theHit.Request.Body = request.Body
 	return []*hits.Hit{theHit}, m.err
 }
 
@@ -79,7 +80,7 @@ func TestHandleRequest(t *testing.T) {
 	tests := []struct {
 		name           string
 		request        func() *fasthttp.RequestCtx
-		protocolMap    protocol.PathProtocolMapping
+		protocols      []protocol.Protocol
 		storageErr     error
 		expectedStatus int
 		validateHit    func(*testing.T, *hits.Hit)
@@ -96,19 +97,19 @@ func TestHandleRequest(t *testing.T) {
 				ctx.URI().SetPath("/collect")
 				return ctx
 			},
-			protocolMap: protocol.PathProtocolMapping{
-				"/collect": &mockProtocol{id: "test_protocol"},
+			protocols: []protocol.Protocol{
+				&mockProtocol{id: "test_protocol"},
 			},
 			storageErr:     nil,
 			expectedStatus: fasthttp.StatusNoContent,
 			validateHit: func(t *testing.T, hit *hits.Hit) {
-				assert.Equal(t, "192.168.1.1", hit.ServerAttributes.IP)
-				assert.Equal(t, "example.com", hit.ServerAttributes.Host)
-				assert.Equal(t, "/collect", hit.ServerAttributes.Path)
-				assert.Equal(t, "GET", hit.ServerAttributes.Method)
-				assert.Equal(t, []string{"value1"}, hit.ServerAttributes.QueryParams["param1"])
-				assert.Equal(t, []string{"value2"}, hit.ServerAttributes.QueryParams["param2"])
-				assert.Equal(t, []string{"test-agent"}, hit.ServerAttributes.Headers["User-Agent"])
+				assert.Equal(t, "192.168.1.1", hit.Request.IP)
+				assert.Equal(t, "example.com", hit.Request.Host)
+				assert.Equal(t, "/collect", hit.Request.Path)
+				assert.Equal(t, "GET", hit.Request.Method)
+				assert.Equal(t, []string{"value1"}, hit.Request.QueryParams["param1"])
+				assert.Equal(t, []string{"value2"}, hit.Request.QueryParams["param2"])
+				assert.Equal(t, []string{"test-agent"}, hit.Request.Headers["User-Agent"])
 				assert.Equal(t, "test_client_id", string(hit.ClientID))
 				assert.Equal(t, "test_protocol", hit.Metadata[HitProtocolMetadataKey])
 			},
@@ -124,13 +125,12 @@ func TestHandleRequest(t *testing.T) {
 				storage,
 				NewDummyRawLogStorage(),
 				HitValidatingRuleSet(1024*128), // 128KB
-				tt.protocolMap,
-				map[string]func(fctx *fasthttp.RequestCtx){},
+				tt.protocols,
 				8080,
 			)
 
 			// when
-			server.handleRequest(ctx, tt.protocolMap["/collect"])
+			server.handleRequest(context.Background(), ctx, tt.protocols[0])
 
 			// then
 			fmt.Println(string(ctx.Response.Body()))

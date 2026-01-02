@@ -1,14 +1,12 @@
 package ga4
 
 import (
-	"io"
 	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
-	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -103,13 +101,13 @@ func TestHits(t *testing.T) {
 			ga4Protocol := NewGA4Protocol(
 				currency.NewDummyConverter(1),
 				properties.NewTestSettingRegistry())
-			request := &protocol.Request{
+			request := &hits.Request{
 				QueryParams: tc.queryParams,
 				Headers:     map[string][]string{},
-				Host:        []byte("example.com"),
-				Path:        []byte("/g/collect"),
-				Method:      []byte("POST"),
-				Body:        io.NopCloser(strings.NewReader(tc.body)),
+				Host:        "example.com",
+				Path:        "/g/collect",
+				Method:      "POST",
+				Body:        []byte(tc.body),
 			}
 
 			// when

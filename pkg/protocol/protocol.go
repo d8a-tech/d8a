@@ -8,10 +8,8 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/valyala/fasthttp"
 )
-
-// PathProtocolMapping maps URL paths to their corresponding Protocol implementations.
-type PathProtocolMapping map[string]Protocol
 
 // Request contains all information about an incoming tracking request.
 type Request struct {
@@ -23,9 +21,14 @@ type Request struct {
 	Body        io.Reader
 }
 
-type ProtocolIngestEndpoint struct {
+// ProtocolEndpoint describes a web endpoint that is used by a protocol.
+type ProtocolEndpoint struct {
 	Methods []string
 	Path    string
+	// Normal endpoints are hit-creating ones, Custom endpoints are called directly
+	// and may serve different purposes.
+	IsCustom      bool
+	CustomHandler func(*fasthttp.RequestCtx)
 }
 
 // Protocol defines the interface for different tracking protocol implementations.
@@ -33,6 +36,6 @@ type Protocol interface {
 	ID() string
 	Columns() schema.Columns
 	Interfaces() any
-
-	Hits(*Request) ([]*hits.Hit, error)
+	Endpoints() []ProtocolEndpoint
+	Hits(*hits.Request) ([]*hits.Hit, error)
 }
