@@ -1,0 +1,1 @@
+alert("Development builds of d8a do not contain bundled JS tracker. Please use the build from https://docs.d8a.tech/getting-started/#step-2-create-a-docker-compose-file or load javascript tracker from CDN");

@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/monitoring"
 	"github.com/d8a-tech/d8a/pkg/protocol"
+	"github.com/fasthttp/router"
 	"github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"go.opentelemetry.io/otel"
@@ -59,11 +59,10 @@ func statusGroup(statusCode int) string {
 
 // Server holds all server-related dependencies and configuration
 type Server struct {
+	protocols       []protocol.Protocol
 	storage         Storage
 	rawLogStorage   RawLogStorage
 	validationRules HitValidatingRule
-	protocols       protocol.PathProtocolMapping
-	otherHandlers   map[string]func(fctx *fasthttp.RequestCtx)
 	port            int
 }
 
@@ -72,36 +71,28 @@ func NewServer(
 	storage Storage,
 	rawLogStorage RawLogStorage,
 	validationRules HitValidatingRule,
-	protocols protocol.PathProtocolMapping,
-	otherHandlers map[string]func(fctx *fasthttp.RequestCtx),
+	protocols []protocol.Protocol,
 	port int,
 ) *Server {
 	return &Server{
+		protocols:       protocols,
 		storage:         storage,
 		rawLogStorage:   rawLogStorage,
 		validationRules: validationRules,
-		protocols:       protocols,
-		otherHandlers:   otherHandlers,
 		port:            port,
 	}
 }
 
 func (s *Server) handleRequest(
+	reqCtx context.Context,
 	ctx *fasthttp.RequestCtx,
 	selectedProtocol protocol.Protocol,
 ) {
 	start := time.Now()
-
-	// Always set CORS headers
-	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-	ctx.Response.Header.Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-	ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-	ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-
 	// Handle preflight requests early
 	if string(ctx.Method()) == fasthttp.MethodOptions {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
-		recordRequestMetrics(fasthttp.StatusNoContent, start)
+		recordRequestMetrics(reqCtx, fasthttp.StatusNoContent, start)
 		return
 	}
 
@@ -118,41 +109,41 @@ func (s *Server) handleRequest(
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
-		recordRequestMetrics(fasthttp.StatusBadRequest, start)
+		recordRequestMetrics(reqCtx, fasthttp.StatusBadRequest, start)
 		return
 	}
 
 	for _, hit := range hits {
-		if hit.ServerAttributes == nil {
-			ctx.Error(fmt.Sprintf("server attributes are nil for hit %s", hit.ID), fasthttp.StatusInternalServerError)
-			recordRequestMetrics(fasthttp.StatusInternalServerError, start)
+		if hit.Request == nil {
+			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
+			logrus.Error(err)
+			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+			recordRequestMetrics(reqCtx, fasthttp.StatusInternalServerError, start)
 			return
 		}
-		hit.ServerAttributes.IP = realIP(ctx)
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
 	}
-
 	err = s.storage.Push(hits)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		recordRequestMetrics(fasthttp.StatusInternalServerError, start)
+		recordRequestMetrics(reqCtx, fasthttp.StatusInternalServerError, start)
 		return
 	}
 
 	// Successful request should return 204 No Content
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
-	recordRequestMetrics(fasthttp.StatusNoContent, start)
+	recordRequestMetrics(reqCtx, fasthttp.StatusNoContent, start)
 }
 
-func recordRequestMetrics(statusCode int, start time.Time) {
+func recordRequestMetrics(ctx context.Context, statusCode int, start time.Time) {
 	statusGroup := statusGroup(statusCode)
 	duration := time.Since(start).Seconds()
 
-	requestCounter.Add(context.Background(), 1,
+	requestCounter.Add(ctx, 1,
 		metric.WithAttributes(
 			attribute.String("status_group", statusGroup),
 		))
-	requestLatencyHist.Record(context.Background(), duration)
+	requestLatencyHist.Record(ctx, duration)
 }
 
 func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, error) {
@@ -164,16 +155,20 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 	for key, value := range ctx.Request.Header.All() {
 		headers[string(key)] = append(headers[string(key)], string(value))
 	}
-	request := &protocol.Request{
-		Method:      ctx.Method(),
-		Host:        ctx.Host(),
-		Path:        ctx.Path(),
-		QueryParams: queryParams,
-		Headers:     headers,
-		Body:        bytes.NewBuffer(ctx.Request.Body()),
+	bodyCopy := make([]byte, len(ctx.Request.Body()))
+	copy(bodyCopy, ctx.Request.Body())
+	request := &hits.ParsedRequest{
+		IP:                 realIP(ctx),
+		Method:             string(ctx.Method()),
+		Host:               string(ctx.Host()),
+		Path:               string(ctx.Path()),
+		ServerReceivedTime: time.Now(),
+		QueryParams:        queryParams,
+		Headers:            headers,
+		Body:               bodyCopy,
 	}
 
-	hits, err := p.Hits(request)
+	hits, err := p.Hits(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -189,32 +184,37 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 
 // Run starts the HTTP server and blocks until the context is cancelled or an error occurs
 func (s *Server) Run(ctx context.Context) error {
+	r := router.New()
+	for _, protocol := range s.protocols {
+		for _, endpoint := range protocol.Endpoints() {
+			if endpoint.IsCustom {
+				for _, method := range endpoint.Methods {
+					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
+						start := time.Now()
+						defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+						endpoint.CustomHandler(fctx)
+					})
+				}
+				continue
+			}
+			for _, method := range endpoint.Methods {
+				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
+					start := time.Now()
+					defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+					s.handleRequest(ctx, fctx, protocol)
+				})
+			}
+		}
+	}
+	r.GET("/healthz", func(fctx *fasthttp.RequestCtx) {
+		fctx.SetStatusCode(fasthttp.StatusOK)
+		fctx.SetBodyString("OK")
+	})
 	httpServer := &fasthttp.Server{
-		Handler: func(fctx *fasthttp.RequestCtx) { // nolint:contextcheck // fasthttp implements context.Context
-			start := time.Now()
-			path := string(fctx.Path())
-			var selectedProtocol protocol.Protocol
-			for pathPrefix, protocol := range s.protocols {
-				if strings.HasPrefix(path, pathPrefix) {
-					selectedProtocol = protocol
-					break
-				}
-			}
-			if selectedProtocol != nil {
-				s.handleRequest(fctx, selectedProtocol)
-				return
-			}
-			for pathPrefix, handler := range s.otherHandlers {
-				if strings.HasPrefix(path, pathPrefix) {
-					handler(fctx)
-					recordRequestMetrics(fctx.Response.StatusCode(), start)
-					return
-				}
-			}
-			fctx.SetStatusCode(fasthttp.StatusNotFound)
-			recordRequestMetrics(fasthttp.StatusNotFound, start)
-		},
-		Name: "Tracker API",
+		Handler: r.Handler,
+		Name:    "Tracker API",
 	}
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})

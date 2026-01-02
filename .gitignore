@@ -34,6 +34,7 @@ go.work.sum
 .DS_Store
 
 # Binary and storage
-d8a
+/d8a
 bolt.db
+bolt_kv.db
 queue/

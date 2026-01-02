@@ -23,7 +23,7 @@ type ProtocolAttributes struct {
 	UserID                *string  `cbor:"uid"`
 }
 
-type ServerAttributes struct {
+type ParsedRequest struct {
 	IP                 string      `cbor:"ip"`
 	Host               string      `cbor:"h"`
 	ServerReceivedTime time.Time   `cbor:"srt"`
@@ -34,13 +34,13 @@ type ServerAttributes struct {
 	Headers            http.Header `cbor:"he"`
 }
 
-func (s *ServerAttributes) Clone() *ServerAttributes {
+func (s *ParsedRequest) Clone() *ParsedRequest {
 	queryParamsCopy := url.Values{}
 	for key, values := range s.QueryParams {
 		queryParamsCopy[key] = make([]string, len(values))
 		copy(queryParamsCopy[key], values)
 	}
-	return &ServerAttributes{
+	return &ParsedRequest{
 		IP:                 s.IP,
 		Host:               s.Host,
 		ServerReceivedTime: s.ServerReceivedTime,
@@ -68,29 +68,24 @@ type Hit struct {
 	PropertyID string  `cbor:"pi"`
 	UserID     *string `cbor:"uid"`
 
-	Metadata         map[string]string `cbor:"md"`
-	ServerAttributes *ServerAttributes `cbor:"sa"`
+	Metadata map[string]string `cbor:"md"`
+	Request  *ParsedRequest    `cbor:"sa"`
 }
 
 // SessionStamp returns a unique identifier for the session
 func (h *Hit) SessionStamp() string {
-	directSessionStamp := h.ServerAttributes.QueryParams.Get("sessionStamp")
+	directSessionStamp := h.Request.QueryParams.Get("sessionStamp")
 	if directSessionStamp != "" {
 		return directSessionStamp
 	}
-	return h.ServerAttributes.IP
+	return h.Request.IP
 }
 
-func (h *Hit) MustServerAttributes() *ServerAttributes {
-	if h.ServerAttributes == nil {
-		logrus.Errorf("server attributes are nil for hit %s, that should not happen", h.ID)
-		h.ServerAttributes = &ServerAttributes{
-			Headers:            http.Header{},
-			QueryParams:        url.Values{},
-			ServerReceivedTime: time.Now(),
-		}
+func (h *Hit) MustParsedRequest() *ParsedRequest {
+	if h.Request == nil {
+		logrus.Panicf("server attributes are nil for hit %s, that should not happen", h.ID)
 	}
-	return h.ServerAttributes
+	return h.Request
 }
 
 // New creates a new Hit with random ID and current time
@@ -98,7 +93,7 @@ func New() *Hit {
 	clientID := uuid.New().String()
 	return &Hit{
 		Metadata: map[string]string{},
-		ServerAttributes: &ServerAttributes{
+		Request: &ParsedRequest{
 			Headers:            http.Header{},
 			QueryParams:        url.Values{},
 			ServerReceivedTime: time.Now(),
@@ -110,11 +105,11 @@ func New() *Hit {
 }
 
 // NewWithServerAttributes creates a new Hit with the given ServerAttributes
-func NewWithServerAttributes(serverAttributes *ServerAttributes) *Hit {
+func NewWithServerAttributes(serverAttributes *ParsedRequest) *Hit {
 	clientID := uuid.New().String()
 	return &Hit{
 		Metadata:              map[string]string{},
-		ServerAttributes:      serverAttributes,
+		Request:               serverAttributes,
 		ID:                    uuid.New().String(),
 		ClientID:              ClientID(clientID),
 		AuthoritativeClientID: ClientID(clientID),
@@ -134,15 +129,15 @@ func (h *Hit) Size() uint32 {
 	size += util.SafeIntToUint32(len(h.AuthoritativeClientID))
 	size += util.SafeIntToUint32(len(h.ClientID))
 	size += util.SafeIntToUint32(len(h.PropertyID))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().IP))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Host))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Path))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Method))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().IP))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Host))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Path))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Method))
 
 	// time.Time is 24 bytes (3 int64 fields), already included in unsafe.Sizeof
 
 	// Slice data size
-	size += util.SafeIntToUint32(len(h.ServerAttributes.Body))
+	size += util.SafeIntToUint32(len(h.Request.Body))
 
 	// UserID pointer and data
 	if h.UserID != nil {
@@ -150,7 +145,7 @@ func (h *Hit) Size() uint32 {
 	}
 
 	// QueryParams size (url.Values is map[string][]string)
-	for key, values := range h.ServerAttributes.QueryParams {
+	for key, values := range h.Request.QueryParams {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {
 			size += util.SafeIntToUint32(len(value))
@@ -158,7 +153,7 @@ func (h *Hit) Size() uint32 {
 	}
 
 	// Headers size (url.Values is map[string][]string)
-	for key, values := range h.ServerAttributes.Headers {
+	for key, values := range h.Request.Headers {
 		size += util.SafeIntToUint32(len(key))
 		for _, value := range values {
 			size += util.SafeIntToUint32(len(value))
@@ -180,7 +175,7 @@ func (h *Hit) Copy() Hit {
 	hitCopy := *h
 
 	// Deep copy url.Values for QueryParams
-	hitCopy.ServerAttributes = h.ServerAttributes.Clone()
+	hitCopy.Request = h.Request.Clone()
 
 	// Deep copy Metadata map
 	if h.Metadata != nil {

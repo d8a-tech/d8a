@@ -266,6 +266,13 @@ var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "./queue",
 }
 
+var protocolFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "protocol",
+	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4'.",
+	Sources: defaultSourceChain("PROTOCOL", "protocol"),
+	Value:   "ga4",
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseDriverFlag,
 	warehouseTableFlag,
@@ -280,4 +287,5 @@ var warehouseConfigFlags = []cli.Flag{
 	bigQueryWriterTypeFlag,
 	bigQueryQueryTimeoutFlag,
 	bigQueryTableCreationTimeoutFlag,
+	protocolFlag,
 }

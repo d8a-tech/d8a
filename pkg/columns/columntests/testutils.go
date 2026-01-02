@@ -26,7 +26,7 @@ var testHitOne = &hits.Hit{
 	ClientID:              "ag9",
 	PropertyID:            "G-5T0Z13HKP4",
 	EventName:             "page_view",
-	ServerAttributes: &hits.ServerAttributes{
+	Request: &hits.ParsedRequest{
 		IP:                 "127.0.0.1",
 		Host:               "localhost.d8astage.xyz",
 		ServerReceivedTime: time.Now(),
@@ -97,7 +97,7 @@ var testHitTwo = &hits.Hit{
 	ClientID:              "ag8",
 	PropertyID:            "G-5T0Z13HKP4",
 	EventName:             "scroll",
-	ServerAttributes: &hits.ServerAttributes{
+	Request: &hits.ParsedRequest{
 		IP:                 "127.0.0.2",
 		Host:               "localhost.d8astage.xyz",
 		ServerReceivedTime: time.Now(),
@@ -169,7 +169,7 @@ var testHitThree = &hits.Hit{
 	ClientID:              "ag7",
 	PropertyID:            "G-5T0Z13HKP4",
 	EventName:             "page_view",
-	ServerAttributes: &hits.ServerAttributes{
+	Request: &hits.ParsedRequest{
 		IP:                 "127.0.0.1",
 		Host:               "localhost.d8astage.xyz",
 		ServerReceivedTime: time.Now(),
@@ -238,7 +238,7 @@ var testHitFour = &hits.Hit{
 	ClientID:              "ai7",
 	PropertyID:            "G-5T0Z13HKP4",
 	EventName:             "user_engagement",
-	ServerAttributes: &hits.ServerAttributes{
+	Request: &hits.ParsedRequest{
 		IP:                 "127.0.0.11", // From X-Forwarded-For header
 		Host:               "localhost.d8astage.xyz",
 		ServerReceivedTime: time.Now(),
@@ -328,11 +328,11 @@ func TestHitFour() *hits.Hit {
 type TestHits []*hits.Hit
 
 func (t TestHits) EnsureQueryParam(hitNum int, param string, value string) {
-	t[hitNum].MustServerAttributes().QueryParams.Set(param, value)
+	t[hitNum].MustParsedRequest().QueryParams.Set(param, value)
 }
 
 func (t TestHits) EnsureHeader(hitNum int, header string, value string) {
-	t[hitNum].MustServerAttributes().Headers.Set(header, value)
+	t[hitNum].MustParsedRequest().Headers.Set(header, value)
 }
 
 type CaseConfig struct {

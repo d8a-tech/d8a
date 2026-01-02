@@ -25,26 +25,26 @@ func simpleHitsWithTime(h [][4]any) columntests.TestHits {
 			panic("event type must be string")
 		}
 		allHits[i].EventName = eventType
-		allHits[i].MustServerAttributes().QueryParams.Add("en", eventType)
+		allHits[i].MustParsedRequest().QueryParams.Add("en", eventType)
 		if hit[1] != nil {
 			pageLocation, ok := hit[1].(string)
 			if !ok {
 				panic("page location must be string")
 			}
-			allHits[i].MustServerAttributes().QueryParams.Add("dl", pageLocation)
+			allHits[i].MustParsedRequest().QueryParams.Add("dl", pageLocation)
 		}
 		if hit[2] != nil {
 			pageTitle, ok := hit[2].(string)
 			if !ok {
 				panic("page title must be string")
 			}
-			allHits[i].MustServerAttributes().QueryParams.Add("dt", pageTitle)
+			allHits[i].MustParsedRequest().QueryParams.Add("dt", pageTitle)
 		}
 		offsetSeconds, ok := hit[3].(int)
 		if !ok {
 			panic("time offset must be int")
 		}
-		allHits[i].MustServerAttributes().ServerReceivedTime = baseTime.Add(time.Duration(offsetSeconds) * time.Second)
+		allHits[i].MustParsedRequest().ServerReceivedTime = baseTime.Add(time.Duration(offsetSeconds) * time.Second)
 	}
 	return allHits
 }

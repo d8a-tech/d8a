@@ -13,7 +13,7 @@ var genericEventParamsColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventParams.Field,
 	func(event *schema.Event) (any, error) {
 		params := make([]any, 0)
-		for qpName, qpValues := range event.BoundHit.MustServerAttributes().QueryParams {
+		for qpName, qpValues := range event.BoundHit.MustParsedRequest().QueryParams {
 			if name, ok := strings.CutPrefix(qpName, "ep."); ok {
 				for _, qpValue := range qpValues {
 					params = append(params, map[string]any{

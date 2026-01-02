@@ -6,7 +6,6 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/dbip"
-	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -56,7 +55,7 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 			)
 		}
 		cr = columnset.DefaultColumnRegistry(
-			ga4.NewGA4Protocol(currencyConverter, propertySource(cmd)),
+			protocolFromCMD(cmd),
 			geoColumns,
 			propertySource(cmd),
 		)

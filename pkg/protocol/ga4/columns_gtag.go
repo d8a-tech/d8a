@@ -46,10 +46,10 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPageLocation.ID,
 	columns.CoreInterfaces.EventPageLocation.Field,
 	func(event *schema.Event) (any, error) {
-		if len(event.BoundHit.MustServerAttributes().QueryParams) == 0 {
+		if len(event.BoundHit.MustParsedRequest().QueryParams) == 0 {
 			return "", nil
 		}
-		originalURL := event.BoundHit.MustServerAttributes().QueryParams.Get("dl")
+		originalURL := event.BoundHit.MustParsedRequest().QueryParams.Get("dl")
 		if originalURL == "" {
 			return "", nil
 		}
@@ -159,10 +159,10 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	func(session *schema.Session) (any, error) {
 		// Check if ANY event in the session is engaged
 		for _, event := range session.Events {
-			if event.BoundHit.MustServerAttributes().QueryParams == nil {
+			if event.BoundHit.MustParsedRequest().QueryParams == nil {
 				continue
 			}
-			segValue := event.BoundHit.MustServerAttributes().QueryParams.Get("seg")
+			segValue := event.BoundHit.MustParsedRequest().QueryParams.Get("seg")
 			if segValue == "" {
 				continue
 			}

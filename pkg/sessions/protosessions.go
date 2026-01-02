@@ -31,9 +31,9 @@ func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
 
 		// Sort events by server received time
 		sort.Slice(protosession, func(i, j int) bool {
-			return protosession[i].MustServerAttributes().
+			return protosession[i].MustParsedRequest().
 				ServerReceivedTime.Before(
-				protosession[j].MustServerAttributes().ServerReceivedTime,
+				protosession[j].MustParsedRequest().ServerReceivedTime,
 			)
 		})
 

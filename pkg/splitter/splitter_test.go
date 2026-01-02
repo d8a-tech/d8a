@@ -374,11 +374,11 @@ func TestSplitter(t *testing.T) {
 			session: func() *schema.Session {
 				baseTime := time.Now()
 				hit1 := hits.New()
-				hit1.ServerAttributes.ServerReceivedTime = baseTime
+				hit1.Request.ServerReceivedTime = baseTime
 				hit2 := hits.New()
-				hit2.ServerAttributes.ServerReceivedTime = baseTime.Add(2 * time.Minute)
+				hit2.Request.ServerReceivedTime = baseTime.Add(2 * time.Minute)
 				hit3 := hits.New()
-				hit3.ServerAttributes.ServerReceivedTime = baseTime.Add(4 * time.Minute)
+				hit3.Request.ServerReceivedTime = baseTime.Add(4 * time.Minute)
 				return &schema.Session{
 					Events: []*schema.Event{
 						schema.NewEvent(hit1),
@@ -399,13 +399,13 @@ func TestSplitter(t *testing.T) {
 			session: func() *schema.Session {
 				baseTime := time.Now()
 				hit1 := hits.New()
-				hit1.ServerAttributes.ServerReceivedTime = baseTime
+				hit1.Request.ServerReceivedTime = baseTime
 				hit2 := hits.New()
-				hit2.ServerAttributes.ServerReceivedTime = baseTime.Add(2 * time.Minute)
+				hit2.Request.ServerReceivedTime = baseTime.Add(2 * time.Minute)
 				hit3 := hits.New()
-				hit3.ServerAttributes.ServerReceivedTime = baseTime.Add(5 * time.Minute)
+				hit3.Request.ServerReceivedTime = baseTime.Add(5 * time.Minute)
 				hit4 := hits.New()
-				hit4.ServerAttributes.ServerReceivedTime = baseTime.Add(7 * time.Minute)
+				hit4.Request.ServerReceivedTime = baseTime.Add(7 * time.Minute)
 				return &schema.Session{
 					Events: []*schema.Event{
 						schema.NewEvent(hit1),
@@ -428,13 +428,13 @@ func TestSplitter(t *testing.T) {
 			session: func() *schema.Session {
 				baseTime := time.Now()
 				hit1 := hits.New()
-				hit1.ServerAttributes.ServerReceivedTime = baseTime
+				hit1.Request.ServerReceivedTime = baseTime
 				hit2 := hits.New()
-				hit2.ServerAttributes.ServerReceivedTime = baseTime.Add(5 * time.Minute)
+				hit2.Request.ServerReceivedTime = baseTime.Add(5 * time.Minute)
 				hit3 := hits.New()
-				hit3.ServerAttributes.ServerReceivedTime = baseTime.Add(10 * time.Minute)
+				hit3.Request.ServerReceivedTime = baseTime.Add(10 * time.Minute)
 				hit4 := hits.New()
-				hit4.ServerAttributes.ServerReceivedTime = baseTime.Add(15 * time.Minute)
+				hit4.Request.ServerReceivedTime = baseTime.Add(15 * time.Minute)
 				return &schema.Session{
 					Events: []*schema.Event{
 						schema.NewEvent(hit1),
@@ -480,13 +480,13 @@ func TestSplitter(t *testing.T) {
 			session: func() *schema.Session {
 				baseTime := time.Now()
 				hit1 := hits.New()
-				hit1.ServerAttributes.ServerReceivedTime = baseTime
+				hit1.Request.ServerReceivedTime = baseTime
 				hit2 := hits.New()
-				hit2.ServerAttributes.ServerReceivedTime = baseTime.Add(2 * time.Minute)
+				hit2.Request.ServerReceivedTime = baseTime.Add(2 * time.Minute)
 				hit3 := hits.New()
-				hit3.ServerAttributes.ServerReceivedTime = baseTime.Add(4 * time.Minute)
+				hit3.Request.ServerReceivedTime = baseTime.Add(4 * time.Minute)
 				hit4 := hits.New()
-				hit4.ServerAttributes.ServerReceivedTime = baseTime.Add(6 * time.Minute)
+				hit4.Request.ServerReceivedTime = baseTime.Add(6 * time.Minute)
 				return &schema.Session{
 					Events: []*schema.Event{
 						schema.NewEvent(hit1).WithValueKey("user_id", "user1"),
@@ -510,17 +510,17 @@ func TestSplitter(t *testing.T) {
 			session: func() *schema.Session {
 				baseTime := time.Now()
 				hit1 := hits.New()
-				hit1.ServerAttributes.ServerReceivedTime = baseTime
+				hit1.Request.ServerReceivedTime = baseTime
 				hit2 := hits.New()
-				hit2.ServerAttributes.ServerReceivedTime = baseTime.Add(1 * time.Minute)
+				hit2.Request.ServerReceivedTime = baseTime.Add(1 * time.Minute)
 				hit3 := hits.New()
-				hit3.ServerAttributes.ServerReceivedTime = baseTime.Add(2 * time.Minute)
+				hit3.Request.ServerReceivedTime = baseTime.Add(2 * time.Minute)
 				hit4 := hits.New()
-				hit4.ServerAttributes.ServerReceivedTime = baseTime.Add(3 * time.Minute)
+				hit4.Request.ServerReceivedTime = baseTime.Add(3 * time.Minute)
 				hit5 := hits.New()
-				hit5.ServerAttributes.ServerReceivedTime = baseTime.Add(6 * time.Minute)
+				hit5.Request.ServerReceivedTime = baseTime.Add(6 * time.Minute)
 				hit6 := hits.New()
-				hit6.ServerAttributes.ServerReceivedTime = baseTime.Add(7 * time.Minute)
+				hit6.Request.ServerReceivedTime = baseTime.Add(7 * time.Minute)
 				return &schema.Session{
 					Events: []*schema.Event{
 						schema.NewEvent(hit1).WithValueKey("utm_campaign", "campaign1").WithValueKey("user_id", "user1"),

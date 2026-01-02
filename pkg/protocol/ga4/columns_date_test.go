@@ -69,7 +69,7 @@ func TestEventDateColumns(t *testing.T) {
 			warsaw, err := time.LoadLocation("Europe/Warsaw")
 			require.NoError(t, err)
 			// 1 AM Warsaw time = midnight UTC (Warsaw is UTC+1 in January)
-			hit.MustServerAttributes().ServerReceivedTime = time.Date(2025, 1, 1, 1, 0, 0, 0, warsaw)
+			hit.MustParsedRequest().ServerReceivedTime = time.Date(2025, 1, 1, 1, 0, 0, 0, warsaw)
 			// given
 			columntests.ColumnTestCase(
 				t,
