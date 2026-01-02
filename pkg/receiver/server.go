@@ -184,36 +184,8 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 
 // Run starts the HTTP server and blocks until the context is cancelled or an error occurs
 func (s *Server) Run(ctx context.Context) error {
-	r := router.New()
-	for _, protocol := range s.protocols {
-		for _, endpoint := range protocol.Endpoints() {
-			if endpoint.IsCustom {
-				for _, method := range endpoint.Methods {
-					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
-					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
-						start := time.Now()
-						defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
-						endpoint.CustomHandler(fctx)
-					})
-				}
-				continue
-			}
-			for _, method := range endpoint.Methods {
-				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
-				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
-					start := time.Now()
-					defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
-					s.handleRequest(ctx, fctx, protocol)
-				})
-			}
-		}
-	}
-	r.GET("/healthz", func(fctx *fasthttp.RequestCtx) {
-		fctx.SetStatusCode(fasthttp.StatusOK)
-		fctx.SetBodyString("OK")
-	})
 	httpServer := &fasthttp.Server{
-		Handler: r.Handler,
+		Handler: s.setupRouter(ctx).Handler,
 		Name:    "Tracker API",
 	}
 	// Create a channel to signal server shutdown
@@ -255,4 +227,38 @@ func (s *Server) Run(ctx context.Context) error {
 	case <-shutdownChan:
 		return nil
 	}
+}
+
+func (s *Server) setupRouter(ctx context.Context) *router.Router {
+	r := router.New()
+	for _, protocol := range s.protocols {
+		for _, endpoint := range protocol.Endpoints() {
+			if endpoint.IsCustom {
+				for _, method := range endpoint.Methods {
+					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
+						start := time.Now()
+						defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+						endpoint.CustomHandler(fctx)
+					})
+				}
+				continue
+			}
+			for _, method := range endpoint.Methods {
+				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
+					start := time.Now()
+					defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+					s.handleRequest(ctx, fctx, protocol)
+				})
+			}
+		}
+	}
+	for _, method := range []string{fasthttp.MethodGet, fasthttp.MethodOptions, fasthttp.MethodHead} {
+		r.Handle(method, "/healthz", func(fctx *fasthttp.RequestCtx) {
+			fctx.SetStatusCode(fasthttp.StatusOK)
+			fctx.SetBodyString("OK")
+		})
+	}
+	return r
 }
