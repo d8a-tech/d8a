@@ -13,7 +13,7 @@ var LastEventTimeColumn = columns.NewSimpleSessionColumn(
 		if len(session.Events) == 0 {
 			return nil, columns.NewBrokenSessionError("session has no events")
 		}
-		return session.Events[len(session.Events)-1].BoundHit.MustServerAttributes().ServerReceivedTime.Unix(), nil
+		return session.Events[len(session.Events)-1].BoundHit.MustParsedRequest().ServerReceivedTime.Unix(), nil
 	},
 	columns.WithSessionColumnDocs(
 		"Session Last Event Time",

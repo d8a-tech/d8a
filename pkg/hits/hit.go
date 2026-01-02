@@ -81,14 +81,9 @@ func (h *Hit) SessionStamp() string {
 	return h.Request.IP
 }
 
-func (h *Hit) MustServerAttributes() *ParsedRequest {
+func (h *Hit) MustParsedRequest() *ParsedRequest {
 	if h.Request == nil {
-		logrus.Errorf("server attributes are nil for hit %s, that should not happen", h.ID)
-		h.Request = &ParsedRequest{
-			Headers:            http.Header{},
-			QueryParams:        url.Values{},
-			ServerReceivedTime: time.Now(),
-		}
+		logrus.Panicf("server attributes are nil for hit %s, that should not happen", h.ID)
 	}
 	return h.Request
 }
@@ -134,10 +129,10 @@ func (h *Hit) Size() uint32 {
 	size += util.SafeIntToUint32(len(h.AuthoritativeClientID))
 	size += util.SafeIntToUint32(len(h.ClientID))
 	size += util.SafeIntToUint32(len(h.PropertyID))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().IP))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Host))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Path))
-	size += util.SafeIntToUint32(len(h.MustServerAttributes().Method))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().IP))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Host))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Path))
+	size += util.SafeIntToUint32(len(h.MustParsedRequest().Method))
 
 	// time.Time is 24 bytes (3 int64 fields), already included in unsafe.Sizeof
 

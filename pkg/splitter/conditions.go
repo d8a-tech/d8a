@@ -106,8 +106,8 @@ func (c *timeSinceFirstEventCondition) ShouldSplit(
 	if ctx.FirstEvent == nil {
 		return SplitCauseNone, false
 	}
-	if current.BoundHit.MustServerAttributes().ServerReceivedTime.
-		Sub(ctx.FirstEvent.BoundHit.MustServerAttributes().ServerReceivedTime) >= c.timeSinceFirstEvent {
+	if current.BoundHit.MustParsedRequest().ServerReceivedTime.
+		Sub(ctx.FirstEvent.BoundHit.MustParsedRequest().ServerReceivedTime) >= c.timeSinceFirstEvent {
 		return SplitCauseTimeSinceFirstEvent, true
 	}
 	return SplitCauseNone, false

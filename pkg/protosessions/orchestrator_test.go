@@ -179,10 +179,10 @@ func TestOrchestrator_ProcessBucket_SortsHitsByTime(t *testing.T) {
 
 	sortedHits := receivedSessions[0]
 	assert.Len(t, sortedHits, 3)
-	assert.True(t, sortedHits[0].MustServerAttributes().ServerReceivedTime.
-		Before(sortedHits[1].MustServerAttributes().ServerReceivedTime))
-	assert.True(t, sortedHits[1].MustServerAttributes().ServerReceivedTime.
-		Before(sortedHits[2].MustServerAttributes().ServerReceivedTime))
+	assert.True(t, sortedHits[0].MustParsedRequest().ServerReceivedTime.
+		Before(sortedHits[1].MustParsedRequest().ServerReceivedTime))
+	assert.True(t, sortedHits[1].MustParsedRequest().ServerReceivedTime.
+		Before(sortedHits[2].MustParsedRequest().ServerReceivedTime))
 }
 
 func TestOrchestrator_ProcessBucket_CleanupBucketMetadata(t *testing.T) {

@@ -19,7 +19,7 @@ func parseBooleanFromQueryParamOrNilColumn(
 		interfaceID,
 		field,
 		func(event *schema.Event) (any, error) {
-			p := event.BoundHit.MustServerAttributes().QueryParams.Get(queryParam)
+			p := event.BoundHit.MustParsedRequest().QueryParams.Get(queryParam)
 			if p == "" {
 				return nil, nil // nolint:nilnil // nil is valid
 			}

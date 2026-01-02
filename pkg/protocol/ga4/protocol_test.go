@@ -122,7 +122,7 @@ func TestHits(t *testing.T) {
 			for i, expectedParams := range tc.expectedParams {
 				hit := hits[i]
 				for param, expectedValue := range expectedParams {
-					actualValue := hit.MustServerAttributes().QueryParams.Get(param)
+					actualValue := hit.MustParsedRequest().QueryParams.Get(param)
 					assert.Equal(t, expectedValue, actualValue, "Hit %d: Parameter %s should match", i, param)
 				}
 			}

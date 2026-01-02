@@ -153,7 +153,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				// Verify events are sorted by ServerReceivedTime
 				actualOrder := make([]time.Time, len(session.Events))
 				for i, event := range session.Events {
-					actualOrder[i] = event.BoundHit.MustServerAttributes().ServerReceivedTime
+					actualOrder[i] = event.BoundHit.MustParsedRequest().ServerReceivedTime
 				}
 				assert.Equal(t, tt.expectedOrder, actualOrder)
 
@@ -161,7 +161,7 @@ func TestDirectCloser_Close(t *testing.T) {
 				for i, event := range session.Events {
 					assert.NotNil(t, event.BoundHit)
 					assert.NotNil(t, event.Values)
-					assert.Equal(t, tt.expectedOrder[i], event.BoundHit.MustServerAttributes().ServerReceivedTime)
+					assert.Equal(t, tt.expectedOrder[i], event.BoundHit.MustParsedRequest().ServerReceivedTime)
 				}
 			} else {
 				// If no writer call was expected, verify no sessions were written
@@ -212,7 +212,7 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 
 	// All events should have the same timestamp
 	for _, event := range session.Events {
-		assert.Equal(t, baseTime, event.BoundHit.MustServerAttributes().ServerReceivedTime)
+		assert.Equal(t, baseTime, event.BoundHit.MustParsedRequest().ServerReceivedTime)
 	}
 }
 

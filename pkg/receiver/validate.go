@@ -65,7 +65,7 @@ var PropertyIDNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 
 // HitHeadersNotEmpty validates that Headers are not empty.
 var HitHeadersNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if len(hit.MustServerAttributes().Headers) == 0 {
+	if len(hit.MustParsedRequest().Headers) == 0 {
 		return fmt.Errorf("hit.Headers can not be empty")
 	}
 	return nil
@@ -73,7 +73,7 @@ var HitHeadersNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 
 // HitQueryParamsNotNil validates that QueryParams are not nil.
 var HitQueryParamsNotNil = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.MustServerAttributes().QueryParams == nil {
+	if hit.MustParsedRequest().QueryParams == nil {
 		return fmt.Errorf("hit.QueryParams can not be nil")
 	}
 	return nil
@@ -81,7 +81,7 @@ var HitQueryParamsNotNil = NewSimpleHitValidatingRule(func(hit *hits.Hit) error 
 
 // HitHostNotEmpty validates that Host is not empty.
 var HitHostNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.MustServerAttributes().Host == "" {
+	if hit.MustParsedRequest().Host == "" {
 		return fmt.Errorf("hit.Host can not be empty")
 	}
 	return nil
@@ -89,7 +89,7 @@ var HitHostNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 
 // HitPathNotEmpty validates that Path is not empty.
 var HitPathNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.MustServerAttributes().Path == "" {
+	if hit.MustParsedRequest().Path == "" {
 		return fmt.Errorf("hit.Path can not be empty")
 	}
 	return nil
@@ -97,7 +97,7 @@ var HitPathNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 
 // HitMethodNotEmpty validates that Method is not empty.
 var HitMethodNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.MustServerAttributes().Method == "" {
+	if hit.MustParsedRequest().Method == "" {
 		return fmt.Errorf("hit.Method can not be empty")
 	}
 	return nil
@@ -105,7 +105,7 @@ var HitMethodNotEmpty = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
 
 // HitBodyNotNil validates that Body is not nil.
 var HitBodyNotNil = NewSimpleHitValidatingRule(func(hit *hits.Hit) error {
-	if hit.MustServerAttributes().Body == nil {
+	if hit.MustParsedRequest().Body == nil {
 		return fmt.Errorf("hit.Body can not be nil")
 	}
 	return nil

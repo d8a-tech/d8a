@@ -328,11 +328,11 @@ func TestHitFour() *hits.Hit {
 type TestHits []*hits.Hit
 
 func (t TestHits) EnsureQueryParam(hitNum int, param string, value string) {
-	t[hitNum].MustServerAttributes().QueryParams.Set(param, value)
+	t[hitNum].MustParsedRequest().QueryParams.Set(param, value)
 }
 
 func (t TestHits) EnsureHeader(hitNum int, header string, value string) {
-	t[hitNum].MustServerAttributes().Headers.Set(header, value)
+	t[hitNum].MustParsedRequest().Headers.Set(header, value)
 }
 
 type CaseConfig struct {

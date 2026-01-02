@@ -60,12 +60,12 @@ func (t *GeoColumnFactory) Column(
 				}
 			}
 			// Check if for given IP there is a cache hit (calculated for other event)
-			cacheHit, ok := t.cache.Get(event.BoundHit.MustServerAttributes().IP)
+			cacheHit, ok := t.cache.Get(event.BoundHit.MustParsedRequest().IP)
 			if ok {
 				event.Metadata[geoRecordMetadataKey] = cacheHit
 				return getValue(event, cacheHit)
 			}
-			ipAddress, err := netip.ParseAddr(event.BoundHit.MustServerAttributes().IP)
+			ipAddress, err := netip.ParseAddr(event.BoundHit.MustParsedRequest().IP)
 			if err != nil {
 				logrus.WithError(err).Warn("failed to parse IP address in dbip column")
 				return nil, nil //nolint:nilnil // nil is valid
@@ -80,7 +80,7 @@ func (t *GeoColumnFactory) Column(
 				return nil, err
 			}
 			event.Metadata[geoRecordMetadataKey] = &record
-			t.cache.SetWithTTL(event.BoundHit.MustServerAttributes().IP, &record, 1, t.cacheConfig.TTL)
+			t.cache.SetWithTTL(event.BoundHit.MustParsedRequest().IP, &record, 1, t.cacheConfig.TTL)
 			return getValue(event, &record)
 		},
 		options...,

@@ -115,7 +115,9 @@ func (s *Server) handleRequest(
 
 	for _, hit := range hits {
 		if hit.Request == nil {
-			ctx.Error(fmt.Sprintf("server attributes are nil for hit %s", hit.ID), fasthttp.StatusInternalServerError)
+			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
+			logrus.Error(err)
+			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 			recordRequestMetrics(reqCtx, fasthttp.StatusInternalServerError, start)
 			return
 		}

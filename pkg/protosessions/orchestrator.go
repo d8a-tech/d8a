@@ -276,7 +276,7 @@ func (o *Orchestrator) processBatch(
 	// hits from the same session, each batch updates the timing wheel to its latest hit time, ensuring the
 	// timing wheel's current bucket reflects the most recent processing progress.
 	if len(newBatch) > 0 {
-		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].MustServerAttributes().ServerReceivedTime)
+		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].MustParsedRequest().ServerReceivedTime)
 		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
 	}
 	return nil
@@ -295,7 +295,7 @@ func (o *Orchestrator) seedOutdatedHits(
 			return nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		bucketNumber := o.timingWheel.BucketNumber(
-			hit.MustServerAttributes().ServerReceivedTime.Add(settings.SessionDuration))
+			hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionDuration))
 		uniqueBuckets[bucketNumber] = append(uniqueBuckets[bucketNumber], hit)
 	}
 
@@ -402,7 +402,7 @@ func (o *Orchestrator) buildSaveRequests(
 		}
 		markReqs = append(markReqs, NewMarkProtoSessionClosingForGivenBucketRequest(
 			hit.AuthoritativeClientID,
-			o.timingWheel.BucketNumber(hit.MustServerAttributes().ServerReceivedTime.Add(settings.SessionDuration)),
+			o.timingWheel.BucketNumber(hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionDuration)),
 		))
 		appendReqs = append(appendReqs, NewAppendHitsToProtoSessionRequest(
 			hit.AuthoritativeClientID,
@@ -733,7 +733,7 @@ func sortHitsByServerReceivedTime(hitsToSort []*hits.Hit) []*hits.Hit {
 	copy(sorted, hitsToSort)
 
 	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].MustServerAttributes().ServerReceivedTime.Before(sorted[j].MustServerAttributes().ServerReceivedTime)
+		return sorted[i].MustParsedRequest().ServerReceivedTime.Before(sorted[j].MustParsedRequest().ServerReceivedTime)
 	})
 
 	return sorted
