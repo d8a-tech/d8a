@@ -23,7 +23,7 @@ type ProtocolAttributes struct {
 	UserID                *string  `cbor:"uid"`
 }
 
-type Request struct {
+type ParsedRequest struct {
 	IP                 string      `cbor:"ip"`
 	Host               string      `cbor:"h"`
 	ServerReceivedTime time.Time   `cbor:"srt"`
@@ -34,13 +34,13 @@ type Request struct {
 	Headers            http.Header `cbor:"he"`
 }
 
-func (s *Request) Clone() *Request {
+func (s *ParsedRequest) Clone() *ParsedRequest {
 	queryParamsCopy := url.Values{}
 	for key, values := range s.QueryParams {
 		queryParamsCopy[key] = make([]string, len(values))
 		copy(queryParamsCopy[key], values)
 	}
-	return &Request{
+	return &ParsedRequest{
 		IP:                 s.IP,
 		Host:               s.Host,
 		ServerReceivedTime: s.ServerReceivedTime,
@@ -69,7 +69,7 @@ type Hit struct {
 	UserID     *string `cbor:"uid"`
 
 	Metadata map[string]string `cbor:"md"`
-	Request  *Request          `cbor:"sa"`
+	Request  *ParsedRequest    `cbor:"sa"`
 }
 
 // SessionStamp returns a unique identifier for the session
@@ -81,10 +81,10 @@ func (h *Hit) SessionStamp() string {
 	return h.Request.IP
 }
 
-func (h *Hit) MustServerAttributes() *Request {
+func (h *Hit) MustServerAttributes() *ParsedRequest {
 	if h.Request == nil {
 		logrus.Errorf("server attributes are nil for hit %s, that should not happen", h.ID)
-		h.Request = &Request{
+		h.Request = &ParsedRequest{
 			Headers:            http.Header{},
 			QueryParams:        url.Values{},
 			ServerReceivedTime: time.Now(),
@@ -98,7 +98,7 @@ func New() *Hit {
 	clientID := uuid.New().String()
 	return &Hit{
 		Metadata: map[string]string{},
-		Request: &Request{
+		Request: &ParsedRequest{
 			Headers:            http.Header{},
 			QueryParams:        url.Values{},
 			ServerReceivedTime: time.Now(),
@@ -110,7 +110,7 @@ func New() *Hit {
 }
 
 // NewWithServerAttributes creates a new Hit with the given ServerAttributes
-func NewWithServerAttributes(serverAttributes *Request) *Hit {
+func NewWithServerAttributes(serverAttributes *ParsedRequest) *Hit {
 	clientID := uuid.New().String()
 	return &Hit{
 		Metadata:              map[string]string{},

@@ -3,7 +3,6 @@ package receiver
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -48,27 +47,14 @@ func (m *mockProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	}
 }
 
-func (m *mockProtocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
+func (m *mockProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
 	theHit := hits.New()
 
 	theHit.ClientID = hits.ClientID("test_client_id")
 	theHit.AuthoritativeClientID = theHit.ClientID
 	theHit.PropertyID = "test_property_id"
-	theHit.Request = &hits.Request{
-		Host:        request.Host,
-		Path:        request.Path,
-		Method:      request.Method,
-		Headers:     http.Header{},
-		QueryParams: request.QueryParams,
-	}
 	theHit.EventName = "page_view"
-	for key, values := range request.Headers {
-		for _, value := range values {
-			theHit.Request.Headers.Add(key, value)
-		}
-	}
-	theHit.Request.QueryParams = request.QueryParams
-	theHit.Request.Body = request.Body
+	theHit.Request = request.Clone()
 	return []*hits.Hit{theHit}, m.err
 }
 

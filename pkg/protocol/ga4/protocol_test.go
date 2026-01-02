@@ -9,6 +9,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/valyala/fasthttp"
 )
 
 func TestHits(t *testing.T) {
@@ -101,7 +102,7 @@ func TestHits(t *testing.T) {
 			ga4Protocol := NewGA4Protocol(
 				currency.NewDummyConverter(1),
 				properties.NewTestSettingRegistry())
-			request := &hits.Request{
+			request := &hits.ParsedRequest{
 				QueryParams: tc.queryParams,
 				Headers:     map[string][]string{},
 				Host:        "example.com",
@@ -111,7 +112,7 @@ func TestHits(t *testing.T) {
 			}
 
 			// when
-			hits, err := ga4Protocol.Hits(request)
+			hits, err := ga4Protocol.Hits(&fasthttp.RequestCtx{}, request)
 
 			// then
 			require.NoError(t, err)

@@ -89,13 +89,6 @@ func (s *Server) handleRequest(
 	selectedProtocol protocol.Protocol,
 ) {
 	start := time.Now()
-
-	// Always set CORS headers
-	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-	ctx.Response.Header.Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-	ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-	ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-
 	// Handle preflight requests early
 	if string(ctx.Method()) == fasthttp.MethodOptions {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
@@ -162,7 +155,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 	}
 	bodyCopy := make([]byte, len(ctx.Request.Body()))
 	copy(bodyCopy, ctx.Request.Body())
-	request := &hits.Request{
+	request := &hits.ParsedRequest{
 		IP:                 realIP(ctx),
 		Method:             string(ctx.Method()),
 		Host:               string(ctx.Host()),
@@ -173,7 +166,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		Body:               bodyCopy,
 	}
 
-	hits, err := p.Hits(request)
+	hits, err := p.Hits(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -190,11 +183,11 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 // Run starts the HTTP server and blocks until the context is cancelled or an error occurs
 func (s *Server) Run(ctx context.Context) error {
 	r := router.New()
-
 	for _, protocol := range s.protocols {
 		for _, endpoint := range protocol.Endpoints() {
 			if endpoint.IsCustom {
 				for _, method := range endpoint.Methods {
+					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 						start := time.Now()
 						defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
@@ -204,6 +197,7 @@ func (s *Server) Run(ctx context.Context) error {
 				continue
 			}
 			for _, method := range endpoint.Methods {
+				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 					start := time.Now()
 					defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
@@ -212,12 +206,10 @@ func (s *Server) Run(ctx context.Context) error {
 			}
 		}
 	}
-
 	r.GET("/healthz", func(fctx *fasthttp.RequestCtx) {
 		fctx.SetStatusCode(fasthttp.StatusOK)
 		fctx.SetBodyString("OK")
 	})
-
 	httpServer := &fasthttp.Server{
 		Handler: r.Handler,
 		Name:    "Tracker API",

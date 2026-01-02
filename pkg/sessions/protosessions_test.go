@@ -44,10 +44,10 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events sorted by server received time - mixed order",
 			protosession: []*hits.Hit{
-				{ID: "hit3", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time3}},
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
-				{ID: "hit4", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time4}},
-				{ID: "hit2", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time2}},
+				{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time3}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				{ID: "hit4", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time4}},
+				{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3, time4},
 			expectedCalls: 1,
@@ -55,9 +55,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events already in correct order",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
-				{ID: "hit2", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time2}},
-				{ID: "hit3", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time3}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time3}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
@@ -65,9 +65,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events in reverse order",
 			protosession: []*hits.Hit{
-				{ID: "hit3", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time3}},
-				{ID: "hit2", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time2}},
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
+				{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time3}},
+				{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1, time2, time3},
 			expectedCalls: 1,
@@ -75,7 +75,7 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "single event",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1},
 			expectedCalls: 1,
@@ -89,9 +89,9 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "events with same timestamp",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
-				{ID: "hit2", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
-				{ID: "hit3", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time2}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
 			},
 			expectedOrder: []time.Time{time1, time1, time2},
 			expectedCalls: 1,
@@ -100,9 +100,9 @@ func TestDirectCloser_Close(t *testing.T) {
 			name: "events with invalid time format - should not crash",
 			protosession: []*hits.Hit{
 				{ID: "hit1", PropertyID: "prop1",
-					Request: &hits.Request{ServerReceivedTime: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}},
-				{ID: "hit2", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time2}},
-				{ID: "hit3", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
+					Request: &hits.ParsedRequest{ServerReceivedTime: time.Date(1970, 1, 1, 0, 0, 0, 0, time.UTC)}},
+				{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
 			},
 			// Invalid times should maintain original order relative to each other
 			// Valid times should be sorted
@@ -112,7 +112,7 @@ func TestDirectCloser_Close(t *testing.T) {
 		{
 			name: "writer returns error",
 			protosession: []*hits.Hit{
-				{ID: "hit1", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: time1}},
+				{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
 			},
 			expectedOrder: []time.Time{time1},
 			writerError:   assert.AnError,
@@ -191,9 +191,9 @@ func TestDirectCloser_SortingStability(t *testing.T) {
 
 	// given
 	protosession := []*hits.Hit{
-		{ID: "first", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: baseTime}},
-		{ID: "second", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: baseTime}},
-		{ID: "third", PropertyID: "prop1", Request: &hits.Request{ServerReceivedTime: baseTime}},
+		{ID: "first", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: baseTime}},
+		{ID: "second", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: baseTime}},
+		{ID: "third", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: baseTime}},
 	}
 
 	mockWriter := &mockSessionWriter{}

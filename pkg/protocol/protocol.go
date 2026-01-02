@@ -37,5 +37,5 @@ type Protocol interface {
 	Columns() schema.Columns
 	Interfaces() any
 	Endpoints() []ProtocolEndpoint
-	Hits(*hits.Request) ([]*hits.Hit, error)
+	Hits(*fasthttp.RequestCtx, *hits.ParsedRequest) ([]*hits.Hit, error)
 }

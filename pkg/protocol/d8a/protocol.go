@@ -32,9 +32,16 @@ func (p *d8aProtocol) Interfaces() any {
 var staticTrackerJS []byte
 
 func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
-	return append(p.child.Endpoints(), protocol.ProtocolEndpoint{
+	newEndpoints := make([]protocol.ProtocolEndpoint, len(p.child.Endpoints())+1)
+	for i, endpoint := range p.child.Endpoints() {
+		if endpoint.Path == "/g/collect" {
+			endpoint.Path = "/d/collect"
+		}
+		newEndpoints[i] = endpoint
+	}
+	return append(newEndpoints, protocol.ProtocolEndpoint{
 		Methods:  []string{fasthttp.MethodGet},
-		Path:     "/",
+		Path:     "/js",
 		IsCustom: true,
 		CustomHandler: func(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusOK)
@@ -44,8 +51,8 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	})
 }
 
-func (p *d8aProtocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
-	return p.child.Hits(request)
+func (p *d8aProtocol) Hits(ctx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
+	return p.child.Hits(ctx, request)
 }
 
 func NewD8AProtocol(

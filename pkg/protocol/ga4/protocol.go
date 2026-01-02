@@ -22,7 +22,12 @@ func (p *ga4Protocol) ID() string {
 	return "ga4"
 }
 
-func (p *ga4Protocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
+func (p *ga4Protocol) Hits(reqCtx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
+	reqCtx.Response.Header.Set("Access-Control-Allow-Origin", "*")
+	reqCtx.Response.Header.Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
+	reqCtx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
+	reqCtx.Response.Header.Set("Access-Control-Max-Age", "86400")
+
 	// Parse body into lines (each line represents a hit)
 	bodyStr := strings.TrimSpace(string(request.Body))
 	var bodyLines []string
@@ -60,7 +65,7 @@ func (p *ga4Protocol) Hits(request *hits.Request) ([]*hits.Hit, error) {
 }
 
 // createHitBase creates a hit with common fields populated from the request
-func (p *ga4Protocol) createHitBase(request *hits.Request, _ []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitBase(request *hits.ParsedRequest, _ []byte) (*hits.Hit, error) {
 	hit := hits.New()
 
 	clientID, err := p.ClientID(request)
@@ -91,7 +96,7 @@ func (p *ga4Protocol) createHitBase(request *hits.Request, _ []byte) (*hits.Hit,
 }
 
 // createHitFromQueryParams creates a hit using only query parameters
-func (p *ga4Protocol) createHitFromQueryParams(request *hits.Request, body []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitFromQueryParams(request *hits.ParsedRequest, body []byte) (*hits.Hit, error) {
 	hit, err := p.createHitBase(request, body)
 	if err != nil {
 		return nil, err
@@ -109,7 +114,7 @@ func (p *ga4Protocol) createHitFromQueryParams(request *hits.Request, body []byt
 }
 
 // createHitFromLine creates a hit by merging query parameters with line-specific parameters
-func (p *ga4Protocol) createHitFromLine(request *hits.Request, line string, body []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitFromLine(request *hits.ParsedRequest, line string, body []byte) (*hits.Hit, error) {
 	mergedParams, err := p.mergeQueryParamsWithLine(request.QueryParams, line)
 	if err != nil {
 		return nil, err
@@ -152,7 +157,7 @@ func (p *ga4Protocol) mergeQueryParamsWithLine(queryParams url.Values, line stri
 
 // createHitFromMergedParams creates a hit using merged parameters
 func (p *ga4Protocol) createHitFromMergedParams(
-	request *hits.Request,
+	request *hits.ParsedRequest,
 	body []byte,
 	mergedParams url.Values,
 ) (*hits.Hit, error) {
@@ -166,7 +171,7 @@ func (p *ga4Protocol) createHitFromMergedParams(
 	return hit, nil
 }
 
-func (p *ga4Protocol) ClientID(request *hits.Request) (string, error) {
+func (p *ga4Protocol) ClientID(request *hits.ParsedRequest) (string, error) {
 	cid := request.QueryParams.Get("cid")
 	if cid == "" {
 		return "", errors.New("`cid` is a required query parameter for ga4 protocol")
@@ -174,7 +179,7 @@ func (p *ga4Protocol) ClientID(request *hits.Request) (string, error) {
 	return cid, nil
 }
 
-func (p *ga4Protocol) PropertyID(request *hits.Request) (string, error) {
+func (p *ga4Protocol) PropertyID(request *hits.ParsedRequest) (string, error) {
 	property, err := p.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
 	if err != nil {
 		return "", err
@@ -182,7 +187,7 @@ func (p *ga4Protocol) PropertyID(request *hits.Request) (string, error) {
 	return property.PropertyID, nil
 }
 
-func (p *ga4Protocol) UserID(request *hits.Request) (*string, error) {
+func (p *ga4Protocol) UserID(request *hits.ParsedRequest) (*string, error) {
 	userID := request.QueryParams.Get("uid")
 	if userID == "" {
 		return nil, nil // nolint:nilnil // nil is valid for user ID
@@ -190,7 +195,7 @@ func (p *ga4Protocol) UserID(request *hits.Request) (*string, error) {
 	return &userID, nil
 }
 
-func (p *ga4Protocol) EventName(request *hits.Request) (string, error) {
+func (p *ga4Protocol) EventName(request *hits.ParsedRequest) (string, error) {
 	eventName := request.QueryParams.Get("en")
 	if eventName == "" {
 		return "", errors.New("`en` is a required query parameter for ga4 protocol")

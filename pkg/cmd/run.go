@@ -105,7 +105,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}
 					ordering := schema.NewInterfaceDefinitionOrderKeeper(
 						columns.CoreInterfaces,
-						ga4.ProtocolInterfaces,
+						ga4.ProtocolInterfaces, // This hardcodes ga4, it's fine for now for OSS
 					)
 					columnData = schema.Sorted(columnData, ordering)
 					formatters := map[string]columnsFormatter{
@@ -294,10 +294,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						receiver.NewNoopRawLogStorage(),
 						receiver.HitValidatingRuleSet(1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name))),
 						[]protocol.Protocol{
-							ga4.NewGA4Protocol(
-								currencyConverter,
-								propertySource(cmd),
-							),
+							protocolFromCMD(cmd),
 						},
 						cmd.Int(serverPortFlag.Name),
 					)
