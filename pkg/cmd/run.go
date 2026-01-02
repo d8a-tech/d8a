@@ -95,6 +95,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							Value:    "console",
 							Required: false,
 						},
+						protocolFlag,
 					},
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
