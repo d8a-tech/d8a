@@ -168,7 +168,8 @@ func TestWorker_TableDriven(t *testing.T) {
 				closer,
 				requeuer,
 				settingsRegistry,
-				tc.evictionStrategy,
+				WithEvictionStrategy(tc.evictionStrategy),
+				WithIdentifierIsolationGuardFactory(NewNoIsolationGuardFactory()),
 			)
 
 			// when
@@ -192,7 +193,7 @@ func makeHit(clientID string, sessionStamp, userID *string) *hits.Hit {
 	h.ClientID = hits.ClientID(clientID)
 	h.AuthoritativeClientID = hits.ClientID(clientID)
 	if sessionStamp != nil {
-		h.Request.QueryParams.Set("sessionStamp", *sessionStamp)
+		h.Request.QueryParams.Set("fss", *sessionStamp)
 	}
 	h.PropertyID = "test-property"
 	h.UserID = userID

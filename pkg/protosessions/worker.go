@@ -26,7 +26,7 @@ func Handler(
 	closer Closer,
 	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
-	evictionStrategy EvictionStrategy,
+	options ...OrchestratorOptionsFunc,
 ) func(_ map[string]string, h *hits.HitProcessingTask) *worker.Error {
 	orchestrator := NewOrchestrator(
 		ctx,
@@ -35,7 +35,7 @@ func Handler(
 		closer,
 		requeuer,
 		settingsRegistry,
-		evictionStrategy,
+		options...,
 	)
 	return func(md map[string]string, h *hits.HitProcessingTask) *worker.Error {
 		isPing, pingTimestamp := pings.IsTaskAPing(md)

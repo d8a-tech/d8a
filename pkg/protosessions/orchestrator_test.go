@@ -108,7 +108,6 @@ func TestOrchestrator_ProcessBucket(t *testing.T) {
 				closer,
 				requeuer,
 				settingsRegistry,
-				RewriteIDAndUpdateInPlaceStrategy,
 			)
 
 			// when
@@ -167,7 +166,6 @@ func TestOrchestrator_ProcessBucket_SortsHitsByTime(t *testing.T) {
 		closer,
 		requeuer,
 		settingsRegistry,
-		RewriteIDAndUpdateInPlaceStrategy,
 	)
 
 	// when
@@ -220,7 +218,6 @@ func TestOrchestrator_ProcessBucket_CleanupBucketMetadata(t *testing.T) {
 		closer,
 		requeuer,
 		settingsRegistry,
-		RewriteIDAndUpdateInPlaceStrategy,
 	)
 
 	// when
@@ -269,7 +266,6 @@ func TestOrchestrator_ProcessBucket_SkipsEmptyProtosessions(t *testing.T) {
 		closer,
 		requeuer,
 		settingsRegistry,
-		RewriteIDAndUpdateInPlaceStrategy,
 	)
 
 	// when
@@ -346,7 +342,6 @@ func TestOrchestrator_ProcessBucket_CleanupErrors(t *testing.T) {
 				closer,
 				requeuer,
 				settingsRegistry,
-				RewriteIDAndUpdateInPlaceStrategy,
 			)
 
 			// when

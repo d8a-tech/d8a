@@ -72,15 +72,6 @@ type Hit struct {
 	Request  *ParsedRequest    `cbor:"sa"`
 }
 
-// SessionStamp returns a unique identifier for the session
-func (h *Hit) SessionStamp() string {
-	directSessionStamp := h.Request.QueryParams.Get("sessionStamp")
-	if directSessionStamp != "" {
-		return directSessionStamp
-	}
-	return h.Request.IP
-}
-
 func (h *Hit) MustParsedRequest() *ParsedRequest {
 	if h.Request == nil {
 		logrus.Panicf("server attributes are nil for hit %s, that should not happen", h.ID)

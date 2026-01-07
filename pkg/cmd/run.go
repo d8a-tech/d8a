@@ -266,7 +266,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 										),
 										serverStorage,
 										propertySource(cmd),
-										protosessions.RewriteIDAndUpdateInPlaceStrategy,
 									)),
 							},
 							[]worker.Middleware{},

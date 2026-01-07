@@ -216,6 +216,29 @@ type Closer interface {
 
 It's prepared for asynchronous closing, where the task system described in [Queue Processing](#3-queue-processing) is used. Currently, the closing is done in-place, the `Close` method synchronously writes the session to the warehouse. This is not perfect, but it's a good compromise for now.
 
+### 4.1 Isolation
+
+The isolation mechanism ensures that proto-sessions from different properties are kept separate, even when they share the same client identifiers. Without isolation, users under some conditions could have their hits incorrectly grouped into a single proto-session.
+
+The isolation is implemented through the `IdentifierIsolationGuard` interface, which provides three key capabilities:
+
+```go
+type IdentifierIsolationGuardFactory interface {
+	New(settings *properties.Settings) IdentifierIsolationGuard
+}
+
+type IdentifierIsolationGuard interface {
+	IsolatedClientID(hit *hits.Hit) hits.ClientID
+	IsolatedSessionStamp(hit *hits.Hit) string
+	IsolatedUserID(hit *hits.Hit) (string, error)
+}
+```
+
+The `IsolatedClientID` method transforms the `AuthoritativeClientID` used for storage keys, ensuring that the same client ID from different properties results in different isolated identifiers. The default implementation hashes the property ID together with the Client ID.
+
+The `IsolatedSessionStamp` method produces property-scoped session stamps, `IsolatedUserID` similar, but for user ID.
+
+
 ## 5. Columns machinery
 
 ### 5.1 Columns

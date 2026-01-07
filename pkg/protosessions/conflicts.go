@@ -6,14 +6,18 @@ import (
 )
 
 // GetConflictCheckRequests returns a list of identifier conflict requests for a given hit and settings
-func GetConflictCheckRequests(hit *hits.Hit, settings *properties.Settings) []*IdentifierConflictRequest {
+func GetConflictCheckRequests(
+	hit *hits.Hit,
+	settings *properties.Settings,
+	guard IdentifierIsolationGuard,
+) []*IdentifierConflictRequest {
 	requests := make([]*IdentifierConflictRequest, 0)
 	if settings.SessionJoinBySessionStamp {
 		requests = append(requests, NewIdentifierConflictRequest(
 			hit,
 			"session_stamp",
 			func(h *hits.Hit) string {
-				return h.SessionStamp()
+				return guard.IsolatedSessionStamp(h)
 			},
 		))
 	}
@@ -22,7 +26,12 @@ func GetConflictCheckRequests(hit *hits.Hit, settings *properties.Settings) []*I
 			hit,
 			"user_id",
 			func(h *hits.Hit) string {
-				return *h.UserID
+				stamp, err := guard.IsolatedUserID(h)
+				if err != nil {
+					// Fallback to raw UserID if stamp generation fails
+					return *h.UserID
+				}
+				return stamp
 			},
 		))
 	}
@@ -34,29 +43,58 @@ func GetConflictCheckRequests(hit *hits.Hit, settings *properties.Settings) []*I
 func GetRemoveHitRelatedMetadataRequests(
 	protoSession []*hits.Hit,
 	settings *properties.Settings,
+	guard IdentifierIsolationGuard,
 ) []*RemoveAllHitRelatedMetadataRequest {
 	if len(protoSession) == 0 {
 		return nil
 	}
-	hit := protoSession[0]
 	requests := make([]*RemoveAllHitRelatedMetadataRequest, 0)
+
+	// Collect unique session stamps and map them to representative hits
+	sessionStampToHit := make(map[string]*hits.Hit)
 	if settings.SessionJoinBySessionStamp {
-		requests = append(requests, NewRemoveAllHitRelatedMetadataRequest(
-			hit,
-			"session_stamp",
-			func(h *hits.Hit) string {
-				return h.SessionStamp()
-			},
-		))
+		for _, hit := range protoSession {
+			sessionStamp := guard.IsolatedSessionStamp(hit)
+			if _, exists := sessionStampToHit[sessionStamp]; !exists {
+				sessionStampToHit[sessionStamp] = hit
+			}
+		}
+		for sessionStamp, hit := range sessionStampToHit {
+			requests = append(requests, NewRemoveAllHitRelatedMetadataRequest(
+				hit,
+				"session_stamp",
+				func(h *hits.Hit) string {
+					return sessionStamp
+				},
+			))
+		}
 	}
-	if settings.SessionJoinByUserID && hit.UserID != nil {
-		requests = append(requests, NewRemoveAllHitRelatedMetadataRequest(
-			hit,
-			"user_id",
-			func(h *hits.Hit) string {
-				return *h.UserID
-			},
-		))
+
+	// Collect unique user IDs and map them to representative hits
+	userIDToHit := make(map[string]*hits.Hit)
+	if settings.SessionJoinByUserID {
+		for _, hit := range protoSession {
+			if hit.UserID != nil {
+				userIDStamp, err := guard.IsolatedUserID(hit)
+				if err != nil {
+					// Skip if stamp generation fails
+					continue
+				}
+				if _, exists := userIDToHit[userIDStamp]; !exists {
+					userIDToHit[userIDStamp] = hit
+				}
+			}
+		}
+		for userIDStamp, hit := range userIDToHit {
+			requests = append(requests, NewRemoveAllHitRelatedMetadataRequest(
+				hit,
+				"user_id",
+				func(h *hits.Hit) string {
+					return userIDStamp
+				},
+			))
+		}
 	}
+
 	return requests
 }
