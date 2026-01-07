@@ -175,15 +175,10 @@ func TestDefaultIdentifierIsolationGuard_IsolatedUserID(t *testing.T) {
 			t.Parallel()
 
 			// when
-			got, err := tt.given.IsolatedUserID(tt.hit)
+			got := tt.given.IsolatedUserID(tt.hit)
 
 			// then
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.want, got)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -246,10 +241,9 @@ func TestNoIsolationGuard_IsolatedUserID(t *testing.T) {
 	h.UserID = &userID
 
 	// when
-	got, err := guard.IsolatedUserID(h)
+	got := guard.IsolatedUserID(h)
 
 	// then
-	assert.NoError(t, err)
 	assert.Equal(t, userID, got, "should return user ID as-is when skipPropertyID is true")
 }
 

@@ -26,12 +26,7 @@ func GetConflictCheckRequests(
 			hit,
 			"user_id",
 			func(h *hits.Hit) string {
-				stamp, err := guard.IsolatedUserID(h)
-				if err != nil {
-					// Fallback to raw UserID if stamp generation fails
-					return *h.UserID
-				}
-				return stamp
+				return guard.IsolatedUserID(h)
 			},
 		))
 	}
@@ -75,11 +70,7 @@ func GetRemoveHitRelatedMetadataRequests(
 	if settings.SessionJoinByUserID {
 		for _, hit := range protoSession {
 			if hit.UserID != nil {
-				userIDStamp, err := guard.IsolatedUserID(hit)
-				if err != nil {
-					// Skip if stamp generation fails
-					continue
-				}
+				userIDStamp := guard.IsolatedUserID(hit)
 				if _, exists := userIDToHit[userIDStamp]; !exists {
 					userIDToHit[userIDStamp] = hit
 				}

@@ -3,7 +3,6 @@ package protosessions
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -35,7 +34,7 @@ type IdentifierIsolationGuardFactory interface {
 type IdentifierIsolationGuard interface {
 	IsolatedClientID(hit *hits.Hit) hits.ClientID
 	IsolatedSessionStamp(hit *hits.Hit) string
-	IsolatedUserID(hit *hits.Hit) (string, error)
+	IsolatedUserID(hit *hits.Hit) string
 }
 
 type defaultIdentifierIsolationGuard struct {
@@ -52,11 +51,11 @@ func (g *defaultIdentifierIsolationGuard) IsolatedSessionStamp(hit *hits.Hit) st
 	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID, g.now)
 }
 
-func (g *defaultIdentifierIsolationGuard) IsolatedUserID(hit *hits.Hit) (string, error) {
+func (g *defaultIdentifierIsolationGuard) IsolatedUserID(hit *hits.Hit) string {
 	if hit.UserID == nil {
-		return "", errors.New("user ID is nil")
+		return ""
 	}
-	return sha256Hex(hit.PropertyID + "|" + *hit.UserID), nil
+	return sha256Hex(hit.PropertyID + "|" + *hit.UserID)
 }
 
 type defaultidentifierIsolationFactory struct{}
@@ -154,14 +153,14 @@ func (g *noIsolationGuard) IsolatedSessionStamp(hit *hits.Hit) string {
 	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID, g.now)
 }
 
-func (g *noIsolationGuard) IsolatedUserID(hit *hits.Hit) (string, error) {
+func (g *noIsolationGuard) IsolatedUserID(hit *hits.Hit) string {
 	if hit.UserID == nil {
-		return "", errors.New("user ID is nil")
+		return ""
 	}
 	if g.skipPropertyID {
-		return *hit.UserID, nil
+		return *hit.UserID
 	}
-	return sha256Hex(hit.PropertyID + "|" + *hit.UserID), nil
+	return sha256Hex(hit.PropertyID + "|" + *hit.UserID)
 }
 
 func NewNoIsolationGuard() IdentifierIsolationGuard {

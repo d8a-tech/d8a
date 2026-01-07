@@ -218,7 +218,7 @@ It's prepared for asynchronous closing, where the task system described in [Queu
 
 ### 4.1 Isolation
 
-The isolation mechanism ensures that proto-sessions from different properties are kept separate, even when they share the same client identifiers. Without isolation, users under some conditions could have their hits incorrectly grouped into a single proto-session.
+The isolation mechanism ensures that proto-sessions from different properties are kept separate, even when they share the same client identifiers. Without isolation, users from different properties, under some conditions, could have their hits incorrectly grouped into a single proto-session.
 
 The isolation is implemented through the `IdentifierIsolationGuard` interface, which provides three key capabilities:
 
