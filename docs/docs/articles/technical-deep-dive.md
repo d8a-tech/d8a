@@ -230,7 +230,7 @@ type IdentifierIsolationGuardFactory interface {
 type IdentifierIsolationGuard interface {
 	IsolatedClientID(hit *hits.Hit) hits.ClientID
 	IsolatedSessionStamp(hit *hits.Hit) string
-	IsolatedUserID(hit *hits.Hit) (string, error)
+	IsolatedUserID(hit *hits.Hit) string
 }
 ```
 
