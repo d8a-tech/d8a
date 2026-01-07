@@ -15,13 +15,14 @@ import (
 )
 
 type Orchestrator struct {
-	ctx              context.Context
-	backend          BatchedIOBackend
-	closer           Closer
-	requeuer         receiver.Storage
-	settingsRegistry properties.SettingsRegistry
-	timingWheel      *TimingWheel
-	evictionStrategy EvictionStrategy
+	ctx                             context.Context
+	backend                         BatchedIOBackend
+	closer                          Closer
+	requeuer                        receiver.Storage
+	settingsRegistry                properties.SettingsRegistry
+	timingWheel                     *TimingWheel
+	evictionStrategy                EvictionStrategy
+	identifierIsolationGuardFactory IdentifierIsolationGuardFactory
 
 	nextBucketRequests  chan []*GetAllProtosessionsForBucketRequest
 	nextBucketResponses chan []*GetAllProtosessionsForBucketResponse
@@ -137,19 +138,20 @@ func NewOrchestrator(
 	closer Closer,
 	requeuer receiver.Storage,
 	settingsRegistry properties.SettingsRegistry,
-	evictionStrategy EvictionStrategy,
+	options ...OrchestratorOptionsFunc,
 ) *Orchestrator {
 	o := &Orchestrator{
-		ctx:                     ctx,
-		backend:                 backend,
-		closer:                  closer,
-		requeuer:                requeuer,
-		settingsRegistry:        settingsRegistry,
-		evictionStrategy:        evictionStrategy,
-		processBucketAlreadyRan: false,
-		nextBucketRequests:      make(chan []*GetAllProtosessionsForBucketRequest),
-		nextBucketResponses:     make(chan []*GetAllProtosessionsForBucketResponse),
-		lastFailedResponses:     make(chan []*GetAllProtosessionsForBucketResponse, 1),
+		ctx:                             ctx,
+		backend:                         backend,
+		closer:                          closer,
+		requeuer:                        requeuer,
+		settingsRegistry:                settingsRegistry,
+		evictionStrategy:                RewriteIDAndUpdateInPlaceStrategy,
+		identifierIsolationGuardFactory: NewDefaultIdentifierIsolationGuardFactory(),
+		processBucketAlreadyRan:         false,
+		nextBucketRequests:              make(chan []*GetAllProtosessionsForBucketRequest),
+		nextBucketResponses:             make(chan []*GetAllProtosessionsForBucketResponse),
+		lastFailedResponses:             make(chan []*GetAllProtosessionsForBucketResponse, 1),
 
 		// metrics
 		processBatchHist:     processBatchHist,
@@ -170,9 +172,30 @@ func NewOrchestrator(
 		1*time.Second,
 		o.processBucket,
 	)
+	for _, option := range options {
+		option(o)
+	}
 	go o.timingWheel.Start(ctx)
 	go o.prefillNextBuckets()
 	return o
+}
+
+type OrchestratorOptionsFunc func(*Orchestrator)
+
+func WithIdentifierIsolationGuardFactory(
+	identifierIsolationGuardFactory IdentifierIsolationGuardFactory,
+) OrchestratorOptionsFunc {
+	return func(o *Orchestrator) {
+		o.identifierIsolationGuardFactory = identifierIsolationGuardFactory
+	}
+}
+
+func WithEvictionStrategy(
+	evictionStrategy EvictionStrategy,
+) OrchestratorOptionsFunc {
+	return func(o *Orchestrator) {
+		o.evictionStrategy = evictionStrategy
+	}
 }
 
 func (o *Orchestrator) processBatch(
@@ -199,6 +222,13 @@ func (o *Orchestrator) processBatch(
 	// settings registry, that will help us determine some metadata about the hits, for example
 	// how long does the session for this hit should last.
 	batchSettingsRegistry := o.settingsRegistry
+
+	// Precompute isolated session and user ID stamps for all hits before conflict checks.
+	// These values are independent of AuthoritativeClientID and can be computed early.
+	// Isolated client ID is computed later after eviction, since it depends on AuthoritativeClientID.
+	if err := o.precomputeIsolatedSessionAndUserStamps(hitsBatch, batchSettingsRegistry); err != nil {
+		return err
+	}
 
 	// A preparation for eviction logic starts here. First we need to define what AuthoritativeClientID is.
 	// It's the ClientID the session will be attributed to. More about different identifiers can be
@@ -232,6 +262,11 @@ func (o *Orchestrator) processBatch(
 		o.evictionsCounter.Add(ctx, evictionCount)
 	}
 
+	// Compute and cache isolated client IDs in metadata
+	if err := o.computeAndCacheIsolatedClientIDs(hitsToBeSaved, batchSettingsRegistry); err != nil {
+		return err
+	}
+
 	// Here we're planning to persist all the hits in the batch to their proto-sessions. There are three operations
 	// involved:
 	// * Appending hits to proto-sessions - this is quite straightforward, we take the AuthoritativeClientID and
@@ -253,7 +288,6 @@ func (o *Orchestrator) processBatch(
 	handleBatchStart := time.Now()
 	appendResps, getEvictedResps, markResps := o.backend.HandleBatch(ctx, appendReqs, getEvictedReqs, markReqs)
 	o.handleBatchHist.Record(ctx, time.Since(handleBatchStart).Seconds())
-
 	if err := o.checkHandleBatchResponses(appendResps, markResps); err != nil {
 		return err
 	}
@@ -278,6 +312,41 @@ func (o *Orchestrator) processBatch(
 	if len(newBatch) > 0 {
 		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].MustParsedRequest().ServerReceivedTime)
 		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
+	}
+	return nil
+}
+
+func (o *Orchestrator) precomputeIsolatedSessionAndUserStamps(
+	hitsBatch []*hits.Hit,
+	registry properties.SettingsRegistry,
+) ProtosessionError {
+	for _, hit := range hitsBatch {
+		settings, err := registry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewErrorCausingTaskRetry(err)
+		}
+		guard := o.identifierIsolationGuardFactory.New(settings)
+		if settings.SessionJoinBySessionStamp {
+			SetIsolatedSessionStamp(hit, guard.IsolatedSessionStamp(hit))
+		}
+		if settings.SessionJoinByUserID && hit.UserID != nil {
+			SetIsolatedUserIDStamp(hit, guard.IsolatedUserID(hit))
+		}
+	}
+	return nil
+}
+
+func (o *Orchestrator) computeAndCacheIsolatedClientIDs(
+	hitsToBeSaved []*hits.Hit,
+	registry properties.SettingsRegistry,
+) ProtosessionError {
+	for _, hit := range hitsToBeSaved {
+		settings, err := registry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewErrorCausingTaskRetry(err)
+		}
+		guard := o.identifierIsolationGuardFactory.New(settings)
+		SetIsolatedClientID(hit, guard.IsolatedClientID(hit))
 	}
 	return nil
 }
@@ -400,12 +469,13 @@ func (o *Orchestrator) buildSaveRequests(
 		if err != nil {
 			return nil, nil, nil, NewErrorCausingTaskRetry(err)
 		}
+		isolatedID := GetIsolatedClientID(hit)
 		markReqs = append(markReqs, NewMarkProtoSessionClosingForGivenBucketRequest(
-			hit.AuthoritativeClientID,
+			isolatedID,
 			o.timingWheel.BucketNumber(hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionDuration)),
 		))
 		appendReqs = append(appendReqs, NewAppendHitsToProtoSessionRequest(
-			hit.AuthoritativeClientID,
+			isolatedID,
 			[]*hits.Hit{hit},
 		))
 	}
@@ -643,11 +713,14 @@ func (o *Orchestrator) buildProtoSessionsBatch(
 			}
 		}
 
-		removeMetadataReqs = append(removeMetadataReqs, GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...)
+		removeMetadataReqs = append(
+			removeMetadataReqs,
+			GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...,
+		)
 		batch = append(batch, sortedHits)
 		totalHits += len(sortedHits)
 
-		protoSessionID := sortedHits[0].AuthoritativeClientID
+		protoSessionID := GetIsolatedClientID(sortedHits[0])
 		removeHitReqs = append(removeHitReqs, NewRemoveProtoSessionHitsRequest(protoSessionID))
 	}
 

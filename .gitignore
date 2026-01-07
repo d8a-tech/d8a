@@ -38,3 +38,6 @@ go.work.sum
 bolt.db
 bolt_kv.db
 queue/
+
+.gomodcache/
+.gocache/

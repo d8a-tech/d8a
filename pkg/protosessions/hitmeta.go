@@ -5,6 +5,9 @@ import "github.com/d8a-tech/d8a/pkg/hits"
 const (
 	MetaOriginalAuthoritativeClientIDKey = "original_authoritative_client_id"
 	MetaMarkedForEvictionKey             = "marked_for_eviction"
+	MetaIsolatedClientIDKey              = "isolated_client_id"
+	MetaIsolatedSessionStampKey          = "isolated_session_stamp"
+	MetaIsolatedUserIDStampKey           = "isolated_user_id_stamp"
 )
 
 func MarkForEviction(hit *hits.Hit, targetClientID hits.ClientID) {
@@ -23,4 +26,33 @@ func GetOriginalAuthoritativeClientID(hit *hits.Hit) (hits.ClientID, bool) {
 		return "", false
 	}
 	return hits.ClientID(value), true
+}
+
+func SetIsolatedClientID(hit *hits.Hit, isolatedID hits.ClientID) {
+	hit.Metadata[MetaIsolatedClientIDKey] = string(isolatedID)
+}
+
+func GetIsolatedClientID(hit *hits.Hit) hits.ClientID {
+	if id, ok := hit.Metadata[MetaIsolatedClientIDKey]; ok {
+		return hits.ClientID(id)
+	}
+	return hit.AuthoritativeClientID // fallback
+}
+
+func SetIsolatedSessionStamp(hit *hits.Hit, stamp string) {
+	hit.Metadata[MetaIsolatedSessionStampKey] = stamp
+}
+
+func GetIsolatedSessionStamp(hit *hits.Hit) (string, bool) {
+	stamp, ok := hit.Metadata[MetaIsolatedSessionStampKey]
+	return stamp, ok
+}
+
+func SetIsolatedUserIDStamp(hit *hits.Hit, stamp string) {
+	hit.Metadata[MetaIsolatedUserIDStampKey] = stamp
+}
+
+func GetIsolatedUserIDStamp(hit *hits.Hit) (string, bool) {
+	stamp, ok := hit.Metadata[MetaIsolatedUserIDStampKey]
+	return stamp, ok
 }

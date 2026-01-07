@@ -217,7 +217,7 @@ func (g *GA4RequestGenerator) buildParams( // nolint:funlen // it's a test helpe
 	params.Set("dl", "https://d8a-tech.github.io/analytics-playground/index.html")
 	params.Set("dr", "https://d8a-tech.github.io/analytics-playground/checkout.html")
 	params.Set("dt", "Food Shop")
-	params.Set("sessionStamp", sessionStamp)
+	params.Set("fss", sessionStamp)
 
 	// Set event-specific parameters
 	switch eventType {
