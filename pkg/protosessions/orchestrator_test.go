@@ -311,9 +311,12 @@ func TestOrchestrator_ProcessBucket_CleanupErrors(t *testing.T) {
 			backend := NewTestBatchedIOBackend(
 				WithGetAllProtosessionsForBucketHandler(
 					func(_ *GetAllProtosessionsForBucketRequest) *GetAllProtosessionsForBucketResponse {
+						hit := makeTimedHit("c1", 100)
+						// Set metadata so the error path can be tested
+						SetIsolatedSessionStamp(hit, "test-stamp")
 						return &GetAllProtosessionsForBucketResponse{
 							ProtoSessions: [][]*hits.Hit{
-								{makeTimedHit("c1", 100)},
+								{hit},
 							},
 						}
 					}),

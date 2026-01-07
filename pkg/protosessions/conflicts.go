@@ -3,32 +3,42 @@ package protosessions
 import (
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
+	"github.com/sirupsen/logrus"
 )
 
 // GetConflictCheckRequests returns a list of identifier conflict requests for a given hit and settings
 func GetConflictCheckRequests(
 	hit *hits.Hit,
 	settings *properties.Settings,
-	guard IdentifierIsolationGuard,
 ) []*IdentifierConflictRequest {
 	requests := make([]*IdentifierConflictRequest, 0)
 	if settings.SessionJoinBySessionStamp {
-		requests = append(requests, NewIdentifierConflictRequest(
-			hit,
-			"session_stamp",
-			func(h *hits.Hit) string {
-				return guard.IsolatedSessionStamp(h)
-			},
-		))
+		stamp, ok := GetIsolatedSessionStamp(hit)
+		if !ok {
+			logrus.Errorf("missing isolated session stamp metadata for hit %s, skipping conflict check", hit.ID)
+		} else {
+			requests = append(requests, NewIdentifierConflictRequest(
+				hit,
+				"session_stamp",
+				func(h *hits.Hit) string {
+					return stamp
+				},
+			))
+		}
 	}
 	if settings.SessionJoinByUserID && hit.UserID != nil {
-		requests = append(requests, NewIdentifierConflictRequest(
-			hit,
-			"user_id",
-			func(h *hits.Hit) string {
-				return guard.IsolatedUserID(h)
-			},
-		))
+		stamp, ok := GetIsolatedUserIDStamp(hit)
+		if !ok {
+			logrus.Errorf("missing isolated user ID stamp metadata for hit %s, skipping conflict check", hit.ID)
+		} else {
+			requests = append(requests, NewIdentifierConflictRequest(
+				hit,
+				"user_id",
+				func(h *hits.Hit) string {
+					return stamp
+				},
+			))
+		}
 	}
 	return requests
 }
@@ -38,7 +48,6 @@ func GetConflictCheckRequests(
 func GetRemoveHitRelatedMetadataRequests(
 	protoSession []*hits.Hit,
 	settings *properties.Settings,
-	guard IdentifierIsolationGuard,
 ) []*RemoveAllHitRelatedMetadataRequest {
 	if len(protoSession) == 0 {
 		return nil
@@ -49,7 +58,11 @@ func GetRemoveHitRelatedMetadataRequests(
 	sessionStampToHit := make(map[string]*hits.Hit)
 	if settings.SessionJoinBySessionStamp {
 		for _, hit := range protoSession {
-			sessionStamp := guard.IsolatedSessionStamp(hit)
+			sessionStamp, ok := GetIsolatedSessionStamp(hit)
+			if !ok {
+				logrus.Errorf("missing isolated session stamp metadata for hit %s, skipping metadata removal", hit.ID)
+				continue
+			}
 			if _, exists := sessionStampToHit[sessionStamp]; !exists {
 				sessionStampToHit[sessionStamp] = hit
 			}
@@ -70,7 +83,11 @@ func GetRemoveHitRelatedMetadataRequests(
 	if settings.SessionJoinByUserID {
 		for _, hit := range protoSession {
 			if hit.UserID != nil {
-				userIDStamp := guard.IsolatedUserID(hit)
+				userIDStamp, ok := GetIsolatedUserIDStamp(hit)
+				if !ok {
+					logrus.Errorf("missing isolated user ID stamp metadata for hit %s, skipping metadata removal", hit.ID)
+					continue
+				}
 				if _, exists := userIDToHit[userIDStamp]; !exists {
 					userIDToHit[userIDStamp] = hit
 				}

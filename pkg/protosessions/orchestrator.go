@@ -223,6 +223,13 @@ func (o *Orchestrator) processBatch(
 	// how long does the session for this hit should last.
 	batchSettingsRegistry := o.settingsRegistry
 
+	// Precompute isolated session and user ID stamps for all hits before conflict checks.
+	// These values are independent of AuthoritativeClientID and can be computed early.
+	// Isolated client ID is computed later after eviction, since it depends on AuthoritativeClientID.
+	if err := o.precomputeIsolatedSessionAndUserStamps(hitsBatch, batchSettingsRegistry); err != nil {
+		return err
+	}
+
 	// A preparation for eviction logic starts here. First we need to define what AuthoritativeClientID is.
 	// It's the ClientID the session will be attributed to. More about different identifiers can be
 	// found in our tech docs. Eviction in TLDR is a process of changing the
@@ -256,13 +263,8 @@ func (o *Orchestrator) processBatch(
 	}
 
 	// Compute and cache isolated client IDs in metadata
-	for _, hit := range hitsToBeSaved {
-		settings, err := batchSettingsRegistry.GetByPropertyID(hit.PropertyID)
-		if err != nil {
-			return NewErrorCausingTaskRetry(err)
-		}
-		guard := o.identifierIsolationGuardFactory.New(settings)
-		SetIsolatedClientID(hit, guard.IsolatedClientID(hit))
+	if err := o.computeAndCacheIsolatedClientIDs(hitsToBeSaved, batchSettingsRegistry); err != nil {
+		return err
 	}
 
 	// Here we're planning to persist all the hits in the batch to their proto-sessions. There are three operations
@@ -310,6 +312,41 @@ func (o *Orchestrator) processBatch(
 	if len(newBatch) > 0 {
 		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].MustParsedRequest().ServerReceivedTime)
 		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
+	}
+	return nil
+}
+
+func (o *Orchestrator) precomputeIsolatedSessionAndUserStamps(
+	hitsBatch []*hits.Hit,
+	registry properties.SettingsRegistry,
+) ProtosessionError {
+	for _, hit := range hitsBatch {
+		settings, err := registry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewErrorCausingTaskRetry(err)
+		}
+		guard := o.identifierIsolationGuardFactory.New(settings)
+		if settings.SessionJoinBySessionStamp {
+			SetIsolatedSessionStamp(hit, guard.IsolatedSessionStamp(hit))
+		}
+		if settings.SessionJoinByUserID && hit.UserID != nil {
+			SetIsolatedUserIDStamp(hit, guard.IsolatedUserID(hit))
+		}
+	}
+	return nil
+}
+
+func (o *Orchestrator) computeAndCacheIsolatedClientIDs(
+	hitsToBeSaved []*hits.Hit,
+	registry properties.SettingsRegistry,
+) ProtosessionError {
+	for _, hit := range hitsToBeSaved {
+		settings, err := registry.GetByPropertyID(hit.PropertyID)
+		if err != nil {
+			return NewErrorCausingTaskRetry(err)
+		}
+		guard := o.identifierIsolationGuardFactory.New(settings)
+		SetIsolatedClientID(hit, guard.IsolatedClientID(hit))
 	}
 	return nil
 }
@@ -377,8 +414,7 @@ func (o *Orchestrator) checkIdentifierConflicts(
 		if err != nil {
 			return nil, NewErrorCausingTaskRetry(err)
 		}
-		guard := o.identifierIsolationGuardFactory.New(settings)
-		requests = append(requests, GetConflictCheckRequests(hit, settings, guard)...)
+		requests = append(requests, GetConflictCheckRequests(hit, settings)...)
 	}
 
 	conflictCheckStart := time.Now()
@@ -519,10 +555,9 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 		if err != nil {
 			return NewErrorCausingTaskRetry(err)
 		}
-		guard := o.identifierIsolationGuardFactory.New(settings)
 		removeHitMetadataRequests = append(
 			removeHitMetadataRequests,
-			GetRemoveHitRelatedMetadataRequests([]*hits.Hit{hit}, settings, guard)...,
+			GetRemoveHitRelatedMetadataRequests([]*hits.Hit{hit}, settings)...,
 		)
 	}
 
@@ -678,10 +713,9 @@ func (o *Orchestrator) buildProtoSessionsBatch(
 			}
 		}
 
-		guard := o.identifierIsolationGuardFactory.New(settings)
 		removeMetadataReqs = append(
 			removeMetadataReqs,
-			GetRemoveHitRelatedMetadataRequests(sortedHits, settings, guard)...,
+			GetRemoveHitRelatedMetadataRequests(sortedHits, settings)...,
 		)
 		batch = append(batch, sortedHits)
 		totalHits += len(sortedHits)

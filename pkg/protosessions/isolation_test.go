@@ -27,13 +27,13 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 			name: "client_provided_session_stamp_has_priority",
 			given: &defaultIdentifierIsolationGuard{
 				calculatedHeaders: []string{"A", "B"},
-				now:               func() time.Time { return fixedDate },
 			},
 			hit: func() *hits.Hit {
 				// given
 				h := hits.New()
 				h.Request.IP = ip
 				h.PropertyID = propertyID
+				h.Request.ServerReceivedTime = fixedDate
 				h.Request.Headers.Set("A", "a")
 				h.Request.Headers.Set("B", "b")
 				h.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, "client-stamp")
@@ -45,13 +45,13 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 			name: "joins_headers_and_ip_in_order_with_separators_and_daily_salt",
 			given: &defaultIdentifierIsolationGuard{
 				calculatedHeaders: []string{"A", "B"},
-				now:               func() time.Time { return fixedDate },
 			},
 			hit: func() *hits.Hit {
 				// given
 				h := hits.New()
 				h.Request.IP = ip
 				h.PropertyID = propertyID
+				h.Request.ServerReceivedTime = fixedDate
 				h.Request.Headers.Set("A", "a")
 				h.Request.Headers.Set("B", "b")
 				return h
@@ -62,13 +62,13 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 			name: "includes_empty_header_values",
 			given: &defaultIdentifierIsolationGuard{
 				calculatedHeaders: []string{"A", "B"},
-				now:               func() time.Time { return fixedDate },
 			},
 			hit: func() *hits.Hit {
 				// given
 				h := hits.New()
 				h.Request.IP = ip
 				h.PropertyID = propertyID
+				h.Request.ServerReceivedTime = fixedDate
 				h.Request.Headers.Set("A", "a")
 				// B intentionally missing -> empty value
 				return h
@@ -79,13 +79,13 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 			name: "no_headers_returns_ip_and_property_and_daily_salt",
 			given: &defaultIdentifierIsolationGuard{
 				calculatedHeaders: nil,
-				now:               func() time.Time { return fixedDate },
 			},
 			hit: func() *hits.Hit {
 				// given
 				h := hits.New()
 				h.Request.IP = ip
 				h.PropertyID = propertyID
+				h.Request.ServerReceivedTime = fixedDate
 				return h
 			}(),
 			want: mustSHA256Hex(ip + "|" + propertyID + "|" + fixedDate.Format("2006-01-02")),
@@ -109,23 +109,25 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp_IncludesDailySalt(
 	t.Parallel()
 
 	// given
-	guard1 := &defaultIdentifierIsolationGuard{
+	guard := &defaultIdentifierIsolationGuard{
 		calculatedHeaders: []string{"A"},
-		now:               func() time.Time { return time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC) },
-	}
-	guard2 := &defaultIdentifierIsolationGuard{
-		calculatedHeaders: []string{"A"},
-		now:               func() time.Time { return time.Date(2026, 1, 8, 12, 0, 0, 0, time.UTC) },
 	}
 
-	h := hits.New()
-	h.Request.IP = "1.2.3.4"
-	h.PropertyID = "GA-12345"
-	h.Request.Headers.Set("A", "a")
+	h1 := hits.New()
+	h1.Request.IP = "1.2.3.4"
+	h1.PropertyID = "GA-12345"
+	h1.Request.ServerReceivedTime = time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
+	h1.Request.Headers.Set("A", "a")
+
+	h2 := hits.New()
+	h2.Request.IP = "1.2.3.4"
+	h2.PropertyID = "GA-12345"
+	h2.Request.ServerReceivedTime = time.Date(2026, 1, 8, 12, 0, 0, 0, time.UTC)
+	h2.Request.Headers.Set("A", "a")
 
 	// when
-	stamp1 := guard1.IsolatedSessionStamp(h)
-	stamp2 := guard2.IsolatedSessionStamp(h)
+	stamp1 := guard.IsolatedSessionStamp(h1)
+	stamp2 := guard.IsolatedSessionStamp(h2)
 
 	// then
 	assert.NotEqual(t, stamp1, stamp2, "session stamps should differ when dates differ")
@@ -138,11 +140,10 @@ func TestDefaultIdentifierIsolationGuard_IsolatedUserID(t *testing.T) {
 	userID := "user123"
 
 	tests := []struct {
-		name    string
-		given   *defaultIdentifierIsolationGuard
-		hit     *hits.Hit
-		want    string
-		wantErr bool
+		name  string
+		given *defaultIdentifierIsolationGuard
+		hit   *hits.Hit
+		want  string
 	}{
 		{
 			name:  "hashes_property_id_with_user_id",
@@ -153,8 +154,7 @@ func TestDefaultIdentifierIsolationGuard_IsolatedUserID(t *testing.T) {
 				h.UserID = &userID
 				return h
 			}(),
-			want:    mustSHA256Hex(propertyID + "|" + userID),
-			wantErr: false,
+			want: mustSHA256Hex(propertyID + "|" + userID),
 		},
 		{
 			name:  "returns_error_when_user_id_is_nil",
@@ -165,8 +165,7 @@ func TestDefaultIdentifierIsolationGuard_IsolatedUserID(t *testing.T) {
 				h.UserID = nil
 				return h
 			}(),
-			want:    "",
-			wantErr: true,
+			want: "",
 		},
 	}
 
@@ -211,11 +210,11 @@ func TestNoIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 	guard := &noIsolationGuard{
 		skipPropertyID:    true,
 		calculatedHeaders: []string{"A", "B"},
-		now:               func() time.Time { return fixedDate },
 	}
 	h := hits.New()
 	h.Request.IP = ip
 	h.PropertyID = propertyID
+	h.Request.ServerReceivedTime = fixedDate
 	h.Request.Headers.Set("A", "a")
 	h.Request.Headers.Set("B", "b")
 

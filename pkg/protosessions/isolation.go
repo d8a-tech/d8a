@@ -3,7 +3,6 @@ package protosessions
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
@@ -40,7 +39,6 @@ type IdentifierIsolationGuard interface {
 type defaultIdentifierIsolationGuard struct {
 	skipPropertyID    bool
 	calculatedHeaders []string
-	now               func() time.Time
 }
 
 func (g *defaultIdentifierIsolationGuard) IsolatedClientID(hit *hits.Hit) hits.ClientID {
@@ -48,7 +46,7 @@ func (g *defaultIdentifierIsolationGuard) IsolatedClientID(hit *hits.Hit) hits.C
 }
 
 func (g *defaultIdentifierIsolationGuard) IsolatedSessionStamp(hit *hits.Hit) string {
-	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID, g.now)
+	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID)
 }
 
 func (g *defaultIdentifierIsolationGuard) IsolatedUserID(hit *hits.Hit) string {
@@ -58,24 +56,22 @@ func (g *defaultIdentifierIsolationGuard) IsolatedUserID(hit *hits.Hit) string {
 	return sha256Hex(hit.PropertyID + "|" + *hit.UserID)
 }
 
-type defaultidentifierIsolationFactory struct{}
+type defaultIdentifierIsolationFactory struct{}
 
-func (f *defaultidentifierIsolationFactory) New(settings *properties.Settings) IdentifierIsolationGuard {
+func (f *defaultIdentifierIsolationFactory) New(settings *properties.Settings) IdentifierIsolationGuard {
 	return &defaultIdentifierIsolationGuard{
 		calculatedHeaders: defaultSessionStampHeaders,
-		now:               nil, // defaults to time.Now()
 	}
 }
 
 func NewDefaultIdentifierIsolationGuardFactory() IdentifierIsolationGuardFactory {
-	return &defaultidentifierIsolationFactory{}
+	return &defaultIdentifierIsolationFactory{}
 }
 
 func calculateSessionStamp(
 	hit *hits.Hit,
 	calculatedHeaders []string,
 	skipPropertyID bool,
-	now func() time.Time,
 ) string {
 	req := hit.MustParsedRequest()
 
@@ -103,14 +99,11 @@ func calculateSessionStamp(
 		buf = append(buf, '|')
 		buf = append(buf, hit.PropertyID...)
 	}
-	// Append current day date (YYYY-MM-DD) to be more respectful
-	// of the user's privacy.
+	// Append hit's day date (YYYY-MM-DD) to be more respectful
+	// of the user's privacy. Uses the hit's ServerReceivedTime to ensure
+	// deterministic stamping regardless of when processing occurs.
 	buf = append(buf, '|')
-	currentTime := time.Now()
-	if now != nil {
-		currentTime = now()
-	}
-	buf = append(buf, currentTime.Format("2006-01-02")...)
+	buf = append(buf, req.ServerReceivedTime.UTC().Format("2006-01-02")...)
 	return sha256HexBytes(buf)
 }
 
@@ -142,7 +135,6 @@ func NewNoIsolationGuardFactory() IdentifierIsolationGuardFactory {
 type noIsolationGuard struct {
 	skipPropertyID    bool
 	calculatedHeaders []string
-	now               func() time.Time
 }
 
 func (g *noIsolationGuard) IsolatedClientID(hit *hits.Hit) hits.ClientID {
@@ -150,7 +142,7 @@ func (g *noIsolationGuard) IsolatedClientID(hit *hits.Hit) hits.ClientID {
 }
 
 func (g *noIsolationGuard) IsolatedSessionStamp(hit *hits.Hit) string {
-	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID, g.now)
+	return calculateSessionStamp(hit, g.calculatedHeaders, g.skipPropertyID)
 }
 
 func (g *noIsolationGuard) IsolatedUserID(hit *hits.Hit) string {
@@ -167,6 +159,5 @@ func NewNoIsolationGuard() IdentifierIsolationGuard {
 	return &noIsolationGuard{
 		skipPropertyID:    true,
 		calculatedHeaders: defaultSessionStampHeaders,
-		now:               nil, // defaults to time.Now()
 	}
 }
