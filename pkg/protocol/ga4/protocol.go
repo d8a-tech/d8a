@@ -1,6 +1,7 @@
 package ga4
 
 import (
+	_ "embed"
 	"errors"
 	"net/url"
 	"strings"
@@ -204,11 +205,24 @@ func (p *ga4Protocol) Interfaces() any {
 	return ProtocolInterfaces
 }
 
+//go:embed static/duplicator.js
+var staticDuplicatorJS []byte
+
 func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 	return []protocol.ProtocolEndpoint{
 		{
 			Methods: []string{fasthttp.MethodPost},
 			Path:    "/g/collect",
+		},
+		{
+			Methods:  []string{fasthttp.MethodGet},
+			Path:     "/g/js",
+			IsCustom: true,
+			CustomHandler: func(ctx *fasthttp.RequestCtx) {
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.Response.Header.Set("Content-Type", "text/javascript")
+				ctx.SetBody(staticDuplicatorJS)
+			},
 		},
 	}
 }
