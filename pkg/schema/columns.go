@@ -77,7 +77,7 @@ func FromColumns[T Column](columns []T) *arrow.Schema {
 
 // WithExtraFields creates an Arrow schema from columns with additional fields.
 func WithExtraFields[T Column](columns []T, extraFields ...arrow.Field) *arrow.Schema {
-	fields := make([]arrow.Field, len(columns))
+	fields := make([]arrow.Field, len(columns), len(columns)+len(extraFields))
 	for i, column := range columns {
 		fields[i] = *column.Implements().Field
 	}

@@ -117,7 +117,7 @@ func TestValueTransitions(t *testing.T) {
 					require.NoError(t, closeErr)
 					require.GreaterOrEqual(t, len(whd.WriteCalls[0].Records), len(tc.expected),
 						"Not enough records in output")
-					writeResult := []any{}
+					writeResult := make([]any, 0, len(whd.WriteCalls[0].Records))
 					for _, record := range whd.WriteCalls[0].Records {
 						writeResult = append(writeResult, record[tc.field])
 					}
@@ -311,7 +311,7 @@ func TestIsEntryExitPage(t *testing.T) {
 					require.NoError(t, closeErr)
 					require.GreaterOrEqual(t, len(whd.WriteCalls[0].Records), len(tc.expected),
 						"Not enough records in output")
-					writeResult := []any{}
+					writeResult := make([]any, 0, len(whd.WriteCalls[0].Records))
 					for _, record := range whd.WriteCalls[0].Records {
 						writeResult = append(writeResult, record[tc.field])
 					}

@@ -14,7 +14,9 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
 	if err != nil {
 		return err
 	}
-	var allColumns []schema.Column
+	totalColumns := len(columnData.Event) + len(columnData.Session) +
+		len(columnData.SessionScopedEvent)
+	allColumns := make([]schema.Column, 0, totalColumns)
 	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Event)...)
 	allColumns = append(allColumns, schema.ToGenericColumns(columnData.Session)...)
 	allColumns = append(allColumns, schema.ToGenericColumns(columnData.SessionScopedEvent)...)

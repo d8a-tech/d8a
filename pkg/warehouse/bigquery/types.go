@@ -659,11 +659,8 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificBigQueryType] {
 	nestedMapper := &bigQueryNestedTypeMapper{SubMapper: deferredMapper}
 	nullableMapper := &bigQueryNullableTypeMapper{SubMapper: deferredMapper}
 
-	allMappers := []warehouse.FieldTypeMapper[SpecificBigQueryType]{
-		arrayMapper,
-		nestedMapper,
-		nullableMapper,
-	}
+	allMappers := make([]warehouse.FieldTypeMapper[SpecificBigQueryType], 0, 3+len(baseMappers))
+	allMappers = append(allMappers, arrayMapper, nestedMapper, nullableMapper)
 	allMappers = append(allMappers, baseMappers...)
 
 	comprehensiveMapper = warehouse.NewTypeMapper(allMappers)

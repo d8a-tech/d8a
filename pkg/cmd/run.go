@@ -36,7 +36,11 @@ import (
 )
 
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
-	var endFlags []cli.Flag
+	totalLen := 0
+	for _, singleFlagCollection := range allFlags {
+		totalLen += len(singleFlagCollection)
+	}
+	endFlags := make([]cli.Flag, 0, totalLen)
 	for _, singleFlagCollection := range allFlags {
 		endFlags = append(endFlags, singleFlagCollection...)
 	}
