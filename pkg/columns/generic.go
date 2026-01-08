@@ -996,3 +996,16 @@ func UniqueEventsOfGivenNameColumn(
 		options...,
 	)
 }
+
+// ProtocolColumn creates a new event column that returns the protocol of the event.
+func ProtocolColumn(iv func(_ *schema.Event) (any, error)) schema.EventColumn {
+	return NewSimpleEventColumn(
+		CoreInterfaces.EventTrackingProtocol.ID,
+		CoreInterfaces.EventTrackingProtocol.Field,
+		iv,
+		WithEventColumnDocs(
+			"Tracking Protocol",
+			"The tracking protocol implementation used to send this event. Identifies which protocol parser processed the incoming hit (e.g., 'ga4_gtag', 'ga4_firebase').", // nolint:lll // it's a description
+		),
+	)
+}
