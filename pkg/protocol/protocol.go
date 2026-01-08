@@ -31,6 +31,11 @@ type ProtocolEndpoint struct {
 	CustomHandler func(*fasthttp.RequestCtx)
 }
 
+// PropertyIDExtractor extracts a property ID from a parsed request.
+type PropertyIDExtractor interface {
+	PropertyID(request *hits.ParsedRequest) (string, error)
+}
+
 // Protocol defines the interface for different tracking protocol implementations.
 type Protocol interface {
 	ID() string
