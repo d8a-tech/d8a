@@ -97,7 +97,7 @@ type jsonColumnsFormatter struct {
 }
 
 func (f *jsonColumnsFormatter) Format(columns schema.Columns) (string, error) {
-	columnsJSON := []map[string]any{}
+	columnsJSON := make([]map[string]any, 0, len(columns.Event)+len(columns.SessionScopedEvent)+len(columns.Session))
 	for _, col := range columns.Event {
 		docs := col.Docs()
 		typeName := ""
