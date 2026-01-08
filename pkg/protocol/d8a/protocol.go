@@ -35,7 +35,7 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	newEndpoints := make([]protocol.ProtocolEndpoint, len(p.child.Endpoints())+1)
 	for i, endpoint := range p.child.Endpoints() {
 		if endpoint.Path == "/g/collect" {
-			endpoint.Path = "/d/collect"
+			endpoint.Path = "/d/c"
 		}
 		newEndpoints[i] = endpoint
 	}
