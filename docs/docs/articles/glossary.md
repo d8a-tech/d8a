@@ -26,5 +26,5 @@ sidebar_position: 2
 | :---- | :---- | :---- |
 | **Client ID** – The ID assigned by the tracking engine to each device/browser combination, persisted in a cookie | `client_id`, `user_pseudo_id` | `_id` |
 | **User ID** – The ID used in an internal user system, for example email, available after the login. The customer must manually set it as a tracking parameter; it's not automatically determined by the tracker | `user_id` | `uid` |
-| **Session stamp (SS)** – Hash calculated on the backend from the incoming request elements — IP, user agent, etc. | none, calculated on the backend | none, calculated on the backend |
+| **Session stamp (SS)** – Hash calculated on the backend from the incoming request elements. Currently it includes: IP address, Property ID and a subset of http request headers. Inspect [the code for more details](https://github.com/d8a-tech/d8a/blob/master/pkg/protosessions/isolation.go#L16). | none, calculated on the backend | none, calculated on the backend |
 | **Client-assigned session ID (CASI)** – The session ID as explicitly set by the client in the tracking request | `session_id` | none |
