@@ -91,17 +91,9 @@ var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var eventTrackingProtocolColumn = columns.NewSimpleEventColumn(
-	columns.CoreInterfaces.EventTrackingProtocol.ID,
-	columns.CoreInterfaces.EventTrackingProtocol.Field,
-	func(_ *schema.Event) (any, error) {
-		return "ga4_gtag", nil
-	},
-	columns.WithEventColumnDocs(
-		"Tracking Protocol",
-		"The tracking protocol implementation used to send this event. Identifies which protocol parser processed the incoming hit (e.g., 'ga4_gtag', 'ga4_firebase').", // nolint:lll // it's a description
-	),
-)
+var eventTrackingProtocolColumn = columns.ProtocolColumn(func(_ *schema.Event) (any, error) {
+	return "ga4_gtag", nil
+})
 
 var eventPlatformColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPlatform.ID,

@@ -3,6 +3,7 @@ package d8a
 import (
 	_ "embed"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
@@ -21,7 +22,15 @@ func (p *d8aProtocol) ID() string {
 }
 
 func (p *d8aProtocol) Columns() schema.Columns {
-	return p.child.Columns()
+	childColumns := p.child.Columns()
+	for i, column := range childColumns.Event {
+		if column.Implements().ID == columns.CoreInterfaces.EventTrackingProtocol.ID {
+			childColumns.Event[i] = columns.ProtocolColumn(func(_ *schema.Event) (any, error) {
+				return "d8a", nil
+			})
+		}
+	}
+	return childColumns
 }
 
 func (p *d8aProtocol) Interfaces() any {
