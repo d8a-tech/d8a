@@ -41,7 +41,7 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	}
 	return append(newEndpoints, protocol.ProtocolEndpoint{
 		Methods:  []string{fasthttp.MethodGet},
-		Path:     "/js",
+		Path:     "/d/js",
 		IsCustom: true,
 		CustomHandler: func(ctx *fasthttp.RequestCtx) {
 			ctx.SetStatusCode(fasthttp.StatusOK)
