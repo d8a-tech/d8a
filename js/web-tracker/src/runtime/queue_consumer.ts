@@ -5,10 +5,12 @@ import { ensureArraySlot, getWindowSlot } from "../utils/window_slots.ts";
 import type { ConsentState, PropertyConfig, RuntimeState, WindowLike } from "../types.ts";
 
 /**
- * Consumes `window.dataLayer` items pushed by the snippet/global function.
+ * Consumes a dataLayer-like queue on `window` used by the snippet/global function
+ * (default: `window.d8aLayer`).
  *
- * - `dataLayer.push(arguments)` where arguments is array-like
- * - the runtime drains existing entries and then patches `push` to intercept
+ * - The snippet pushes `arguments` (array-like) or arrays into `window[dataLayerName]`.
+ * - The runtime drains existing entries and then patches `push` to intercept future commands.
+ *
  */
 type QueueItem = unknown; // can be `arguments` (array-like) or an actual array
 type NormalizedArgs = unknown[] | null;

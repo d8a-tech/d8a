@@ -6,7 +6,7 @@
 [![Docs](https://img.shields.io/badge/docs-d8a-1F7AE0.svg)](https://d8a-tech.github.io/d8a/getting-started)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
-Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, has clean schema, can be deployed anywhere, including your cloud or on-premises. 
+Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, has clean schema, can be deployed anywhere, including your cloud or on-premises.
 
 ## Highlights
 
@@ -14,6 +14,7 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 - **Flat data model for visualization** - Data is stored in a flat, analytics-ready format - perfect as a source for reporting and data warehouses, with even custom events stored in dedicated columns
 - **Open source codebase** - Transparent, auditable, and community-driven. Fork, contribute, or self-host as you wish
 - **Works alongside GA4** - Can run in parallel with GA4 for a smooth transition or as a reliable backup
+- **Dedicated web tracker (beta)** - A drop-in replacement for `gtag.js` with a matching API for an easy switch to d8a tracking
 - **Full session scope support** - Sessions are calculated on the backend for accuracy and flexibility - no reliance on client-side hacks
 - **BigQuery & ClickHouse support** - Export and analyze your data in Google BigQuery or ClickHouse for advanced analytics. Scales to billions of events with no upper limit
 
@@ -23,8 +24,8 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 - **Well-suited for gov** - Collect traffic on gov't websites under FedRAMP requirements
 - **Europe & GDPR?** - Supports EU's independence from Bigtech
 
-
 ## Screenshots & Reporting Demo
+
 <table>
   <tr>
     <td>
@@ -52,7 +53,7 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 
 You can also see the full demo [here](https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd).
 
-## Running 
+## Running
 
 ### Production setup (using docker)
 
@@ -74,7 +75,6 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 
 3. Check the console output to verify events are being processed.
 
-
 ## Testing
 
 ```bash
@@ -82,7 +82,6 @@ go test ./...
 ```
 
 ## Documentation
-
 
 See the following resources:
 
@@ -94,8 +93,6 @@ See the following resources:
 
 Connect with the team in our Discord community: [link](https://discord.gg/EegbcdsWUc)
 
-
 ## License
 
 MIT — see `LICENSE` for details.
-
