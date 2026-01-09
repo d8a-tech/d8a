@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>web-tracker production bundle example</title>
+  </head>
+
+  <body>
+    <h1>Web tracker production bundle example</h1>
+    <p>
+      Open DevTools Network tab and look for requests to your <code>server_container_url</code>.
+    </p>
+    <p>
+      <strong>Note:</strong> this page is meant for <strong>production-like testing</strong>. It
+      loads the script-tag bundle from <code>../dist/web-tracker.js</code> (auto-installs on load).
+      For a dev/local setup that imports the ESM bundle from <code>../dist/index.mjs</code>, use
+      <a href="./index.html"><code>index.html</code></a
+      >.
+    </p>
+
+    <script async src="../dist/web-tracker.js"></script>
+    <script>
+      window.d8aLayer = window.d8aLayer || [];
+      // prettier-ignore
+      window.d8a = window.d8a || function () { d8aLayer.push(arguments); };
+
+      d8a("js", new Date());
+      d8a("config", "lol1", {
+        server_container_url: "http://localhost:8080/g/collect",
+      });
+      d8a("config", "lol2", {
+        server_container_url: "https://global.t.d8a.tech/lol2/d/c",
+        cookie_prefix: "lol2",
+      });
+      // Send a test event.
+      d8a("event", "purchase", {
+        transaction_id: "T_12345",
+        value: 72.05,
+        tax: 3.6,
+        shipping: 5.99,
+        currency: "USD",
+        coupon: "SUMMER_SALE",
+        customer_type: "new",
+        items: [
+          {
+            item_id: "SKU_12345",
+            item_name: "Stan and Friends Tee",
+            affiliation: "Google Merchandise Store",
+            coupon: "SUMMER_FUN",
+            discount: 2.22,
+            index: 0,
+            item_brand: "Google",
+            item_category: "Apparel",
+            item_category2: "Adult",
+            item_category3: "Shirts",
+            item_category4: "Crew",
+            item_category5: "Short sleeve",
+            item_list_id: "related_products",
+            item_list_name: "Related Products",
+            item_variant: "green",
+            location_id: "ChIJIQBpAG2ahYAR_6128GcTUEo",
+            price: 10.01,
+            google_business_vertical: "retail",
+            quantity: 3,
+          },
+          {
+            item_id: "SKU_12346",
+            item_name: "Google Grey Women's Tee",
+            affiliation: "Google Merchandise Store",
+            coupon: "SUMMER_FUN",
+            discount: 3.33,
+            index: 1,
+            item_brand: "Google",
+            item_category: "Apparel",
+            item_category2: "Adult",
+            item_category3: "Shirts",
+            item_category4: "Crew",
+            item_category5: "Short sleeve",
+            item_list_id: "related_products",
+            item_list_name: "Related Products",
+            item_variant: "gray",
+            location_id: "ChIJIQBpAG2ahYAR_6128GcTUEo",
+            price: 21.01,
+            promotion_id: "P_12345",
+            promotion_name: "Summer Sale",
+            google_business_vertical: "retail",
+            custom_param: "custom_value",
+            quantity: 2,
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>

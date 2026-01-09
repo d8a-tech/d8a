@@ -12,5 +12,20 @@
     },
     "go.testTimeout": "30s",
     "go.testEnvVars": {},
-    "go.testFlags": []
+    "go.testFlags": [],
+    "eslint.workingDirectories": [
+        "./js/web-tracker"
+    ],
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "[html]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    }
 }
