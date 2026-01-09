@@ -1,13 +1,6 @@
 # GA4 gtag
 
-This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
-
-:::info
-    3rd party references used:
-        * https://datajournal.datakyu.co/ga4-api-reference/
-        * https://www.thyngster.com/ga4-measurement-protocol-cheatsheet/
-        * https://medium.com/@mssvarma06/ga4-measurement-protocol-parameter-reference-b63d87bbe0eb
-:::
+This page is a reference for the GA4 gtag `/g/collect` protocol.
 
 ## Method
 
@@ -15,7 +8,10 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 
 ## URL
 
-`https://www.google-analytics.com/g/collect`
+Common endpoints include:
+
+- `https://www.google-analytics.com/g/collect`
+- `https://region1.google-analytics.com/g/collect`
 
 
 ## Query parameters
@@ -25,14 +21,14 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | Parameter | Type | Description | Required |
 |-----------|------|-------------|----------|
 | `v` | string | Protocol Version | Yes |
-| `tid` | string | Tracking/Property ID - GA4 property identifier (e.g., G-XXXXXXXXXX) | Yes |
+| `tid` | string | Measurement ID (e.g., G-XXXXXXXXXX) | Yes |
 | `gtm` | string | GTM Has Info - indicates Google Tag Manager information | No |
 | `_p` | int64 | Random Page Load Hash - UTC Unix timestamp of the page load, in milliseconds | Yes |
 | `sr` | string | Screen Resolution - e.g., "1920x1080" | No |
 | `ul` | string | User Language - e.g., "en-us" | No |
 | `dh` | string | Document Hostname - hostname of the page | No |
 | `cid` | string | Client ID - unique identifier for the client | Yes |
-| `_s` | int64 | Hit Counter - indicates this is the nth hit/event sent in the current session | No |
+| `_s` | int64 | Hit Counter - indicates this is the nth hit/event sent by the current gtag runtime instance (resets on page load) | No |
 | `richsstsse` | string | richsstsse parameter | No |
 
 ### Event parameters
@@ -59,8 +55,8 @@ This is a reference of reverse-engineered `/g/collect` AKA gtag protocol.
 | `ir` | bool | Ignore Referrer - if present and true, referrer is ignored. [GA4 docs](https://support.google.com/analytics/answer/10327750?hl=en) | No |
 | `tt` | string | Traffic Type | No |
 | `gcs` | string | Encodes the current google consent status in the format `G<FunctionalStorageStatus><AdStorageStatus><AnalyticsStorageStatus>` | No |
-| `gcu` | string | Google Consent Update | No |
-| `gcut` | string | Google Consent Update Type | No |
+| `gcu` | string | Google Consent Update. This parameter is only sent when there is a change in ad_storage, and not when analytics_storage changes | No |
+| `gcut` | string | Google Consent Update Type. This parameter is only sent when there is a change in ad_storage, and not when analytics_storage changes | No |
 | `gcd` | string | Google Consent Default | No |
 | `_glv` | bool | is Google Linker Valid | No |
 
@@ -153,3 +149,9 @@ Client Hints data:
 | `uam` | string | User Agent Model - device model | No |
 | `uap` | string | User Agent Platform - e.g., "Windows" | No |
 | `uapv` | string | User Agent Platform Version | No |
+
+## Sources
+
+- `https://datajournal.datakyu.co/ga4-api-reference/`
+- `https://www.thyngster.com/ga4-measurement-protocol-cheatsheet/`
+- `https://medium.com/@mssvarma06/ga4-measurement-protocol-parameter-reference-b63d87bbe0eb`

@@ -1,0 +1,51 @@
+{
+  "name": "@d8a-tech/web-tracker",
+  "version": "0.1.0",
+  "description": "The d8a web tracker provides a GA4 gtag-style API that sends GA4 gtag-compatible requests directly to a d8a collector.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./dist/index.mjs"
+    },
+    "./browser": "./dist/web-tracker.js"
+  },
+  "files": [
+    "src/",
+    "dist/",
+    "scripts/",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "vite",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck:src": "tsc -p tsconfig.build.json --noEmit",
+    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "types": "tsc -p tsconfig.build.json",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --check",
+    "format:fix": "prettier . --write"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/node": "^22.13.1",
+    "@typescript-eslint/eslint-plugin": "^8.30.0",
+    "@typescript-eslint/parser": "^8.30.0",
+    "esbuild": "^0.25.9",
+    "eslint": "^9.36.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.0.0"
+  }
+}

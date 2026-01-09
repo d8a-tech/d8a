@@ -104,11 +104,11 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 Your d8a server setup is now complete. If you'd like to hook up a domain and use SSL, you need a reverse proxy like Nginx. You can find resources for setting up reverse proxies in the [Nginx documentation](https://nginx.org/en/docs/beginners_guide.html) or [Apache HTTP Server documentation](https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html).
 
 
-## Step 4: Reconfigure your GA4 setup
+## Step 4: Set up tracking
 
-After d8a is up and running, you'll need to reconfigure your current GA4 setup to send traffic to the d8a product. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
+After d8a is up and running, the next step is to send tracking traffic to your d8a endpoint. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
 
-Follow the [Intercepting GA4 events](/guides/intercepting-ga4-events) guide to configure your Google Tag Manager implementation to send data to your d8a endpoint.
+We recommend starting with [Intercepting GA4 events](/articles/sources/intercepting-ga4-events). If that approach does not fit your setup, you can choose another integration option from the **Sources** section in the sidebar.
 
 ## Next steps
 

@@ -43,3 +43,40 @@ jobs:
         with:
           version: latest
           args: --timeout=5m --config=.golangci.yml
+
+  web-tracker:
+    name: Web tracker (lint/format/test)
+    timeout-minutes: 20
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'js/web-tracker/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: js/web-tracker
+        run: npm ci
+
+      - name: Lint
+        working-directory: js/web-tracker
+        run: npm run lint
+
+      - name: Format (check)
+        working-directory: js/web-tracker
+        run: npm run format
+
+      - name: Typecheck
+        working-directory: js/web-tracker
+        run: |
+          npm run typecheck:src
+          npm run typecheck:test
+
+      - name: Test
+        working-directory: js/web-tracker
+        run: npm test

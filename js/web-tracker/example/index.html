@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Web tracker example</title>
+  </head>
+
+  <body>
+    <h1>Web tracker example</h1>
+    <p>
+      Open DevTools Network tab and look for requests to your <code>server_container_url</code>.
+    </p>
+    <p>
+      <strong>Note:</strong> this page is meant for <strong>dev/local testing</strong>. Run
+      <code>npm run dev</code> in <code>js/web-tracker</code> and open the printed URL. This dev
+      server transpiles TypeScript on the fly, so you can edit <code>src/</code> and just refresh
+      the browser. For a production-like setup (script-tag bundle that auto-installs), use
+      <a href="./prod.html"><code>prod.html</code></a
+      >.
+    </p>
+
+    <h2>Enhanced measurement test links</h2>
+
+    <ul>
+      <li>
+        <strong>Outbound click (should fire <code>click</code>)</strong>:
+        <a
+          href="https://example.com/"
+          class="outbound-link"
+          id="outbound-link-id"
+          target="_blank"
+          rel="noreferrer"
+          >https://example.com/</a
+        >
+      </li>
+      <li>
+        <strong>File download (should fire <code>file_download</code>)</strong>:
+        <a
+          href="https://example.com/report.pdf"
+          class="download-link"
+          id="download-link-id"
+          target="_blank"
+          rel="noreferrer"
+          >Download report.pdf</a
+        >
+      </li>
+    </ul>
+
+    <!-- Dev/testing setup: import from ../dist/index.mjs and call installD8a(). For production setup, see prod.html (script-tag bundle). -->
+    <script type="module">
+      window.dataLayer = window.dataLayer || [];
+      // prettier-ignore
+      window.gtag = window.gtag || function () { window.dataLayer.push(arguments); };
+
+      gtag("consent", "default", {
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        analytics_storage: "denied",
+      });
+
+      gtag("consent", "update", {
+        ad_storage: "granted",
+        ad_user_data: "granted",
+        ad_personalization: "granted",
+        analytics_storage: "granted",
+      });
+
+      import { installD8a } from "../src/index.ts";
+
+      // Example: Separate D8A objects and data layers for each property
+
+      // Property 1: Use its own data layer and global function name.
+      window.d8aLayer1 = window.d8aLayer1 || [];
+      // prettier-ignore
+      window.d8a1 = window.d8a1 || function () { window.d8aLayer1.push(arguments); };
+      const d8a1 = window.d8a1;
+
+      d8a1("config", "80e1d6d0-560d-419f-ac2a-fe9281e93386", {
+        server_container_url: "http://localhost:8080/g/collect",
+        cookie_prefix: "prop1_",
+        user_id: "TEST_USER_12345",
+        client_id: "TEST_CLIENT_99999.88888",
+
+        // Enhanced measurement (all enabled by default)
+        // site_search_enabled: true,
+        // site_search_query_params: "q,s,search,query,keyword",
+        // outbound_clicks_enabled: true,
+        // file_downloads_enabled: true,
+
+        // Campaign parameters
+        campaign_id: "TEST_CAMPAIGN_ABC123",
+        campaign_source: "TEST_SOURCE_NEWSLETTER",
+        campaign_medium: "TEST_MEDIUM_EMAIL",
+        campaign_name: "TEST_CAMPAIGN_SPRING2024",
+        campaign_term: "TEST_TERM_RUNNING_SHOES",
+        campaign_content: "TEST_CONTENT_BANNER_TOP",
+
+        // Page information
+        page_location:
+          "https://test-example.com/test-page?test_param=12345&utm_term=whatafak&gclid=1238",
+        page_title: "TEST_PAGE_TITLE_SETTINGS",
+        page_referrer: "https://test-referrer.com/from-here",
+        content_group: "TEST_GROUP_SPORTS_NEWS",
+
+        // Technical parameters
+        language: "en-TEST",
+        screen_resolution: "9999x9999",
+
+        // Cookie configuration
+        // cookie_domain: "mydev.com",
+        // cookie_expires: 7700000000, // 90 days in seconds
+        // cookie_flags: "SameSite=Strict;Secure",
+        // cookie_path: "/test-path",
+        // cookie_prefix: "TEST_PREFIX_",
+        // cookie_update: true,
+
+        // Behavior controls
+        send_page_view: true,
+        ignore_referrer: true,
+      });
+
+      // Property 2: Use a different data layer and global function name.
+      window.d8aLayer2 = window.d8aLayer2 || [];
+      // prettier-ignore
+      window.d8a2 = window.d8a2 || function () { window.d8aLayer2.push(arguments); };
+      const d8a2 = window.d8a2;
+
+      d8a2("config", "11111111-2222-3333-4444-555555555555", {
+        server_container_url: "https://global.t.d8a.tech/11111111-2222-3333-4444-555555555555/d/c",
+        cookie_prefix: "prop2_",
+        debug_mode: true,
+      });
+
+      // // Example: Extra config options for advanced testing (not active)
+      // d8a("config", "11111111-2222-3333-4444-555555555555", {
+      // server_container_url: "https://global.t.d8a.tech/11111111-2222-3333-4444-555555555555/d/c",
+      // debug_mode: true,
+      // cookie_domain: "none",
+      // cookie_flags: "SameSite=Lax"
+      // });
+
+      // //Example: Full config object with custom test values
+      // d8a("config", "80e1d6d0-560d-419f-ac2a-fe9281e93386", {
+      // server_container_url: "https://global.t.d8a.tech/80e1d6d0-560d-419f-ac2a-fe9281e93386/d/c",
+
+      // // User identification
+      // user_id: "TEST_USER_12345",
+      // client_id: "TEST_CLIENT_99999.88888",
+
+      // // Campaign parameters
+      // campaign_id: "TEST_CAMPAIGN_ABC123",
+      // campaign_source: "TEST_SOURCE_NEWSLETTER",
+      // campaign_medium: "TEST_MEDIUM_EMAIL",
+      // campaign_name: "TEST_CAMPAIGN_SPRING2024",
+      // campaign_term: "TEST_TERM_RUNNING_SHOES",
+      // campaign_content: "TEST_CONTENT_BANNER_TOP",
+
+      // // Page information
+      // page_location: "https://test-example.com/test-page?test_param=12345",
+      // page_title: "TEST_PAGE_TITLE_SETTINGS",
+      // page_referrer: "https://test-referrer.com/from-here",
+      // content_group: "TEST_GROUP_SPORTS_NEWS",
+
+      // // Technical parameters
+      // language: "en-TEST",
+      // screen_resolution: "9999x9999",
+
+      // // Cookie configuration
+      // cookie_domain: "mydev.com",
+      // cookie_expires: 7700000000, // 90 days in seconds
+      // cookie_flags: "SameSite=Strict;Secure",
+      // cookie_path: "/test-path",
+      // cookie_prefix: "TEST_PREFIX_",
+      // cookie_update: true,
+
+      // // Behavior controls
+      // send_page_view: true,
+      // ignore_referrer: false
+      // });
+      // Initialize both trackers (gtag pattern).
+      d8a1("js", new Date());
+      d8a2("js", new Date());
+
+      // Install both runtimes (each instance consumes its own queue).
+      installD8a({ windowRef: window, dataLayerName: "d8aLayer1", globalName: "d8a1" });
+      installD8a({ windowRef: window, dataLayerName: "d8aLayer2", globalName: "d8a2" });
+
+      // Send a test event.
+      d8a1("event", "purchase", {
+        transaction_id: "T_12345",
+        value: 72.05,
+        tax: 3.6,
+        shipping: 5.99,
+        currency: "USD",
+        coupon: "SUMMER_SALE",
+        customer_type: "new",
+        items: [
+          {
+            item_id: "SKU_12345",
+            item_name: "Stan and Friends Tee",
+            affiliation: "Google Merchandise Store",
+            coupon: "SUMMER_FUN",
+            discount: 2.22,
+            index: 0,
+            item_brand: "Google",
+            item_category: "Apparel",
+            item_category2: "Adult",
+            item_category3: "Shirts",
+            item_category4: "Crew",
+            item_category5: "Short sleeve",
+            item_list_id: "related_products",
+            item_list_name: "Related Products",
+            item_variant: "green",
+            location_id: "ChIJIQBpAG2ahYAR_6128GcTUEo",
+            price: 10.01,
+            google_business_vertical: "retail",
+            quantity: 3,
+          },
+          {
+            item_id: "SKU_12346",
+            item_name: "Google Grey Women's Tee",
+            affiliation: "Google Merchandise Store",
+            coupon: "SUMMER_FUN",
+            discount: 3.33,
+            index: 1,
+            item_brand: "Google",
+            item_category: "Apparel",
+            item_category2: "Adult",
+            item_category3: "Shirts",
+            item_category4: "Crew",
+            item_category5: "Short sleeve",
+            item_list_id: "related_products",
+            item_list_name: "Related Products",
+            item_variant: "gray",
+            location_id: "ChIJIQBpAG2ahYAR_6128GcTUEo",
+            price: 21.01,
+            promotion_id: "P_12345",
+            promotion_name: "Summer Sale",
+            google_business_vertical: "retail",
+            custom_param: "custom_value",
+            quantity: 2,
+          },
+        ],
+      });
+    </script>
+  </body>
+</html>
