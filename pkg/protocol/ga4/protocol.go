@@ -205,8 +205,11 @@ func (p *ga4Protocol) Interfaces() any {
 	return ProtocolInterfaces
 }
 
-//go:embed static/duplicator.js
+//go:embed static/ga4-duplicator.js
 var staticDuplicatorJS []byte
+
+//go:embed static/ga4-duplicator.js.map
+var staticDuplicatorJSMap []byte
 
 func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 	return []protocol.ProtocolEndpoint{
@@ -216,12 +219,22 @@ func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 		},
 		{
 			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/g/js",
+			Path:     "/g/ga4-duplicator.js",
 			IsCustom: true,
 			CustomHandler: func(ctx *fasthttp.RequestCtx) {
 				ctx.SetStatusCode(fasthttp.StatusOK)
 				ctx.Response.Header.Set("Content-Type", "text/javascript")
 				ctx.SetBody(staticDuplicatorJS)
+			},
+		},
+		{
+			Methods:  []string{fasthttp.MethodGet},
+			Path:     "/g/ga4-duplicator.js.map",
+			IsCustom: true,
+			CustomHandler: func(ctx *fasthttp.RequestCtx) {
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.Response.Header.Set("Content-Type", "application/json")
+				ctx.SetBody(staticDuplicatorJSMap)
 			},
 		},
 	}

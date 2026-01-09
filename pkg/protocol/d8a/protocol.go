@@ -37,8 +37,11 @@ func (p *d8aProtocol) Interfaces() any {
 	return p.child.Interfaces()
 }
 
-//go:embed static/tracker.js
-var staticTrackerJS []byte
+//go:embed static/web-tracker.js
+var staticWebTracker []byte
+
+//go:embed static/web-tracker.js.map
+var staticWebTrackerMap []byte
 
 func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	newEndpoints := make([]protocol.ProtocolEndpoint, len(p.child.Endpoints())+1)
@@ -48,16 +51,28 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 		}
 		newEndpoints[i] = endpoint
 	}
-	return append(newEndpoints, protocol.ProtocolEndpoint{
-		Methods:  []string{fasthttp.MethodGet},
-		Path:     "/d/js",
-		IsCustom: true,
-		CustomHandler: func(ctx *fasthttp.RequestCtx) {
-			ctx.SetStatusCode(fasthttp.StatusOK)
-			ctx.Response.Header.Set("Content-Type", "text/javascript")
-			ctx.SetBody(staticTrackerJS)
+	return append(newEndpoints, []protocol.ProtocolEndpoint{
+		{
+			Methods:  []string{fasthttp.MethodGet},
+			Path:     "/d/web-tracker.js",
+			IsCustom: true,
+			CustomHandler: func(ctx *fasthttp.RequestCtx) {
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.Response.Header.Set("Content-Type", "text/javascript")
+				ctx.SetBody(staticWebTracker)
+			},
 		},
-	})
+		{
+			Methods:  []string{fasthttp.MethodGet},
+			Path:     "/d/web-tracker.js.map",
+			IsCustom: true,
+			CustomHandler: func(ctx *fasthttp.RequestCtx) {
+				ctx.SetStatusCode(fasthttp.StatusOK)
+				ctx.Response.Header.Set("Content-Type", "application/json")
+				ctx.SetBody(staticWebTrackerMap)
+			},
+		},
+	}...)
 }
 
 func (p *d8aProtocol) Hits(ctx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {

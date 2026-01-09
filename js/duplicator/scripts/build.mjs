@@ -1,34 +1,14 @@
 import { build } from "esbuild";
-import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
+import { writeHash } from "./hash-utils.mjs";
 
 const isWatch = process.argv.includes("--watch");
-
-async function generateHash() {
-  const files = execSync('find src -type f -name "*.ts" -print0 | sort -z', {
-    encoding: "buffer",
-  })
-    .toString()
-    .split("\0")
-    .filter(Boolean);
-
-  const hash = crypto.createHash("sha256");
-  for (const file of files) {
-    const content = fs.readFileSync(file);
-    hash.update(content);
-  }
-
-  const hashSum = hash.digest("hex");
-  fs.writeFileSync("src.hash", `${hashSum}  -\n`);
-  console.log(`Hash generated: ${hashSum}`);
-}
 
 const banner = `/* ga4-duplicator - built ${new Date().toISOString()} */`;
 
 async function main() {
-  await generateHash();
+  writeHash();
 
   await build({
     entryPoints: ["src/ga4-duplicator.ts"],
@@ -56,10 +36,12 @@ async function main() {
   });
 
   // Copy to static location
-  const staticDest = "../../pkg/protocol/ga4/static/duplicator.js";
-  if (fs.existsSync(path.dirname(staticDest))) {
+  const staticDest = "../../pkg/protocol/ga4/static/ga4-duplicator.js";
+  const mapDest = "../../pkg/protocol/ga4/static/ga4-duplicator.js.map";
+  if (fs.existsSync(path.dirname(staticDest)) && fs.existsSync(path.dirname(mapDest))) {
     fs.copyFileSync("dist/ga4-duplicator.min.js", staticDest);
-    console.log(`Copied to ${staticDest}`);
+    fs.copyFileSync("dist/ga4-duplicator.js.map", mapDest);
+    console.log(`Copied to ${staticDest} and ${mapDest}`);
   }
 
   if (isWatch) {
