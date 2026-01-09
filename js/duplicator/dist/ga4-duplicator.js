@@ -1,201 +1,201 @@
 "use strict";
 /**
- * GA4 Duplicator - Intercepts GA4 collect calls and sends duplicates to D8A.
- */
-class FetchInterceptor {
-    install(ctx) {
-        const originalFetch = window.fetch;
-        window.fetch = function (resource, config) {
-            const requestUrl = typeof resource === "string" ? resource : resource instanceof URL ? resource.toString() : resource.url;
-            const method = (config && config.method) || resource.method || "GET";
-            if (ctx.isTargetUrl(requestUrl)) {
-                const upperMethod = (method || "GET").toUpperCase();
-                // If we need the body from a Request, clone BEFORE calling the original fetch
-                let prepareBodyPromise = Promise.resolve(undefined);
-                if (upperMethod === "POST") {
-                    if (config && Object.prototype.hasOwnProperty.call(config, "body")) {
-                        prepareBodyPromise = Promise.resolve(config.body);
-                    }
-                    else if (typeof Request !== "undefined" && resource instanceof Request) {
-                        try {
-                            const clonedReq = resource.clone();
-                            prepareBodyPromise = clonedReq.blob().catch(() => undefined);
+* GA4 Duplicator - Intercepts GA4 collect calls and sends duplicates to D8A.
+*/
+window.createGA4Duplicator = function (options) {
+    class FetchInterceptor {
+        install(ctx) {
+            const originalFetch = window.fetch;
+            window.fetch = function (resource, config) {
+                const requestUrl = typeof resource === "string" ? resource : resource instanceof URL ? resource.toString() : resource.url;
+                const method = (config && config.method) || resource.method || "GET";
+                if (ctx.isTargetUrl(requestUrl)) {
+                    const upperMethod = (method || "GET").toUpperCase();
+                    // If we need the body from a Request, clone BEFORE calling the original fetch
+                    let prepareBodyPromise = Promise.resolve(undefined);
+                    if (upperMethod === "POST") {
+                        if (config && Object.prototype.hasOwnProperty.call(config, "body")) {
+                            prepareBodyPromise = Promise.resolve(config.body);
                         }
-                        catch (e) {
-                            prepareBodyPromise = Promise.resolve(undefined);
-                        }
-                    }
-                }
-                // First send original request to Google Analytics
-                const originalPromise = originalFetch.apply(this, arguments);
-                // Then send duplicate
-                const duplicateUrl = ctx.buildDuplicateUrl(requestUrl);
-                if (upperMethod === "GET") {
-                    originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
-                        if (ctx.debug)
-                            console.error("gtm interceptor: error duplicating GET fetch:", error);
-                    });
-                }
-                else if (upperMethod === "POST") {
-                    prepareBodyPromise.then((dupBody) => {
-                        originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch((error) => {
-                            if (ctx.debug)
-                                console.error("gtm interceptor: error duplicating POST fetch:", error);
-                        });
-                    });
-                }
-                return originalPromise;
-            }
-            return originalFetch.apply(this, arguments);
-        };
-    }
-}
-class XhrInterceptor {
-    install(ctx) {
-        const originalXHROpen = XMLHttpRequest.prototype.open;
-        const originalXHRSend = XMLHttpRequest.prototype.send;
-        XMLHttpRequest.prototype.open = function (method, url) {
-            this._requestMethod = method;
-            this._requestUrl = url;
-            return originalXHROpen.apply(this, arguments);
-        };
-        XMLHttpRequest.prototype.send = function (body) {
-            if (this._requestUrl && ctx.isTargetUrl(this._requestUrl)) {
-                // First send original request to Google Analytics
-                const originalResult = originalXHRSend.apply(this, arguments);
-                // Then send duplicate to our endpoint mimicking method and payload
-                try {
-                    const method = (this._requestMethod || "GET").toUpperCase();
-                    const duplicateUrl = ctx.buildDuplicateUrl(this._requestUrl);
-                    if (method === "GET") {
-                        fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
-                            if (ctx.debug)
-                                console.error("gtm interceptor: error duplicating GET xhr:", error);
-                        });
-                    }
-                    else if (method === "POST") {
-                        fetch(duplicateUrl, { method: "POST", body: body, keepalive: true }).catch((error) => {
-                            if (ctx.debug)
-                                console.error("gtm interceptor: error duplicating POST xhr:", error);
-                        });
-                    }
-                }
-                catch (dupErr) {
-                    if (ctx.debug)
-                        console.error("gtm interceptor: xhr duplication failed:", dupErr);
-                }
-                return originalResult;
-            }
-            return originalXHRSend.apply(this, arguments);
-        };
-    }
-}
-class BeaconInterceptor {
-    install(ctx) {
-        if (!navigator.sendBeacon)
-            return;
-        const originalSendBeacon = navigator.sendBeacon;
-        navigator.sendBeacon = function (url, data) {
-            if (ctx.isTargetUrl(url)) {
-                const originalResult = originalSendBeacon.apply(this, arguments);
-                try {
-                    originalSendBeacon.call(navigator, ctx.buildDuplicateUrl(url), data);
-                }
-                catch (e) {
-                    if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating sendBeacon:", e);
-                }
-                return originalResult;
-            }
-            return originalSendBeacon.apply(this, arguments);
-        };
-    }
-}
-class ScriptInterceptor {
-    install(ctx) {
-        try {
-            const scriptSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, "src");
-            const originalScriptSrcSetter = scriptSrcDescriptor && scriptSrcDescriptor.set;
-            const originalScriptSrcGetter = scriptSrcDescriptor && scriptSrcDescriptor.get;
-            const originalScriptSetAttribute = HTMLScriptElement.prototype.setAttribute;
-            const duplicateIfGA4Url = (urlString) => {
-                try {
-                    if (!ctx.isTargetUrl(urlString))
-                        return;
-                    fetch(ctx.buildDuplicateUrl(urlString), { method: "GET", keepalive: true }).catch((error) => {
-                        if (ctx.debug)
-                            console.error("gtm interceptor: error duplicating script GET:", error);
-                    });
-                }
-                catch (e) { }
-            };
-            if (originalScriptSrcSetter && originalScriptSrcGetter) {
-                const setter = originalScriptSrcSetter;
-                const getter = originalScriptSrcGetter;
-                Object.defineProperty(HTMLScriptElement.prototype, "src", {
-                    configurable: true,
-                    enumerable: true,
-                    get: function () {
-                        return getter.call(this);
-                    },
-                    set: function (value) {
-                        try {
-                            const last = this.__ga4LastSrcDuplicated;
-                            if (value && value !== last) {
-                                duplicateIfGA4Url(String(value));
-                                this.__ga4LastSrcDuplicated = String(value);
+                        else if (typeof Request !== "undefined" && resource instanceof Request) {
+                            try {
+                                const clonedReq = resource.clone();
+                                prepareBodyPromise = clonedReq.blob().catch(() => undefined);
                             }
-                            const self = this;
-                            const onloadOnce = function () {
+                            catch (e) {
+                                prepareBodyPromise = Promise.resolve(undefined);
+                            }
+                        }
+                    }
+                    // First send original request to Google Analytics
+                    const originalPromise = originalFetch.apply(this, arguments);
+                    // Then send duplicate
+                    const duplicateUrl = ctx.buildDuplicateUrl(requestUrl);
+                    if (upperMethod === "GET") {
+                        originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                            if (ctx.debug)
+                                console.error("gtm interceptor: error duplicating GET fetch:", error);
+                        });
+                    }
+                    else if (upperMethod === "POST") {
+                        prepareBodyPromise.then((dupBody) => {
+                            originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch((error) => {
+                                if (ctx.debug)
+                                    console.error("gtm interceptor: error duplicating POST fetch:", error);
+                            });
+                        });
+                    }
+                    return originalPromise;
+                }
+                return originalFetch.apply(this, arguments);
+            };
+        }
+    }
+    class XhrInterceptor {
+        install(ctx) {
+            const originalXHROpen = XMLHttpRequest.prototype.open;
+            const originalXHRSend = XMLHttpRequest.prototype.send;
+            XMLHttpRequest.prototype.open = function (method, url) {
+                this._requestMethod = method;
+                this._requestUrl = url;
+                return originalXHROpen.apply(this, arguments);
+            };
+            XMLHttpRequest.prototype.send = function (body) {
+                if (this._requestUrl && ctx.isTargetUrl(this._requestUrl)) {
+                    // First send original request to Google Analytics
+                    const originalResult = originalXHRSend.apply(this, arguments);
+                    // Then send duplicate to our endpoint mimicking method and payload
+                    try {
+                        const method = (this._requestMethod || "GET").toUpperCase();
+                        const duplicateUrl = ctx.buildDuplicateUrl(this._requestUrl);
+                        if (method === "GET") {
+                            fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                                if (ctx.debug)
+                                    console.error("gtm interceptor: error duplicating GET xhr:", error);
+                            });
+                        }
+                        else if (method === "POST") {
+                            fetch(duplicateUrl, { method: "POST", body: body, keepalive: true }).catch((error) => {
+                                if (ctx.debug)
+                                    console.error("gtm interceptor: error duplicating POST xhr:", error);
+                            });
+                        }
+                    }
+                    catch (dupErr) {
+                        if (ctx.debug)
+                            console.error("gtm interceptor: xhr duplication failed:", dupErr);
+                    }
+                    return originalResult;
+                }
+                return originalXHRSend.apply(this, arguments);
+            };
+        }
+    }
+    class BeaconInterceptor {
+        install(ctx) {
+            if (!navigator.sendBeacon)
+                return;
+            const originalSendBeacon = navigator.sendBeacon;
+            navigator.sendBeacon = function (url, data) {
+                if (ctx.isTargetUrl(url)) {
+                    const originalResult = originalSendBeacon.apply(this, arguments);
+                    try {
+                        originalSendBeacon.call(navigator, ctx.buildDuplicateUrl(url), data);
+                    }
+                    catch (e) {
+                        if (ctx.debug)
+                            console.error("gtm interceptor: error duplicating sendBeacon:", e);
+                    }
+                    return originalResult;
+                }
+                return originalSendBeacon.apply(this, arguments);
+            };
+        }
+    }
+    class ScriptInterceptor {
+        install(ctx) {
+            try {
+                const scriptSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, "src");
+                const originalScriptSrcSetter = scriptSrcDescriptor && scriptSrcDescriptor.set;
+                const originalScriptSrcGetter = scriptSrcDescriptor && scriptSrcDescriptor.get;
+                const originalScriptSetAttribute = HTMLScriptElement.prototype.setAttribute;
+                const duplicateIfGA4Url = (urlString) => {
+                    try {
+                        if (!ctx.isTargetUrl(urlString))
+                            return;
+                        fetch(ctx.buildDuplicateUrl(urlString), { method: "GET", keepalive: true }).catch((error) => {
+                            if (ctx.debug)
+                                console.error("gtm interceptor: error duplicating script GET:", error);
+                        });
+                    }
+                    catch (e) { }
+                };
+                if (originalScriptSrcSetter && originalScriptSrcGetter) {
+                    const setter = originalScriptSrcSetter;
+                    const getter = originalScriptSrcGetter;
+                    Object.defineProperty(HTMLScriptElement.prototype, "src", {
+                        configurable: true,
+                        enumerable: true,
+                        get: function () {
+                            return getter.call(this);
+                        },
+                        set: function (value) {
+                            try {
+                                const last = this.__ga4LastSrcDuplicated;
+                                if (value && value !== last) {
+                                    duplicateIfGA4Url(String(value));
+                                    this.__ga4LastSrcDuplicated = String(value);
+                                }
+                                const self = this;
+                                const onloadOnce = function () {
+                                    try {
+                                        const finalUrl = self.src;
+                                        if (finalUrl && finalUrl !== self.__ga4LastSrcDuplicated) {
+                                            duplicateIfGA4Url(finalUrl);
+                                            self.__ga4LastSrcDuplicated = finalUrl;
+                                        }
+                                    }
+                                    catch (_) { }
+                                    self.removeEventListener("load", onloadOnce);
+                                };
+                                this.addEventListener("load", onloadOnce);
+                            }
+                            catch (_) { }
+                            return setter.call(this, value);
+                        },
+                    });
+                }
+                HTMLScriptElement.prototype.setAttribute = function (name, value) {
+                    try {
+                        if (String(name).toLowerCase() === "src") {
+                            const v = String(value);
+                            const last = this.__ga4LastSrcDuplicated;
+                            if (v && v !== last) {
+                                duplicateIfGA4Url(v);
+                                this.__ga4LastSrcDuplicated = v;
+                            }
+                            const selfAttr = this;
+                            const onloadOnceAttr = function () {
                                 try {
-                                    const finalUrl = self.src;
-                                    if (finalUrl && finalUrl !== self.__ga4LastSrcDuplicated) {
-                                        duplicateIfGA4Url(finalUrl);
-                                        self.__ga4LastSrcDuplicated = finalUrl;
+                                    const finalUrlAttr = selfAttr.src;
+                                    if (finalUrlAttr && finalUrlAttr !== selfAttr.__ga4LastSrcDuplicated) {
+                                        duplicateIfGA4Url(finalUrlAttr);
+                                        selfAttr.__ga4LastSrcDuplicated = finalUrlAttr;
                                     }
                                 }
                                 catch (_) { }
-                                self.removeEventListener("load", onloadOnce);
+                                selfAttr.removeEventListener("load", onloadOnceAttr);
                             };
-                            this.addEventListener("load", onloadOnce);
+                            this.addEventListener("load", onloadOnceAttr);
                         }
-                        catch (_) { }
-                        return setter.call(this, value);
-                    },
-                });
-            }
-            HTMLScriptElement.prototype.setAttribute = function (name, value) {
-                try {
-                    if (String(name).toLowerCase() === "src") {
-                        const v = String(value);
-                        const last = this.__ga4LastSrcDuplicated;
-                        if (v && v !== last) {
-                            duplicateIfGA4Url(v);
-                            this.__ga4LastSrcDuplicated = v;
-                        }
-                        const selfAttr = this;
-                        const onloadOnceAttr = function () {
-                            try {
-                                const finalUrlAttr = selfAttr.src;
-                                if (finalUrlAttr && finalUrlAttr !== selfAttr.__ga4LastSrcDuplicated) {
-                                    duplicateIfGA4Url(finalUrlAttr);
-                                    selfAttr.__ga4LastSrcDuplicated = finalUrlAttr;
-                                }
-                            }
-                            catch (_) { }
-                            selfAttr.removeEventListener("load", onloadOnceAttr);
-                        };
-                        this.addEventListener("load", onloadOnceAttr);
                     }
-                }
-                catch (_) { }
-                return originalScriptSetAttribute.apply(this, arguments);
-            };
+                    catch (_) { }
+                    return originalScriptSetAttribute.apply(this, arguments);
+                };
+            }
+            catch (e) { }
         }
-        catch (e) { }
     }
-}
-window.createGA4Duplicator = function (options) {
     if (window.__ga4DuplicatorInitialized) {
         if (options.debug)
             console.warn("GA4 Duplicator: already initialized.");

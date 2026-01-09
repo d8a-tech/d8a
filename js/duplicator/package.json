@@ -9,14 +9,16 @@
     "build:prod": "mkdir -p dist && tsc -p tsconfig.build.json && sed '/^export /d' ./dist/ga4-duplicator.js > ./dist/ga4-duplicator.tmp.js && mv ./dist/ga4-duplicator.tmp.js ./dist/ga4-duplicator.js && terser ./dist/ga4-duplicator.js --compress --mangle --output ./dist/ga4-duplicator.min.js && cp ./dist/ga4-duplicator.min.js ../../pkg/protocol/ga4/static/duplicator.js",
     "build:dev": "mkdir -p dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p . --noEmit",
-    "test": "vitest run src/*.test.ts"
+    "test": "vitest run src/*.test.ts",
+    "test:e2e": "npm run build:dev && playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "^20.0.0",
+    "jsdom": "^26.1.0",
     "terser": "^5.36.0",
     "tsx": "^4.19.0",
     "typescript": "~5.6.2",
-    "jsdom": "^26.1.0",
     "vitest": "^3.2.4"
   }
 }

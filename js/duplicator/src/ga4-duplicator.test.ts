@@ -196,6 +196,31 @@ describe('GA4 Duplicator Blackbox Tests', () => {
             expect(xhrSendMock).toHaveBeenCalled();
             expect(fetchMock).not.toHaveBeenCalled();
         });
+
+        it('should route XHR to different destinations based on tid', () => {
+            const DEST1_URL = 'https://dest1.com';
+            const DEFAULT_URL = 'https://default.com';
+
+            initDuplicator({
+                destinations: [{ measurement_id: 'G-SPECIFIC', server_container_url: DEST1_URL }],
+                server_container_url: DEFAULT_URL,
+            });
+
+            const URL1 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC&gtm=1&tag_exp=1';
+            const URL_OTHER = 'https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1';
+
+            const xhr1 = new XMLHttpRequest();
+            xhr1.open('GET', URL1);
+            xhr1.send();
+
+            const xhr2 = new XMLHttpRequest();
+            xhr2.open('GET', URL_OTHER);
+            xhr2.send();
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            verifyDuplicateSent(fetchMock, 0, DEST1_URL, 'G-SPECIFIC');
+            verifyDuplicateSent(fetchMock, 1, DEFAULT_URL, 'G-OTHER');
+        });
     });
 
     describe('Beacon Interception', () => {
@@ -219,6 +244,29 @@ describe('GA4 Duplicator Blackbox Tests', () => {
             initDuplicator();
             navigator.sendBeacon('https://other.com', 'data');
             expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+        });
+
+        it('should route sendBeacon to different destinations based on tid', () => {
+            const DEST1_URL = 'https://dest1.com';
+            const DEFAULT_URL = 'https://default.com';
+
+            initDuplicator({
+                destinations: [{ measurement_id: 'G-SPECIFIC', server_container_url: DEST1_URL }],
+                server_container_url: DEFAULT_URL,
+            });
+
+            const URL1 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC&gtm=1&tag_exp=1';
+            const URL_OTHER = 'https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1';
+
+            navigator.sendBeacon(URL1, 'data1');
+            navigator.sendBeacon(URL_OTHER, 'data2');
+
+            // 2 original + 2 duplicates
+            expect(sendBeaconMock).toHaveBeenCalledTimes(4);
+
+            // Duplicates are second and fourth calls
+            verifyDuplicateSent(sendBeaconMock, 1, DEST1_URL, 'G-SPECIFIC');
+            verifyDuplicateSent(sendBeaconMock, 3, DEFAULT_URL, 'G-OTHER');
         });
     });
 
@@ -254,6 +302,31 @@ describe('GA4 Duplicator Blackbox Tests', () => {
             document.body.appendChild(script);
 
             expect(fetchMock).not.toHaveBeenCalled();
+        });
+
+        it('should route Script tags to different destinations based on tid', () => {
+            const DEST1_URL = 'https://dest1.com';
+            const DEFAULT_URL = 'https://default.com';
+
+            initDuplicator({
+                destinations: [{ measurement_id: 'G-SPECIFIC', server_container_url: DEST1_URL }],
+                server_container_url: DEFAULT_URL,
+            });
+
+            const URL1 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC&gtm=1&tag_exp=1';
+            const URL_OTHER = 'https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1';
+
+            const s1 = document.createElement('script');
+            s1.src = URL1;
+            document.body.appendChild(s1);
+
+            const s2 = document.createElement('script');
+            s2.src = URL_OTHER;
+            document.body.appendChild(s2);
+
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+            verifyDuplicateSent(fetchMock, 0, DEST1_URL, 'G-SPECIFIC');
+            verifyDuplicateSent(fetchMock, 1, DEFAULT_URL, 'G-OTHER');
         });
     });
 });
