@@ -54,7 +54,7 @@ function QuickLinks() {
           <div className="col col--4">
             <div className={styles.linkCard}>
               <Heading as="h3" className={styles.cardTitle}>
-                <Link to="/guides/intercepting-ga4-events">GA4 Integration</Link>
+                <Link to="/articles/sources/intercepting-ga4-events">GA4 Integration</Link>
               </Heading>
               <p className={styles.cardDescription}>
                 Learn how to intercept and route GA4 events to your d8a instance.

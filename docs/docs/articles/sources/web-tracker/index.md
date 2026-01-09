@@ -8,6 +8,10 @@ import TabItem from '@theme/TabItem';
 
 The d8a web tracker provides a GA4 gtag-style API that sends GA4 gtag-compatible requests directly to a d8a collector. Use it when you want GA4-style tracking without relying on Google-hosted tags.
 
+:::caution Beta
+The web tracker is currently in **beta** - feel free to report any problems via [GitHub Issues](https://github.com/d8a-tech/d8a/issues).
+:::
+
 ## Quick start
 
 <Tabs>
