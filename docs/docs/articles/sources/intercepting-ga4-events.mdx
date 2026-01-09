@@ -5,8 +5,11 @@ sidebar_position: 1
 
 import TOCInline from '@theme/TOCInline';
 import CodeBlock from '@theme/CodeBlock';
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 import ga4DuplicatorMin from '!!raw-loader!./duplicator/ga4-duplicator.min.js';
 import ga4Duplicator from '!!raw-loader!./duplicator/ga4-duplicator.js';
+import GA4DuplicatorSnippetGenerator from '@site/src/components/GA4DuplicatorSnippetGenerator';
 
 
 # Intercepting GA4 events
@@ -40,8 +43,13 @@ This method keeps your existing GA4 setup intact while duplicating events to a c
     It intercepts browser API calls (XMLHttpRequest, fetch, navigator.sendBeacon, and script src assignments) that websites commonly use to send tracking data.
     :::
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+### Configurator
+
+Use the form below to generate your custom duplication snippet.
+
+<GA4DuplicatorSnippetGenerator ga4DuplicatorMin={ga4DuplicatorMin} />
+
+### Manual setup
 
 <Tabs>
 <TabItem value="minified" label="Minified (for production)" default>

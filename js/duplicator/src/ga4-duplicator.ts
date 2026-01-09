@@ -324,14 +324,18 @@ interface GA4DuplicatorOptions {
   }
 
   function getDuplicateEndpointUrl(dest: GA4Destination): URL {
-    const trackingURL = String(dest.server_container_url || "")
+    let trackingURL = String(dest.server_container_url || "")
       .trim()
       .replace(/\/+$/, "");
+
+    // Forgiveness: if user included /g/collect in the URL, strip it so we don't double-append
+    if (trackingURL.toLowerCase().endsWith("/g/collect")) {
+      trackingURL = trackingURL.substring(0, trackingURL.length - "/g/collect".length).replace(/\/+$/, "");
+    }
+
     const serverContainerPath = dest.server_container_path || "/g/collect";
 
     const u = new URL(trackingURL, location.href);
-    if (!u.pathname || u.pathname === "/") u.pathname = "/g/collect";
-
     u.pathname = joinPaths(normalizePath(u.pathname), serverContainerPath);
     u.search = "";
     u.hash = "";

@@ -158,20 +158,49 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       verifyDuplicateSent(fetchMock, 5, DEFAULT_URL, "G-OTHER");
     });
 
-    it("should not double-append /g/collect when server_container_url is origin-only (regression)", async () => {
+    it("should not double-append /g/collect when server_container_url is origin-only (fix)", async () => {
       // given
       const ORIGIN_ONLY = "https://global.t.d8a.tech";
       initDuplicator({ server_container_url: ORIGIN_ONLY });
-    
+
       // when
       await fetch(GA4_URL, { method: "GET" });
-    
+
       // then
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const duplicateUrl = fetchMock.mock.calls[1][0] as string;
-    
-      // This pins the current suspected bug:
       expect(duplicateUrl).toContain("global.t.d8a.tech/g/collect");
+      expect(duplicateUrl).not.toContain("global.t.d8a.tech/g/collect/g/collect");
+    });
+
+    it("should be tolerant when server_container_url already includes /g/collect", async () => {
+      // given
+      const URL_WITH_PATH = "https://my-server.com/g/collect";
+      initDuplicator({ server_container_url: URL_WITH_PATH });
+
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+
+      // then
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const duplicateUrl = fetchMock.mock.calls[1][0] as string;
+      expect(duplicateUrl).toContain("my-server.com/g/collect");
+      expect(duplicateUrl).not.toContain("my-server.com/g/collect/g/collect");
+    });
+
+    it("should allow custom server_container_path when server_container_url is origin-only", async () => {
+      // given
+      const ORIGIN = "https://my-server.com";
+      const CUSTOM_PATH = "/my/custom/path";
+      initDuplicator({ server_container_url: ORIGIN, server_container_path: CUSTOM_PATH });
+
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+
+      // then
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const duplicateUrl = fetchMock.mock.calls[1][0] as string;
+      expect(duplicateUrl).toContain("my-server.com/my/custom/path");
     });
 
   });
