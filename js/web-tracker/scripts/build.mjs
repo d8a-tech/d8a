@@ -28,7 +28,7 @@ async function main() {
       minify: true,
       outfile: "dist/web-tracker.js",
       banner: { js: banner },
-    })
+    }),
   );
 
   ctx.push(
@@ -40,7 +40,7 @@ async function main() {
       minify: true,
       outfile: "dist/index.mjs",
       banner: { js: banner },
-    })
+    }),
   );
 
   await Promise.all(ctx);
@@ -48,7 +48,10 @@ async function main() {
   // Copy to static location
   const webTrackerStaticDest = "../../pkg/protocol/d8a/static/web-tracker.js";
   const mapTrackerStaticDest = "../../pkg/protocol/d8a/static/web-tracker.js.map";
-  if (fs.existsSync(path.dirname(webTrackerStaticDest)) && fs.existsSync(path.dirname(mapTrackerStaticDest))) {
+  if (
+    fs.existsSync(path.dirname(webTrackerStaticDest)) &&
+    fs.existsSync(path.dirname(mapTrackerStaticDest))
+  ) {
     fs.copyFileSync("dist/web-tracker.js", webTrackerStaticDest);
     fs.copyFileSync("dist/web-tracker.js.map", mapTrackerStaticDest);
     console.log(`Copied to ${webTrackerStaticDest} and ${mapTrackerStaticDest}`);

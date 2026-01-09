@@ -7,8 +7,6 @@ if (currentHash === storedHash) {
   console.log("Hash matches.");
   process.exit(0);
 } else {
-  console.error(
-    `Hash mismatch!\n  Current: ${currentHash}\n  Stored:  ${storedHash}`
-  );
+  console.error(`Hash mismatch!\n  Current: ${currentHash}\n  Stored:  ${storedHash}`);
   process.exit(1);
 }
