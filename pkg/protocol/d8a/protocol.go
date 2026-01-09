@@ -2,6 +2,7 @@ package d8a
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
@@ -44,12 +45,16 @@ var staticWebTracker []byte
 var staticWebTrackerMap []byte
 
 func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
-	newEndpoints := make([]protocol.ProtocolEndpoint, len(p.child.Endpoints())+1)
-	for i, endpoint := range p.child.Endpoints() {
+	newEndpoints := make([]protocol.ProtocolEndpoint, 0)
+	for _, endpoint := range p.child.Endpoints() {
 		if endpoint.Path == "/g/collect" {
+			// Decorate only the tracking endpoint
 			endpoint.Path = "/d/c"
+		} else if strings.HasPrefix(endpoint.Path, "/g/") {
+			// Ignore all the others (static files, etc.)
+			continue
 		}
-		newEndpoints[i] = endpoint
+		newEndpoints = append(newEndpoints, endpoint)
 	}
 	return append(newEndpoints, []protocol.ProtocolEndpoint{
 		{

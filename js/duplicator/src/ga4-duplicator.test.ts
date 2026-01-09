@@ -157,6 +157,23 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       verifyDuplicateSent(fetchMock, 3, DEST2_URL, "G-SPECIFIC2");
       verifyDuplicateSent(fetchMock, 5, DEFAULT_URL, "G-OTHER");
     });
+
+    it("should not double-append /g/collect when server_container_url is origin-only (regression)", async () => {
+      // given
+      const ORIGIN_ONLY = "https://global.t.d8a.tech";
+      initDuplicator({ server_container_url: ORIGIN_ONLY });
+    
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+    
+      // then
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const duplicateUrl = fetchMock.mock.calls[1][0] as string;
+    
+      // This pins the current suspected bug:
+      expect(duplicateUrl).toContain("global.t.d8a.tech/g/collect");
+    });
+
   });
 
   describe("XHR Interception", () => {

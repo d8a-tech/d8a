@@ -36,12 +36,18 @@ async function main() {
   });
 
   // Copy to static location
-  const staticDest = "../../pkg/protocol/ga4/static/ga4-duplicator.js";
-  const mapDest = "../../pkg/protocol/ga4/static/ga4-duplicator.js.map";
-  if (fs.existsSync(path.dirname(staticDest)) && fs.existsSync(path.dirname(mapDest))) {
-    fs.copyFileSync("dist/ga4-duplicator.min.js", staticDest);
-    fs.copyFileSync("dist/ga4-duplicator.js.map", mapDest);
-    console.log(`Copied to ${staticDest} and ${mapDest}`);
+  const copies = [
+    { src: "dist/ga4-duplicator.min.js", dest: "../../pkg/protocol/ga4/static/ga4-duplicator.js" },
+    { src: "dist/ga4-duplicator.min.js", dest: "../../docs/docs/articles/sources/duplicator/ga4-duplicator.min.js" },
+    { src: "dist/ga4-duplicator.js", dest: "../../docs/docs/articles/sources/duplicator/ga4-duplicator.js" },
+    { src: "dist/ga4-duplicator.js.map", dest: "../../pkg/protocol/ga4/static/ga4-duplicator.js.map" },
+  ];
+
+  for (const { src, dest } of copies) {
+    if (fs.existsSync(path.dirname(dest))) {
+      fs.copyFileSync(src, dest);
+      console.log(`Copied ${src} to ${dest}`);
+    }
   }
 
   if (isWatch) {

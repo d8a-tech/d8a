@@ -46,15 +46,16 @@ async function main() {
   await Promise.all(ctx);
 
   // Copy to static location
-  const webTrackerStaticDest = "../../pkg/protocol/d8a/static/web-tracker.js";
-  const mapTrackerStaticDest = "../../pkg/protocol/d8a/static/web-tracker.js.map";
-  if (
-    fs.existsSync(path.dirname(webTrackerStaticDest)) &&
-    fs.existsSync(path.dirname(mapTrackerStaticDest))
-  ) {
-    fs.copyFileSync("dist/web-tracker.js", webTrackerStaticDest);
-    fs.copyFileSync("dist/web-tracker.js.map", mapTrackerStaticDest);
-    console.log(`Copied to ${webTrackerStaticDest} and ${mapTrackerStaticDest}`);
+  const copies = [
+    { src: "dist/web-tracker.js", dest: "../../pkg/protocol/d8a/static/web-tracker.js" },
+    { src: "dist/web-tracker.js.map", dest: "../../pkg/protocol/d8a/static/web-tracker.js.map" },
+  ];
+
+  for (const { src, dest } of copies) {
+    if (fs.existsSync(path.dirname(dest))) {
+      fs.copyFileSync(src, dest);
+      console.log(`Copied ${src} to ${dest}`);
+    }
   }
 
   if (isWatch) {
