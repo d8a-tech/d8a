@@ -1,92 +1,259 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 
-// Import the duplicator. Since it attaches to window, we just import the file.
 import './ga4-duplicator';
 
-describe('GA4 Duplicator Smoke Test', () => {
+describe('GA4 Duplicator Blackbox Tests', () => {
     const SERVER_URL = 'https://my-d8a-server.com/collect';
-    const GA4_URL = 'https://www.google-analytics.com/g/collect?v=2&tid=G-12345&gtm=297&tag_exp=1';
+    const GA4_URL_BASE = 'https://www.google-analytics.com/g/collect';
+    const GA4_QUERY = '?v=2&tid=G-12345&gtm=297&tag_exp=1';
+    const GA4_URL = `${GA4_URL_BASE}${GA4_QUERY}`;
 
     let fetchMock: any;
+    let sendBeaconMock: any;
+    let xhrSendMock: any;
+    let xhrOpenMock: any;
+
+    // Capture original prototypes once before any tests run
+    const originals = {
+        xhrOpen: XMLHttpRequest.prototype.open,
+        xhrSend: XMLHttpRequest.prototype.send,
+        scriptSrcDescriptor: Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src'),
+        scriptSetAttribute: HTMLScriptElement.prototype.setAttribute
+    };
+
+    // Check if navigator.sendBeacon exists (it might not in all jsdom versions)
+    const originalSendBeacon = navigator.sendBeacon;
 
     beforeEach(() => {
-        // Clear window state if necessary
+        // Reset initialization flag so we can re-initialize
         delete (window as any).__ga4DuplicatorInitialized;
 
-        // Mock fetch
+        // 1. Mock fetch (used by FetchInterceptor and as duplicate sender for XHR/Script)
         fetchMock = vi.fn().mockResolvedValue(new Response('ok'));
         vi.stubGlobal('fetch', fetchMock);
+
+        // 2. Mock sendBeacon (used by BeaconInterceptor)
+        sendBeaconMock = vi.fn().mockReturnValue(true);
+        // We use defineProperty because navigator might be read-only or getter in some envs
+        Object.defineProperty(navigator, 'sendBeacon', {
+            value: sendBeaconMock,
+            writable: true,
+            configurable: true
+        });
+
+        // 3. Mock XHR internals to prevent real network calls and allow tracking
+        // These mocks will be the "original" methods wrapped by the duplicator
+        xhrSendMock = vi.fn();
+        xhrOpenMock = vi.fn();
+        XMLHttpRequest.prototype.send = xhrSendMock;
+        XMLHttpRequest.prototype.open = xhrOpenMock;
     });
 
     afterEach(() => {
         vi.unstubAllGlobals();
+
+        // Restore prototypes to original jsdom implementations
+        XMLHttpRequest.prototype.open = originals.xhrOpen;
+        XMLHttpRequest.prototype.send = originals.xhrSend;
+
+        if (originals.scriptSrcDescriptor) {
+            Object.defineProperty(HTMLScriptElement.prototype, 'src', originals.scriptSrcDescriptor);
+        }
+        HTMLScriptElement.prototype.setAttribute = originals.scriptSetAttribute;
+
+        if (originalSendBeacon) {
+            Object.defineProperty(navigator, 'sendBeacon', {
+                value: originalSendBeacon,
+                writable: true,
+                configurable: true
+            });
+        } else {
+            // If it didn't exist, we could delete it, but leaving it undefined/mocked might be fine or:
+            // delete (navigator as any).sendBeacon;
+        }
+
+        document.body.innerHTML = '';
+        vi.clearAllMocks();
     });
 
-    it('should duplicate a GA4 fetch request', async () => {
-        // given
+    const initDuplicator = (options: any = {}) => {
         (window as any).createGA4Duplicator({
             server_container_url: SERVER_URL,
-            debug: true
+            debug: true,
+            ...options
+        });
+    };
+
+    const verifyDuplicateSent = (mockFn: any, callIndex: number = 0, expectedUrlPart: string = SERVER_URL, expectedTid: string = 'G-12345') => {
+        expect(mockFn).toHaveBeenCalled();
+        const calls = mockFn.mock.calls;
+        expect(calls.length).toBeGreaterThan(callIndex);
+
+        const url = calls[callIndex][0];
+        expect(url).toContain(expectedUrlPart);
+        if (expectedTid) {
+            expect(url).toContain(`tid=${expectedTid}`);
+        }
+        return calls[callIndex];
+    };
+
+    describe('Fetch Interception', () => {
+        it('should duplicate a GA4 fetch request', async () => {
+            initDuplicator();
+            await fetch(GA4_URL, { method: 'GET' });
+
+            // 1. Original fetch called
+            // 2. Duplicate fetch called
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+
+            const firstCallUrl = fetchMock.mock.calls[0][0];
+            expect(firstCallUrl).toBe(GA4_URL);
+
+            verifyDuplicateSent(fetchMock, 1);
         });
 
-        // when
-        await fetch(GA4_URL, { method: 'GET' });
+        it('should NOT duplicate non-GA4 fetch request', async () => {
+            initDuplicator();
+            const OTHER_URL = 'https://example.com/api';
+            await fetch(OTHER_URL, { method: 'GET' });
 
-        // then
-        // fetch should have been called twice: 
-        // 1. Original GA4 call
-        // 2. Duplicate call to D8A server
-        expect(fetchMock).toHaveBeenCalledTimes(2);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            expect(fetchMock.mock.calls[0][0]).toBe(OTHER_URL);
+        });
 
-        const firstCallUrl = fetchMock.mock.calls[0][0];
-        const secondCallUrl = fetchMock.mock.calls[1][0];
+        it('should route to different destinations based on tid', async () => {
+            const DEST1_URL = 'https://dest1.com';
+            const DEST2_URL = 'https://dest2.com';
+            const DEFAULT_URL = 'https://default.com';
 
-        expect(firstCallUrl).toBe(GA4_URL);
-        expect(secondCallUrl).toContain(SERVER_URL);
-        expect(secondCallUrl).toContain('tid=G-12345');
+            initDuplicator({
+                destinations: [
+                    { measurement_id: 'G-SPECIFIC1', server_container_url: DEST1_URL },
+                    { measurement_id: 'G-SPECIFIC2', server_container_url: DEST2_URL }
+                ],
+                server_container_url: DEFAULT_URL,
+            });
+
+            const URL1 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC1&gtm=1&tag_exp=1';
+            const URL2 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC2&gtm=1&tag_exp=1';
+            const URL_OTHER = 'https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1';
+
+            await fetch(URL1, { method: 'GET' });
+            await fetch(URL2, { method: 'GET' });
+            await fetch(URL_OTHER, { method: 'GET' });
+
+            // Total 6 calls: 3 original + 3 duplicates
+            expect(fetchMock).toHaveBeenCalledTimes(6);
+
+            // Check duplicates (interleaved with original calls, so indices 1, 3, 5)
+            verifyDuplicateSent(fetchMock, 1, DEST1_URL, 'G-SPECIFIC1');
+            verifyDuplicateSent(fetchMock, 3, DEST2_URL, 'G-SPECIFIC2');
+            verifyDuplicateSent(fetchMock, 5, DEFAULT_URL, 'G-OTHER');
+        });
     });
 
-    it('should route to different destinations based on tid', async () => {
-        // given
-        const DEST1_URL = 'https://dest1.com';
-        const DEST2_URL = 'https://dest2.com';
-        const DEFAULT_URL = 'https://default.com';
+    describe('XHR Interception', () => {
+        it('should duplicate a GA4 XHR request', () => {
+            initDuplicator();
 
-        (window as any).createGA4Duplicator({
-            destinations: [
-                { measurement_id: 'G-SPECIFIC1', server_container_url: DEST1_URL },
-                { measurement_id: 'G-SPECIFIC2', server_container_url: DEST2_URL }
-            ],
-            server_container_url: DEFAULT_URL,
-            debug: true
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', GA4_URL);
+            xhr.send();
+
+            // Original XHR logic
+            expect(xhrOpenMock).toHaveBeenCalledWith('GET', GA4_URL);
+            expect(xhrSendMock).toHaveBeenCalled();
+
+            // Duplicate logic (uses fetch)
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            verifyDuplicateSent(fetchMock, 0);
         });
 
-        const URL1 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC1&gtm=1&tag_exp=1';
-        const URL2 = 'https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC2&gtm=1&tag_exp=1';
-        const URL_OTHER = 'https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1';
+        it('should handle POST XHR with body', () => {
+            initDuplicator();
+            const body = JSON.stringify({ event: 'test' });
 
-        // when
-        await fetch(URL1, { method: 'GET' });
-        await fetch(URL2, { method: 'GET' });
-        await fetch(URL_OTHER, { method: 'GET' });
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', GA4_URL);
+            xhr.send(body);
 
-        // then
-        // Total 6 calls: 3 original + 3 duplicates
-        expect(fetchMock).toHaveBeenCalledTimes(6);
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            const [url, config] = verifyDuplicateSent(fetchMock, 0);
 
-        // Check duplicates
-        const dup1 = fetchMock.mock.calls[1][0];
-        const dup2 = fetchMock.mock.calls[3][0];
-        const dup3 = fetchMock.mock.calls[5][0];
+            expect(config.method).toBe('POST');
+            expect(config.body).toBe(body);
+        });
 
-        expect(dup1).toContain(DEST1_URL);
-        expect(dup1).toContain('tid=G-SPECIFIC1');
+        it('should NOT duplicate non-GA4 XHR request', () => {
+            initDuplicator();
+            const OTHER_URL = 'https://example.com/api';
 
-        expect(dup2).toContain(DEST2_URL);
-        expect(dup2).toContain('tid=G-SPECIFIC2');
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', OTHER_URL);
+            xhr.send();
 
-        expect(dup3).toContain(DEFAULT_URL);
-        expect(dup3).toContain('tid=G-OTHER');
+            expect(xhrSendMock).toHaveBeenCalled();
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('Beacon Interception', () => {
+        it('should duplicate a GA4 sendBeacon request', () => {
+            initDuplicator();
+            const data = 'beacon-data';
+
+            navigator.sendBeacon(GA4_URL, data);
+
+            // Beacon interceptor calls originalSendBeacon for duplicate too
+            expect(sendBeaconMock).toHaveBeenCalledTimes(2);
+
+            const originalCall = sendBeaconMock.mock.calls[0];
+            expect(originalCall[0]).toBe(GA4_URL);
+
+            const duplicateCall = verifyDuplicateSent(sendBeaconMock, 1);
+            expect(duplicateCall[1]).toBe(data);
+        });
+
+        it('should NOT duplicate non-GA4 sendBeacon request', () => {
+            initDuplicator();
+            navigator.sendBeacon('https://other.com', 'data');
+            expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('Script Tag Interception', () => {
+        it('should duplicate when script src is set to GA4 URL via property', () => {
+            initDuplicator();
+
+            const script = document.createElement('script');
+            script.src = GA4_URL;
+            document.body.appendChild(script);
+
+            // Script interceptor uses fetch for duplication
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            verifyDuplicateSent(fetchMock, 0);
+        });
+
+        it('should duplicate when script src is set via setAttribute', () => {
+            initDuplicator();
+
+            const script = document.createElement('script');
+            script.setAttribute('src', GA4_URL);
+            document.body.appendChild(script);
+
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+            verifyDuplicateSent(fetchMock, 0);
+        });
+
+        it('should NOT duplicate non-GA4 script', () => {
+            initDuplicator();
+
+            const script = document.createElement('script');
+            script.src = 'https://example.com/script.js';
+            document.body.appendChild(script);
+
+            expect(fetchMock).not.toHaveBeenCalled();
+        });
     });
 });
