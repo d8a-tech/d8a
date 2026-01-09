@@ -15,7 +15,8 @@ import (
 
 type ga4Protocol struct {
 	converter currency.Converter
-	psr       properties.SettingsRegistry
+
+	propertyIDExtractor protocol.PropertyIDExtractor
 }
 
 func (p *ga4Protocol) ID() string {
@@ -180,11 +181,7 @@ func (p *ga4Protocol) ClientID(request *hits.ParsedRequest) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(request *hits.ParsedRequest) (string, error) {
-	property, err := p.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
-	if err != nil {
-		return "", err
-	}
-	return property.PropertyID, nil
+	return p.propertyIDExtractor.PropertyID(request)
 }
 
 func (p *ga4Protocol) UserID(request *hits.ParsedRequest) (*string, error) {
@@ -428,13 +425,48 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 	}
 }
 
+// GA4ProtocolOption is an option function for configuring GA4Protocol.
+type GA4ProtocolOption func(*ga4Protocol)
+
+// WithPropertyIDExtractor sets a custom PropertyIDExtractor for the protocol.
+func WithPropertyIDExtractor(extractor protocol.PropertyIDExtractor) GA4ProtocolOption {
+	return func(p *ga4Protocol) {
+		p.propertyIDExtractor = extractor
+	}
+}
+
+type fromTidByMeasurementIDExtractor struct {
+	psr properties.SettingsRegistry
+}
+
+func (e *fromTidByMeasurementIDExtractor) PropertyID(request *hits.ParsedRequest) (string, error) {
+	property, err := e.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
+	if err != nil {
+		return "", err
+	}
+	return property.PropertyID, nil
+}
+
+// NewFromTidByMeasurementIDExtractor creates a PropertyIDExtractor that extracts
+// property ID from the "tid" query parameter using the property settings registry.
+func NewFromTidByMeasurementIDExtractor(psr properties.SettingsRegistry) protocol.PropertyIDExtractor {
+	return &fromTidByMeasurementIDExtractor{
+		psr: psr,
+	}
+}
+
 // NewGA4Protocol creates a new instance of the GA4 protocol handler.
 func NewGA4Protocol(
 	converter currency.Converter,
 	psr properties.SettingsRegistry,
+	opts ...GA4ProtocolOption,
 ) protocol.Protocol {
-	return &ga4Protocol{
-		converter: converter,
-		psr:       psr,
+	p := &ga4Protocol{
+		converter:           converter,
+		propertyIDExtractor: NewFromTidByMeasurementIDExtractor(psr),
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
