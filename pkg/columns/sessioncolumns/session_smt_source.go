@@ -42,7 +42,7 @@ var SessionSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionSource.ID,
 	columns.CoreInterfaces.SessionSource.Field,
 	0,
-	func(e *schema.Event) (any, error) {
+	func(e *schema.Event) (any, schema.D8AColumnWriteError) {
 		sourceMediumTerm, ok := sessionSourceMediumTermDetector.Detect(e)
 		if !ok {
 			return nil, nil // nolint:nilnil // nil is a valid value for this column

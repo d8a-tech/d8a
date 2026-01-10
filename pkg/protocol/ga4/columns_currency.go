@@ -4,6 +4,8 @@
 package ga4
 
 import (
+	"fmt"
+
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -14,13 +16,17 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventEcommercePurchaseRevenueInUSD.ID,
 		ProtocolInterfaces.EventEcommercePurchaseRevenueInUSD.Field,
-		func(event *schema.Event) (any, error) {
-			return currency.DoConversion(
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			conversion, err := currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventEcommercePurchaseRevenue.Field.Name],
 			)
+			if err != nil {
+				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert purchase revenue to USD: %s", err))
+			}
+			return conversion, nil
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
@@ -44,13 +50,17 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventEcommerceRefundValueInUSD.ID,
 		ProtocolInterfaces.EventEcommerceRefundValueInUSD.Field,
-		func(event *schema.Event) (any, error) {
-			return currency.DoConversion(
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			conversion, err := currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventEcommerceRefundValue.Field.Name],
 			)
+			if err != nil {
+				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert refund value to USD: %s", err))
+			}
+			return conversion, nil
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
@@ -74,13 +84,17 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventEcommerceShippingValueInUSD.ID,
 		ProtocolInterfaces.EventEcommerceShippingValueInUSD.Field,
-		func(event *schema.Event) (any, error) {
-			return currency.DoConversion(
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			conversion, err := currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventEcommerceShippingValue.Field.Name],
 			)
+			if err != nil {
+				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert shipping value to USD: %s", err))
+			}
+			return conversion, nil
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
@@ -117,13 +131,17 @@ func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.Even
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventEcommerceTaxValueInUSD.ID,
 		ProtocolInterfaces.EventEcommerceTaxValueInUSD.Field,
-		func(event *schema.Event) (any, error) {
-			return currency.DoConversion(
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			conversion, err := currency.DoConversion(
 				converter,
 				event.Values[ProtocolInterfaces.EventParamCurrency.Field.Name],
 				currency.ISOCurrencyUSD,
 				event.Values[ProtocolInterfaces.EventEcommerceTaxValue.Field.Name],
 			)
+			if err != nil {
+				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert tax value to USD: %s", err))
+			}
+			return conversion, nil
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{

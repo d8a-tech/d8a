@@ -35,9 +35,9 @@ func (m *mockEventColumn) Implements() Interface {
 }
 func (m *mockEventColumn) DependsOn() []DependsOnEntry { return m.dependsOn }
 
-func (m *mockEventColumn) Write(event *Event) error {
+func (m *mockEventColumn) Write(event *Event) D8AColumnWriteError {
 	if m.writeErr != nil {
-		return m.writeErr
+		return NewBrokenEventError(m.writeErr.Error())
 	}
 	event.Values[m.field.Name] = "test_value"
 	return nil
@@ -68,9 +68,9 @@ func (m *mockSessionColumn) Implements() Interface {
 }
 func (m *mockSessionColumn) DependsOn() []DependsOnEntry { return m.dependsOn }
 
-func (m *mockSessionColumn) Write(session *Session) error {
+func (m *mockSessionColumn) Write(session *Session) D8AColumnWriteError {
 	if m.writeErr != nil {
-		return m.writeErr
+		return NewBrokenSessionError(m.writeErr.Error())
 	}
 	session.Values[m.field.Name] = "session_value"
 	return nil
@@ -399,7 +399,7 @@ func (c *exampleEventColumn) Implements() Interface {
 	}
 }
 
-func (c *exampleEventColumn) Write(event *Event) error {
+func (c *exampleEventColumn) Write(event *Event) D8AColumnWriteError {
 	event.Values["example_event_id"] = "test_value"
 	return nil
 }
@@ -426,7 +426,7 @@ func (c *exampleSessionColumn) Implements() Interface {
 	}
 }
 
-func (c *exampleSessionColumn) Write(session *Session) error {
+func (c *exampleSessionColumn) Write(session *Session) D8AColumnWriteError {
 	session.Values["example_session_id"] = "test_value"
 	return nil
 }

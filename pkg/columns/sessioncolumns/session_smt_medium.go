@@ -10,7 +10,7 @@ var SessionMediumColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionMedium.ID,
 	columns.CoreInterfaces.SessionMedium.Field,
 	0,
-	func(e *schema.Event) (any, error) {
+	func(e *schema.Event) (any, schema.D8AColumnWriteError) {
 		return ReadSessionSourceMediumTerm(e).Medium, nil
 	},
 	func(e *schema.Event) bool { return true }, // first event is fine

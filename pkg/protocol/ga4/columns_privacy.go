@@ -18,7 +18,7 @@ func parseBooleanFromQueryParamOrNilColumn(
 	return columns.NewSimpleEventColumn(
 		interfaceID,
 		field,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			p := event.BoundHit.MustParsedRequest().QueryParams.Get(queryParam)
 			if p == "" {
 				return nil, nil // nolint:nilnil // nil is valid

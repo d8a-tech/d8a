@@ -2,6 +2,7 @@ package protosessions
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"time"
 
@@ -736,7 +737,7 @@ func (o *Orchestrator) closeBatch(ctx context.Context, batch [][]*hits.Hit, tota
 	err := o.closer.Close(batch)
 	o.closeHist.Record(ctx, time.Since(closeStart).Seconds())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to close batch: %w", err)
 	}
 	o.hitsClosedCounter.Add(ctx, int64(totalHits))
 	return nil

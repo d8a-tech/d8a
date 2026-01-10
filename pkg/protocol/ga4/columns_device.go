@@ -69,7 +69,7 @@ func getDeviceInfo(event *schema.Event) (*devicedetector.DeviceInfo, error) {
 var deviceCategoryColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.DeviceCategory.ID,
 	columns.CoreInterfaces.DeviceCategory.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		paramV := event.BoundHit.MustParsedRequest().QueryParams.Get("uamb")
 		if paramV != "" {
 			isMobile, err := util.StrToBool(paramV)
@@ -102,7 +102,7 @@ var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceMobileBrandName.ID,
 	columns.CoreInterfaces.DeviceMobileBrandName.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.GetBrandName(), nil
 	},
 	columns.WithEventColumnDocs(
@@ -115,7 +115,7 @@ var deviceMobileModelNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceMobileModelName.ID,
 	columns.CoreInterfaces.DeviceMobileModelName.Field,
 	"uam",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.Model, nil
 	},
 	columns.WithEventColumnDocs(
@@ -128,7 +128,7 @@ var deviceOperatingSystemColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceOperatingSystem.ID,
 	columns.CoreInterfaces.DeviceOperatingSystem.Field,
 	"uap",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.GetOs().Name, nil
 	},
 	columns.WithEventColumnDocs(
@@ -141,7 +141,7 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceOperatingSystemVersion.ID,
 	columns.CoreInterfaces.DeviceOperatingSystemVersion.Field,
 	"uapv",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.GetOs().Version, nil
 	},
 	columns.WithEventColumnDocs(
@@ -153,7 +153,7 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 var deviceLanguageColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.DeviceLanguage.ID,
 	columns.CoreInterfaces.DeviceLanguage.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		paramV := event.BoundHit.MustParsedRequest().QueryParams.Get("ul")
 		if paramV != "" {
 			return paramV, nil
@@ -174,7 +174,7 @@ var deviceWebBrowserColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceWebBrowser.ID,
 	columns.CoreInterfaces.DeviceWebBrowser.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.GetClient().Name, nil
 	},
 	columns.WithEventColumnDocs(
@@ -187,7 +187,7 @@ var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceWebBrowserVersion.ID,
 	columns.CoreInterfaces.DeviceWebBrowserVersion.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, error) {
+	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
 		return di.GetClient().Version, nil
 	},
 	columns.WithEventColumnDocs(

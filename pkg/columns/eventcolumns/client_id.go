@@ -10,7 +10,7 @@ import (
 var ClientIDColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventClientID.ID,
 	columns.CoreInterfaces.EventClientID.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return string(event.BoundHit.ClientID), nil
 	},
 	columns.WithEventColumnDocs(

@@ -10,9 +10,9 @@ import (
 var EventNameColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventName.ID,
 	columns.CoreInterfaces.EventName.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		if event.BoundHit.EventName == "" {
-			return nil, columns.NewBrokenEventError("event name is empty")
+			return nil, schema.NewBrokenEventError("event name is empty")
 		}
 		return event.BoundHit.EventName, nil
 	},

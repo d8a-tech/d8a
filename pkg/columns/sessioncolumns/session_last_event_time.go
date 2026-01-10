@@ -9,9 +9,9 @@ import (
 var LastEventTimeColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionLastEventTime.ID,
 	columns.CoreInterfaces.SessionLastEventTime.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		if len(session.Events) == 0 {
-			return nil, columns.NewBrokenSessionError("session has no events")
+			return nil, schema.NewBrokenSessionError("session has no events")
 		}
 		return session.Events[len(session.Events)-1].BoundHit.MustParsedRequest().ServerReceivedTime.Unix(), nil
 	},

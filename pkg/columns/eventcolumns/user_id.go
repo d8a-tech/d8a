@@ -10,7 +10,7 @@ import (
 var UserIDColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventUserID.ID,
 	columns.CoreInterfaces.EventUserID.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		if event.BoundHit.UserID == nil {
 			return nil, nil // nolint:nilnil // nil is valid for user ID
 		}

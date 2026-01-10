@@ -1,9 +1,6 @@
 package sessioncolumns
 
 import (
-	"errors"
-	"fmt"
-
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -12,13 +9,13 @@ import (
 var SessionIDColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionID.ID,
 	columns.CoreInterfaces.SessionID.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		if len(session.Events) == 0 {
-			return nil, fmt.Errorf("session has no events")
+			return nil, schema.NewBrokenSessionError("session has no events")
 		}
 		firstEventID, ok := session.Events[0].Values[columns.CoreInterfaces.EventID.Field.Name]
 		if !ok {
-			return nil, errors.New("first event doesn't have ID")
+			return nil, schema.NewBrokenSessionError("first event doesn't have ID")
 		}
 		return firstEventID, nil
 	},
