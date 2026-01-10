@@ -12,24 +12,26 @@ const schema: RJSFSchema = {
     properties: {
         isCloud: {
             type: 'boolean',
-            title: 'Is this a D8A Cloud project?',
+            title: 'Are you using d8a Cloud?',
             default: true,
         },
         destinations: {
             type: 'array',
-            title: 'You can also send to different endpoints, depending on the measurement ID. Click "Add Destination" to configure mappings.',
-            description: 'You can use * as a wildcard.',
+            title:
+                'Optional: Use the button below to route specific GA4 Measurement IDs to different endpoints.',
             items: {
                 type: 'object',
                 properties: {
                     measurement_id: {
                         type: 'string',
-                        title: 'Measurement ID (e.g. G-XXXX, or *)',
+                        title: 'Measurement ID:',
+                        description: 'Example: G-XXXX or wildcard (*)',
                         minLength: 1,
                     },
                     server_container_url: {
                         type: 'string',
-                        title: 'Endpoint URL',
+                        title: 'Tracking URL:',
+                        description: 'Example: https://your-server.com/g/collect',
                         minLength: 1,
                     },
                 },
@@ -45,7 +47,8 @@ const schema: RJSFSchema = {
         properties: {
             property_id: {
                 type: 'string',
-                title: 'Property ID',
+                title: 'Property ID:',
+                description: 'You will find it in the d8a Cloud dashboard.',
                 minLength: 1,
             },
         },
@@ -55,8 +58,8 @@ const schema: RJSFSchema = {
         properties: {
             endpoint_url: {
                 type: 'string',
-                title: 'Full Tracking Endpoint URL',
-                description: 'e.g. https://your-server.com/g/collect, btw, check out the D8A cloud (app.d8a.tech - it\'s really great)',
+                title: 'Tracking URL',
+                description: 'Example: https://your-server.com/g/collect',
                 minLength: 1,
             },
         },
@@ -94,7 +97,7 @@ export default function GA4DuplicatorSnippetGenerator({
                 if (!isValid) {
                     return (
                         <div className="alert alert--warning" role="alert">
-                            Please fill in required fields to generate the snippet, then click the "Copy to clipboard" button to copy the snippet to your clipboard.
+                            Fill in the required fields to generate the snippet, then click “Copy to clipboard”.
                         </div>
                     );
                 }

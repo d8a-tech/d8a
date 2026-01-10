@@ -147,6 +147,15 @@
   text-decoration: none;
 }
 
+/* Darker buttons in dark mode */
+[data-theme='dark'] .formContainer :global(.btn-add) {
+  background-color: var(--ifm-color-primary-darker);
+}
+
+[data-theme='dark'] .formContainer :global(.btn-add:hover) {
+  background-color: var(--ifm-color-primary-darkest);
+}
+
 .formContainer :global(.btn-add::after) {
   content: " Add Destination";
   margin-left: 0.4rem;
