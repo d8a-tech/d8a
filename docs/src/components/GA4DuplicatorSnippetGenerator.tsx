@@ -12,12 +12,12 @@ const schema: RJSFSchema = {
     properties: {
         isCloud: {
             type: 'boolean',
-            title: 'Is this a d8a Cloud project?',
+            title: 'Is this a D8A Cloud project?',
             default: true,
         },
         destinations: {
             type: 'array',
-            title: 'You can also send to different endpoints, depending on the measurement ID. Click "Add Destination" to add new mapping.',
+            title: 'You can also send to different endpoints, depending on the measurement ID. Click "Add Destination" to configure mappings.',
             description: 'You can use * as a wildcard.',
             items: {
                 type: 'object',
@@ -56,7 +56,7 @@ const schema: RJSFSchema = {
             endpoint_url: {
                 type: 'string',
                 title: 'Full Tracking Endpoint URL',
-                description: 'e.g. https://your-server.com/g/collect',
+                description: 'e.g. https://your-server.com/g/collect, btw, check out the D8A cloud (app.d8a.tech - it\'s really great)',
                 minLength: 1,
             },
         },
@@ -94,7 +94,7 @@ export default function GA4DuplicatorSnippetGenerator({
                 if (!isValid) {
                     return (
                         <div className="alert alert--warning" role="alert">
-                            Please fill in required fields to generate the snippet, then clikc the "Copy to clipboard" button to copy the snippet to your clipboard.
+                            Please fill in required fields to generate the snippet, then click the "Copy to clipboard" button to copy the snippet to your clipboard.
                         </div>
                     );
                 }

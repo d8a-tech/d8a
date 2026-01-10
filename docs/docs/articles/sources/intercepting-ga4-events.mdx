@@ -7,8 +7,8 @@ import TOCInline from '@theme/TOCInline';
 import CodeBlock from '@theme/CodeBlock';
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-import ga4DuplicatorMin from '!!raw-loader!./duplicator/ga4-duplicator.min.js';
-import ga4Duplicator from '!!raw-loader!./duplicator/ga4-duplicator.js';
+import ga4DuplicatorMin from '!!raw-loader!./ga4-duplicator/ga4-duplicator.min.js';
+import ga4Duplicator from '!!raw-loader!./ga4-duplicator/ga4-duplicator.js';
 import GA4DuplicatorSnippetGenerator from '@site/src/components/GA4DuplicatorSnippetGenerator';
 
 
@@ -38,14 +38,10 @@ This method keeps your existing GA4 setup intact while duplicating events to a c
 3. **Add Your Interception Code**
    - Paste your custom code into the HTML field (remember to edit the line containing the tracking URL!):
 
-    :::note
-    This code duplicates all Google Analytics 4 tracking requests and redirects them to a custom endpoint while keeping the original Google Analytics functionality intact.
-    It intercepts browser API calls (XMLHttpRequest, fetch, navigator.sendBeacon, and script src assignments) that websites commonly use to send tracking data.
-    :::
 
 ### Get the tracking snippet
 
-The below code is available for audit in the "Non-minified (for auditing)" tab or in the [source code](https://github.com/d8a-tech/d8a/tree/master/js/duplicator).
+This code duplicates all Google Analytics 4 tracking requests and redirects them to a custom endpoint while keeping the original Google Analytics functionality intact. It intercepts browser API calls (XMLHttpRequest, fetch, navigator.sendBeacon, and script src assignments) that websites commonly use to send tracking data. The below code is available in production-ready, minified form or for audit in the "Non-minified (for auditing)" tab or in the [source code](https://github.com/d8a-tech/d8a/tree/master/js/ga4-duplicator).
 
 <Tabs>
 <TabItem value="minified" label="Minified (for production)" default>
@@ -58,7 +54,7 @@ The below code is available for audit in the "Non-minified (for auditing)" tab o
 
 <CodeBlock language="html">
 {`<script>
-var trackingURL = "https://global.t.d8a.tech"; // Replace it with your tracking URL
+var trackingURL = "https://global.t.d8a.tech/<property_id>/g/collect"; // Replace it with your tracking URL
 
 ${ga4Duplicator}
 
