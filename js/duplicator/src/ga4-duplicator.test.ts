@@ -200,7 +200,6 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       const duplicateUrl = fetchMock.mock.calls[1][0] as string;
       expect(duplicateUrl).toContain("my-server.com/my/custom/path");
     });
-
   });
 
   describe("XHR Interception", () => {
