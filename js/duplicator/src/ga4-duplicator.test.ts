@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import "./ga4-duplicator";
 
 describe("GA4 Duplicator Blackbox Tests", () => {
-  const SERVER_URL = "https://my-d8a-server.com/collect";
+  const TRACKING_URL = "https://my-d8a-server.com/collect";
   const GA4_URL_BASE = "https://www.google-analytics.com/g/collect";
   const GA4_QUERY = "?v=2&tid=G-12345&gtm=297&tag_exp=1";
   const GA4_URL = `${GA4_URL_BASE}${GA4_QUERY}`;
@@ -79,7 +79,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
   const initDuplicator = (options: any = {}) => {
     (window as any).createGA4Duplicator({
-      server_container_url: SERVER_URL,
+      server_container_url: TRACKING_URL,
       debug: true,
       ...options,
     });
@@ -88,7 +88,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
   const verifyDuplicateSent = (
     mockFn: any,
     callIndex: number = 0,
-    expectedUrlPart: string = SERVER_URL,
+    expectedUrlPart: string = TRACKING_URL,
     expectedTid: string = "G-12345",
   ) => {
     expect(mockFn).toHaveBeenCalled();
@@ -130,37 +130,43 @@ describe("GA4 Duplicator Blackbox Tests", () => {
     it("should route to different destinations based on tid", async () => {
       const DEST1_URL = "https://dest1.com";
       const DEST2_URL = "https://dest2.com";
+      const DEST3_URL = "https://dest3.com";
       const DEFAULT_URL = "https://default.com";
 
       initDuplicator({
         destinations: [
           { measurement_id: "G-SPECIFIC1", server_container_url: DEST1_URL },
           { measurement_id: "G-SPECIFIC2", server_container_url: DEST2_URL },
+          { measurement_id: "G-SPECIFIC3", server_container_url: DEST3_URL },
         ],
         server_container_url: DEFAULT_URL,
       });
 
       const URL1 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC1&gtm=1&tag_exp=1";
       const URL2 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC2&gtm=1&tag_exp=1";
+      const URL3 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC3&gtm=1&tag_exp=1";
       const URL_OTHER =
         "https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1";
 
       await fetch(URL1, { method: "GET" });
       await fetch(URL2, { method: "GET" });
+      await fetch(URL3, { method: "GET" });
       await fetch(URL_OTHER, { method: "GET" });
 
       // Total 6 calls: 3 original + 3 duplicates
-      expect(fetchMock).toHaveBeenCalledTimes(6);
+      expect(fetchMock).toHaveBeenCalledTimes(8);
 
       // Check duplicates (interleaved with original calls, so indices 1, 3, 5)
       verifyDuplicateSent(fetchMock, 1, DEST1_URL, "G-SPECIFIC1");
       verifyDuplicateSent(fetchMock, 3, DEST2_URL, "G-SPECIFIC2");
-      verifyDuplicateSent(fetchMock, 5, DEFAULT_URL, "G-OTHER");
+      verifyDuplicateSent(fetchMock, 5, DEST3_URL, "G-SPECIFIC3");
+      verifyDuplicateSent(fetchMock, 7, DEFAULT_URL, "G-OTHER");
     });
 
-    it("should use the provided server_container_url including /g/collect", async () => {
+    it("should use the provided server_container_url including /g/collect (cloud case)", async () => {
       // given
-      const ORIGIN_ONLY = "https://global.t.d8a.tech/g/collect";
+      const ORIGIN_ONLY =
+        "https://global.t.d8a.tech/3f12cc9c-f9bf-4dab-b22e-8c41ec1a1157/g/collect";
       initDuplicator({ server_container_url: ORIGIN_ONLY });
 
       // when
@@ -169,7 +175,23 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       // then
       expect(fetchMock).toHaveBeenCalledTimes(2);
       const duplicateUrl = fetchMock.mock.calls[1][0] as string;
-      expect(duplicateUrl).toContain("global.t.d8a.tech/g/collect");
+      expect(duplicateUrl).toContain(
+        "global.t.d8a.tech/3f12cc9c-f9bf-4dab-b22e-8c41ec1a1157/g/collect",
+      );
+    });
+
+    it("should use the provided server_container_url including /g/collect (on-prem case)", async () => {
+      // given
+      const ORIGIN_ONLY = "https://example.org/g/c";
+      initDuplicator({ server_container_url: ORIGIN_ONLY });
+
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+
+      // then
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const duplicateUrl = fetchMock.mock.calls[1][0] as string;
+      expect(duplicateUrl).toContain("example.org/g/c");
     });
 
     it("should be tolerant when server_container_url already includes /g/collect", async () => {
