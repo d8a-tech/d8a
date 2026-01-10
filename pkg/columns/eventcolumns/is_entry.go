@@ -9,7 +9,7 @@ import (
 var SSEIsEntry = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSEIsEntry.ID,
 	columns.CoreInterfaces.SSEIsEntry.Field,
-	func(s *schema.Session, i int) (any, error) {
+	func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 		if len(s.Events) == 0 {
 			return nil, nil // nolint:nilnil // nil is valid for this column
 		}

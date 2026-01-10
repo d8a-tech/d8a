@@ -11,7 +11,7 @@ import (
 var genericEventParamsColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventParams.ID,
 	ProtocolInterfaces.EventParams.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		params := make([]any, 0)
 		for qpName, qpValues := range event.BoundHit.MustParsedRequest().QueryParams {
 			if name, ok := strings.CutPrefix(qpName, "ep."); ok {
@@ -246,7 +246,7 @@ var eventShippingColumn = columns.FromQueryParamEventColumn(
 var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventEcommerceShippingValue.ID,
 	ProtocolInterfaces.EventEcommerceShippingValue.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		eventName := event.Values[columns.CoreInterfaces.EventName.Field.Name]
 		if eventName != PurchaseEventType && eventName != RefundEventType {
 			return float64(0), nil

@@ -8,6 +8,9 @@ type Event struct {
 	BoundHit *hits.Hit
 	Metadata map[string]any
 	Values   map[string]any
+
+	IsBroken     bool
+	BrokenReason string
 }
 
 // NewEvent creates a new event with a bound hit and empty metadata and values.
@@ -32,6 +35,9 @@ type Session struct {
 
 	Events []*Event
 	Values map[string]any
+
+	IsBroken     bool
+	BrokenReason string
 }
 
 // NewSession creates a new session from a slice of events.

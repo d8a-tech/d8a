@@ -10,7 +10,7 @@ import (
 var EventIDColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventID.ID,
 	columns.CoreInterfaces.EventID.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return event.BoundHit.ID, nil
 	},
 	columns.WithEventColumnDocs(

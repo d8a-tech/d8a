@@ -2,8 +2,6 @@
 package eventcolumns
 
 import (
-	"errors"
-
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -13,7 +11,7 @@ import (
 var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSESessionHitNumber.ID,
 	columns.CoreInterfaces.SSESessionHitNumber.Field,
-	func(_ *schema.Session, i int) (any, error) {
+	func(_ *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 		return int64(i), nil
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
@@ -28,17 +26,17 @@ var SSESessionHitNumber = columns.NewSimpleSessionScopedEventColumn(
 var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSESessionPageNumber.ID,
 	columns.CoreInterfaces.SSESessionPageNumber.Field,
-	func(s *schema.Session, i int) (any, error) {
+	func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 		var currentPageNumber int64 = 0
 		currentPageValue, ok := s.Events[0].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
 		if !ok {
-			return nil, errors.New("invalid page location type")
+			return nil, schema.NewBrokenEventError("invalid page location type")
 		}
 		currentPage := currentPageValue
 		for idx := 0; idx <= i; idx++ {
 			candidatePageValue, ok := s.Events[idx].Values[columns.CoreInterfaces.EventPageLocation.Field.Name].(string)
 			if !ok {
-				return nil, errors.New("invalid page location type")
+				return nil, schema.NewBrokenEventError("invalid page location type")
 			}
 			if currentPage != candidatePageValue {
 				currentPageNumber++
@@ -48,7 +46,7 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 				return currentPageNumber, nil
 			}
 		}
-		return nil, errors.New("event not found in session")
+		return nil, schema.NewBrokenEventError("event not found in session")
 	},
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(

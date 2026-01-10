@@ -10,7 +10,7 @@ import (
 var TotalEventsColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionTotalEvents.ID,
 	columns.CoreInterfaces.SessionTotalEvents.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		return len(session.Events), nil
 	},
 	columns.WithSessionColumnDocs(

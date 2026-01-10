@@ -25,7 +25,7 @@ func (p *d8aProtocol) Columns() schema.Columns {
 	childColumns := p.child.Columns()
 	for i, column := range childColumns.Event {
 		if column.Implements().ID == columns.CoreInterfaces.EventTrackingProtocol.ID {
-			childColumns.Event[i] = columns.ProtocolColumn(func(_ *schema.Event) (any, error) {
+			childColumns.Event[i] = columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 				return "d8a", nil
 			})
 		}

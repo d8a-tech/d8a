@@ -11,7 +11,7 @@ import (
 var eventTimestampUTCColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventTimestampUTC.ID,
 	columns.CoreInterfaces.EventTimestampUTC.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return event.BoundHit.MustParsedRequest().ServerReceivedTime.UTC().Format(time.RFC3339), nil
 	},
 	columns.WithEventColumnDocs(
@@ -23,7 +23,7 @@ var eventTimestampUTCColumn = columns.NewSimpleEventColumn(
 var eventDateUTCColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventDateUTC.ID,
 	columns.CoreInterfaces.EventDateUTC.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return event.BoundHit.MustParsedRequest().ServerReceivedTime.UTC().Format("2006-01-02"), nil
 	},
 	columns.WithEventColumnDocs(
@@ -35,7 +35,7 @@ var eventDateUTCColumn = columns.NewSimpleEventColumn(
 var eventPageLoadHashColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventPageLoadHash.ID,
 	ProtocolInterfaces.EventPageLoadHash.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		_p := event.BoundHit.MustParsedRequest().QueryParams.Get("_p")
 		if _p == "" {
 			return nil, nil // nolint:nilnil // nil is valid

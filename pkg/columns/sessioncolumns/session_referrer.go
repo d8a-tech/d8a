@@ -9,7 +9,7 @@ import (
 var ReferrerColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionReferrer.ID,
 	columns.CoreInterfaces.SessionReferrer.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		if len(session.Events) == 0 {
 			return nil, nil // nolint:nilnil // no referrer for empty session
 		}

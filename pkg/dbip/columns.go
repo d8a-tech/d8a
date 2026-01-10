@@ -3,6 +3,7 @@ package dbip
 
 import (
 	"context"
+	"fmt"
 	"net/netip"
 	"time"
 
@@ -44,13 +45,13 @@ const geoRecordMetadataKey = "geo_record"
 func (t *GeoColumnFactory) Column(
 	column schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(event *schema.Event, record *result) (any, error),
+	getValue func(event *schema.Event, record *result) (any, schema.D8AColumnWriteError),
 	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		column,
 		field,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			// Check if the value was computed for other column in this event
 			computedRecord, ok := event.Metadata[geoRecordMetadataKey]
 			if ok {
@@ -72,12 +73,12 @@ func (t *GeoColumnFactory) Column(
 			}
 			db, err := GetMaxmindReader(t.mmdbPath)
 			if err != nil {
-				return nil, err
+				return nil, schema.NewRetryableError(fmt.Sprintf("failed to get maxmind reader: %s", err))
 			}
 			var record result
 			err = db.Lookup(ipAddress).Decode(&record)
 			if err != nil {
-				return nil, err
+				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to lookup IP address in dbip column: %s", err))
 			}
 			event.Metadata[geoRecordMetadataKey] = &record
 			t.cache.SetWithTTL(event.BoundHit.MustParsedRequest().IP, &record, 1, t.cacheConfig.TTL)
@@ -92,7 +93,9 @@ func CityColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoCity.ID,
 		columns.CoreInterfaces.GeoCity.Field,
-		func(_ *schema.Event, record *result) (any, error) { return record.City.Names.English, nil },
+		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
+			return record.City.Names.English, nil
+		},
 		columns.WithEventColumnDocs(
 			"City (Provided by DBIP)",
 			"Geolocated city name (e.g., 'New York', 'London').",
@@ -105,7 +108,9 @@ func CountryColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoCountry.ID,
 		columns.CoreInterfaces.GeoCountry.Field,
-		func(_ *schema.Event, record *result) (any, error) { return record.Country.Names.English, nil },
+		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
+			return record.Country.Names.English, nil
+		},
 		columns.WithEventColumnDocs(
 			"Country (Provided by DBIP)",
 			"Geolocated country name (e.g., 'United States', 'United Kingdom').",
@@ -118,7 +123,9 @@ func ContinentColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoContinent.ID,
 		columns.CoreInterfaces.GeoContinent.Field,
-		func(_ *schema.Event, record *result) (any, error) { return record.Continent.Names.English, nil },
+		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
+			return record.Continent.Names.English, nil
+		},
 		columns.WithEventColumnDocs(
 			"Continent (Provided by DBIP)",
 			"Geolocated continent name (e.g., 'Europe', 'North America').",
@@ -131,7 +138,7 @@ func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoRegion.ID,
 		columns.CoreInterfaces.GeoRegion.Field,
-		func(_ *schema.Event, record *result) (any, error) {
+		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
 			if len(record.Subdivisions) == 0 {
 				return nil, nil //nolint:nilnil // nil is valid
 			}

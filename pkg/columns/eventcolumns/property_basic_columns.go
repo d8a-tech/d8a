@@ -10,7 +10,7 @@ import (
 var PropertyIDColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPropertyID.ID,
 	columns.CoreInterfaces.EventPropertyID.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return event.BoundHit.PropertyID, nil
 	},
 	columns.WithEventColumnDocs(
@@ -24,7 +24,7 @@ func PropertyNameColumn(psr properties.SettingsRegistry) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		columns.CoreInterfaces.EventPropertyName.ID,
 		columns.CoreInterfaces.EventPropertyName.Field,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			property, err := psr.GetByPropertyID(event.BoundHit.PropertyID)
 			if err != nil {
 				return "", nil

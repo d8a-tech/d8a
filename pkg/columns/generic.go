@@ -2,7 +2,6 @@
 package columns
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"slices"
@@ -20,8 +19,8 @@ type simpleSessionColumn struct {
 	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
-	castFunc  func(any) (any, error)
-	write     func(*simpleSessionColumn, *schema.Session) error
+	castFunc  func(any) (any, schema.D8AColumnWriteError)
+	write     func(*simpleSessionColumn, *schema.Session) schema.D8AColumnWriteError
 }
 
 func (c *simpleSessionColumn) Docs() schema.Documentation {
@@ -51,7 +50,7 @@ func (c *simpleSessionColumn) DependsOn() []schema.DependsOnEntry {
 	return c.dependsOn
 }
 
-func (c *simpleSessionColumn) Write(session *schema.Session) error {
+func (c *simpleSessionColumn) Write(session *schema.Session) schema.D8AColumnWriteError {
 	return c.write(c, session)
 }
 
@@ -61,7 +60,7 @@ func (c *simpleSessionColumn) Write(session *schema.Session) error {
 func NewSimpleSessionColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(*schema.Session) (any, error),
+	getValue func(*schema.Session) (any, schema.D8AColumnWriteError),
 	options ...SessionColumnOptions,
 ) schema.SessionColumn {
 	c := &simpleSessionColumn{
@@ -73,7 +72,7 @@ func NewSimpleSessionColumn(
 			InterfaceID: string(id),
 		},
 	}
-	c.write = func(c *simpleSessionColumn, session *schema.Session) error {
+	c.write = func(c *simpleSessionColumn, session *schema.Session) schema.D8AColumnWriteError {
 		value, err := getValue(session)
 		if err != nil {
 			return err
@@ -89,7 +88,7 @@ func NewSimpleSessionColumn(
 		option(c)
 	}
 	if c.castFunc == nil {
-		c.castFunc = func(value any) (any, error) {
+		c.castFunc = func(value any) (any, schema.D8AColumnWriteError) {
 			return value, nil
 		}
 	}
@@ -103,7 +102,7 @@ func FromQueryParamSessionColumn(
 	queryParam string,
 	options ...SessionColumnOptions,
 ) schema.SessionColumn {
-	return NewSimpleSessionColumn(id, field, func(session *schema.Session) (any, error) {
+	return NewSimpleSessionColumn(id, field, func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		if len(session.Events) == 0 {
 			return nil, nil
 		}
@@ -116,8 +115,8 @@ func FromQueryParamSessionColumn(
 	}, options...)
 }
 
-func ExctractFieldValue(field string) func(*schema.Event) (any, error) {
-	return func(event *schema.Event) (any, error) {
+func ExctractFieldValue(field string) func(*schema.Event) (any, schema.D8AColumnWriteError) {
+	return func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		v, ok := event.Values[field]
 		if !ok {
 			return nil, nil // nolint:nilnil // nil is valid for this column
@@ -133,14 +132,14 @@ func NthEventMatchingPredicateValueColumn(
 	columnID schema.InterfaceID,
 	field *arrow.Field,
 	n int,
-	extract func(*schema.Event) (any, error),
+	extract func(*schema.Event) (any, schema.D8AColumnWriteError),
 	matches func(*schema.Event) bool,
 	options ...SessionColumnOptions,
 ) schema.SessionColumn {
 	return NewSimpleSessionColumn(
 		columnID,
 		field,
-		func(session *schema.Session) (any, error) {
+		func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 			matchingEvents := make([]*schema.Event, 0)
 			for _, event := range session.Events {
 				if matches(event) {
@@ -169,7 +168,7 @@ func NthEventMatchingPredicateValueColumn(
 func URLElementColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(e *schema.Event, url *url.URL) (any, error),
+	getValue func(e *schema.Event, url *url.URL) (any, schema.D8AColumnWriteError),
 	options ...EventColumnOptions,
 ) schema.EventColumn {
 	options = append(options,
@@ -184,7 +183,7 @@ func URLElementColumn(
 	return NewSimpleEventColumn(
 		id,
 		field,
-		func(e *schema.Event) (any, error) {
+		func(e *schema.Event) (any, schema.D8AColumnWriteError) {
 			pageLocation, ok := e.Values[CoreInterfaces.EventPageLocation.Field.Name]
 			if !ok {
 				return nil, nil
@@ -195,7 +194,7 @@ func URLElementColumn(
 			}
 			parsed, err := url.Parse(pageLocationStr)
 			if err != nil {
-				return nil, err
+				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to parse page location: %s", err))
 			}
 			return getValue(e, parsed)
 		},
@@ -221,7 +220,7 @@ func WithSessionColumnRequired(required bool) SessionColumnOptions {
 }
 
 // WithSessionColumnCast sets the cast function for a session column
-func WithSessionColumnCast(castFunc func(any) (any, error)) SessionColumnOptions {
+func WithSessionColumnCast(castFunc func(any) (any, schema.D8AColumnWriteError)) SessionColumnOptions {
 	return func(c *simpleSessionColumn) {
 		c.castFunc = castFunc
 	}
@@ -240,8 +239,8 @@ type simpleEventColumn struct {
 	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
-	castFunc  func(any) (any, error)
-	write     func(*simpleEventColumn, *schema.Event) error
+	castFunc  func(any) (any, schema.D8AColumnWriteError)
+	write     func(*simpleEventColumn, *schema.Event) schema.D8AColumnWriteError
 }
 
 func (c *simpleEventColumn) Docs() schema.Documentation {
@@ -271,7 +270,7 @@ func (c *simpleEventColumn) DependsOn() []schema.DependsOnEntry {
 	return c.dependsOn
 }
 
-func (c *simpleEventColumn) Write(event *schema.Event) error {
+func (c *simpleEventColumn) Write(event *schema.Event) schema.D8AColumnWriteError {
 	return c.write(c, event)
 }
 
@@ -281,7 +280,7 @@ func (c *simpleEventColumn) Write(event *schema.Event) error {
 func NewSimpleEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(*schema.Event) (any, error),
+	getValue func(*schema.Event) (any, schema.D8AColumnWriteError),
 	options ...EventColumnOptions,
 ) schema.EventColumn {
 	c := &simpleEventColumn{
@@ -293,7 +292,7 @@ func NewSimpleEventColumn(
 			InterfaceID: string(id),
 		},
 	}
-	c.write = func(c *simpleEventColumn, event *schema.Event) error {
+	c.write = func(c *simpleEventColumn, event *schema.Event) schema.D8AColumnWriteError {
 		value, err := getValue(event)
 		if err != nil {
 			return err
@@ -309,7 +308,7 @@ func NewSimpleEventColumn(
 		option(c)
 	}
 	if c.castFunc == nil {
-		c.castFunc = func(value any) (any, error) {
+		c.castFunc = func(value any) (any, schema.D8AColumnWriteError) {
 			return value, nil
 		}
 	}
@@ -323,7 +322,7 @@ func FromQueryParamEventColumn(
 	queryParam string,
 	options ...EventColumnOptions,
 ) schema.EventColumn {
-	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
+	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		if len(event.BoundHit.MustParsedRequest().QueryParams) == 0 {
 			return nil, nil
 		}
@@ -337,7 +336,7 @@ func AlwaysNilEventColumn(
 	field *arrow.Field,
 	options ...EventColumnOptions,
 ) schema.EventColumn {
-	return NewSimpleEventColumn(id, field, func(_ *schema.Event) (any, error) {
+	return NewSimpleEventColumn(id, field, func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 		return nil, nil // nolint:nilnil // nil is valid
 	}, options...)
 }
@@ -358,7 +357,7 @@ func FromPageURLParamEventColumn(
 		Interface:        CoreInterfaces.EventPageLocation.ID,
 		GreaterOrEqualTo: "1.0.0",
 	}))
-	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, error) {
+	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		// Try to read from original URL in metadata first (if parameters were stripped)
 		originalURL := ReadOriginalPageLocation(event)
 		if originalURL == "" {
@@ -375,7 +374,7 @@ func FromPageURLParamEventColumn(
 		}
 		parsed, err := url.Parse(originalURL)
 		if err != nil {
-			return nil, err
+			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to parse original URL: %s", err))
 		}
 		return parsed.Query().Get(param), nil
 	}, options...)
@@ -399,7 +398,7 @@ func WithEventColumnRequired(required bool) EventColumnOptions {
 }
 
 // WithEventColumnCast sets the cast function for an event column
-func WithEventColumnCast(castFunc func(any) (any, error)) EventColumnOptions {
+func WithEventColumnCast(castFunc func(any) (any, schema.D8AColumnWriteError)) EventColumnOptions {
 	return func(c *simpleEventColumn) {
 		c.castFunc = castFunc
 	}
@@ -413,8 +412,8 @@ func WithEventColumnDocs(displayName, description string) EventColumnOptions {
 }
 
 // CastToInt64OrNil casts a value to int64 or returns nil if conversion fails or value is empty
-func CastToInt64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
-	return func(value any) (any, error) {
+func CastToInt64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
 			logrus.Debugf("CastToInt64OrNil: %s: value is not a string: %v", columnID, value)
@@ -453,8 +452,8 @@ func CastToInt64OrZero(columnID schema.InterfaceID) func(any) (any, error) {
 }
 
 // CastToFloat64OrNil casts a value to float64 or returns nil if conversion fails or value is empty
-func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
-	return func(value any) (any, error) {
+func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
 			logrus.Debugf("CastToFloat64OrNil: %s: value is not a string: %v", columnID, value)
@@ -473,8 +472,8 @@ func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, error) {
 }
 
 // CastToBool casts a value to bool considering various truthy representations
-func CastToBool(_ schema.InterfaceID) func(any) (any, error) {
-	return func(value any) (any, error) {
+func CastToBool(_ schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		// Handle boolean values directly
 		if boolVal, ok := value.(bool); ok {
 			return boolVal, nil
@@ -489,7 +488,7 @@ func CastToBool(_ schema.InterfaceID) func(any) (any, error) {
 		// Use util.StrToBool for string conversion
 		boolVal, err := util.StrToBool(valueStr)
 		if err != nil {
-			return false, fmt.Errorf("failed to cast %s to bool: %w", valueStr, err)
+			return false, schema.NewBrokenEventError(fmt.Sprintf("failed to cast %s to bool: %s", valueStr, err.Error()))
 		}
 		return boolVal, nil
 	}
@@ -516,11 +515,11 @@ func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
 }
 
 // CastToString casts a value to string or returns nil if conversion fails
-func CastToString(i schema.InterfaceID) func(any) (any, error) {
-	return func(value any) (any, error) {
+func CastToString(i schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
-			return nil, fmt.Errorf("%s: value is not a string: %v", i, value)
+			return nil, schema.NewBrokenEventError(fmt.Sprintf("%s: value is not a string: %v", i, value))
 		}
 		if len(valueStr) > MaxStringLength {
 			return valueStr[:MaxStringLength], nil
@@ -530,8 +529,8 @@ func CastToString(i schema.InterfaceID) func(any) (any, error) {
 }
 
 // NilIfError returns nil if the error is not nil
-func NilIfError(i func(any) (any, error)) func(any) (any, error) {
-	return func(value any) (any, error) {
+func NilIfError(i func(any) (any, schema.D8AColumnWriteError)) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		value, err := i(value)
 		if err != nil {
 			return nil, nil
@@ -541,15 +540,15 @@ func NilIfError(i func(any) (any, error)) func(any) (any, error) {
 }
 
 // StrNilIfErrorOrEmpty returns nil if the error is not nil or the value is an empty string
-func StrNilIfErrorOrEmpty(i func(any) (any, error)) func(any) (any, error) {
-	return func(value any) (any, error) {
+func StrNilIfErrorOrEmpty(i func(any) (any, schema.D8AColumnWriteError)) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		value, err := i(value)
 		if err != nil {
-			return nil, err
+			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to cast value: %s", err))
 		}
 		valueStr, ok := value.(string)
 		if !ok {
-			return nil, errors.New("StrNilIfErrorOrEmpty: value is not a string")
+			return nil, schema.NewBrokenEventError("value is not a string")
 		}
 		if valueStr == "" {
 			return nil, nil
@@ -567,8 +566,8 @@ type simpleSessionScopedEventColumn struct {
 	docs      schema.Documentation
 	dependsOn []schema.DependsOnEntry
 	required  bool
-	castFunc  func(any) (any, error)
-	write     func(*simpleSessionScopedEventColumn, *schema.Session, int) error
+	castFunc  func(any) (any, schema.D8AColumnWriteError)
+	write     func(*simpleSessionScopedEventColumn, *schema.Session, int) schema.D8AColumnWriteError
 }
 
 func (c *simpleSessionScopedEventColumn) Docs() schema.Documentation {
@@ -587,7 +586,7 @@ func (c *simpleSessionScopedEventColumn) DependsOn() []schema.DependsOnEntry {
 	return c.dependsOn
 }
 
-func (c *simpleSessionScopedEventColumn) Write(session *schema.Session, i int) error {
+func (c *simpleSessionScopedEventColumn) Write(session *schema.Session, i int) schema.D8AColumnWriteError {
 	return c.write(c, session, i)
 }
 
@@ -609,7 +608,10 @@ func WithSessionScopedEventColumnRequired(required bool) SessionScopedEventColum
 }
 
 // WithSessionScopedEventColumnCast sets the cast function for a session-scoped event column
-func WithSessionScopedEventColumnCast(castFunc func(any) (any, error)) SessionScopedEventColumnOptions {
+func WithSessionScopedEventColumnCast(
+	columnID schema.InterfaceID,
+	castFunc func(any) (any, schema.D8AColumnWriteError),
+) SessionScopedEventColumnOptions {
 	return func(c *simpleSessionScopedEventColumn) {
 		c.castFunc = castFunc
 	}
@@ -628,7 +630,7 @@ func WithSessionScopedEventColumnDocs(displayName, description string) SessionSc
 func NewSimpleSessionScopedEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(*schema.Session, int) (any, error),
+	getValue func(*schema.Session, int) (any, schema.D8AColumnWriteError),
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
 	c := &simpleSessionScopedEventColumn{
@@ -640,7 +642,7 @@ func NewSimpleSessionScopedEventColumn(
 			InterfaceID: string(id),
 		},
 	}
-	c.write = func(c *simpleSessionScopedEventColumn, session *schema.Session, i int) error {
+	c.write = func(c *simpleSessionScopedEventColumn, session *schema.Session, i int) schema.D8AColumnWriteError {
 		value, err := getValue(session, i)
 		if err != nil {
 			return err
@@ -656,7 +658,7 @@ func NewSimpleSessionScopedEventColumn(
 		option(c)
 	}
 	if c.castFunc == nil {
-		c.castFunc = func(value any) (any, error) { return value, nil }
+		c.castFunc = func(value any) (any, schema.D8AColumnWriteError) { return value, nil }
 	}
 	if c.required {
 		field.Nullable = false
@@ -726,7 +728,7 @@ func NewValueTransitionColumn(
 	return NewSimpleSessionScopedEventColumn(
 		id,
 		field,
-		func(s *schema.Session, i int) (any, error) {
+		func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 			var finalChain []any
 			finalChainAny, ok := s.Metadata[cacheKey]
 			if ok {
@@ -793,7 +795,7 @@ func NewFirstLastMatchingEventColumn(
 	return NewSimpleSessionScopedEventColumn(
 		id,
 		field,
-		func(s *schema.Session, i int) (any, error) {
+		func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 			var result []int64
 			resultAny, ok := s.Metadata[cacheKey]
 			if ok {
@@ -847,7 +849,7 @@ func NewTimeOnPageColumn(
 	return NewSimpleSessionScopedEventColumn(
 		id,
 		field,
-		func(s *schema.Session, i int) (any, error) {
+		func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 			if len(s.Events) == 0 {
 				return nil, nil // nolint:nilnil // nil is valid for this column
 			}
@@ -936,7 +938,7 @@ func TotalEventsOfGivenNameColumn(
 	return NewSimpleSessionColumn(
 		columnID,
 		field,
-		func(session *schema.Session) (any, error) {
+		func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 			totalEvents := 0
 			for _, event := range session.Events {
 				valueAsString, ok := event.Values[CoreInterfaces.EventName.Field.Name].(string)
@@ -972,7 +974,7 @@ func UniqueEventsOfGivenNameColumn(
 	return NewSimpleSessionColumn(
 		columnID,
 		field,
-		func(session *schema.Session) (any, error) {
+		func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 			uniqueEvents := make(map[string]bool)
 			for _, event := range session.Events {
 				valueAsString, ok := event.Values[CoreInterfaces.EventName.Field.Name].(string)
@@ -998,7 +1000,7 @@ func UniqueEventsOfGivenNameColumn(
 }
 
 // ProtocolColumn creates a new event column that returns the protocol of the event.
-func ProtocolColumn(iv func(_ *schema.Event) (any, error)) schema.EventColumn {
+func ProtocolColumn(iv func(_ *schema.Event) (any, schema.D8AColumnWriteError)) schema.EventColumn {
 	return NewSimpleEventColumn(
 		CoreInterfaces.EventTrackingProtocol.ID,
 		CoreInterfaces.EventTrackingProtocol.Field,

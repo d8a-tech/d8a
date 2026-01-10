@@ -170,7 +170,9 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 
 	m.sessionsProcessedCounter.Add(ctx, int64(len(sessions)))
 
-	perTableRows, err := NewBatchingSchemaLayout(writeDeps.layout).ToRows(writeDeps.columns, allSplitSessions...)
+	perTableRows, err := NewBrokenFilteringSchemaLayout(
+		NewBatchingSchemaLayout(writeDeps.layout),
+	).ToRows(writeDeps.columns, allSplitSessions...)
 	if err != nil {
 		return err
 	}
@@ -235,21 +237,27 @@ func (m *sessionWriterImpl) prepareDeps(sessions []*schema.Session) (*writeDeps,
 }
 
 func (m *sessionWriterImpl) writeColumnValuesAndSplit(
-	columns schema.Columns,
+	theColumns schema.Columns,
 	session *schema.Session,
 ) ([]*schema.Session, error) {
 	ctx := m.parentCtx
-
 	eventColumnsStart := time.Now()
-	for _, column := range columns.Event {
+	for _, column := range theColumns.Event {
 		for _, event := range session.Events {
 			if err := column.Write(event); err != nil {
+				if !err.IsRetryable() {
+					event.IsBroken = true
+					event.BrokenReason = fmt.Sprintf(
+						"failed to write event column %s: %s",
+						column.Implements().Field.Name,
+						err.Error())
+					break // we may break as the event will be filtered from dwh write
+				}
 				return nil, err
 			}
 		}
 	}
 	m.eventColumnsHist.Record(ctx, time.Since(eventColumnsStart).Seconds())
-
 	splitterObj, err := m.splitterRegistry.Splitter(session.PropertyID)
 	if err != nil {
 		return nil, err
@@ -260,27 +268,40 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	if err != nil {
 		return nil, err
 	}
-
 	for _, splitSession := range splitSessions {
 		sessionScopedEventStart := time.Now()
-		for _, column := range columns.SessionScopedEvent {
+		for _, column := range theColumns.SessionScopedEvent {
 			for i := range splitSession.Events {
 				if err := column.Write(splitSession, i); err != nil {
+					if !err.IsRetryable() {
+						splitSession.IsBroken = true
+						splitSession.BrokenReason = fmt.Sprintf(
+							"failed to write session-scoped event column %s: %s",
+							column.Implements().Field.Name,
+							err.Error())
+						break
+					}
 					return nil, err
 				}
 			}
 		}
 		m.sessionScopedEventHist.Record(ctx, time.Since(sessionScopedEventStart).Seconds())
-
 		sessionColumnsStart := time.Now()
-		for _, column := range columns.Session {
+		for _, column := range theColumns.Session {
 			if err := column.Write(splitSession); err != nil {
+				if !err.IsRetryable() {
+					splitSession.IsBroken = true
+					splitSession.BrokenReason = fmt.Sprintf(
+						"failed to write session column %s: %s",
+						column.Implements().Field.Name,
+						err.Error())
+					break // we may break as the session will be filtered from dwh write
+				}
 				return nil, err
 			}
 		}
 		m.sessionColumnsHist.Record(ctx, time.Since(sessionColumnsStart).Seconds())
 	}
-
 	return splitSessions, nil
 }
 

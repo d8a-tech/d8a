@@ -1,6 +1,7 @@
 package ga4
 
 import (
+	"fmt"
 	"net/url"
 	"strconv"
 
@@ -33,7 +34,7 @@ var eventPageReferrerColumn = columns.FromQueryParamEventColumn(
 var eventPagePathColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPagePath.ID,
 	columns.CoreInterfaces.EventPagePath.Field,
-	func(_ *schema.Event, url *url.URL) (any, error) {
+	func(_ *schema.Event, url *url.URL) (any, schema.D8AColumnWriteError) {
 		return url.Path, nil
 	},
 	columns.WithEventColumnDocs(
@@ -45,7 +46,7 @@ var eventPagePathColumn = columns.URLElementColumn(
 var eventPageLocationColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPageLocation.ID,
 	columns.CoreInterfaces.EventPageLocation.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		if len(event.BoundHit.MustParsedRequest().QueryParams) == 0 {
 			return "", nil
 		}
@@ -55,7 +56,7 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 		}
 		cleanedURL, _, err := columns.StripExcludedParams(originalURL)
 		if err != nil {
-			return nil, err
+			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to strip excluded params: %s", err))
 		}
 		columns.WriteOriginalPageLocation(event, originalURL)
 		return cleanedURL, nil
@@ -70,7 +71,7 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 var eventPageHostnameColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPageHostname.ID,
 	columns.CoreInterfaces.EventPageHostname.Field,
-	func(_ *schema.Event, url *url.URL) (any, error) {
+	func(_ *schema.Event, url *url.URL) (any, schema.D8AColumnWriteError) {
 		return url.Hostname(), nil
 	},
 	columns.WithEventColumnDocs(
@@ -91,14 +92,14 @@ var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var eventTrackingProtocolColumn = columns.ProtocolColumn(func(_ *schema.Event) (any, error) {
+var eventTrackingProtocolColumn = columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 	return "ga4_gtag", nil
 })
 
 var eventPlatformColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPlatform.ID,
 	columns.CoreInterfaces.EventPlatform.Field,
-	func(_ *schema.Event) (any, error) {
+	func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 		return columns.EventPlatformWeb, nil
 	},
 	columns.WithEventColumnDocs(
@@ -148,7 +149,7 @@ var eventGa4SessionNumberColumn = columns.FromQueryParamEventColumn(
 var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionIsEngaged.ID,
 	ProtocolInterfaces.SessionIsEngaged.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		// Check if ANY event in the session is engaged
 		for _, event := range session.Events {
 			if event.BoundHit.MustParsedRequest().QueryParams == nil {
@@ -180,7 +181,7 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionReturningUser.ID,
 	ProtocolInterfaces.SessionReturningUser.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		// Mark as returning if ANY event in the session has GA session number 2+.
 		for _, event := range session.Events {
 			raw, ok := event.Values[ProtocolInterfaces.GaSessionNumber.Field.Name]
@@ -213,7 +214,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionAbandonedCart.ID,
 	ProtocolInterfaces.SessionAbandonedCart.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		// Find the latest purchase event index
 		latestPurchaseIndex := -1
 		// Find all add_to_cart event indices

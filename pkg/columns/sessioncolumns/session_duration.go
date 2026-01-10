@@ -10,25 +10,25 @@ import (
 var DurationColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionDuration.ID,
 	columns.CoreInterfaces.SessionDuration.Field,
-	func(session *schema.Session) (any, error) {
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		lastEventTime, ok := session.Values[columns.CoreInterfaces.SessionLastEventTime.Field.Name]
 		if !ok {
-			return nil, columns.NewBrokenSessionError("session last event time not found")
+			return nil, schema.NewBrokenSessionError("session last event time not found")
 		}
 		firstEventTime, ok := session.Values[columns.CoreInterfaces.SessionFirstEventTime.Field.Name]
 		if !ok {
-			return nil, columns.NewBrokenSessionError("session first event time not found")
+			return nil, schema.NewBrokenSessionError("session first event time not found")
 		}
 		lastEventTimeInt, ok := lastEventTime.(int64)
 		if !ok {
-			return nil, columns.NewBrokenSessionError("session last event time is not an int64")
+			return nil, schema.NewBrokenSessionError("session last event time is not an int64")
 		}
 		firstEventTimeInt, ok := firstEventTime.(int64)
 		if !ok {
-			return nil, columns.NewBrokenSessionError("session first event time is not an int64")
+			return nil, schema.NewBrokenSessionError("session first event time is not an int64")
 		}
 		if lastEventTimeInt < firstEventTimeInt {
-			return nil, columns.NewBrokenSessionError("session last event time is earlier than session first event time")
+			return nil, schema.NewBrokenSessionError("session last event time is earlier than session first event time")
 		}
 		return lastEventTimeInt - firstEventTimeInt, nil
 	}, columns.WithSessionColumnDependsOn(

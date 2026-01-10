@@ -1,6 +1,7 @@
 package ga4
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -31,14 +32,14 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		ProtocolInterfaces.EventItems.ID,
 		ProtocolInterfaces.EventItems.Field,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			var items []any
 			for qp, values := range event.BoundHit.MustParsedRequest().QueryParams {
 				if strings.HasPrefix(qp, "pr") {
 					for _, value := range values {
 						if item := parseItem(event, value); item != nil {
 							if err := addCurrencyRelatedFields(converter, event, item); err != nil {
-								return nil, err
+								return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to add currency related fields: %s", err))
 							}
 							items = append(items, item)
 						}
@@ -252,7 +253,7 @@ func parseItem(event *schema.Event, itemStr string) map[string]any { // nolint:f
 
 // ItemValueFunc computes a numeric value for a single item in an event.
 // It is used to aggregate values across all items of the event.
-type ItemValueFunc[T int64 | float64] func(event *schema.Event, item map[string]any) (T, error)
+type ItemValueFunc[T int64 | float64] func(event *schema.Event, item map[string]any) (T, schema.D8AColumnWriteError)
 
 // NewItemsBasedEventColumn creates an event column that aggregates values
 // across items by applying the provided ItemValueFunc to each item and summing.
@@ -271,7 +272,7 @@ func NewItemsBasedEventColumn[T int64 | float64](
 	return columns.NewSimpleEventColumn(
 		interfaceID,
 		interfaceField,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			var value T
 			items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
 			if items == nil {
@@ -302,7 +303,7 @@ func NewItemsBasedEventColumn[T int64 | float64](
 var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn(
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
 	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
-	func(event *schema.Event, item map[string]any) (float64, error) {
+	func(event *schema.Event, item map[string]any) (float64, schema.D8AColumnWriteError) {
 		if event.Values[columns.CoreInterfaces.EventName.Field.Name] != PurchaseEventType {
 			return float64(0), nil
 		}
@@ -325,7 +326,7 @@ var eventEcommercePurchaseRevenueColumn = NewItemsBasedEventColumn(
 var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn(
 	ProtocolInterfaces.EventEcommerceRefundValue.ID,
 	ProtocolInterfaces.EventEcommerceRefundValue.Field,
-	func(event *schema.Event, item map[string]any) (float64, error) {
+	func(event *schema.Event, item map[string]any) (float64, schema.D8AColumnWriteError) {
 		if event.Values[columns.CoreInterfaces.EventName.Field.Name] != RefundEventType {
 			return float64(0), nil
 		}
@@ -347,7 +348,7 @@ var eventEcommerceRefundValueColumn = NewItemsBasedEventColumn(
 var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventEcommerceUniqueItems.ID,
 	ProtocolInterfaces.EventEcommerceUniqueItems.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 
 		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
 		if items == nil {
@@ -401,7 +402,7 @@ var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
 var eventEcommerceItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
 	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.ID,
 	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		items := event.Values[ProtocolInterfaces.EventItems.Field.Name]
 		if items == nil {
 			return int64(0), nil

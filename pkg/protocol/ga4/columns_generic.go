@@ -14,13 +14,13 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 	interfaceID schema.InterfaceID,
 	field *arrow.Field,
 	queryParam string,
-	deviceInfoFunc func(event *schema.Event, di *devicedetector.DeviceInfo) (any, error),
+	deviceInfoFunc func(event *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError),
 	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
 		interfaceID,
 		field,
-		func(event *schema.Event) (any, error) {
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 			if queryParam != "" {
 				paramV := event.BoundHit.MustParsedRequest().QueryParams.Get(queryParam)
 				if paramV != "" {

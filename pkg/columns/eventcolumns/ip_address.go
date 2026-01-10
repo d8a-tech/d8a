@@ -10,7 +10,7 @@ import (
 var IPAddressColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventIPAddress.ID,
 	columns.CoreInterfaces.EventIPAddress.Field,
-	func(event *schema.Event) (any, error) {
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		return event.BoundHit.MustParsedRequest().IP, nil
 	},
 	columns.WithEventColumnDocs(
