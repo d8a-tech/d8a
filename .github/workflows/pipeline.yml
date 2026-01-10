@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: [web-tracker, duplicator]
+        project: [web-tracker, ga4-duplicator]
 
     steps:
       - uses: actions/checkout@v4
