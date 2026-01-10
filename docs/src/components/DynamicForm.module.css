@@ -1,0 +1,210 @@
+/* DynamicForm.module.css */
+
+/* Form Groups */
+.formContainer :global(.form-group) {
+  margin-bottom: 1.5rem;
+}
+
+.formContainer :global(.rjsf .errors) {
+  display: none;
+}
+
+.formContainer :global(.rjsf .error-detail) {
+  color: var(--ifm-color-danger);
+}
+
+.formContainer :global(.rjsf .config-error .error-detail .bs-callout) {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.formContainer :global(.form-group > label) {
+  display: block;
+  font-weight: var(--ifm-font-weight-bold);
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-content);
+}
+
+.formContainer :global(.checkbox) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.formContainer :global(.checkbox label) {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: var(--ifm-font-weight-normal);
+  cursor: pointer;
+}
+
+.formContainer :global(.checkbox input[type="checkbox"]) {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--ifm-color-primary);
+}
+
+/* Text Inputs */
+.formContainer :global(input[type="text"]),
+.formContainer :global(input[type="url"]),
+.formContainer :global(input[type="email"]) {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  font-size: 1rem;
+  border: 1px solid var(--ifm-color-gray-300);
+  border-radius: var(--ifm-global-radius);
+  background-color: var(--ifm-background-color);
+  color: var(--ifm-color-content);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.formContainer :global(input[type="text"]:focus),
+.formContainer :global(input[type="url"]:focus),
+.formContainer :global(input[type="email"]:focus) {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px var(--ifm-color-primary-lightest);
+  outline: none;
+}
+
+/* Field Description / Help Text */
+.formContainer :global(.field-description) {
+  font-size: 0.85rem;
+  color: var(--ifm-color-gray-600);
+  margin-top: 0.25rem;
+}
+
+/* Array Fields (Destinations) */
+.formContainer :global(.array-item) {
+  position: relative;
+  padding: 1.5rem !important;
+  border-radius: var(--ifm-global-radius);
+  background-color: var(--ifm-color-emphasis-100);
+  margin-bottom: 1.5rem !important;
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+/* Hide redundant titles/legends/descriptions within array items */
+.formContainer :global(.array-item) :global(legend),
+.formContainer :global(.array-item) :global(.field-description) {
+  display: none !important;
+}
+
+/* Container for the whole array field */
+.formContainer :global(.field-array) {
+  padding: 0;
+  margin-top: 1rem;
+}
+
+/* Hide the main array title legend if it's redundant */
+.formContainer :global(.field-array > fieldset > legend) {
+  display: none !important;
+}
+
+/* Fix the zeroed fieldset for actual content */
+.formContainer :global(.form-group fieldset) {
+  border: none;
+}
+
+/* Hide Move Up/Down buttons */
+.formContainer :global(.array-item-move-up),
+.formContainer :global(.array-item-move-down) {
+  display: none !important;
+}
+
+.formContainer :global(.array-item-list) {
+  padding-left: 0;
+}
+
+/* Array Action Buttons */
+.formContainer :global(.btn) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--ifm-font-family-base);
+  font-weight: var(--ifm-font-weight-bold);
+  line-height: 1.5;
+  border-radius: var(--ifm-global-radius);
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+}
+
+/* Add Button */
+.formContainer :global(.btn-add) {
+  background-color: var(--ifm-color-primary);
+  color: #fff;
+  margin-top: 0.5rem;
+}
+
+.formContainer :global(.btn-add:hover) {
+  background-color: var(--ifm-color-primary-dark);
+  text-decoration: none;
+}
+
+.formContainer :global(.btn-add::after) {
+  content: " Add Destination";
+  margin-left: 0.4rem;
+}
+
+.formContainer :global(.btn-add i) {
+  display: none;
+}
+
+.formContainer :global(.btn-danger:hover),
+.formContainer :global(.array-item-remove:hover) {
+  background-color: var(--ifm-color-danger) !important;
+  color: #fff !important;
+}
+
+.formContainer :global(.btn-danger::after),
+.formContainer :global(.array-item-remove::after) {
+  content: "Remove" !important;
+}
+
+.formContainer :global(.btn-danger i),
+.formContainer :global(.array-item-remove i),
+.formContainer :global(.btn-danger svg),
+.formContainer :global(.array-item-remove svg) {
+  display: none !important;
+}
+
+.formContainer :global(.btn-secondary) {
+  background-color: var(--ifm-color-secondary);
+  color: var(--ifm-color-content);
+  margin-right: 0.5rem;
+}
+
+/* Hide specific rjsf clutter */
+.formContainer :global(.config-error),
+.formContainer :global(.error-detail) {
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  color: var(--ifm-color-danger);
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.formContainer :global(.error-detail ul) {
+  list-style: none !important;
+  list-style-type: none !important;
+  padding-left: 0 !important;
+  margin: 0 !important;
+}
+
+.formContainer :global(.error-detail li) {
+  margin-bottom: 0;
+  list-style: none !important;
+  list-style-type: none !important;
+}
+
+.formContainer :global(.error-detail li::before) {
+  content: none !important;
+  display: none !important;
+}
