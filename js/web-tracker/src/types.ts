@@ -45,14 +45,23 @@ export type RuntimeState = {
   // Identity
   userId: string | null;
 
-  // Global defaults (gtag-style `set`)
+  // Global defaults (set)
   set: Record<string, unknown>;
+
+  // Cross-domain linker configuration
+  linker: LinkerConfig;
+
+  // Pending incoming cross-domain payload (`_dl`) parsed from the current URL.
+  // Stored so it can be applied once linker config allows accept_incoming and
+  // cookie settings (prefix/domain/etc.) are known.
+  incomingDl: IncomingDlPayload | null;
 
   // For debugging/tests; dispatcher sends
   events: RuntimeEvent[];
 
   __onEvent: null | ((name: string, params: Record<string, unknown>) => void);
   __onConfig: null | ((propertyId: string, patchCfg: Record<string, unknown>) => void);
+  __onSet: null | ((args: SetCommandArgs) => void);
 
   // Request-scoped counters/timing
   hitCounter: number; // maps to `_s`
@@ -118,8 +127,13 @@ export type WindowLike = {
     search?: string;
     pathname?: string;
   };
+  history?: {
+    replaceState?: (data: unknown, unused: string, url?: string) => void;
+  };
   navigator?: {
     language?: string;
+    userAgent?: string;
+    userLanguage?: string;
     userAgentData?: unknown;
     // Keep this assignable with real `Navigator.sendBeacon` without referencing `BodyInit`
     // (ESLint doesn't know `BodyInit` as a global in this repo).
@@ -140,11 +154,31 @@ export type WindowLike = {
   // Timers are required by the dispatcher batching logic.
   setTimeout: (handler: (...args: unknown[]) => void, timeout?: number) => number;
   clearTimeout: (id: number) => void;
-  // Used to store install bookkeeping (gtag-like).
+  // Used to store install bookkeeping.
   d8a_tag_data?: D8aTagData;
   // Optional test-only helper; some tests use `w.hasFocus()`.
   hasFocus?: () => boolean;
 };
+
+export type LinkerUrlPosition = "query" | "fragment";
+
+export type LinkerConfig = {
+  domains: string[];
+  accept_incoming?: boolean;
+  decorate_forms?: boolean;
+  url_position?: LinkerUrlPosition;
+};
+
+export type IncomingDlPayload = {
+  // unix ms timestamp emitted by linker at decoration time
+  ts: number;
+  // cookieName -> cookieValue pairs from source site
+  cookies: Record<string, string>;
+};
+
+export type SetCommandArgs =
+  | { type: "object"; obj: Record<string, unknown> }
+  | { type: "field"; field: string; value: unknown };
 
 export type WindowLikeTransport = {
   navigator?: {

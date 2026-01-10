@@ -1,5 +1,6 @@
 import {
   buildD8aClientCookieValue,
+  buildD8aClientCookieValueFromCid,
   buildD8aClientCookieName,
   buildD8aCookieName,
   parseD8aClientCookie,
@@ -73,7 +74,7 @@ export function ensureClientId({
   }
 
   // Only update cookies when enabled; however, if cookie is missing, we still
-  // create it even when cookieUpdate is false (gtag-like semantics).
+  // create it even when cookieUpdate is false.
   if (cookieUpdate === false && existing) return { cid, wrote: false };
 
   jar?.set(name, newVal, {
@@ -84,6 +85,137 @@ export function ensureClientId({
     maxAgeSeconds: cookieMaxAgeSeconds,
   });
   return { cid, wrote: true };
+}
+
+/**
+ * Applies an explicit client id to the d8a client cookie, honoring cookie_update
+ * semantics: do not overwrite existing cookies when cookie_update=false,
+ * but still create missing cookies.
+ */
+export function applyClientIdCookie({
+  jar,
+  cid,
+  consent,
+  cookieDomain = "auto",
+  cookiePrefix = "",
+  cookiePath = "/",
+  cookieSameSite = "Lax",
+  cookieSecure = undefined,
+  cookieMaxAgeSeconds = TWO_YEARS_SECONDS,
+  cookieUpdate = true,
+  forceCookieAttrsWrite = false,
+}: {
+  jar?: CookieJarLike;
+  cid?: unknown;
+  consent?: ConsentStateLike;
+  cookieDomain?: string;
+  cookiePrefix?: string;
+  cookiePath?: string;
+  cookieSameSite?: string;
+  cookieSecure?: boolean;
+  cookieMaxAgeSeconds?: number;
+  cookieUpdate?: boolean;
+  forceCookieAttrsWrite?: boolean;
+} = {}) {
+  const cidStr = typeof cid === "string" ? cid.trim() : String(cid || "").trim();
+  const cookieValue = buildD8aClientCookieValueFromCid(cidStr);
+  if (!cookieValue) return { cid: null, wrote: false };
+
+  const name = buildD8aClientCookieName(cookiePrefix);
+  const existing = jar?.get(name);
+  const parsed = parseD8aClientCookie(existing);
+  const existingCid = parsed?.cid || null;
+
+  if (!canWriteAnalyticsCookies(consent || {})) return { cid: cidStr, wrote: false };
+
+  // If cookie exists and updates are disabled, don't overwrite its value.
+  if (existing && cookieUpdate === false) {
+    if (!forceCookieAttrsWrite) return { cid: existingCid || cidStr, wrote: false };
+    jar?.set(name, String(existing || ""), {
+      domain: cookieDomain,
+      path: cookiePath,
+      sameSite: cookieSameSite,
+      secure: cookieSecure,
+      maxAgeSeconds: cookieMaxAgeSeconds,
+    });
+    return { cid: existingCid || cidStr, wrote: true };
+  }
+
+  // Create missing cookie even when cookie_update=false.
+  jar?.set(name, cookieValue, {
+    domain: cookieDomain,
+    path: cookiePath,
+    sameSite: cookieSameSite,
+    secure: cookieSecure,
+    maxAgeSeconds: cookieMaxAgeSeconds,
+  });
+  return { cid: cidStr, wrote: true };
+}
+
+/**
+ * Applies an explicit serialized session cookie value to a d8a per-property cookie,
+ * honoring cookie_update semantics: do not overwrite existing cookies when cookie_update=false,
+ * but still create missing cookies.
+ */
+export function applySessionCookie({
+  jar,
+  propertyId,
+  value,
+  consent,
+  cookieDomain = "auto",
+  cookiePrefix = "",
+  cookiePath = "/",
+  cookieSameSite = "Lax",
+  cookieSecure = undefined,
+  cookieMaxAgeSeconds = TWO_YEARS_SECONDS,
+  cookieUpdate = true,
+  forceCookieAttrsWrite = false,
+}: {
+  jar?: CookieJarLike;
+  propertyId?: string;
+  value?: unknown;
+  consent?: ConsentStateLike;
+  cookieDomain?: string;
+  cookiePrefix?: string;
+  cookiePath?: string;
+  cookieSameSite?: string;
+  cookieSecure?: boolean;
+  cookieMaxAgeSeconds?: number;
+  cookieUpdate?: boolean;
+  forceCookieAttrsWrite?: boolean;
+} = {}) {
+  const pid = String(propertyId || "");
+  if (!pid) return { wrote: false };
+  const rawValue = String(value || "");
+  // Basic validation: only accept well-formed d8a session cookie values.
+  if (!parseD8aSessionCookie(rawValue)?.tokens) return { wrote: false };
+
+  const name = buildD8aCookieName(pid, cookiePrefix);
+  const existing = jar?.get(name);
+
+  if (!canWriteAnalyticsCookies(consent || {})) return { wrote: false };
+
+  if (existing && cookieUpdate === false) {
+    if (!forceCookieAttrsWrite) return { wrote: false };
+    jar?.set(name, String(existing || ""), {
+      domain: cookieDomain,
+      path: cookiePath,
+      sameSite: cookieSameSite,
+      secure: cookieSecure,
+      maxAgeSeconds: cookieMaxAgeSeconds,
+    });
+    return { wrote: true };
+  }
+
+  // Create missing cookie even when cookie_update=false.
+  jar?.set(name, rawValue, {
+    domain: cookieDomain,
+    path: cookiePath,
+    sameSite: cookieSameSite,
+    secure: cookieSecure,
+    maxAgeSeconds: cookieMaxAgeSeconds,
+  });
+  return { wrote: true };
 }
 
 export function ensureSession({

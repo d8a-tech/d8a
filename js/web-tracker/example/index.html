@@ -45,6 +45,10 @@
           >Download report.pdf</a
         >
       </li>
+      <li>
+        <strong>Link for cross-domain linking</strong>:
+        <a href="http://mydev2.com:5174" rel="noreferrer">Click!</a>
+      </li>
     </ul>
 
     <!-- Dev/testing setup: import from ../dist/index.min.mjs and call installD8a(). For production setup, see prod.html (script-tag bundle). -->
@@ -71,11 +75,33 @@
 
       // Example: Separate D8A objects and data layers for each property
 
+      // Install both runtimes (each instance consumes its own queue).
+      installD8a({ windowRef: window, dataLayerName: "d8aLayer1", globalName: "d8a1" });
+      installD8a({ windowRef: window, dataLayerName: "d8aLayer2", globalName: "d8a2" });
+
       // Property 1: Use its own data layer and global function name.
       window.d8aLayer1 = window.d8aLayer1 || [];
       // prettier-ignore
       window.d8a1 = window.d8a1 || function () { window.d8aLayer1.push(arguments); };
       const d8a1 = window.d8a1;
+
+      // Property 2: Use a different data layer and global function name.
+      window.d8aLayer2 = window.d8aLayer2 || [];
+      // prettier-ignore
+      window.d8a2 = window.d8a2 || function () { window.d8aLayer2.push(arguments); };
+      const d8a2 = window.d8a2;
+
+      // Set linker for both properties before configuring them.
+      //Note: linker needs to be called only for one global and will forward all d8a cookies
+      d8a1("set", "linker", {
+        domains: ["mydev2.com", "mydev.com"],
+        // decorate_forms: true,
+        // url_position: 'query', // default
+        // accept_incoming: true, // default when domains is non-empty
+      });
+
+      d8a1("js", new Date());
+      d8a2("js", new Date());
 
       d8a1("config", "80e1d6d0-560d-419f-ac2a-fe9281e93386", {
         server_container_url: "http://localhost:8080/g/collect",
@@ -99,7 +125,7 @@
 
         // Page information
         page_location:
-          "https://test-example.com/test-page?test_param=12345&utm_term=whatafak&gclid=1238",
+          "https://test-example.com/test-page?test_param=12345&utm_term=testterm&gclid=1238",
         page_title: "TEST_PAGE_TITLE_SETTINGS",
         page_referrer: "https://test-referrer.com/from-here",
         content_group: "TEST_GROUP_SPORTS_NEWS",
@@ -119,75 +145,54 @@
         // Behavior controls
         send_page_view: true,
         ignore_referrer: true,
+        debug_mode: true,
       });
-
-      // Property 2: Use a different data layer and global function name.
-      window.d8aLayer2 = window.d8aLayer2 || [];
-      // prettier-ignore
-      window.d8a2 = window.d8a2 || function () { window.d8aLayer2.push(arguments); };
-      const d8a2 = window.d8a2;
 
       d8a2("config", "11111111-2222-3333-4444-555555555555", {
         server_container_url: "https://global.t.d8a.tech/11111111-2222-3333-4444-555555555555/d/c",
         cookie_prefix: "prop2_",
-        debug_mode: true,
+        // user_id: "TEST_USER_12345",
+        // client_id: "TEST_CLIENT_99999.88888",
+
+        // Enhanced measurement (all enabled by default)
+        // site_search_enabled: true,
+        // site_search_query_params: "q,s,search,query,keyword",
+        // outbound_clicks_enabled: true,
+        // file_downloads_enabled: true,
+
+        // Campaign parameters
+        // campaign_id: "TEST_CAMPAIGN_ABC123",
+        // campaign_source: "TEST_SOURCE_NEWSLETTER",
+        // campaign_medium: "TEST_MEDIUM_EMAIL",
+        // campaign_name: "TEST_CAMPAIGN_SPRING2024",
+        // campaign_term: "TEST_TERM_RUNNING_SHOES",
+        // campaign_content: "TEST_CONTENT_BANNER_TOP",
+
+        // Page information
+        // page_location:
+        //   "https://test-example.com/test-page?test_param=12345&utm_term=testterm&gclid=1238",
+        // page_title: "TEST_PAGE_TITLE_SETTINGS",
+        // page_referrer: "https://test-referrer.com/from-here",
+        // content_group: "TEST_GROUP_SPORTS_NEWS",
+
+        // Technical parameters
+        // language: "en-TEST",
+        // screen_resolution: "9999x9999",
+
+        // Cookie configuration
+        // cookie_domain: "mydev.com",
+        // cookie_expires: 7700000000, // 90 days in seconds
+        // cookie_flags: "SameSite=Strict;Secure",
+        // cookie_path: "/test-path",
+        // cookie_prefix: "TEST_PREFIX_",
+        // cookie_update: true,
+
+        // Behavior controls
+        send_page_view: true,
+        // ignore_referrer: true,
+        // debug_mode: true,
       });
 
-      // // Example: Extra config options for advanced testing (not active)
-      // d8a("config", "11111111-2222-3333-4444-555555555555", {
-      // server_container_url: "https://global.t.d8a.tech/11111111-2222-3333-4444-555555555555/d/c",
-      // debug_mode: true,
-      // cookie_domain: "none",
-      // cookie_flags: "SameSite=Lax"
-      // });
-
-      // //Example: Full config object with custom test values
-      // d8a("config", "80e1d6d0-560d-419f-ac2a-fe9281e93386", {
-      // server_container_url: "https://global.t.d8a.tech/80e1d6d0-560d-419f-ac2a-fe9281e93386/d/c",
-
-      // // User identification
-      // user_id: "TEST_USER_12345",
-      // client_id: "TEST_CLIENT_99999.88888",
-
-      // // Campaign parameters
-      // campaign_id: "TEST_CAMPAIGN_ABC123",
-      // campaign_source: "TEST_SOURCE_NEWSLETTER",
-      // campaign_medium: "TEST_MEDIUM_EMAIL",
-      // campaign_name: "TEST_CAMPAIGN_SPRING2024",
-      // campaign_term: "TEST_TERM_RUNNING_SHOES",
-      // campaign_content: "TEST_CONTENT_BANNER_TOP",
-
-      // // Page information
-      // page_location: "https://test-example.com/test-page?test_param=12345",
-      // page_title: "TEST_PAGE_TITLE_SETTINGS",
-      // page_referrer: "https://test-referrer.com/from-here",
-      // content_group: "TEST_GROUP_SPORTS_NEWS",
-
-      // // Technical parameters
-      // language: "en-TEST",
-      // screen_resolution: "9999x9999",
-
-      // // Cookie configuration
-      // cookie_domain: "mydev.com",
-      // cookie_expires: 7700000000, // 90 days in seconds
-      // cookie_flags: "SameSite=Strict;Secure",
-      // cookie_path: "/test-path",
-      // cookie_prefix: "TEST_PREFIX_",
-      // cookie_update: true,
-
-      // // Behavior controls
-      // send_page_view: true,
-      // ignore_referrer: false
-      // });
-      // Initialize both trackers (gtag pattern).
-      d8a1("js", new Date());
-      d8a2("js", new Date());
-
-      // Install both runtimes (each instance consumes its own queue).
-      installD8a({ windowRef: window, dataLayerName: "d8aLayer1", globalName: "d8a1" });
-      installD8a({ windowRef: window, dataLayerName: "d8aLayer2", globalName: "d8a2" });
-
-      // Send a test event.
       d8a1("event", "purchase", {
         transaction_id: "T_12345",
         value: 72.05,

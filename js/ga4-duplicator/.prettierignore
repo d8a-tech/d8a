@@ -1,5 +1,4 @@
-dist/
-coverage/
+/dist/
+/coverage/
 README.md
-
 

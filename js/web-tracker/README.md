@@ -14,11 +14,7 @@ The script-tag bundle auto-installs on load and supports optional `src` query pa
 <script async src="https://global.t.d8a.tech/js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
-  window.d8a =
-    window.d8a ||
-    function () {
-      d8aLayer.push(arguments);
-    };
+  window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
 
   d8a("js", new Date());
   d8a("config", "<property_id>", {
@@ -114,5 +110,4 @@ python3 -m http.server 8080
 
 Then open:
 
-- `http://127.0.0.1:8080/example/index.html`
 - `http://127.0.0.1:8080/example/prod.html`

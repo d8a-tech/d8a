@@ -7,6 +7,18 @@
   "main": "./dist/index.min.mjs",
   "module": "./dist/index.min.mjs",
   "types": "./index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d8a-tech/d8a.git",
+    "directory": "js/web-tracker"
+  },
+  "bugs": {
+    "url": "https://github.com/d8a-tech/d8a/issues"
+  },
+  "homepage": "https://d8a.tech",
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -15,14 +27,13 @@
     "./browser": "./dist/web-tracker.min.js"
   },
   "files": [
-    "src/",
     "dist/",
-    "scripts/",
     "index.d.ts",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
+    "prepack": "npm run build && npm run types",
     "build": "node scripts/build.mjs",
     "dev": "vite",
     "test": "tsx --test test/*.test.ts",
