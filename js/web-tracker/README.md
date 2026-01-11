@@ -71,8 +71,8 @@ npm test
 
 This package can produce a single browser bundle:
 
-- `dist/web-tracker.js`: Script-tag bundle (auto-installs on load)
-- `dist/index.mjs`: ESM bundle
+- `dist/web-tracker.min.js`: Script-tag bundle (auto-installs on load)
+- `dist/index.min.mjs`: ESM bundle
 
 Build:
 
@@ -87,7 +87,7 @@ npm run build
 The `example/` directory contains two pages to quickly validate behavior in a browser:
 
 - `example/index.html`: **dev/local** setup (served by Vite; imports from `../src/` and calls `installD8a()`).
-- `example/prod.html`: **production-like** setup (loads `../dist/web-tracker.js`, which auto-installs on load).
+- `example/prod.html`: **production-like** setup (loads `../dist/web-tracker.min.js`, which auto-installs on load).
 
 ### Dev example (no build step)
 

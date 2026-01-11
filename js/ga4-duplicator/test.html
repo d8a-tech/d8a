@@ -1,0 +1,151 @@
+<!doctype html>
+<html>
+  <head>
+    <title>GA4 Duplicator Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+      }
+
+      button {
+        margin: 5px;
+        padding: 10px;
+      }
+
+      #log {
+        background: #f0f0f0;
+        padding: 10px;
+        margin-top: 20px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>GA4 Duplicator Test</h1>
+    <div>
+      <label
+        >Server URL:
+        <input
+          type="text"
+          id="serverUrl"
+          value="https://global.t.d8a.tech/b3cfcbd5-3723-49e3-ad39-3737394bf0d8/g/collect"
+          style="width: 400px"
+      /></label>
+      <button onclick="initDuplicator()">Initialize</button>
+    </div>
+    <hr />
+    <div>
+      <button onclick="testXHRGet()">XHR GET</button>
+      <button onclick="testXHRPost()">XHR POST</button>
+      <button onclick="testFetchGet()">Fetch GET</button>
+      <button onclick="testFetchPost()">Fetch POST</button>
+      <button onclick="testBeacon()">Beacon</button>
+      <button onclick="testScript()">Script</button>
+    </div>
+    <hr />
+    <div>
+      <label
+        >Test URL:
+        <input
+          type="text"
+          id="testUrl"
+          value="https://www.google-analytics.com/g/collect?v=2&tid=G-ABC123&gtm=123&tag_exp=456"
+          style="width: 600px"
+      /></label>
+      <button onclick="testCustomUrl()">Test Custom URL</button>
+    </div>
+    <pre id="log"></pre>
+    <script src="dist/ga4-duplicator.js"></script>
+    <script>
+      let logEl = document.getElementById("log");
+      function log(msg) {
+        const time = new Date().toLocaleTimeString();
+        logEl.textContent += `[${time}] ${msg}\n`;
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(msg);
+      }
+
+      function initDuplicator() {
+        const serverUrl = document.getElementById("serverUrl").value;
+        log(`Initializing duplicator with: ${serverUrl}`);
+        try {
+          window.createGA4Duplicator({
+            server_container_url: serverUrl,
+            debug: true,
+          });
+          log("Duplicator initialized (debug mode enabled)");
+        } catch (e) {
+          log(`Error: ${e.message}`);
+        }
+      }
+
+      function makeGA4Url(base) {
+        const url = new URL(base);
+        url.searchParams.set("v", "2");
+        url.searchParams.set("en", "event");
+        url.searchParams.set("dl", "https://www.example.com");
+        url.searchParams.set("tid", "G-TEST123");
+        url.searchParams.set("cid", "1234567890");
+        url.searchParams.set("gtm", "123");
+        url.searchParams.set("tag_exp", "456");
+        return url.toString();
+      }
+
+      function testXHRGet() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`XHR GET: ${url}`);
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url);
+        xhr.send();
+      }
+
+      function testXHRPost() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`XHR POST: ${url}`);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", url);
+        xhr.send("test=body");
+      }
+
+      function testFetchGet() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`Fetch GET: ${url}`);
+        fetch(url, { method: "GET" });
+      }
+
+      function testFetchPost() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`Fetch POST: ${url}`);
+        fetch(url, { method: "POST", body: "test=body" });
+      }
+
+      function testBeacon() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`Beacon: ${url}`);
+        navigator.sendBeacon(url, "test=body");
+      }
+
+      function testScript() {
+        const url = makeGA4Url("https://www.google-analytics.com/g/collect");
+        log(`Script: ${url}`);
+        const script = document.createElement("script");
+        script.src = url;
+        document.head.appendChild(script);
+      }
+
+      function testCustomUrl() {
+        const url = document.getElementById("testUrl").value;
+        log(`Custom URL: ${url}`);
+        fetch(url, { method: "GET" });
+      }
+
+      // Auto-initialize on load
+      window.addEventListener("load", () => {
+        log("Page loaded. Check Network tab.");
+      });
+    </script>
+  </body>
+</html>

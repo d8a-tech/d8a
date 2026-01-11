@@ -4,15 +4,15 @@
   "description": "The d8a web tracker provides a GA4 gtag-style API that sends GA4 gtag-compatible requests directly to a d8a collector.",
   "license": "MIT",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "module": "./dist/index.mjs",
+  "main": "./dist/index.min.mjs",
+  "module": "./dist/index.min.mjs",
   "types": "./index.d.ts",
   "exports": {
     ".": {
       "types": "./index.d.ts",
-      "import": "./dist/index.mjs"
+      "import": "./dist/index.min.mjs"
     },
-    "./browser": "./dist/web-tracker.js"
+    "./browser": "./dist/web-tracker.min.js"
   },
   "files": [
     "src/",
@@ -26,8 +26,8 @@
     "build": "node scripts/build.mjs",
     "dev": "vite",
     "test": "tsx --test test/*.test.ts",
-    "typecheck:src": "tsc -p tsconfig.build.json --noEmit",
-    "typecheck:test": "tsc -p tsconfig.test.json --noEmit",
+    "typecheck": "tsc -p tsconfig.build.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "hash": "node scripts/hash.mjs",
     "types": "tsc -p tsconfig.build.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

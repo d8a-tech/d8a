@@ -14,6 +14,7 @@ The web tracker is currently in **beta** - feel free to report any problems via 
 
 ## Quick start
 
+<div className="d8a-tabs-border">
 <Tabs>
 <TabItem value="script-tag" label="Script tag" default>
 Add the snippet to your page:
@@ -60,6 +61,7 @@ d8a('config', '<property_id>', {
 
 </TabItem>
 </Tabs>
+</div>
 
 ::::note
 By default, `send_page_view` is enabled, so the tracker will send a `page_view`. Enhanced measurement is also enabled by default (see [Enhanced measurement](#enhanced-measurement)). The `d8a()` function also exposes convenience methods (`d8a.config`, `d8a.event`, `d8a.set`, `d8a.consent`) that behave the same as the string-command form.

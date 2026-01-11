@@ -44,10 +44,14 @@ jobs:
           version: latest
           args: --timeout=5m --config=.golangci.yml
 
-  web-tracker:
-    name: Web tracker (lint/format/test)
+  javascript:
+    name: JS ${{ matrix.project }} (lint/format/test)
     timeout-minutes: 20
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [web-tracker, ga4-duplicator]
 
     steps:
       - uses: actions/checkout@v4
@@ -57,26 +61,28 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: 'js/web-tracker/package-lock.json'
+          cache-dependency-path: 'js/${{ matrix.project }}/package-lock.json'
 
       - name: Install dependencies
-        working-directory: js/web-tracker
+        working-directory: js/${{ matrix.project }}
         run: npm ci
 
+      - name: Check source hash
+        working-directory: js/${{ matrix.project }}
+        run: npm run hash
+
       - name: Lint
-        working-directory: js/web-tracker
+        working-directory: js/${{ matrix.project }}
         run: npm run lint
 
       - name: Format (check)
-        working-directory: js/web-tracker
+        working-directory: js/${{ matrix.project }}
         run: npm run format
 
       - name: Typecheck
-        working-directory: js/web-tracker
-        run: |
-          npm run typecheck:src
-          npm run typecheck:test
+        working-directory: js/${{ matrix.project }}
+        run: npm run typecheck
 
       - name: Test
-        working-directory: js/web-tracker
+        working-directory: js/${{ matrix.project }}
         run: npm test

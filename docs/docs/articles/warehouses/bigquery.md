@@ -57,7 +57,7 @@ Now that you have the service account JSON file, it's time to add it to your d8a
 ### Step 2: Add the configuration to config.yaml
 
 :::info Tip
-   Full configuration reference is available [here](/articles/config.md#--bigquery-creds-json).
+   Full configuration reference is available [here](/articles/config#--bigquery-creds-json).
 :::
 
 Open your `config.yaml` file and add the BigQuery configuration:

@@ -36,6 +36,7 @@ Install d8a using:
 - `dataLayerName: 'dataLayer'` (to match the GA4 convention)
 - `globalName: 'gtag'` (so your existing event calls keep working)
 
+<div className="d8a-tabs-border">
 <Tabs>
 <TabItem value="script-tag" label="Script tag" default>
 
@@ -74,6 +75,7 @@ gtag('config', '<property_id>', {
 
 </TabItem>
 </Tabs>
+</div>
 
 ## Step 3: Keep your existing `gtag('event', ...)` calls
 

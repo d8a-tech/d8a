@@ -42,10 +42,6 @@ queue/
 .gomodcache/
 .gocache/
 
-# Web tracker
-js/web-tracker/node_modules/
-js/web-tracker/dist/
-
 # Local scratch
 tmp/
 

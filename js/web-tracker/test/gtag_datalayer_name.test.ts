@@ -27,7 +27,7 @@ test("resolveGtagDataLayerName: reads from currentScript ?gl=", () => {
     document: {
       cookie: "",
       currentScript: {
-        src: "https://cdn.example.org/web-tracker.js?gl=myGtagLayer&g=d8a2&l=d8aLayer2",
+        src: "https://cdn.example.org/web-tracker.min.js?gl=myGtagLayer&g=d8a2&l=d8aLayer2",
       },
     },
     location: { href: "https://example.org/" },

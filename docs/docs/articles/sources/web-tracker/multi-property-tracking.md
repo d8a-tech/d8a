@@ -20,6 +20,7 @@ Use this when you want one `d8a()` API and one queue, and you want every event t
 
 ### Code example
 
+<div className="d8a-tabs-border">
 <Tabs>
 <TabItem value="script-tag" label="Script tag" default>
 
@@ -72,6 +73,7 @@ d8a('config', '<property_id_2>', {
 
 </TabItem>
 </Tabs>
+</div>
 
 ### Details
 
@@ -105,6 +107,7 @@ Use this when you want strict separation between trackers: each instance will ha
 
 ### Code example
 
+<div className="d8a-tabs-border">
 <Tabs>
 <TabItem value="script-tag-2" label="Script tag" default>
 
@@ -171,6 +174,7 @@ d8a2('config', '<property_id_2>', {
 
 </TabItem>
 </Tabs>
+</div>
 
 ## Use case 3: Target a specific property per event (`send_to`)
 
