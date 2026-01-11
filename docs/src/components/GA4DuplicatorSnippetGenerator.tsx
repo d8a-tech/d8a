@@ -25,7 +25,7 @@ const schema: RJSFSchema = {
                     measurement_id: {
                         type: 'string',
                         title: 'Measurement ID:',
-                        description: 'Example: G-XXXX or wildcard (*)',
+                        description: 'Example: G-XXXX',
                         minLength: 1,
                     },
                     server_container_url: {

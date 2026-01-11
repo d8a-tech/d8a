@@ -28,20 +28,19 @@ Include the built script in your HTML and initialize the duplicator:
 
 ### Configuration Options
 
-- `server_container_url`: D8A server endpoint URL (required)
-- `server_container_path`: Path on the server (default: "/g/collect")
-- `destinations`: Array of destination objects with measurement_id, server_container_url, and server_container_path
+- `server_container_url`: Default D8A server endpoint URL.Can be overridden for each destination.
+- `destinations`: Array of destination objects with measurement_id and server_container_url (default: []).
 - `debug`: Enable debug logging (default: false)
 
 ### Multiple Destinations
 
 ```javascript
 window.createGA4Duplicator({
+  server_container_url: "https://default-endpoint.com",
   destinations: [
     {
       measurement_id: "G-ABC123",
       server_container_url: "https://endpoint1.com",
-      server_container_path: "/collect"
     },
     {
       measurement_id: "G-XYZ789",
