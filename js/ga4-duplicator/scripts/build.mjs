@@ -37,7 +37,7 @@ async function main() {
 
   // Copy to static location
   const copies = [
-    { src: "dist/ga4-duplicator.min.js", dest: "../../pkg/protocol/ga4/static/ga4-duplicator.js" },
+    { src: "dist/ga4-duplicator.min.js", dest: "../../pkg/protocol/ga4/static/ga4-duplicator.min.js" },
     {
       src: "dist/ga4-duplicator.min.js",
       dest: "../../docs/docs/articles/sources/ga4-duplicator/ga4-duplicator.min.js",
@@ -48,7 +48,7 @@ async function main() {
     },
     {
       src: "dist/ga4-duplicator.js.map",
-      dest: "../../pkg/protocol/ga4/static/ga4-duplicator.js.map",
+      dest: "../../pkg/protocol/ga4/static/ga4-duplicator.min.js.map",
     },
   ];
 
