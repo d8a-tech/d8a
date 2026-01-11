@@ -11,7 +11,7 @@ The script-tag bundle auto-installs on load and supports optional `src` query pa
 - `?gl=<name>`: gtag/GTM consent queue name (defaults to `dataLayer`)
 
 ```html
-<script async src="https://global.t.d8a.tech/js"></script>
+<script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
