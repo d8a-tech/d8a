@@ -53,7 +53,7 @@ function makeWindow({ href = "http://example.test/" }: { href?: string } = {}) {
 
 test("enhanced measurement: site search fires view_search_results on page load (default query params)", async () => {
   const w = makeWindow({ href: "http://example.test/?q=hello" });
-  // gtag-style usage: queue commands before the library installs.
+  // Queue commands before the library installs.
   const dl = ensureArraySlot<unknown>(w, "d8aLayer");
   dl.push(["js", new Date("2025-01-01T00:00:00Z")]);
   dl.push([

@@ -79,7 +79,7 @@ export function resolveCookieSettings({
   // and immediately delete cookies in browsers.
   const cookieExpires = cfg.cookie_expires ?? sp.cookie_expires;
   const parsedExpires = Number.isFinite(Number(cookieExpires)) ? Number(cookieExpires) : null;
-  // GA4/gtag-like default lifetime: 2 years for both client + per-property cookies.
+  // Default lifetime: 2 years for both client + per-property cookies.
   // (The per-property cookie contains session state, but the cookie itself persists.)
   const cookieMaxAgeSeconds = parsedExpires != null ? parsedExpires : 2 * 365 * 24 * 60 * 60;
 

@@ -3,7 +3,7 @@
  *
  * Required behavior:
  * - `d8a('event', ...)` behaves the same as `d8a.event(...)` etc.
- * - The function form pushes to `dataLayer` (gtag replacement pattern).
+ * - The function form pushes to `dataLayer`.
  */
 import { ensureArraySlot } from "../utils/window_slots.ts";
 
@@ -30,7 +30,7 @@ export function createD8aGlobal({
   d8a.js = (date: unknown) => d8a("js", date);
   d8a.config = (propertyId: unknown, params: unknown) => d8a("config", propertyId, params);
   d8a.event = (eventName: unknown, params: unknown) => d8a("event", eventName, params);
-  d8a.set = (params: unknown) => d8a("set", params);
+  d8a.set = (a: unknown, b?: unknown) => (b === undefined ? d8a("set", a) : d8a("set", a, b));
   d8a.consent = (action: unknown, state: unknown) => d8a("consent", action, state);
 
   return d8a;

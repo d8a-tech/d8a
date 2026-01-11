@@ -9,6 +9,7 @@ Configuration can be provided via:
 
 - `d8a('config', '<property_id>', { ... })`: Per-property configuration.
 - `d8a('set', { ... })`: Global defaults applied to subsequent hits (and used as fallback when a property config does not provide a value).
+- `d8a('set', '<field>', <value>)`: Single-field global defaults (equivalent to the object form).
 
 When the same key is provided in multiple places, values are resolved as:
 
@@ -41,6 +42,29 @@ Cookie options:
 - `cookie_prefix` (optional, default: `""`): Prefix applied to cookie names (useful for isolating identities between trackers).
 - `cookie_update` (optional, default: `true`): Whether the tracker refreshes cookie expirations on activity. Note: security-related attribute updates (SameSite/Secure/etc.) and creating missing cookies may still require a write.
 - `cookie_flags` (optional): Raw cookie flags string (for example: `SameSite=Strict;Secure`).
+
+## Cross-domain linker
+
+The tracker can pass client and session context between **different domains** by decorating outbound links (and optionally forms) with a short-lived `_dl` parameter and accepting incoming `_dl` on the destination domain.
+
+For the full guide (including technical details), see [Cross-domain linking](cross-domain-linking.md).
+
+Configuration is set via:
+
+- `d8a('set', 'linker', { ... })`
+
+Options:
+
+- `linker.domains` (required): Array of destination domains. When a link (or form) targets a hostname that matches one of these strings (substring match), the tracker decorates the URL.
+- `linker.accept_incoming` (optional): Whether to accept incoming `_dl` on the current page.
+  - Default: `true` when `linker.domains` is non-empty, otherwise `false`.
+- `linker.decorate_forms` (optional, default: `false`): When enabled, decorate form submissions too.
+- `linker.url_position` (optional, default: `'query'`): Where `_dl` is placed (`'query'` or `'fragment'`).
+
+Cookie write behavior on the destination domain respects consent and `cookie_update`:
+
+- If `analytics_storage` consent is denied, cookies are not written.
+- If `cookie_update=false`, existing cookies are not overwritten, but missing cookies can still be created (gtag-like).
 
 ## Debugging
 
