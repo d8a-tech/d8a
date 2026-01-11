@@ -35,7 +35,7 @@ export function resolveDataLayerName({
   const hinted = safeString(windowRef?.d8aDataLayerName);
   if (hinted.trim()) return hinted.trim();
 
-  // Script src query param `?l=...` (gtag-compatible)
+  // Script src query param `?l=...`
   const fromScript = detectFromCurrentScript(windowRef?.document, "l");
   if (fromScript.trim()) return fromScript.trim();
 
@@ -57,7 +57,7 @@ export function resolveGlobalName({
   const hinted = safeString(windowRef?.d8aGlobalName);
   if (hinted.trim()) return hinted.trim();
 
-  // Script src query param `?g=...` (gtag-like convention)
+  // Script src query param `?g=...`
   const fromScript = detectFromCurrentScript(windowRef?.document, "g");
   if (fromScript.trim()) return fromScript.trim();
 
@@ -79,7 +79,7 @@ export function resolveGtagDataLayerName({
   const hinted = safeString(windowRef?.d8aGtagDataLayerName);
   if (hinted.trim()) return hinted.trim();
 
-  // Script src query param `?gl=...` (gtag consent queue name)
+  // Script src query param `?gl=...` (consent queue name)
   const fromScript = detectFromCurrentScript(windowRef?.document, "gl");
   if (fromScript.trim()) return fromScript.trim();
 

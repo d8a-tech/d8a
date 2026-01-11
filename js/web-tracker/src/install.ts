@@ -8,6 +8,7 @@ import {
 } from "./runtime/runtime_names.ts";
 import { createGtagConsentBridge } from "./runtime/gtag_consent_bridge.ts";
 import { createEnhancedMeasurement } from "./runtime/enhanced_measurement.ts";
+import { createLinker } from "./runtime/linker.ts";
 import type { D8aTagData, WindowLike } from "./types.ts";
 import { ensureArraySlot, getWindowSlot, setWindowSlot } from "./utils/window_slots.ts";
 
@@ -39,7 +40,7 @@ export function installD8a({
   const w = windowRef;
   if (!w) throw new Error("installD8a: window is required");
 
-  // Keep installation records on window (gtag-like), so repeated installs with the
+  // Keep installation records on window, so repeated installs with the
   // same names are safe, but multiple tracker instances can still be created when
   // users provide different `dataLayerName` and/or `globalName` (see example/index.html).
   w.d8a_tag_data = w.d8a_tag_data || {};
@@ -91,11 +92,44 @@ export function installD8a({
 
   const consumer = createQueueConsumer({ windowRef: w, dataLayerName: dl });
 
+  const onConfigCbs: Array<(propertyId: string, patchCfg: Record<string, unknown>) => void> = [];
+  consumer.setOnConfig((propertyId, patchCfg) => {
+    for (const cb of onConfigCbs) cb(propertyId, patchCfg);
+  });
+
+  const onSetCbs: Array<(args: unknown) => void> = [];
+  consumer.setOnSet((args) => {
+    for (const cb of onSetCbs) cb(args);
+  });
+
   const dispatcher = createDispatcher({ windowRef: w, getState: consumer.getState });
   dispatcher.attachLifecycleFlush();
   consumer.setOnEvent((name: string, params: Record<string, unknown>) => {
     dispatcher.enqueueEvent(name, params);
   });
+
+  // Cross-domain linker (`_dl`) for client/session continuity across unrelated domains.
+  const linker = createLinker({ windowRef: w, getState: consumer.getState });
+  linker.start();
+  // Apply pending incoming payload when:
+  // - linker config changes (accept_incoming/domains)
+  // - new properties are configured (cookie settings become known)
+  onSetCbs.push((args) => {
+    // Keep shared linker config in sync (when multiple runtimes are installed).
+    if (
+      args &&
+      typeof args === "object" &&
+      (args as any).type === "field" &&
+      (args as any).field === "linker"
+    ) {
+      linker.updateConfigPatch((args as any).value);
+    }
+    if (args && typeof args === "object" && (args as any).type === "object") {
+      linker.updateConfigPatch((args as any)?.obj?.linker);
+    }
+    linker.applyIncomingIfReady();
+  });
+  onConfigCbs.push(() => linker.applyIncomingIfReady());
 
   // If gtag/GTM is present, prefer consent pushed into `window.dataLayer`.
   // This runs regardless of d8a's own dataLayerName to avoid requiring users
@@ -112,7 +146,7 @@ export function installD8a({
   // Enhanced measurement
   try {
     const em = createEnhancedMeasurement({ windowRef: w, getState: consumer.getState, dispatcher });
-    consumer.setOnConfig(() => em.onConfig());
+    onConfigCbs.push(() => em.onConfig());
     em.start();
   } catch {
     // ignore

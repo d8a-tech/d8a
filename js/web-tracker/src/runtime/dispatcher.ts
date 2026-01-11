@@ -170,7 +170,7 @@ export function createDispatcher({
       const eventParams: Record<string, unknown> = { ...rawParams };
       delete eventParams["send_to"];
 
-      // Engagement time `_et`: active+visible+focused time since last reset (gtag-like).
+      // Engagement time `_et`: active+visible+focused time since last reset.
       // We compute this once per event and reuse it:
       // - send as `_et`
       // - accumulate to flip session engagement (`seg`) after N seconds

@@ -188,7 +188,7 @@ export function buildGa4CollectQueryParams({
     params.set("uid", userId.trim());
   }
 
-  // Campaign overrides (gtag-style keys). These map to standard GA parameters.
+  // Campaign overrides. These map to standard GA parameters.
   const c = campaign || {};
   if (typeof c.campaign_id === "string" && c.campaign_id.trim())
     params.set("ci", c.campaign_id.trim());
@@ -219,7 +219,7 @@ export function buildGa4CollectQueryParams({
   // Browser-derived.
   if (b.dl) params.set("dl", String(b.dl));
   if (b.dt) params.set("dt", String(b.dt));
-  // gtag-style ignore_referrer: include ir=1 only when explicitly enabled
+  // ignore_referrer: include ir=1 only when explicitly enabled
   if (ignoreReferrer === true) params.set("ir", "1");
   // Send empty referrer explicitly (GA commonly sends `dr=` for direct).
   params.set("dr", String(b.dr));
@@ -277,7 +277,7 @@ export function buildGa4CollectQueryParams({
     if (key === "coupon") continue;
     if (key === "customer_type") continue;
     if (CORE_ECOMMERCE_NUMBER.has(key)) continue;
-    // gtag-style reserved keys we handle elsewhere (config/set overrides)
+    // Reserved keys we handle elsewhere (config/set overrides)
     if (key === "user_id") continue;
     if (key === "client_id") continue;
     if (key === "campaign_id") continue;

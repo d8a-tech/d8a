@@ -55,6 +55,14 @@ export function buildD8aClientCookieValue({ nowMs }: { nowMs?: unknown } = {}) {
   return `C1.1.${random}.${timestampSec}`;
 }
 
+export function buildD8aClientCookieValueFromCid(cid: unknown) {
+  const v = String(cid || "").trim();
+  // cid format: <rand>.<timestampSeconds>
+  const m = v.match(/^([0-9]+)\.([0-9]+)$/);
+  if (!m) return null;
+  return `C1.1.${m[1]}.${m[2]}`;
+}
+
 const SESSION_PREFIX = "S1.1.";
 const KNOWN_KEYS = new Set(["s", "o", "g", "t", "j", "d"]);
 

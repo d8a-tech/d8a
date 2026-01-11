@@ -96,7 +96,7 @@ export function createCookieJar({ windowRef }: { windowRef: WindowRefLike }) {
   }
 
   /**
-   * Sets a cookie, optionally using `domain: 'auto'` (gtag-like) to select a
+   * Sets a cookie, optionally using `domain: 'auto'` to select a
    * domain that sticks by trying candidates broadest-first.
    *
    * Returns an object describing what it did; primarily useful for debugging/tests.

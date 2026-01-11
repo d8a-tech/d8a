@@ -57,6 +57,15 @@ export function makeWindowMock(
   const listeners: ListenerMap = new Map();
   const docListeners: ListenerMap = new Map();
 
+  function removeListener(map: ListenerMap, type: string, fn: Listener) {
+    const arr = map.get(type);
+    if (!arr) return;
+    map.set(
+      type,
+      arr.filter((x) => x !== fn),
+    );
+  }
+
   const baseLocation: WindowMock["location"] = {
     href: "https://docs.example.test/",
     hostname: "docs.example.test",
@@ -69,6 +78,7 @@ export function makeWindowMock(
     hidden: false,
     cookie: "",
     addEventListener: (t: string, fn: Listener) => pushListener(docListeners, t, fn),
+    removeEventListener: (t: string, fn: Listener) => removeListener(docListeners, t, fn),
   };
 
   // Note: override objects are shallow-merged so callers can change fields without
@@ -90,6 +100,14 @@ export function makeWindowMock(
     screen: mergedScreen,
     document: mergedDocument,
     addEventListener: (t: string, fn: Listener) => pushListener(listeners, t, fn),
+    removeEventListener: (t: string, fn: Listener) => removeListener(listeners, t, fn),
+    history: {
+      replaceState: (_data: unknown, _unused: string, url?: string) => {
+        if (!url) return;
+        if (!w.location) w.location = {};
+        w.location.href = String(url);
+      },
+    },
     setTimeout: (fn: Listener) => {
       fn();
       return 1;

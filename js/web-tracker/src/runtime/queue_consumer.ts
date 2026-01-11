@@ -2,7 +2,15 @@ import { createRuntimeState } from "./state.ts";
 import { maybeEmitConsentUpdatePing } from "./consent_update_ping.ts";
 import { isRecord } from "../utils/is_record.ts";
 import { ensureArraySlot, getWindowSlot } from "../utils/window_slots.ts";
-import type { ConsentState, PropertyConfig, RuntimeState, WindowLike } from "../types.ts";
+import type {
+  ConsentState,
+  LinkerConfig,
+  LinkerUrlPosition,
+  PropertyConfig,
+  RuntimeState,
+  SetCommandArgs,
+  WindowLike,
+} from "../types.ts";
 
 /**
  * Consumes a dataLayer-like queue on `window` used by the snippet/global function
@@ -36,6 +44,34 @@ function readSendPageViewFromConfig(v: unknown) {
 
 function readConsentPatch(v: unknown): ConsentState {
   return isRecord(v) ? v : {};
+}
+
+function mergeLinkerConfig(state: RuntimeState, patch: unknown) {
+  if (!state) return;
+  if (!isRecord(patch)) return;
+
+  const next: LinkerConfig = { ...(state.linker || { domains: [] }) };
+
+  const domainsRaw = patch.domains;
+  if (Array.isArray(domainsRaw)) {
+    const domains = domainsRaw
+      .filter((x) => typeof x === "string" && x.trim())
+      .map((x) => x.trim());
+    next.domains = domains;
+  }
+
+  const acceptIncomingRaw = patch.accept_incoming;
+  if (typeof acceptIncomingRaw === "boolean") next.accept_incoming = acceptIncomingRaw;
+
+  const decorateFormsRaw = patch.decorate_forms;
+  if (typeof decorateFormsRaw === "boolean") next.decorate_forms = decorateFormsRaw;
+
+  const urlPosRaw = patch.url_position;
+  const urlPos = typeof urlPosRaw === "string" ? urlPosRaw : "";
+  if (urlPos === "query" || urlPos === "fragment") next.url_position = urlPos as LinkerUrlPosition;
+
+  if (!Array.isArray(next.domains)) next.domains = [];
+  state.linker = next;
 }
 
 export function createQueueConsumer({
@@ -99,15 +135,15 @@ export function createQueueConsumer({
         const userId = readUserIdFromObject(patchCfg);
         if (userId) state.userId = userId;
 
-        const sendPv = readSendPageViewFromConfig(patchCfg);
-        if (sendPv !== false && typeof state.__onEvent === "function") {
-          // gtag-like: auto page_view on config unless explicitly disabled.
-          // Target only the configured property to avoid fan-out duplication per config call.
-          state.__onEvent("page_view", { send_to: propertyId });
-        }
-
         if (typeof state.__onConfig === "function") {
           state.__onConfig(propertyId, patchCfg);
+        }
+
+        const sendPv = readSendPageViewFromConfig(patchCfg);
+        if (sendPv !== false && typeof state.__onEvent === "function") {
+          // Auto page_view on config unless explicitly disabled.
+          // Target only the configured property to avoid fan-out duplication per config call.
+          state.__onEvent("page_view", { send_to: propertyId });
         }
         return;
       }
@@ -126,10 +162,38 @@ export function createQueueConsumer({
         return;
       }
       case "set": {
+        // Supported:
+        // - d8a('set', { ... }) (existing behavior; global defaults)
+        // - d8a('set', '<field>', <value>)
+        if (typeof a === "string" && a.trim()) {
+          const field = a.trim();
+          // Special-case linker: d8a('set','linker',{...})
+          if (field === "linker") {
+            mergeLinkerConfig(state, b);
+          } else {
+            state.set = { ...(state.set || {}), [field]: b };
+          }
+          // Keep `user_id` mirrored in state.userId for convenience.
+          if (field === "user_id" && typeof b === "string" && b.trim()) {
+            state.userId = b.trim();
+          }
+          const payload: SetCommandArgs = { type: "field", field, value: b };
+          state.__onSet?.(payload);
+          return;
+        }
+
         if (isRecord(a)) {
+          // Restore object-form `set` (existing behavior).
           state.set = { ...(state.set || {}), ...a };
           const userId = readUserIdFromObject(a);
           if (userId) state.userId = userId;
+          // Support configuring linker via object-form `set` for consistency with other fields:
+          // d8a('set', { user_id: '...', linker: { ... } })
+          if ("linker" in a) {
+            mergeLinkerConfig(state, (a as any).linker);
+          }
+          const payload: SetCommandArgs = { type: "object", obj: a };
+          state.__onSet?.(payload);
         }
         return;
       }
@@ -196,6 +260,9 @@ export function createQueueConsumer({
     },
     setOnConfig: (fn: RuntimeState["__onConfig"]) => {
       state.__onConfig = fn;
+    },
+    setOnSet: (fn: RuntimeState["__onSet"]) => {
+      state.__onSet = fn;
     },
     stop: () => {
       if (!started) return;

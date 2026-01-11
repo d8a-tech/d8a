@@ -23,9 +23,12 @@ export function createRuntimeState(): RuntimeState {
 
     userId: null,
     set: {},
+    linker: { domains: [] },
+    incomingDl: null,
     events: [],
     __onEvent: null,
     __onConfig: null,
+    __onSet: null,
 
     // Request-scoped counters/timing
     hitCounter: 0, // maps to `_s`
