@@ -223,7 +223,6 @@ export function buildGa4CollectQueryParams({
   if (ignoreReferrer === true) params.set("ir", "1");
   // Send empty referrer explicitly (GA commonly sends `dr=` for direct).
   params.set("dr", String(b.dr));
-  if (b.dh) params.set("dh", String(b.dh));
   if (b.ul) params.set("ul", String(b.ul));
   if (b.sr) params.set("sr", String(b.sr));
 

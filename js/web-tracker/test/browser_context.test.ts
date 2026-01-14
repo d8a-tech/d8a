@@ -35,8 +35,6 @@ test("browser context: all browser properties are translated to tracking request
   assert.equal(u.searchParams.get("dt"), "Test Page Title");
   // dr (document referrer) -> "dr"
   assert.equal(u.searchParams.get("dr"), "https://referrer.example.test/");
-  // dh (document hostname) -> "dh"
-  assert.equal(u.searchParams.get("dh"), "example.test");
   // ul (user language) -> "ul" (lowercase)
   assert.equal(u.searchParams.get("ul"), "en-gb");
   // sr (screen resolution) -> "sr"

@@ -172,7 +172,6 @@ test("purchase vector: required params are produced from cookies + browser + eve
 
   assert.equal(q.get("dl"), "https://example.test/");
   assert.equal(q.get("dt"), "My Dev");
-  assert.equal(q.get("dh"), "example.test");
   assert.equal(q.get("dr"), "");
   assert.equal(q.get("ul"), "en-gb");
   assert.equal(q.get("sr"), "5120x1440");
