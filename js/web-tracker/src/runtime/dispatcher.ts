@@ -289,7 +289,7 @@ export function createDispatcher({
         if (pageLocation) browser.dl = pageLocation;
         if (pageTitle) browser.dt = pageTitle;
         if (pageReferrer != null) browser.dr = pageReferrer;
-        if (language) browser.ul = language.toLowerCase();
+        if (language) browser.ul = language;
         if (screenResolution) browser.sr = screenResolution;
 
         // Ensure client cookie exists for this property cookie namespace (if allowed).
