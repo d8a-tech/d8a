@@ -210,8 +210,21 @@ export function buildGa4CollectQueryParams({
 
   const sessionCookieName = buildD8aCookieName(propertyId, cookiePrefix);
   const session = parseD8aSessionCookie(cookieMap.get(sessionCookieName));
-  if (session?.sid != null) params.set("sid", String(session.sid));
-  if (session?.sct != null) params.set("sct", String(session.sct));
+
+  // sid: use cookie value or default to current timestamp (seconds since epoch)
+  if (session?.sid != null) {
+    params.set("sid", String(session.sid));
+  } else {
+    params.set("sid", String(Math.floor(Date.now() / 1000)));
+  }
+
+  // sct: use cookie value or default to 1
+  if (session?.sct != null) {
+    params.set("sct", String(session.sct));
+  } else {
+    params.set("sct", "1");
+  }
+
   if (session?.seg != null) params.set("seg", String(session.seg));
 
   const b = browser;

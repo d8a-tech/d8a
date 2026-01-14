@@ -204,9 +204,14 @@ test("buildGa4CollectQueryParams: handles missing cookies and browser context", 
   assert.equal(q.get("v"), "2");
   assert.equal(q.get("tid"), "80e1d6d0-560d-419f-ac2a-fe9281e93386");
   assert.equal(q.get("en"), "page_view");
-  // No cid, sid, etc. when cookies are missing
+  // No cid when cookies are missing
   assert.equal(q.get("cid"), null);
-  assert.equal(q.get("sid"), null);
+  // sid: defaults to current timestamp when cookies are missing or consent denied
+  const sid = q.get("sid");
+  assert.ok(sid != null, "sid should be set to current timestamp when cookies are missing");
+  assert.ok(/^\d+$/.test(sid!), "sid should be a numeric timestamp");
+  // sct: defaults to 1 when cookies are missing or consent denied
+  assert.equal(q.get("sct"), "1");
 });
 
 test("buildGa4CollectQueryParams: handles null and undefined values", () => {
