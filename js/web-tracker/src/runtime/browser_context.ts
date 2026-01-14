@@ -35,7 +35,7 @@ export function getBrowserContext(w: WindowLike): BrowserContext {
 
   const ul = (() => {
     try {
-      return String(w?.navigator?.language || "");
+      return String(w?.navigator?.language || "").toLowerCase();
     } catch {
       return "";
     }

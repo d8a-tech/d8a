@@ -48,7 +48,7 @@ test("overrides precedence: event > config > set > browser", () => {
   assert.equal(u.searchParams.get("dl"), "https://ev.example/");
   assert.equal(u.searchParams.get("cs"), "evSource");
   // language: config wins over set (event did not set it)
-  assert.equal(u.searchParams.get("ul"), "cfgLang");
+  assert.equal(u.searchParams.get("ul"), "cfglang");
   // content_group: set wins over browser (config did not set it)
   assert.equal(u.searchParams.get("ep.content_group"), "setGroup");
 
