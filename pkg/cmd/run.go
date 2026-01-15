@@ -20,7 +20,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/pings"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
-	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/protosessions"
 	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
@@ -103,6 +102,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					},
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
+					protocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+					if protocol == nil {
+						return fmt.Errorf("protocol %s not found", cmd.String(protocolFlag.Name))
+					}
 					cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
 					columnData, err := cr.Get(cmd.String("property-id"))
 					if err != nil {
@@ -110,7 +113,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}
 					ordering := schema.NewInterfaceDefinitionOrderKeeper(
 						columns.CoreInterfaces,
-						ga4.ProtocolInterfaces, // This hardcodes ga4, it's fine for now for OSS
+						protocol.Interfaces(), // This hardcodes ga4, it's fine for now for OSS
 					)
 					columnData = schema.Sorted(columnData, ordering)
 					formatters := map[string]columnsFormatter{
@@ -229,7 +232,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 								getTableNames(cmd).sessionsColumnPrefix,
 							),
 						)
-						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySource(cmd))
+						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySettings(cmd))
 
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
@@ -269,7 +272,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											},
 										),
 										serverStorage,
-										propertySource(cmd),
+										propertySettings(cmd),
 									)),
 							},
 							[]worker.Middleware{},
@@ -296,10 +299,18 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					server := receiver.NewServer(
 						serverStorage,
 						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name))),
-						[]protocol.Protocol{
-							protocolFromCMD(cmd),
-						},
+						receiver.HitValidatingRuleSet(
+							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
+							propertySettings(cmd),
+						),
+						// For as long as we don't support multi-property, we return a single protocol.
+						func() []protocol.Protocol {
+							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+							if currentProtocol == nil {
+								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
+							}
+							return []protocol.Protocol{currentProtocol}
+						}(),
 						cmd.Int(serverPortFlag.Name),
 					)
 					serverErr := server.Run(ctx)
@@ -351,11 +362,12 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	}
 }
 
-func propertySource(cmd *cli.Command) properties.SettingsRegistry {
+func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 	return properties.NewStaticSettingsRegistry(
 		[]properties.Settings{},
 		properties.WithDefaultConfig(
 			&properties.Settings{
+				ProtocolID:                 cmd.String(protocolFlag.Name),
 				PropertyID:                 cmd.String(propertyIDFlag.Name),
 				PropertyName:               cmd.String(propertyNameFlag.Name),
 				PropertyMeasurementID:      "-",

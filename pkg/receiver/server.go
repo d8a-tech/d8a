@@ -174,7 +174,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 	}
 
 	for _, hit := range hits {
-		if err := s.validationRules.Validate(hit); err != nil {
+		if err := s.validationRules.Validate(p, hit); err != nil {
 			return nil, err
 		}
 	}

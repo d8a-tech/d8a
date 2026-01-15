@@ -287,5 +287,4 @@ var warehouseConfigFlags = []cli.Flag{
 	bigQueryWriterTypeFlag,
 	bigQueryQueryTimeoutFlag,
 	bigQueryTableCreationTimeoutFlag,
-	protocolFlag,
 }

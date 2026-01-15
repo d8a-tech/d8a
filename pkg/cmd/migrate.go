@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -10,6 +11,14 @@ import (
 )
 
 func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
+	settings, err := propertySettings(cmd).GetByPropertyID(propertyID)
+	if err != nil {
+		return err
+	}
+	protocol := protocolByID(settings.ProtocolID, cmd)
+	if protocol == nil {
+		return fmt.Errorf("protocol %s not found", settings.ProtocolID)
+	}
 	columnData, err := columnsRegistry(cmd).Get(propertyID) // nolint:contextcheck // false positive
 	if err != nil {
 		return err
@@ -40,7 +49,7 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string) error {
 		),
 		schema.NewInterfaceDefinitionOrderKeeper(
 			columns.CoreInterfaces,
-			protocolFromCMD(cmd).Interfaces(),
+			protocol.Interfaces(),
 		),
 	)
 	if err := guard.EnsureTables(propertyID); err != nil {

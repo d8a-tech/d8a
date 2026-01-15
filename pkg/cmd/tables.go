@@ -33,6 +33,14 @@ var crLock = sync.Mutex{}
 var cr schema.ColumnsRegistry
 
 func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
+	settings, err := propertySettings(cmd).GetByPropertyID(cmd.String(propertyIDFlag.Name))
+	if err != nil {
+		logrus.Panicf("failed to get property settings: %v", err)
+	}
+	protocol := protocolByID(settings.ProtocolID, cmd)
+	if protocol == nil {
+		logrus.Panicf("protocol %s not found", settings.ProtocolID)
+	}
 	crLock.Lock()
 	defer crLock.Unlock()
 	if cr == nil {
@@ -55,9 +63,9 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 			)
 		}
 		cr = columnset.DefaultColumnRegistry(
-			protocolFromCMD(cmd),
+			protocol,
 			geoColumns,
-			propertySource(cmd),
+			propertySettings(cmd),
 		)
 	}
 	return cr

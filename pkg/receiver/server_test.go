@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/stretchr/testify/assert"
@@ -110,7 +111,12 @@ func TestHandleRequest(t *testing.T) {
 			server := NewServer(
 				storage,
 				NewDummyRawLogStorage(),
-				HitValidatingRuleSet(1024*128), // 128KB
+				HitValidatingRuleSet(1024*128, properties.NewStaticSettingsRegistry([]properties.Settings{
+					{
+						PropertyID: "test_property_id",
+						ProtocolID: "test_protocol",
+					},
+				})),
 				tt.protocols,
 				8080,
 			)

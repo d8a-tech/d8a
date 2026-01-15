@@ -11,6 +11,8 @@ type Settings struct {
 	// In other cases (like GA4) the measurement ID is a separate ID.
 	PropertyMeasurementID string
 
+	ProtocolID string
+
 	SplitByUserID              bool
 	SplitByCampaign            bool
 	SplitByTimeSinceFirstEvent time.Duration

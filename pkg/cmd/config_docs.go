@@ -40,6 +40,7 @@ func getServerFlags() []cli.Flag {
 			propertyNameFlag,
 			propertySettingsSplitByUserIDFlag,
 			propertySettingsSplitByCampaignFlag,
+			protocolFlag,
 			propertySettingsSplitByTimeSinceFirstEventFlag,
 			propertySettingsSplitByMaxEventsFlag,
 			monitoringEnabledFlag,
