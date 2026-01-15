@@ -224,13 +224,6 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   1000,
 }
 
-var propertySettingsProtocolIDFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "property-settings-protocol-id",
-	Usage:   "Protocol ID to use for tracking requests. Valid values are 'ga4' and 'd8a'.",
-	Sources: defaultSourceChain("PROPERTY_SETTINGS_PROTOCOL_ID", "property.settings.protocol_id"),
-	Value:   "ga4",
-}
-
 var monitoringEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "monitoring-enabled",
 	Usage:   "Enable OpenTelemetry metrics",
@@ -271,6 +264,13 @@ var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 	Usage:   "Directory path where batched hits are stored in a filesystem-based queue before being processed by background workers. This directory acts as a persistent buffer between the receiver and the session processing pipeline.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("STORAGE_QUEUE_DIRECTORY", "storage.queue_directory"),
 	Value:   "./queue",
+}
+
+var protocolFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "protocol",
+	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4'.",
+	Sources: defaultSourceChain("PROTOCOL", "protocol"),
+	Value:   "ga4",
 }
 
 var warehouseConfigFlags = []cli.Flag{
