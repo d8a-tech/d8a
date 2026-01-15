@@ -37,9 +37,14 @@ func (p *ga4Protocol) Hits(reqCtx *fasthttp.RequestCtx, request *hits.ParsedRequ
 		bodyLines = strings.Split(bodyStr, "\n")
 	}
 
+	ctx := &protocol.RequestContext{
+		FastHttp: reqCtx,
+		Parsed:   request,
+	}
+
 	// If no body lines, create one hit with just query parameters
 	if len(bodyLines) == 0 {
-		hit, err := p.createHitFromQueryParams(request, request.Body)
+		hit, err := p.createHitFromQueryParams(ctx, request.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -56,7 +61,7 @@ func (p *ga4Protocol) Hits(reqCtx *fasthttp.RequestCtx, request *hits.ParsedRequ
 			continue // Skip empty lines
 		}
 
-		hit, err := p.createHitFromLine(request, line, request.Body)
+		hit, err := p.createHitFromLine(ctx, line, request.Body)
 		if err != nil {
 			return nil, err
 		}
@@ -67,45 +72,45 @@ func (p *ga4Protocol) Hits(reqCtx *fasthttp.RequestCtx, request *hits.ParsedRequ
 }
 
 // createHitBase creates a hit with common fields populated from the request
-func (p *ga4Protocol) createHitBase(request *hits.ParsedRequest, _ []byte) (*hits.Hit, error) {
+func (p *ga4Protocol) createHitBase(ctx *protocol.RequestContext, _ []byte) (*hits.Hit, error) {
 	hit := hits.New()
 
-	clientID, err := p.ClientID(request)
+	clientID, err := p.ClientID(ctx.Parsed)
 	if err != nil {
 		return nil, err
 	}
 	hit.ClientID = hits.ClientID(clientID)
 	hit.AuthoritativeClientID = hit.ClientID
 
-	hit.PropertyID, err = p.PropertyID(request)
+	hit.PropertyID, err = p.PropertyID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	hit.UserID, err = p.UserID(request)
+	hit.UserID, err = p.UserID(ctx.Parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	hit.EventName, err = p.EventName(request)
+	hit.EventName, err = p.EventName(ctx.Parsed)
 	if err != nil {
 		return nil, err
 	}
 
-	hit.Request = request.Clone()
+	hit.Request = ctx.Parsed.Clone()
 
 	return hit, nil
 }
 
 // createHitFromQueryParams creates a hit using only query parameters
-func (p *ga4Protocol) createHitFromQueryParams(request *hits.ParsedRequest, body []byte) (*hits.Hit, error) {
-	hit, err := p.createHitBase(request, body)
+func (p *ga4Protocol) createHitFromQueryParams(ctx *protocol.RequestContext, body []byte) (*hits.Hit, error) {
+	hit, err := p.createHitBase(ctx, body)
 	if err != nil {
 		return nil, err
 	}
 
 	queryParams := url.Values{}
-	for key, values := range request.QueryParams {
+	for key, values := range ctx.Parsed.QueryParams {
 		for _, value := range values {
 			queryParams.Add(key, value)
 		}
@@ -116,18 +121,22 @@ func (p *ga4Protocol) createHitFromQueryParams(request *hits.ParsedRequest, body
 }
 
 // createHitFromLine creates a hit by merging query parameters with line-specific parameters
-func (p *ga4Protocol) createHitFromLine(request *hits.ParsedRequest, line string, body []byte) (*hits.Hit, error) {
-	mergedParams, err := p.mergeQueryParamsWithLine(request.QueryParams, line)
+func (p *ga4Protocol) createHitFromLine(ctx *protocol.RequestContext, line string, body []byte) (*hits.Hit, error) {
+	mergedParams, err := p.mergeQueryParamsWithLine(ctx.Parsed.QueryParams, line)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create a temporary request with merged parameters for extracting common fields
-
-	requestCopy := request.Clone()
+	requestCopy := ctx.Parsed.Clone()
 	requestCopy.QueryParams = mergedParams
 
-	return p.createHitFromMergedParams(requestCopy, request.Body, mergedParams)
+	ctxCopy := &protocol.RequestContext{
+		FastHttp: ctx.FastHttp,
+		Parsed:   requestCopy,
+	}
+
+	return p.createHitFromMergedParams(ctxCopy, ctx.Parsed.Body, mergedParams)
 }
 
 // mergeQueryParamsWithLine merges query parameters with line parameters (line params override)
@@ -159,11 +168,11 @@ func (p *ga4Protocol) mergeQueryParamsWithLine(queryParams url.Values, line stri
 
 // createHitFromMergedParams creates a hit using merged parameters
 func (p *ga4Protocol) createHitFromMergedParams(
-	request *hits.ParsedRequest,
+	ctx *protocol.RequestContext,
 	body []byte,
 	mergedParams url.Values,
 ) (*hits.Hit, error) {
-	hit, err := p.createHitBase(request, body)
+	hit, err := p.createHitBase(ctx, body)
 	if err != nil {
 		return nil, err
 	}
@@ -181,8 +190,8 @@ func (p *ga4Protocol) ClientID(request *hits.ParsedRequest) (string, error) {
 	return cid, nil
 }
 
-func (p *ga4Protocol) PropertyID(request *hits.ParsedRequest) (string, error) {
-	return p.propertyIDExtractor.PropertyID(request)
+func (p *ga4Protocol) PropertyID(ctx *protocol.RequestContext) (string, error) {
+	return p.propertyIDExtractor.PropertyID(ctx)
 }
 
 func (p *ga4Protocol) UserID(request *hits.ParsedRequest) (*string, error) {
@@ -466,8 +475,8 @@ type fromTidByMeasurementIDExtractor struct {
 	psr properties.SettingsRegistry
 }
 
-func (e *fromTidByMeasurementIDExtractor) PropertyID(request *hits.ParsedRequest) (string, error) {
-	property, err := e.psr.GetByMeasurementID(request.QueryParams.Get("tid"))
+func (e *fromTidByMeasurementIDExtractor) PropertyID(ctx *protocol.RequestContext) (string, error) {
+	property, err := e.psr.GetByMeasurementID(ctx.Parsed.QueryParams.Get("tid"))
 	if err != nil {
 		return "", err
 	}

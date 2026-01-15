@@ -31,9 +31,15 @@ type ProtocolEndpoint struct {
 	CustomHandler func(*fasthttp.RequestCtx)
 }
 
+// RequestContext wraps both the fasthttp request context and parsed request.
+type RequestContext struct {
+	FastHttp *fasthttp.RequestCtx
+	Parsed   *hits.ParsedRequest
+}
+
 // PropertyIDExtractor extracts a property ID from a parsed request.
 type PropertyIDExtractor interface {
-	PropertyID(request *hits.ParsedRequest) (string, error)
+	PropertyID(*RequestContext) (string, error)
 }
 
 // Protocol defines the interface for different tracking protocol implementations.
