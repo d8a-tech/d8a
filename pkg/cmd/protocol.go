@@ -4,18 +4,22 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/d8a"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
 
-func protocolFromCMD(cmd *cli.Command) protocol.Protocol {
-	protocol := cmd.String(protocolFlag.Name)
-	if protocol == "ga4" {
-		return ga4.NewGA4Protocol(currencyConverter, propertySource(cmd))
+func protocols(cmd *cli.Command) []protocol.Protocol {
+	return []protocol.Protocol{
+		ga4.NewGA4Protocol(currencyConverter, propertySettings(cmd)),
+		d8a.NewD8AProtocol(currencyConverter, propertySettings(cmd)),
 	}
-	if protocol == "d8a" {
-		return d8a.NewD8AProtocol(currencyConverter, propertySource(cmd))
+}
+
+func protocolByID(id string, cmd *cli.Command) protocol.Protocol {
+	allProtocols := protocols(cmd)
+	for _, protocol := range allProtocols {
+		if protocol.ID() == id {
+			return protocol
+		}
 	}
-	logrus.Panicf("invalid protocol: %s, valid values are 'ga4' and 'd8a'", protocol)
 	return nil
 }

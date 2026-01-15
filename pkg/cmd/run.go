@@ -99,7 +99,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							Value:    "console",
 							Required: false,
 						},
-						protocolFlag,
+						propertySettingsProtocolIDFlag,
 					},
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
@@ -229,7 +229,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 								getTableNames(cmd).sessionsColumnPrefix,
 							),
 						)
-						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySource(cmd))
+						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySettings(cmd))
 
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
@@ -269,7 +269,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											},
 										),
 										serverStorage,
-										propertySource(cmd),
+										propertySettings(cmd),
 									)),
 							},
 							[]worker.Middleware{},
@@ -296,10 +296,18 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					server := receiver.NewServer(
 						serverStorage,
 						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name))),
-						[]protocol.Protocol{
-							protocolFromCMD(cmd),
-						},
+						receiver.HitValidatingRuleSet(
+							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
+							propertySettings(cmd),
+						),
+						// For as long as we don't support multi-property, we return a single protocol.
+						func() []protocol.Protocol {
+							currentProtocol := protocolByID(cmd.String(propertySettingsProtocolIDFlag.Name), cmd)
+							if currentProtocol == nil {
+								logrus.Panicf("protocol %s not found", cmd.String(propertySettingsProtocolIDFlag.Name))
+							}
+							return []protocol.Protocol{currentProtocol}
+						}(),
 						cmd.Int(serverPortFlag.Name),
 					)
 					serverErr := server.Run(ctx)
@@ -351,11 +359,12 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	}
 }
 
-func propertySource(cmd *cli.Command) properties.SettingsRegistry {
+func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 	return properties.NewStaticSettingsRegistry(
 		[]properties.Settings{},
 		properties.WithDefaultConfig(
 			&properties.Settings{
+				ProtocolID:                 cmd.String(propertySettingsProtocolIDFlag.Name),
 				PropertyID:                 cmd.String(propertyIDFlag.Name),
 				PropertyName:               cmd.String(propertyNameFlag.Name),
 				PropertyMeasurementID:      "-",

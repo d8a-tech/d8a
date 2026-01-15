@@ -2,6 +2,7 @@ package protosessions
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
@@ -324,6 +325,12 @@ func (o *Orchestrator) precomputeIsolatedSessionAndUserStamps(
 	for _, hit := range hitsBatch {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return NewErrorCausingTaskRetry(err)
 		}
 		guard := o.identifierIsolationGuardFactory.New(settings)
@@ -344,6 +351,12 @@ func (o *Orchestrator) computeAndCacheIsolatedClientIDs(
 	for _, hit := range hitsToBeSaved {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return NewErrorCausingTaskRetry(err)
 		}
 		guard := o.identifierIsolationGuardFactory.New(settings)
@@ -362,6 +375,12 @@ func (o *Orchestrator) seedOutdatedHits(
 	for _, hit := range hitsBatch {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		bucketNumber := o.timingWheel.BucketNumber(
@@ -413,6 +432,12 @@ func (o *Orchestrator) checkIdentifierConflicts(
 	for _, hit := range newBatch {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return nil, NewErrorCausingTaskRetry(err)
 		}
 		requests = append(requests, GetConflictCheckRequests(hit, settings)...)
@@ -468,6 +493,12 @@ func (o *Orchestrator) buildSaveRequests(
 	for _, hit := range hitsToBeSaved {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return nil, nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		isolatedID := GetIsolatedClientID(hit)
@@ -554,6 +585,12 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 	for _, hit := range hitsToDrop {
 		settings, err := registry.GetByPropertyID(hit.PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return NewErrorCausingTaskRetry(err)
 		}
 		removeHitMetadataRequests = append(
@@ -705,6 +742,12 @@ func (o *Orchestrator) buildProtoSessionsBatch(
 		sortedHits := sortHitsByServerReceivedTime(protoSessionHits)
 		settings, err := o.settingsRegistry.GetByPropertyID(sortedHits[0].PropertyID)
 		if err != nil {
+			var notFoundError *properties.NotFoundError
+			if errors.As(err, &notFoundError) {
+				logrus.Warnf("Property %q not found, skipping hit", sortedHits[0].PropertyID)
+				continue
+			}
+			// Possibly a problem with the registry, let's retry.
 			return nil, nil, nil, 0, err
 		}
 
