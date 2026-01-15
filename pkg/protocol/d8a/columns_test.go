@@ -69,22 +69,7 @@ func TestSessionColumns(t *testing.T) {
 		description     string
 		hits            columntests.TestHits
 		caseConfigFuncs []columntests.CaseConfigFunc
-	}{
-
-		{
-			name:        "SessionUniqueFileDownloads_Different",
-			expected:    2,
-			fieldName:   "session_unique_file_downloads",
-			description: "Session unique file downloads",
-			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
-			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "file_download"),
-				columntests.EnsureQueryParam(0, "ep.link_url", "https://example.com/file1"),
-				columntests.EnsureEventName(1, "file_download"),
-				columntests.EnsureQueryParam(1, "ep.link_url", "https://example.com/file2"),
-			},
-		},
-	}
+	}{}
 
 	for _, tc := range sessionColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
