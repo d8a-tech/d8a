@@ -23,15 +23,15 @@ func (p *d8aProtocol) ID() string {
 }
 
 func (p *d8aProtocol) Columns() schema.Columns {
-	childColumns := p.child.Columns()
-	for i, column := range childColumns.Event {
-		if column.Implements().ID == columns.CoreInterfaces.EventTrackingProtocol.ID {
-			childColumns.Event[i] = columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
+	return WrapColumns(
+		p.child.Columns(),
+		WithPatchEvent(
+			columns.CoreInterfaces.EventTrackingProtocol.ID,
+			columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 				return "d8a", nil
-			})
-		}
-	}
-	return childColumns
+			}),
+		),
+	)
 }
 
 func (p *d8aProtocol) Interfaces() any {
@@ -87,11 +87,13 @@ func (p *d8aProtocol) Hits(ctx *fasthttp.RequestCtx, request *hits.ParsedRequest
 func NewD8AProtocol(
 	converter currency.Converter,
 	psr properties.SettingsRegistry,
+	opts ...ga4.GA4ProtocolOption,
 ) protocol.Protocol {
 	return &d8aProtocol{
 		child: ga4.NewGA4Protocol(
 			converter,
 			psr,
+			opts...,
 		),
 	}
 }

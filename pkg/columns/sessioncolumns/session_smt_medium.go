@@ -16,8 +16,7 @@ var SessionMediumColumn = columns.NthEventMatchingPredicateValueColumn(
 	func(e *schema.Event) bool { return true }, // first event is fine
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.SessionSource.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.SessionSource.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(

@@ -267,8 +267,7 @@ var eventEcommerceShippingValueColumn = columns.NewSimpleEventColumn(
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventParamShipping.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventParamShipping.Version,
+			Interface: ProtocolInterfaces.EventParamShipping.ID,
 		},
 	),
 )

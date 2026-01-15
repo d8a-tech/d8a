@@ -20,9 +20,8 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 			columns: NewColumns(
 				[]SessionColumn{
 					&mockSessionColumn{
-						id:      "session_depends_on_event",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "session_depends_on_event", Type: arrow.BinaryTypes.String},
+						id:    "session_depends_on_event",
+						field: &arrow.Field{Name: "session_depends_on_event", Type: arrow.BinaryTypes.String},
 						dependsOn: []DependsOnEntry{
 							{Interface: "base_event"},
 						},
@@ -30,9 +29,8 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 				},
 				[]EventColumn{
 					&mockEventColumn{
-						id:      "base_event",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "base_event", Type: arrow.BinaryTypes.String},
+						id:    "base_event",
+						field: &arrow.Field{Name: "base_event", Type: arrow.BinaryTypes.String},
 					},
 				},
 				[]SessionScopedEventColumn{},
@@ -45,16 +43,14 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 			columns: NewColumns(
 				[]SessionColumn{
 					&mockSessionColumn{
-						id:      "base_session",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "base_session", Type: arrow.BinaryTypes.String},
+						id:    "base_session",
+						field: &arrow.Field{Name: "base_session", Type: arrow.BinaryTypes.String},
 					},
 				},
 				[]EventColumn{
 					&mockEventColumn{
-						id:      "event_depends_on_session",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "event_depends_on_session", Type: arrow.BinaryTypes.String},
+						id:    "event_depends_on_session",
+						field: &arrow.Field{Name: "event_depends_on_session", Type: arrow.BinaryTypes.String},
 						dependsOn: []DependsOnEntry{
 							{Interface: "base_session"},
 						},
@@ -69,38 +65,141 @@ func TestDependencySorter_SortAllColumns(t *testing.T) {
 			columns: NewColumns(
 				[]SessionColumn{
 					&mockSessionColumn{
-						id:      "session_b",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "session_b", Type: arrow.BinaryTypes.String},
+						id:    "session_b",
+						field: &arrow.Field{Name: "session_b", Type: arrow.BinaryTypes.String},
 						dependsOn: []DependsOnEntry{
 							{Interface: "event_a"},
 						},
 					},
 					&mockSessionColumn{
-						id:      "session_a",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "session_a", Type: arrow.BinaryTypes.String},
+						id:    "session_a",
+						field: &arrow.Field{Name: "session_a", Type: arrow.BinaryTypes.String},
 					},
 				},
 				[]EventColumn{
 					&mockEventColumn{
-						id:      "event_b",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "event_b", Type: arrow.BinaryTypes.String},
+						id:    "event_b",
+						field: &arrow.Field{Name: "event_b", Type: arrow.BinaryTypes.String},
 						dependsOn: []DependsOnEntry{
 							{Interface: "session_a"},
 						},
 					},
 					&mockEventColumn{
-						id:      "event_a",
-						version: "1.0.0",
-						field:   &arrow.Field{Name: "event_a", Type: arrow.BinaryTypes.String},
+						id:    "event_a",
+						field: &arrow.Field{Name: "event_a", Type: arrow.BinaryTypes.String},
 					},
 				},
 				[]SessionScopedEventColumn{},
 			),
 			// Columns are grouped by type, with dependencies respected within each type
 			expectedOrder: []InterfaceID{"session_a", "session_b", "event_a", "event_b"},
+		},
+		{
+			name: "missing dependency",
+			columns: NewColumns(
+				[]SessionColumn{},
+				[]EventColumn{
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "missing_col"},
+						},
+					},
+				},
+				[]SessionScopedEventColumn{},
+			),
+			expectedError: "missing dependency: col_a depends on missing_col (not present)",
+		},
+		{
+			name: "self-dependency",
+			columns: NewColumns(
+				[]SessionColumn{},
+				[]EventColumn{
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_a"},
+						},
+					},
+				},
+				[]SessionScopedEventColumn{},
+			),
+			expectedError: "invalid dependency: col_a depends on itself",
+		},
+		{
+			name: "duplicate column id",
+			columns: NewColumns(
+				[]SessionColumn{},
+				[]EventColumn{
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a", Type: arrow.BinaryTypes.String},
+					},
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a_dup", Type: arrow.BinaryTypes.String},
+					},
+				},
+				[]SessionScopedEventColumn{},
+			),
+			expectedError: "duplicate column id: col_a appears 2 times",
+		},
+		{
+			name: "circular dependency",
+			columns: NewColumns(
+				[]SessionColumn{},
+				[]EventColumn{
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_b"},
+						},
+					},
+					&mockEventColumn{
+						id:    "col_b",
+						field: &arrow.Field{Name: "col_b", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_a"},
+						},
+					},
+				},
+				[]SessionScopedEventColumn{},
+			),
+			expectedError: "circular dependency detected: col_a -> col_b -> col_a",
+		},
+		{
+			name: "complex cycle",
+			columns: NewColumns(
+				[]SessionColumn{},
+				[]EventColumn{
+					&mockEventColumn{
+						id:    "col_a",
+						field: &arrow.Field{Name: "col_a", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_b"},
+						},
+					},
+					&mockEventColumn{
+						id:    "col_b",
+						field: &arrow.Field{Name: "col_b", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_c"},
+						},
+					},
+					&mockEventColumn{
+						id:    "col_c",
+						field: &arrow.Field{Name: "col_c", Type: arrow.BinaryTypes.String},
+						dependsOn: []DependsOnEntry{
+							{Interface: "col_a"},
+						},
+					},
+				},
+				[]SessionScopedEventColumn{},
+			),
+			expectedError: "circular dependency detected: col_a -> col_b -> col_c -> col_a",
 		},
 	}
 

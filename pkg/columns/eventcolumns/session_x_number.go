@@ -51,8 +51,7 @@ var SSESessionPageNumber = columns.NewSimpleSessionScopedEventColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventPageLocation.Version,
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(

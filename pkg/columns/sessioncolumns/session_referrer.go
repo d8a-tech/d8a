@@ -25,8 +25,7 @@ var ReferrerColumn = columns.NewSimpleSessionColumn(
 	),
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageReferrer.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageReferrer.ID,
 		},
 	),
 )

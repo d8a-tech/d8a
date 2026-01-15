@@ -15,19 +15,16 @@ func TestInterfaceOrdering_RegisterInterfaceStruct(t *testing.T) {
 		ThirdInterface  Interface
 	}{
 		FirstInterface: Interface{
-			ID:      "test/first",
-			Version: "1.0.0",
-			Field:   &arrow.Field{Name: "first", Type: arrow.BinaryTypes.String},
+			ID:    "test/first",
+			Field: &arrow.Field{Name: "first", Type: arrow.BinaryTypes.String},
 		},
 		SecondInterface: Interface{
-			ID:      "test/second",
-			Version: "1.0.0",
-			Field:   &arrow.Field{Name: "second", Type: arrow.BinaryTypes.String},
+			ID:    "test/second",
+			Field: &arrow.Field{Name: "second", Type: arrow.BinaryTypes.String},
 		},
 		ThirdInterface: Interface{
-			ID:      "test/third",
-			Version: "1.0.0",
-			Field:   &arrow.Field{Name: "third", Type: arrow.BinaryTypes.String},
+			ID:    "test/third",
+			Field: &arrow.Field{Name: "third", Type: arrow.BinaryTypes.String},
 		},
 	}
 
@@ -57,9 +54,8 @@ func TestInterfaceOrdering_RegisterInterfaceStruct_FirstRegistrationWins(t *test
 		Interface Interface
 	}{
 		Interface: Interface{
-			ID:      "test/duplicate",
-			Version: "1.0.0",
-			Field:   &arrow.Field{Name: "first", Type: arrow.BinaryTypes.String},
+			ID:    "test/duplicate",
+			Field: &arrow.Field{Name: "first", Type: arrow.BinaryTypes.String},
 		},
 	}
 
@@ -67,9 +63,8 @@ func TestInterfaceOrdering_RegisterInterfaceStruct_FirstRegistrationWins(t *test
 		Interface Interface
 	}{
 		Interface: Interface{
-			ID:      "test/duplicate",
-			Version: "2.0.0",
-			Field:   &arrow.Field{Name: "second", Type: arrow.BinaryTypes.String},
+			ID:    "test/duplicate",
+			Field: &arrow.Field{Name: "second", Type: arrow.BinaryTypes.String},
 		},
 	}
 
@@ -154,9 +149,8 @@ func (m mockOrderColumn) Docs() Documentation {
 
 func (m mockOrderColumn) Implements() Interface {
 	return Interface{
-		ID:      m.id,
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: m.name, Type: arrow.BinaryTypes.String},
+		ID:    m.id,
+		Field: &arrow.Field{Name: m.name, Type: arrow.BinaryTypes.String},
 	}
 }
 

@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // DependencySorter provides topological sorting functionality for columns with dependencies.
@@ -106,72 +107,234 @@ func (s *DependencySorter) sortColumns(columns []Column) ([]Column, error) {
 		return columns, nil
 	}
 
-	// Create adjacency list and in-degree count
-	columnMap := make(map[InterfaceID]Column)
-	inDegree := make(map[InterfaceID]int)
-	adjList := make(map[InterfaceID][]InterfaceID)
+	columnMap, inDegree, adjList, err := buildSortGraph(columns)
+	if err != nil {
+		return nil, err
+	}
 
-	// Initialize structures
-	for _, col := range columns {
-		id := col.Implements().ID
-		columnMap[id] = col
+	result := topoSortColumns(columnMap, inDegree, adjList)
+
+	// Check for cycles (should not happen if AssertAllDependenciesFulfilled passed)
+	if len(result) != len(columns) {
+		remaining := remainingIDs(inDegree)
+		cycle := s.findCycle(buildReverseAdjList(columns, remaining), remaining)
+		if len(cycle) > 0 {
+			return nil, fmt.Errorf("circular dependency detected: %s", formatCyclePath(cycle))
+		}
+		return nil, fmt.Errorf("circular dependency detected among: %v", sortedIDs(remaining))
+	}
+
+	return result, nil
+}
+
+func buildSortGraph(columns []Column) (
+	columnMap map[InterfaceID]Column,
+	inDegree map[InterfaceID]int,
+	adjList map[InterfaceID][]InterfaceID,
+	err error,
+) {
+	columnMap, idSet, err := indexColumns(columns)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	inDegree = make(map[InterfaceID]int, len(columnMap))
+	adjList = make(map[InterfaceID][]InterfaceID, len(columnMap))
+	for id := range columnMap {
 		inDegree[id] = 0
 		adjList[id] = []InterfaceID{}
 	}
 
-	// Build dependency graph
 	for _, col := range columns {
+		colID := col.Implements().ID
 		for _, dep := range col.DependsOn() {
-			// Add edge from dependency to dependent
-			adjList[dep.Interface] = append(adjList[dep.Interface], col.Implements().ID)
-			inDegree[col.Implements().ID]++
+			depID := dep.Interface
+			if depID == colID {
+				return nil, nil, nil, fmt.Errorf("invalid dependency: %s depends on itself", colID)
+			}
+			if !idSet[depID] {
+				return nil, nil, nil, fmt.Errorf("missing dependency: %s depends on %s (not present)", colID, depID)
+			}
+			adjList[depID] = append(adjList[depID], colID)
+			inDegree[colID]++
 		}
 	}
+	return columnMap, inDegree, adjList, nil
+}
 
-	// Topological sort using Kahn's algorithm
-	var queue []InterfaceID
+func indexColumns(columns []Column) (columnMap map[InterfaceID]Column, idSet map[InterfaceID]bool, err error) {
+	columnMap = make(map[InterfaceID]Column, len(columns))
+	idSet = make(map[InterfaceID]bool, len(columns))
+	idCount := make(map[InterfaceID]int, len(columns))
+
+	for _, col := range columns {
+		id := col.Implements().ID
+		idCount[id]++
+		if idCount[id] == 1 {
+			columnMap[id] = col
+			idSet[id] = true
+		}
+	}
+	for id, count := range idCount {
+		if count > 1 {
+			return nil, nil, fmt.Errorf("duplicate column id: %s appears %d times", id, count)
+		}
+	}
+	return columnMap, idSet, nil
+}
+
+func topoSortColumns(
+	columnMap map[InterfaceID]Column,
+	inDegree map[InterfaceID]int,
+	adjList map[InterfaceID][]InterfaceID,
+) []Column {
+	queue := make([]InterfaceID, 0, len(inDegree))
 	for id, degree := range inDegree {
 		if degree == 0 {
 			queue = append(queue, id)
 		}
 	}
+	sort.Slice(queue, func(i, j int) bool { return string(queue[i]) < string(queue[j]) })
 
-	// Sort the initial queue for deterministic ordering
-	sort.Slice(queue, func(i, j int) bool {
-		return string(queue[i]) < string(queue[j])
-	})
-
-	var result []Column
+	result := make([]Column, 0, len(inDegree))
 	for len(queue) > 0 {
-		// Remove vertex with no incoming edges
 		currentID := queue[0]
 		queue = queue[1:]
 		result = append(result, columnMap[currentID])
 
-		// Collect neighbors that will have their in-degree reduced to 0
-		var newZeroDegreeNodes []InterfaceID
-
-		// Remove edges from current vertex
+		newZero := make([]InterfaceID, 0)
 		for _, neighborID := range adjList[currentID] {
 			inDegree[neighborID]--
 			if inDegree[neighborID] == 0 {
-				newZeroDegreeNodes = append(newZeroDegreeNodes, neighborID)
+				newZero = append(newZero, neighborID)
 			}
 		}
 
-		// Sort new zero-degree nodes for deterministic ordering
-		sort.Slice(newZeroDegreeNodes, func(i, j int) bool {
-			return string(newZeroDegreeNodes[i]) < string(newZeroDegreeNodes[j])
-		})
-
-		// Add to queue in sorted order
-		queue = append(queue, newZeroDegreeNodes...)
+		sort.Slice(newZero, func(i, j int) bool { return string(newZero[i]) < string(newZero[j]) })
+		queue = append(queue, newZero...)
 	}
 
-	// Check for cycles (should not happen if AssertAllDependenciesFulfilled passed)
-	if len(result) != len(columns) {
-		return nil, fmt.Errorf("circular dependency detected")
+	return result
+}
+
+func remainingIDs(inDegree map[InterfaceID]int) map[InterfaceID]bool {
+	remaining := make(map[InterfaceID]bool)
+	for id, degree := range inDegree {
+		if degree > 0 {
+			remaining[id] = true
+		}
+	}
+	return remaining
+}
+
+func buildReverseAdjList(columns []Column, remaining map[InterfaceID]bool) map[InterfaceID][]InterfaceID {
+	reverseAdjList := make(map[InterfaceID][]InterfaceID)
+	for _, col := range columns {
+		colID := col.Implements().ID
+		if !remaining[colID] {
+			continue
+		}
+		for _, dep := range col.DependsOn() {
+			if remaining[dep.Interface] {
+				reverseAdjList[colID] = append(reverseAdjList[colID], dep.Interface)
+			}
+		}
+	}
+	return reverseAdjList
+}
+
+func sortedIDs(ids map[InterfaceID]bool) []InterfaceID {
+	out := make([]InterfaceID, 0, len(ids))
+	for id := range ids {
+		out = append(out, id)
+	}
+	sort.Slice(out, func(i, j int) bool { return string(out[i]) < string(out[j]) })
+	return out
+}
+
+func formatCyclePath(cycle []InterfaceID) string {
+	parts := make([]string, 0, len(cycle))
+	for _, id := range cycle {
+		parts = append(parts, string(id))
+	}
+	return strings.Join(parts, " -> ")
+}
+
+// findCycle finds a cycle in the dependency graph using DFS.
+// Returns the cycle path as a slice of InterfaceIDs, or nil if no cycle found.
+func (s *DependencySorter) findCycle(
+	reverseAdjList map[InterfaceID][]InterfaceID,
+	remaining map[InterfaceID]bool,
+) []InterfaceID {
+	visited := make(map[InterfaceID]bool)
+	recStack := make(map[InterfaceID]bool)
+	nodes := sortedIDs(remaining)
+
+	for _, node := range nodes {
+		if visited[node] {
+			continue
+		}
+		if cycle := s.findCycleFrom(node, reverseAdjList, remaining, visited, recStack, nil); len(cycle) > 0 {
+			return cycle
+		}
+	}
+	return nil
+}
+
+func (s *DependencySorter) findCycleFrom(
+	node InterfaceID,
+	reverseAdjList map[InterfaceID][]InterfaceID,
+	remaining map[InterfaceID]bool,
+	visited map[InterfaceID]bool,
+	recStack map[InterfaceID]bool,
+	path []InterfaceID,
+) []InterfaceID {
+	if !remaining[node] {
+		return nil
+	}
+	if recStack[node] {
+		return cycleFromPath(path, node)
+	}
+	if visited[node] {
+		return nil
 	}
 
-	return result, nil
+	visited[node] = true
+	recStack[node] = true
+	nextPath := appendPath(path, node)
+
+	neighbors := reverseAdjList[node]
+	sort.Slice(neighbors, func(i, j int) bool { return string(neighbors[i]) < string(neighbors[j]) })
+	for _, neighbor := range neighbors {
+		if cycle := s.findCycleFrom(neighbor, reverseAdjList, remaining, visited, recStack, nextPath); len(cycle) > 0 {
+			return cycle
+		}
+	}
+
+	recStack[node] = false
+	return nil
+}
+
+func appendPath(path []InterfaceID, node InterfaceID) []InterfaceID {
+	// Avoid `appendAssign` gocritic warning by not using append on a different slice.
+	next := make([]InterfaceID, len(path)+1)
+	copy(next, path)
+	next[len(path)] = node
+	return next
+}
+
+func cycleFromPath(path []InterfaceID, node InterfaceID) []InterfaceID {
+	startIdx := -1
+	for i, id := range path {
+		if id == node {
+			startIdx = i
+			break
+		}
+	}
+	if startIdx < 0 {
+		return nil
+	}
+	cycle := make([]InterfaceID, 0, len(path)-startIdx+1)
+	cycle = append(cycle, path[startIdx:]...)
+	cycle = append(cycle, node)
+	return cycle
 }

@@ -200,8 +200,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.GaSessionNumber.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: ProtocolInterfaces.GaSessionNumber.ID,
 		},
 	),
 	columns.WithSessionColumnRequired(false),
@@ -261,8 +260,7 @@ var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(

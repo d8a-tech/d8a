@@ -28,12 +28,10 @@ var sessionEntryPageLocationColumn = columns.NthEventMatchingPredicateValueColum
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -50,12 +48,10 @@ var sessionExitPageLocationColumn = columns.NthEventMatchingPredicateValueColumn
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -72,12 +68,10 @@ var sessionEntryPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageTitle.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -94,12 +88,10 @@ var sessionExitPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageTitle.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -116,12 +108,10 @@ var sessionSecondPageLocationColumn = columns.NthEventMatchingPredicateValueColu
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -138,12 +128,10 @@ var sessionSecondPageTitleColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageTitle.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -160,12 +148,10 @@ var sessionUtmMarketingTacticColumn = columns.NthEventMatchingPredicateValueColu
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmMarketingTactic.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmMarketingTactic.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -182,12 +168,10 @@ var sessionUtmSourcePlatformColumn = columns.NthEventMatchingPredicateValueColum
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmSourcePlatform.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmSourcePlatform.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -204,12 +188,10 @@ var sessionUtmTermColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmTerm.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmTerm.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -226,12 +208,10 @@ var sessionUtmContentColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmContent.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmContent.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -248,12 +228,10 @@ var sessionUtmSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmSource.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmSource.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -270,12 +248,10 @@ var sessionUtmMediumColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmMedium.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmMedium.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -292,12 +268,10 @@ var sessionUtmCampaignColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmCampaign.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmCampaign.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -314,12 +288,10 @@ var sessionUtmIDColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmID.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmID.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -336,12 +308,10 @@ var sessionUtmCreativeFormatColumn = columns.NthEventMatchingPredicateValueColum
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmCreativeFormat.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmCreativeFormat.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -358,12 +328,10 @@ var sessionClickIDGclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDGclid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDGclid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -380,12 +348,10 @@ var sessionClickIDDclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDDclid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDDclid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -402,12 +368,10 @@ var sessionClickIDSrsltidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDSrsltid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDSrsltid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -424,12 +388,10 @@ var sessionClickIDGbraidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDGbraid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDGbraid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -446,12 +408,10 @@ var sessionClickIDWbraidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDWbraid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDWbraid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -468,12 +428,10 @@ var sessionClickIDFbclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDFbclid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDFbclid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -490,12 +448,10 @@ var sessionClickIDMsclkidColumn = columns.NthEventMatchingPredicateValueColumn(
 	isPageViewEvent,
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventClickIDMsclkid.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventClickIDMsclkid.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -523,8 +479,7 @@ var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -572,8 +527,7 @@ var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: ProtocolInterfaces.EventParamLinkURL.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -624,8 +578,7 @@ var sessionUniqueFormInteractionsColumn = columns.UniqueEventsOfGivenNameColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventParamFormID.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: ProtocolInterfaces.EventParamFormID.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
@@ -663,8 +616,7 @@ var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventParamLinkURL.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: ProtocolInterfaces.EventParamLinkURL.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(

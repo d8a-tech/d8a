@@ -30,12 +30,10 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
+				Interface: ProtocolInterfaces.EventParamCurrency.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventEcommercePurchaseRevenue.Version,
+				Interface: ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
 			},
 		),
 		columns.WithEventColumnDocs(
@@ -64,12 +62,10 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
+				Interface: ProtocolInterfaces.EventParamCurrency.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventEcommerceRefundValue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceRefundValue.Version,
+				Interface: ProtocolInterfaces.EventEcommerceRefundValue.ID,
 			},
 		),
 		columns.WithEventColumnDocs(
@@ -98,12 +94,10 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
+				Interface: ProtocolInterfaces.EventParamCurrency.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventEcommerceShippingValue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceShippingValue.Version,
+				Interface: ProtocolInterfaces.EventEcommerceShippingValue.ID,
 			},
 		),
 		columns.WithEventColumnDocs(
@@ -145,12 +139,10 @@ func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.Even
 		},
 		columns.WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
+				Interface: ProtocolInterfaces.EventParamCurrency.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventEcommerceTaxValue.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventEcommerceTaxValue.Version,
+				Interface: ProtocolInterfaces.EventEcommerceTaxValue.ID,
 			},
 		),
 		columns.WithEventColumnDocs(
