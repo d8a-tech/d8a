@@ -56,37 +56,29 @@ var itemsColumn = func(converter currency.Converter) schema.EventColumn {
 			// Some props make take values from event itself, so we need to evaluate them before parsing the item
 			// Examples: item_list_id, item_list_name
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamItemListID.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamItemListID.Version,
+				Interface: ProtocolInterfaces.EventParamItemListID.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamItemListName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamItemListName.Version,
+				Interface: ProtocolInterfaces.EventParamItemListName.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCreativeName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCreativeName.Version,
+				Interface: ProtocolInterfaces.EventParamCreativeName.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCreativeSlot.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCreativeSlot.Version,
+				Interface: ProtocolInterfaces.EventParamCreativeSlot.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamPromotionID.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamPromotionID.Version,
+				Interface: ProtocolInterfaces.EventParamPromotionID.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamPromotionName.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamPromotionName.Version,
+				Interface: ProtocolInterfaces.EventParamPromotionName.ID,
 			},
 			// We need to have event_name to calculate the refund value for items
 			schema.DependsOnEntry{
-				Interface:        columns.CoreInterfaces.EventName.ID,
-				GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+				Interface: columns.CoreInterfaces.EventName.ID,
 			},
 			schema.DependsOnEntry{
-				Interface:        ProtocolInterfaces.EventParamCurrency.ID,
-				GreaterOrEqualTo: ProtocolInterfaces.EventParamCurrency.Version,
+				Interface: ProtocolInterfaces.EventParamCurrency.ID,
 			},
 		),
 	)
@@ -265,8 +257,7 @@ func NewItemsBasedEventColumn[T int64 | float64](
 ) schema.EventColumn {
 	options = append(options, columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventItems.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
+			Interface: ProtocolInterfaces.EventItems.ID,
 		},
 	))
 	return columns.NewSimpleEventColumn(
@@ -393,8 +384,7 @@ var eventEcommerceUniqueItemsColumn = columns.NewSimpleEventColumn(
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventItems.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
+			Interface: ProtocolInterfaces.EventItems.ID,
 		},
 	),
 )
@@ -435,8 +425,7 @@ var eventEcommerceItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
 	),
 	columns.WithEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        ProtocolInterfaces.EventItems.ID,
-			GreaterOrEqualTo: ProtocolInterfaces.EventItems.Version,
+			Interface: ProtocolInterfaces.EventItems.ID,
 		},
 	),
 )

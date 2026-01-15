@@ -29,14 +29,9 @@ func (c *simpleSessionColumn) Docs() schema.Documentation {
 
 func (c *simpleSessionColumn) Implements() schema.Interface {
 	return schema.Interface{
-		ID:      c.id,
-		Version: "1.0.0",
-		Field:   c.field,
+		ID:    c.id,
+		Field: c.field,
 	}
-}
-
-func (c *simpleSessionColumn) Version() schema.Version {
-	return "1.0.0"
 }
 
 func (c *simpleSessionColumn) Field() *arrow.Field {
@@ -175,8 +170,7 @@ func URLElementColumn(
 		WithEventColumnRequired(false),
 		WithEventColumnDependsOn(
 			schema.DependsOnEntry{
-				Interface:        CoreInterfaces.EventPageLocation.ID,
-				GreaterOrEqualTo: CoreInterfaces.EventPageLocation.Version,
+				Interface: CoreInterfaces.EventPageLocation.ID,
 			},
 		),
 	)
@@ -249,14 +243,9 @@ func (c *simpleEventColumn) Docs() schema.Documentation {
 
 func (c *simpleEventColumn) Implements() schema.Interface {
 	return schema.Interface{
-		ID:      c.id,
-		Version: "1.0.0",
-		Field:   c.field,
+		ID:    c.id,
+		Field: c.field,
 	}
-}
-
-func (c *simpleEventColumn) Version() schema.Version {
-	return "1.0.0"
 }
 
 func (c *simpleEventColumn) Field() *arrow.Field {
@@ -354,8 +343,7 @@ func FromPageURLParamEventColumn(
 		RegisterURLParamForExclusion(param)
 	}
 	options = append(options, WithEventColumnDependsOn(schema.DependsOnEntry{
-		Interface:        CoreInterfaces.EventPageLocation.ID,
-		GreaterOrEqualTo: "1.0.0",
+		Interface: CoreInterfaces.EventPageLocation.ID,
 	}))
 	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		// Try to read from original URL in metadata first (if parameters were stripped)
@@ -576,9 +564,8 @@ func (c *simpleSessionScopedEventColumn) Docs() schema.Documentation {
 
 func (c *simpleSessionScopedEventColumn) Implements() schema.Interface {
 	return schema.Interface{
-		ID:      c.id,
-		Version: "1.0.0",
-		Field:   c.field,
+		ID:    c.id,
+		Field: c.field,
 	}
 }
 
@@ -931,8 +918,7 @@ func TotalEventsOfGivenNameColumn(
 ) schema.SessionColumn {
 	options = append(options, WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: CoreInterfaces.EventName.ID,
 		},
 	))
 	return NewSimpleSessionColumn(
@@ -967,8 +953,7 @@ func UniqueEventsOfGivenNameColumn(
 ) schema.SessionColumn {
 	options = append(options, WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: CoreInterfaces.EventName.ID,
 		},
 	))
 	return NewSimpleSessionColumn(

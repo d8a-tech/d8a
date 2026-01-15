@@ -13,7 +13,6 @@ import (
 // mockEventColumn implements EventColumn for testing
 type mockEventColumn struct {
 	id        InterfaceID
-	version   Version
 	field     *arrow.Field
 	dependsOn []DependsOnEntry
 	writeErr  error
@@ -28,9 +27,8 @@ func (m *mockEventColumn) Docs() Documentation {
 
 func (m *mockEventColumn) Implements() Interface {
 	return Interface{
-		ID:      m.id,
-		Version: m.version,
-		Field:   m.field,
+		ID:    m.id,
+		Field: m.field,
 	}
 }
 func (m *mockEventColumn) DependsOn() []DependsOnEntry { return m.dependsOn }
@@ -46,7 +44,6 @@ func (m *mockEventColumn) Write(event *Event) D8AColumnWriteError {
 // mockSessionColumn implements SessionColumn for testing
 type mockSessionColumn struct {
 	id        InterfaceID
-	version   Version
 	field     *arrow.Field
 	dependsOn []DependsOnEntry
 	writeErr  error
@@ -61,9 +58,8 @@ func (m *mockSessionColumn) Docs() Documentation {
 
 func (m *mockSessionColumn) Implements() Interface {
 	return Interface{
-		ID:      m.id,
-		Version: m.version,
-		Field:   m.field,
+		ID:    m.id,
+		Field: m.field,
 	}
 }
 func (m *mockSessionColumn) DependsOn() []DependsOnEntry { return m.dependsOn }
@@ -93,16 +89,14 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+					id:    "id",
+					field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
 				&mockSessionColumn{
-					id:      "session_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+					id:    "session_id",
+					field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			expectedTableNum: 1,
@@ -115,26 +109,22 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Tables(t *testing.T) {
 			sessionPrefix:   "sess_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+					id:    "id",
+					field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 				&mockEventColumn{
-					id:      "event_type",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "event_type", Type: arrow.BinaryTypes.String},
+					id:    "event_type",
+					field: &arrow.Field{Name: "event_type", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
 				&mockSessionColumn{
-					id:      "session_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+					id:    "session_id",
+					field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 				&mockSessionColumn{
-					id:      "user_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "user_id", Type: arrow.PrimitiveTypes.Int64},
+					id:    "user_id",
+					field: &arrow.Field{Name: "user_id", Type: arrow.PrimitiveTypes.Int64},
 				},
 			},
 			expectedTableNum: 1,
@@ -203,16 +193,14 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+					id:    "id",
+					field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
 				&mockSessionColumn{
-					id:      "session_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+					id:    "session_id",
+					field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessions: []*Session{
@@ -236,16 +224,14 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "sess_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+					id:    "id",
+					field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
 				&mockSessionColumn{
-					id:      "session_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+					id:    "session_id",
+					field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessions: []*Session{
@@ -276,16 +262,14 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_Batchify(t *testing.T) {
 			sessionPrefix:   "session_",
 			eventColumns: []EventColumn{
 				&mockEventColumn{
-					id:      "id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+					id:    "id",
+					field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessionColumns: []SessionColumn{
 				&mockSessionColumn{
-					id:      "session_id",
-					version: "1.0.0",
-					field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+					id:    "session_id",
+					field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 				},
 			},
 			sessions:          []*Session{},
@@ -335,14 +319,12 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_SessionValuesPropagation(t 
 	}
 
 	eventCol := &mockEventColumn{
-		id:      "id",
-		version: "1.0.0",
-		field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+		id:    "id",
+		field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 	}
 	sessionCol := &mockSessionColumn{
-		id:      "session_id",
-		version: "1.0.0",
-		field:   &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+		id:    "session_id",
+		field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
 	}
 
 	sources := Columns{
@@ -393,9 +375,8 @@ func (c *exampleEventColumn) Docs() Documentation {
 
 func (c *exampleEventColumn) Implements() Interface {
 	return Interface{
-		ID:      "example_event_id",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "example_event_id", Type: arrow.BinaryTypes.String},
+		ID:    "example_event_id",
+		Field: &arrow.Field{Name: "example_event_id", Type: arrow.BinaryTypes.String},
 	}
 }
 
@@ -420,9 +401,8 @@ func (c *exampleSessionColumn) Docs() Documentation {
 
 func (c *exampleSessionColumn) Implements() Interface {
 	return Interface{
-		ID:      "example_session_id",
-		Version: "1.0.0",
-		Field:   &arrow.Field{Name: "example_session_id", Type: arrow.BinaryTypes.String},
+		ID:    "example_session_id",
+		Field: &arrow.Field{Name: "example_session_id", Type: arrow.BinaryTypes.String},
 	}
 }
 
@@ -519,16 +499,14 @@ func TestEventsWithEmbeddedSessionColumnsTableLayout_IdempotentCalls(t *testing.
 
 	eventColumns := []EventColumn{
 		&mockEventColumn{
-			id:      "id",
-			version: "1.0.0",
-			field:   &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
+			id:    "id",
+			field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 		},
 	}
 	sessionColumns := []SessionColumn{
 		&mockSessionColumn{
-			id:      "session_duration",
-			version: "1.0.0",
-			field:   &arrow.Field{Name: "duration", Type: arrow.PrimitiveTypes.Int64},
+			id:    "session_duration",
+			field: &arrow.Field{Name: "duration", Type: arrow.PrimitiveTypes.Int64},
 		},
 	}
 

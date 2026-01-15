@@ -12,8 +12,7 @@ var sseTimeOnPageColumn = columns.NewTimeOnPageColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(

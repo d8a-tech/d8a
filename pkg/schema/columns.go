@@ -9,24 +9,18 @@ import (
 // InterfaceID represents a unique identifier for a column.
 type InterfaceID string
 
-// Version represents a semantic version string for a column.
-type Version string // semver
-
 // DependsOnEntry represents a dependency requirement for a column.
 type DependsOnEntry struct {
-	Interface        InterfaceID
-	GreaterOrEqualTo Version
-	LessThan         Version
+	Interface InterfaceID
 }
 
-// Interface represents a virtual column, with given name, version and a field (including column name and type)
+// Interface represents a virtual column, with given name and a field (including column name and type)
 // Various parts of the system may then provide implementations of this interface. As example you can use something
 // like "event_type". You may centrally define an abstract column interface, and then provide
 // implementations in the protocols, which may have different understanding of what really means "event_type".
 type Interface struct {
-	ID      InterfaceID
-	Version Version
-	Field   *arrow.Field
+	ID    InterfaceID
+	Field *arrow.Field
 }
 
 // Documentation represents the documentation for a column.

@@ -53,20 +53,16 @@ var SessionSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 	func(e *schema.Event) bool { return true }, // first event is fine
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmSource.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmSource.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmMedium.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmMedium.ID,
 		},
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventUtmTerm.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventUtmTerm.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(

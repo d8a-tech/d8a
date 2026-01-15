@@ -14,8 +14,7 @@ var eventPreviousPageLocationColumn = columns.NewValueTransitionColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventPageLocation.Version,
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(
@@ -35,8 +34,7 @@ var eventNextPageLocationColumn = columns.NewValueTransitionColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageLocation.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventPageLocation.Version,
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(
@@ -56,8 +54,7 @@ var eventPreviousPageTitleColumn = columns.NewValueTransitionColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageTitle.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventPageTitle.Version,
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(
@@ -77,8 +74,7 @@ var eventNextPageTitleColumn = columns.NewValueTransitionColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventPageTitle.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventPageTitle.Version,
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(
@@ -97,8 +93,7 @@ var sseIsEntryPageColumn = columns.NewFirstLastMatchingEventColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(
@@ -117,8 +112,7 @@ var sseIsExitPageColumn = columns.NewFirstLastMatchingEventColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventName.ID,
-			GreaterOrEqualTo: columns.CoreInterfaces.EventName.Version,
+			Interface: columns.CoreInterfaces.EventName.ID,
 		},
 	),
 	columns.WithSessionScopedEventColumnDocs(

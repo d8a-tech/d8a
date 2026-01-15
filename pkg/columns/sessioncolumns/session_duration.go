@@ -33,11 +33,9 @@ var DurationColumn = columns.NewSimpleSessionColumn(
 		return lastEventTimeInt - firstEventTimeInt, nil
 	}, columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.SessionLastEventTime.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.SessionLastEventTime.ID,
 		}, schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.SessionFirstEventTime.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.SessionFirstEventTime.ID,
 		}),
 	columns.WithSessionColumnDocs(
 		"Session Duration",

@@ -21,8 +21,7 @@ var SessionIDColumn = columns.NewSimpleSessionColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface:        columns.CoreInterfaces.EventID.ID,
-			GreaterOrEqualTo: "1.0.0",
+			Interface: columns.CoreInterfaces.EventID.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
