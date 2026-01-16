@@ -10,10 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const IP1234 = "1.2.3.4"
+
 func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 	t.Parallel()
 
-	const ip = "1.2.3.4"
+	const ip = IP1234
 	const propertyID = "GA-12345"
 	fixedDate := time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
 
@@ -39,7 +41,7 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 				h.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, "client-stamp")
 				return h
 			}(),
-			want: mustSHA256Hex(clientProvidedSessionStampQueryParam + "=client-stamp"),
+			want: mustSHA256Hex(clientProvidedSessionStampQueryParam + "=client-stamp|" + propertyID),
 		},
 		{
 			name: "joins_headers_and_ip_in_order_with_separators_and_daily_salt",
@@ -114,13 +116,13 @@ func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp_IncludesDailySalt(
 	}
 
 	h1 := hits.New()
-	h1.Request.IP = "1.2.3.4"
+	h1.Request.IP = IP1234
 	h1.PropertyID = "GA-12345"
 	h1.Request.ServerReceivedTime = time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
 	h1.Request.Headers.Set("A", "a")
 
 	h2 := hits.New()
-	h2.Request.IP = "1.2.3.4"
+	h2.Request.IP = IP1234
 	h2.PropertyID = "GA-12345"
 	h2.Request.ServerReceivedTime = time.Date(2026, 1, 8, 12, 0, 0, 0, time.UTC)
 	h2.Request.Headers.Set("A", "a")
@@ -202,7 +204,7 @@ func TestDefaultIdentifierIsolationGuard_IsolatedClientID(t *testing.T) {
 func TestNoIsolationGuard_IsolatedSessionStamp(t *testing.T) {
 	t.Parallel()
 
-	const ip = "1.2.3.4"
+	const ip = IP1234
 	const propertyID = "GA-12345"
 	fixedDate := time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
 
@@ -259,6 +261,72 @@ func TestNoIsolationGuard_IsolatedClientID(t *testing.T) {
 
 	// then
 	assert.Equal(t, hits.ClientID("client123"), got, "should return client ID as-is")
+}
+
+func TestDefaultIdentifierIsolationGuard_IsolatedSessionStamp_FssPropertyScoped(t *testing.T) {
+	t.Parallel()
+
+	// given
+	guard := &defaultIdentifierIsolationGuard{
+		calculatedHeaders: []string{},
+	}
+
+	fixedDate := time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
+	fssValue := "same-fss-value"
+
+	h1 := hits.New()
+	h1.Request.IP = IP1234
+	h1.PropertyID = "property-1"
+	h1.Request.ServerReceivedTime = fixedDate
+	h1.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, fssValue)
+
+	h2 := hits.New()
+	h2.Request.IP = IP1234
+	h2.PropertyID = "property-2"
+	h2.Request.ServerReceivedTime = fixedDate
+	h2.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, fssValue)
+
+	// when
+	stamp1 := guard.IsolatedSessionStamp(h1)
+	stamp2 := guard.IsolatedSessionStamp(h2)
+
+	// then
+	assert.NotEqual(t, stamp1, stamp2, "session stamps should differ across properties even with same fss value")
+	assert.Equal(t, mustSHA256Hex(clientProvidedSessionStampQueryParam+"="+fssValue+"|property-1"), stamp1)
+	assert.Equal(t, mustSHA256Hex(clientProvidedSessionStampQueryParam+"="+fssValue+"|property-2"), stamp2)
+}
+
+func TestNoIsolationGuard_IsolatedSessionStamp_FssNotPropertyScoped(t *testing.T) {
+	t.Parallel()
+
+	// given
+	guard := &noIsolationGuard{
+		skipPropertyID:    true,
+		calculatedHeaders: []string{},
+	}
+
+	fixedDate := time.Date(2026, 1, 7, 12, 0, 0, 0, time.UTC)
+	fssValue := "same-fss-value"
+
+	h1 := hits.New()
+	h1.Request.IP = IP1234
+	h1.PropertyID = "property-1"
+	h1.Request.ServerReceivedTime = fixedDate
+	h1.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, fssValue)
+
+	h2 := hits.New()
+	h2.Request.IP = IP1234
+	h2.PropertyID = "property-2"
+	h2.Request.ServerReceivedTime = fixedDate
+	h2.Request.QueryParams.Set(clientProvidedSessionStampQueryParam, fssValue)
+
+	// when
+	stamp1 := guard.IsolatedSessionStamp(h1)
+	stamp2 := guard.IsolatedSessionStamp(h2)
+
+	// then
+	assert.Equal(t, stamp1, stamp2, "session stamps should be same when skipPropertyID is true (no isolation)")
+	assert.Equal(t, mustSHA256Hex(clientProvidedSessionStampQueryParam+"="+fssValue), stamp1)
 }
 
 func mustSHA256Hex(s string) string {

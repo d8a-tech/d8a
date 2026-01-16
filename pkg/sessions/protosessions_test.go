@@ -15,11 +15,28 @@ type mockSessionWriter struct {
 	writeCalled bool
 	writeError  error
 	sessions    []*schema.Session
+	writeCalls  []writeCall
+}
+
+type writeCall struct {
+	propertyIDs []string
+	sessions    []*schema.Session
 }
 
 func (m *mockSessionWriter) Write(sessions ...*schema.Session) error {
 	m.writeCalled = true
 	m.sessions = append(m.sessions, sessions...)
+
+	// Track property IDs for this call
+	propertyIDs := make([]string, len(sessions))
+	for i, s := range sessions {
+		propertyIDs[i] = s.PropertyID
+	}
+	m.writeCalls = append(m.writeCalls, writeCall{
+		propertyIDs: propertyIDs,
+		sessions:    sessions,
+	})
+
 	return m.writeError
 }
 
@@ -226,4 +243,89 @@ func TestNewDirectCloser(t *testing.T) {
 	// then
 	assert.NotNil(t, closer)
 	assert.Equal(t, mockWriter, closer.writer)
+}
+
+func TestDirectCloser_Close_GroupsByPropertyID(t *testing.T) {
+	// given: proto-sessions from two different properties
+	time1 := time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC)
+
+	// Multiple protosessions per property to verify grouping
+	protosession1a := []*hits.Hit{
+		{ID: "hit1", PropertyID: "property-1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+	}
+	protosession1b := []*hits.Hit{
+		{ID: "hit2", PropertyID: "property-1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+	}
+
+	protosession2a := []*hits.Hit{
+		{ID: "hit3", PropertyID: "property-2", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+	}
+	protosession2b := []*hits.Hit{
+		{ID: "hit4", PropertyID: "property-2", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+	}
+
+	mockWriter := &mockSessionWriter{}
+	closer := NewDirectCloser(mockWriter, 0*time.Second)
+
+	// when
+	err := closer.Close([][]*hits.Hit{protosession1a, protosession2a, protosession1b, protosession2b})
+
+	// then
+	assert.NoError(t, err)
+	assert.True(t, mockWriter.writeCalled)
+	assert.Len(t, mockWriter.writeCalls, 2, "writer.Write should be called twice (once per property)")
+
+	// Verify first call contains only property-1 sessions (grouped together)
+	firstCall := mockWriter.writeCalls[0]
+	assert.Len(t, firstCall.sessions, 2, "property-1 should have 2 sessions grouped together")
+	for _, session := range firstCall.sessions {
+		assert.Equal(t, "property-1", session.PropertyID)
+	}
+
+	// Verify second call contains only property-2 sessions (grouped together)
+	secondCall := mockWriter.writeCalls[1]
+	assert.Len(t, secondCall.sessions, 2, "property-2 should have 2 sessions grouped together")
+	for _, session := range secondCall.sessions {
+		assert.Equal(t, "property-2", session.PropertyID)
+	}
+
+	// Verify all property IDs in each call are the same
+	assert.Equal(t, []string{"property-1", "property-1"}, firstCall.propertyIDs)
+	assert.Equal(t, []string{"property-2", "property-2"}, secondCall.propertyIDs)
+}
+
+func TestDirectCloser_Close_FailFast(t *testing.T) {
+	// given: proto-sessions from two different properties
+	time1 := time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)
+
+	protosession1 := []*hits.Hit{
+		{ID: "hit1", PropertyID: "property-1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+	}
+
+	protosession2 := []*hits.Hit{
+		{ID: "hit2", PropertyID: "property-2", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+	}
+
+	expectedError := assert.AnError
+	mockWriter := &mockSessionWriter{
+		writeError: expectedError,
+	}
+	closer := NewDirectCloser(mockWriter, 0*time.Second)
+
+	// when
+	err := closer.Close([][]*hits.Hit{protosession1, protosession2})
+
+	// then
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err)
+	assert.True(t, mockWriter.writeCalled)
+
+	// Verify writer.Write was called only once (fail-fast: stops after first error)
+	assert.Len(t, mockWriter.writeCalls, 1, "writer.Write should be called only once (fail-fast)")
+
+	// Verify the first call contains only property-1 sessions
+	firstCall := mockWriter.writeCalls[0]
+	assert.Len(t, firstCall.sessions, 1)
+	assert.Equal(t, "property-1", firstCall.sessions[0].PropertyID)
 }
