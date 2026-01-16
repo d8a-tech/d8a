@@ -47,7 +47,7 @@ func (c *shardingCloser) Close(protosessions [][]*hits.Hit) error {
 		if len(protosession) == 0 {
 			continue
 		}
-		idx := c.shardFor(protosession[0].AuthoritativeClientID)
+		idx := c.shardFor(GetIsolatedClientID(protosession[0]))
 		shards[idx] = append(shards[idx], protosession)
 	}
 

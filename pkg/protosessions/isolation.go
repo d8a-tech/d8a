@@ -79,7 +79,10 @@ func calculateSessionStamp(
 	// The `d8aSessionStamp` variant is reserved mostly for testing and debugging.
 	clientProvidedSessionStamp := req.QueryParams.Get(clientProvidedSessionStampQueryParam)
 	if clientProvidedSessionStamp != "" {
-		return sha256Hex(clientProvidedSessionStampQueryParam + "=" + clientProvidedSessionStamp)
+		if skipPropertyID {
+			return sha256Hex(clientProvidedSessionStampQueryParam + "=" + clientProvidedSessionStamp)
+		}
+		return sha256Hex(clientProvidedSessionStampQueryParam + "=" + clientProvidedSessionStamp + "|" + hit.PropertyID)
 	}
 
 	// Hash calculated stamp to:

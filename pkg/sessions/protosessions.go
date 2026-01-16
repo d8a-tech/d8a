@@ -52,10 +52,23 @@ func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
 		return nil
 	}
 
-	if err := c.writer.Write(sessions...); err != nil {
-		logrus.Errorf("failed to write sessions: %v, adding Sleep to avoid spamming the warehouse", err)
-		time.Sleep(c.failureSleepDuration)
-		return err
+	// Group sessions by PropertyID to ensure writer only receives single-property batches
+	sessionsByProperty := make(map[string][]*schema.Session)
+	for _, session := range sessions {
+		sessionsByProperty[session.PropertyID] = append(sessionsByProperty[session.PropertyID], session)
+	}
+
+	// Write each property group separately
+	for propertyID, propertySessions := range sessionsByProperty {
+		if err := c.writer.Write(propertySessions...); err != nil {
+			logrus.Errorf(
+				"failed to write sessions for property %s: %v, adding Sleep to avoid spamming the warehouse",
+				propertyID,
+				err,
+			)
+			time.Sleep(c.failureSleepDuration)
+			return err
+		}
 	}
 
 	return nil
