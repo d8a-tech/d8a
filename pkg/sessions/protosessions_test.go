@@ -15,11 +15,13 @@ type mockSessionWriter struct {
 	writeCalled bool
 	writeError  error
 	sessions    []*schema.Session
+	writeCalls  [][]*schema.Session // Track each Write call separately
 }
 
 func (m *mockSessionWriter) Write(sessions ...*schema.Session) error {
 	m.writeCalled = true
 	m.sessions = append(m.sessions, sessions...)
+	m.writeCalls = append(m.writeCalls, sessions)
 	return m.writeError
 }
 
@@ -226,4 +228,177 @@ func TestNewDirectCloser(t *testing.T) {
 	// then
 	assert.NotNil(t, closer)
 	assert.Equal(t, mockWriter, closer.writer)
+}
+
+func TestDirectCloser_Close_MixedProperties(t *testing.T) {
+	// given
+	time1 := time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name                   string
+		protosessions          [][]*hits.Hit
+		expectedWriteCalls     int
+		expectedPropertyIDs    []string // PropertyIDs per write call
+		expectedError          bool
+		expectedErrorSubstring string
+	}{
+		{
+			name: "two_protosessions_different_properties",
+			protosessions: [][]*hits.Hit{
+				{
+					{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+					{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				},
+				{
+					{ID: "hit3", PropertyID: "prop2", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				},
+			},
+			expectedWriteCalls:  2,
+			expectedPropertyIDs: []string{"prop1", "prop2"},
+		},
+		{
+			name: "three_protosessions_two_properties",
+			protosessions: [][]*hits.Hit{
+				{
+					{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				},
+				{
+					{ID: "hit2", PropertyID: "prop2", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+				},
+				{
+					{ID: "hit3", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				},
+			},
+			expectedWriteCalls:  2,
+			expectedPropertyIDs: []string{"prop1", "prop2"},
+		},
+		{
+			name: "single_protosession_single_property",
+			protosessions: [][]*hits.Hit{
+				{
+					{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+					{ID: "hit2", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				},
+			},
+			expectedWriteCalls:  1,
+			expectedPropertyIDs: []string{"prop1"},
+		},
+		{
+			name: "protosession_with_mixed_property_ids_should_error",
+			protosessions: [][]*hits.Hit{
+				{
+					{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+					{ID: "hit2", PropertyID: "prop2", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+				},
+			},
+			expectedWriteCalls:     0,
+			expectedError:          true,
+			expectedErrorSubstring: "mixed property IDs",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			mockWriter := &mockSessionWriter{
+				writeCalls: make([][]*schema.Session, 0),
+			}
+			closer := NewDirectCloser(mockWriter, 0)
+
+			// when
+			err := closer.Close(tt.protosessions)
+
+			// then
+			if tt.expectedError {
+				assert.Error(t, err)
+				if tt.expectedErrorSubstring != "" {
+					assert.Contains(t, err.Error(), tt.expectedErrorSubstring)
+				}
+				assert.Equal(t, tt.expectedWriteCalls, len(mockWriter.writeCalls))
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedWriteCalls, len(mockWriter.writeCalls), "number of Write calls should match expected")
+
+				// Verify each Write call contains only sessions from a single PropertyID
+				propertyIDsSeen := make([]string, 0, len(mockWriter.writeCalls))
+				for i, call := range mockWriter.writeCalls {
+					require.NotEmpty(t, call, "Write call %d should not be empty", i)
+					// All sessions in this call must have the same PropertyID
+					firstPropertyID := call[0].PropertyID
+					for _, session := range call {
+						assert.Equal(t,
+							firstPropertyID, session.PropertyID,
+							"all sessions in Write call %d must have the same PropertyID", i,
+						)
+					}
+					propertyIDsSeen = append(propertyIDsSeen, firstPropertyID)
+				}
+
+				// Verify we got the expected property IDs (order may vary, so use a set comparison)
+				expectedSet := make(map[string]int)
+				for _, propID := range tt.expectedPropertyIDs {
+					expectedSet[propID]++
+				}
+				actualSet := make(map[string]int)
+				for _, propID := range propertyIDsSeen {
+					actualSet[propID]++
+				}
+				assert.Equal(t, expectedSet, actualSet, "property IDs in write calls should match expected")
+			}
+		})
+	}
+}
+
+func TestDirectCloser_Close_WithGroupKeyFunc(t *testing.T) {
+	// given
+	time1 := time.Date(2023, 1, 1, 10, 0, 0, 0, time.UTC)
+	time2 := time.Date(2023, 1, 1, 11, 0, 0, 0, time.UTC)
+
+	// Custom group key function that groups prop1 and prop2 into the same warehouse group
+	groupKeyFunc := func(propertyID string) (string, error) {
+		if propertyID == "prop1" || propertyID == "prop2" {
+			return "warehouse1", nil
+		}
+		return "warehouse2", nil
+	}
+
+	mockWriter := &mockSessionWriter{
+		writeCalls: make([][]*schema.Session, 0),
+	}
+	closer := NewDirectCloser(mockWriter, 0, WithGroupKeyFunc(groupKeyFunc))
+
+	protosessions := [][]*hits.Hit{
+		{
+			{ID: "hit1", PropertyID: "prop1", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+		},
+		{
+			{ID: "hit2", PropertyID: "prop2", Request: &hits.ParsedRequest{ServerReceivedTime: time1}},
+		},
+		{
+			{ID: "hit3", PropertyID: "prop3", Request: &hits.ParsedRequest{ServerReceivedTime: time2}},
+		},
+	}
+
+	// when
+	err := closer.Close(protosessions)
+
+	// then
+	assert.NoError(t, err)
+	// Should have 3 Write calls: prop1, prop2, prop3 (each property still gets its own call)
+	assert.Equal(t, 3, len(mockWriter.writeCalls))
+
+	// Verify each call has a single property
+	propertyIDs := make([]string, 0, 3)
+	for _, call := range mockWriter.writeCalls {
+		require.NotEmpty(t, call)
+		propertyID := call[0].PropertyID
+		for _, session := range call {
+			assert.Equal(t, propertyID, session.PropertyID)
+		}
+		propertyIDs = append(propertyIDs, propertyID)
+	}
+
+	// Should have prop1, prop2, prop3 (order may vary)
+	assert.ElementsMatch(t, []string{"prop1", "prop2", "prop3"}, propertyIDs)
 }
