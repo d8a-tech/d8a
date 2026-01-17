@@ -1,0 +1,16 @@
+name: Add all issues to the shared project
+
+on:
+  issues:
+    types:
+      - opened
+
+jobs:
+  add-to-project:
+    name: Add issue to project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: https://github.com/orgs/d8a-tech/projects/3
+          github-token: ${{secrets.GH_API_TOKEN}}
