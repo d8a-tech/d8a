@@ -60,7 +60,15 @@ func (c *DirectCloser) Close(protosessions [][]*hits.Hit) error {
 	}
 
 	// Write each property group separately (fail-fast: return on first error)
-	for propertyID, propertySessions := range sessionsByProperty {
+	// Use deterministic property ordering to avoid flaky behavior caused by Go map iteration order.
+	propertyIDs := make([]string, 0, len(sessionsByProperty))
+	for propertyID := range sessionsByProperty {
+		propertyIDs = append(propertyIDs, propertyID)
+	}
+	sort.Strings(propertyIDs)
+
+	for _, propertyID := range propertyIDs {
+		propertySessions := sessionsByProperty[propertyID]
 		if err := c.writer.Write(propertySessions...); err != nil {
 			logrus.Errorf(
 				"failed to write sessions for property %q: %v, adding Sleep to avoid spamming the warehouse",
