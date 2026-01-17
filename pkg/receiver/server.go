@@ -88,11 +88,9 @@ func (s *Server) handleRequest(
 	ctx *fasthttp.RequestCtx,
 	selectedProtocol protocol.Protocol,
 ) {
-	start := time.Now()
 	// Handle preflight requests early
 	if string(ctx.Method()) == fasthttp.MethodOptions {
 		ctx.SetStatusCode(fasthttp.StatusNoContent)
-		recordRequestMetrics(reqCtx, fasthttp.StatusNoContent, start)
 		return
 	}
 
@@ -109,7 +107,6 @@ func (s *Server) handleRequest(
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
-		recordRequestMetrics(reqCtx, fasthttp.StatusBadRequest, start)
 		return
 	}
 
@@ -118,7 +115,6 @@ func (s *Server) handleRequest(
 			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
 			logrus.Error(err)
 			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-			recordRequestMetrics(reqCtx, fasthttp.StatusInternalServerError, start)
 			return
 		}
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
@@ -126,13 +122,11 @@ func (s *Server) handleRequest(
 	err = s.storage.Push(hits)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		recordRequestMetrics(reqCtx, fasthttp.StatusInternalServerError, start)
 		return
 	}
 
 	// Successful request should return 204 No Content
 	ctx.SetStatusCode(fasthttp.StatusNoContent)
-	recordRequestMetrics(reqCtx, fasthttp.StatusNoContent, start)
 }
 
 func recordRequestMetrics(ctx context.Context, statusCode int, start time.Time) {
