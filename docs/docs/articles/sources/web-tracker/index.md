@@ -18,6 +18,7 @@ The web tracker is currently in **beta** - feel free to report any problems via 
 <Tabs>
 <TabItem value="script-tag" label="Script tag" default>
 Add the snippet to your page:
+
 <!-- prettier-ignore -->
 ```html
 <script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
@@ -25,13 +26,12 @@ Add the snippet to your page:
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
 
-d8a('js', new Date());
-d8a('config', '<property_id>', {
-server_container_url: 'https://global.t.d8a.tech/<property_id>/d/c'
-});
+  d8a('js', new Date());
+  d8a('config', '<property_id>', {
+    server_container_url: 'https://global.t.d8a.tech/<property_id>/d/c'
+  });
 </script>
-
-````
+```
 
 </TabItem>
 <TabItem value="npm-module" label="npm (module)">
@@ -40,7 +40,7 @@ First, install the package:
 
 ```bash
 npm install @d8a-tech/web-tracker
-````
+```
 
 Then use the following code to initialize:
 

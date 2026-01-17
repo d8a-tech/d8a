@@ -37,7 +37,7 @@ function QuickLinks() {
                 <Link to="/getting-started">Getting Started</Link>
               </Heading>
               <p className={styles.cardDescription}>
-                Set up d8a in minutes with Docker and start tracking events right away.
+                Set up d8a in minutes using Cloud or go On-premises with Docker.
               </p>
             </div>
           </div>

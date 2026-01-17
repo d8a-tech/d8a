@@ -6,7 +6,12 @@ sidebar_position: 1
 
 Welcome to Divine Data (d8a)! This guide will help you get up and running with d8a, an open-source clickstream analytics platform that's fully compatible with GA4 tracking protocols.
 
+:::caution Cloud option available
+You can start with our [free cloud option](https://d8a.tech/pricing/). Visit **[the signup page](https://app.d8a.tech)** to create an account. After setting up your account, you can proceed directly to step 4.
+:::
+
 Prerequisites:
+
 - Unix shell (Linux, macOS, WSL, etc.)
 - Docker installed with the `docker compose` command
 - Basic Unix knowledge (creating files, directories, etc.)
@@ -14,7 +19,6 @@ Prerequisites:
 ## Step 1: Create a configuration file
 
 First, create a config file (you can learn more about the configuration options in the [configuration reference](/articles/config)):
-
 
 ```bash
 cat > config.yaml <<EOF
@@ -103,7 +107,6 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 
 Your d8a server setup is now complete. If you'd like to hook up a domain and use SSL, you need a reverse proxy like Nginx. You can find resources for setting up reverse proxies in the [Nginx documentation](https://nginx.org/en/docs/beginners_guide.html) or [Apache HTTP Server documentation](https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html).
 
-
 ## Step 4: Set up tracking
 
 After d8a is up and running, the next step is to send tracking traffic to your d8a endpoint. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
@@ -113,7 +116,7 @@ We recommend starting with [Intercepting GA4 events](/articles/sources/intercept
 ## Next steps
 
 After completing all the steps:
+
 - Verify that events are being received by your d8a instance in the warehouse of your choice
 - For BigQuery, you can copy the official [Looker Studio dashboard](https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd/page/p_53ep5k8umd)
 - Review the [database schema](/articles/database-schema) to understand the data structure
-
