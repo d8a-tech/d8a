@@ -27,7 +27,7 @@ storage:
   queue_directory: /storage/d8a-queue
 
 sessions:
-  duration: 10s # Adjust this after the testing phase to a production value
+  timeout: 10s # Adjust this after the testing phase to a production value
 
 warehouse:
   driver: clickhouse
