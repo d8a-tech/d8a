@@ -376,7 +376,7 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 				SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
 				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
 
-				SessionDuration:           cmd.Duration(sessionsDurationFlag.Name),
+				SessionTimeout:            cmd.Duration(sessionsTimeoutFlag.Name),
 				SessionJoinBySessionStamp: cmd.Bool(sessionsJoinBySessionStampFlag.Name),
 				SessionJoinByUserID:       cmd.Bool(sessionsJoinByUserIDFlag.Name),
 			},

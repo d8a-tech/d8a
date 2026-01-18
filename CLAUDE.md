@@ -39,7 +39,7 @@ go build -o d8a main.go
 
 **Session Management** (`pkg/sessions/`, `pkg/protosessions/`):
 - Proto-sessions collect individual hits for a user session
-- Configurable session duration and closing triggers
+- Configurable session timeout and closing triggers
 - Sessions are closed and written to warehouse when complete
 
 **Storage Abstraction** (`pkg/storage/`): Provides KV (key-value) and Set interfaces with implementations for in-memory and BoltDB backends.
@@ -74,7 +74,7 @@ The server accepts various CLI flags for configuration:
 - `--server-port`: HTTP server port (default: 8080)
 - `--batcher-batch-size`: Batch size for processing (default: 5000)
 - `--batcher-batch-timeout`: Batch timeout (default: 5s)
-- `--closer-session-duration`: Session duration before auto-close (default: 1m)
+- `--closer-session-timeout`: Session timeout before auto-close (default: 1m)
 - `--closer-tick-interval`: Session cleanup frequency (default: 1s)
 
 All flags can also be set via environment variables (e.g., `SERVER_PORT`, `BATCHER_BATCH_SIZE`).

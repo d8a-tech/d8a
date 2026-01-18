@@ -384,7 +384,7 @@ func (o *Orchestrator) seedOutdatedHits(
 			return nil, nil, NewErrorCausingTaskRetry(err)
 		}
 		bucketNumber := o.timingWheel.BucketNumber(
-			hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionDuration))
+			hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionTimeout))
 		uniqueBuckets[bucketNumber] = append(uniqueBuckets[bucketNumber], hit)
 	}
 
@@ -504,7 +504,7 @@ func (o *Orchestrator) buildSaveRequests(
 		isolatedID := GetIsolatedClientID(hit)
 		markReqs = append(markReqs, NewMarkProtoSessionClosingForGivenBucketRequest(
 			isolatedID,
-			o.timingWheel.BucketNumber(hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionDuration)),
+			o.timingWheel.BucketNumber(hit.MustParsedRequest().ServerReceivedTime.Add(settings.SessionTimeout)),
 		))
 		appendReqs = append(appendReqs, NewAppendHitsToProtoSessionRequest(
 			isolatedID,

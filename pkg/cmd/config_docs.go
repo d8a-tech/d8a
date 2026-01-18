@@ -30,7 +30,7 @@ func getServerFlags() []cli.Flag {
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
 			receiverMaxHitKbytesFlag,
-			sessionsDurationFlag,
+			sessionsTimeoutFlag,
 			sessionsJoinBySessionStampFlag,
 			sessionsJoinByUserIDFlag,
 			dbipEnabled,

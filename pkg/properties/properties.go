@@ -18,7 +18,7 @@ type Settings struct {
 	SplitByTimeSinceFirstEvent time.Duration
 	SplitByMaxEvents           int
 
-	SessionDuration           time.Duration
+	SessionTimeout            time.Duration
 	SessionJoinBySessionStamp bool
 	SessionJoinByUserID       bool
 }
