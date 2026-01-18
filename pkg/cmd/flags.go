@@ -50,10 +50,10 @@ var receiverMaxHitKbytesFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   128,
 }
 
-var sessionsDurationFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "sessions-duration",
+var sessionsTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "sessions-timeout",
 	Usage:   "Maximum time period of inactivity after which a proto-session is considered expired and ready to be closed. The system uses a timing wheel to schedule session closures based on each hit's server received time plus this duration. After this period elapses without new hits, the proto-session is finalized and written to the warehouse as a completed session.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("SESSIONS_DURATION", "sessions.duration"),
+	Sources: defaultSourceChain("SESSIONS_TIMEOUT", "sessions.timeout"),
 	Value:   30 * time.Minute,
 }
 

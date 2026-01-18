@@ -27,7 +27,7 @@ storage:
   queue_directory: /storage/d8a-queue
 
 sessions:
-  duration: 10s # Adjust this after the testing phase to a production value
+  timeout: 10s # Adjust this after the testing phase to a production value
 
 warehouse:
   driver: clickhouse
@@ -41,7 +41,7 @@ EOF
 ```
 
 :::note
-This configuration sets up d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session duration. If you'd like to use a different warehouse, please check the [warehouses](/articles/warehouses) article.
+This configuration sets up d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session timeout. If you'd like to use a different warehouse, please check the [warehouses](/articles/warehouses) article.
 :::
 
 ## Step 2: Create a docker compose file

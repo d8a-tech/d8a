@@ -5,10 +5,10 @@ import "time"
 // TestSettingsOption configures test settings.
 type TestSettingsOption func(*Settings)
 
-// WithSessionDuration sets the session duration for test settings.
-func WithSessionDuration(d time.Duration) TestSettingsOption {
+// WithSessionTimeout sets the session timeout for test settings.
+func WithSessionTimeout(d time.Duration) TestSettingsOption {
 	return func(s *Settings) {
-		s.SessionDuration = d
+		s.SessionTimeout = d
 	}
 }
 
@@ -18,7 +18,7 @@ func NewTestSettingRegistry(opts ...TestSettingsOption) SettingsRegistry {
 		PropertyID:            "1234567890",
 		PropertyName:          "Test Property",
 		PropertyMeasurementID: "G-2VEWJC5YPE",
-		SessionDuration:       30 * time.Second,
+		SessionTimeout:        30 * time.Second,
 
 		SessionJoinBySessionStamp: true,
 		SessionJoinByUserID:       true,
