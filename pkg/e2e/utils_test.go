@@ -111,7 +111,7 @@ receiver:
   batch_timeout: 100ms
 
 sessions:
-  duration: 2s
+  timeout: 2s
 
 monitoring:
   enabled: false
