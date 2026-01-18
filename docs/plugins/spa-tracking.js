@@ -1,7 +1,7 @@
 function pushPageView() {
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({
-    event: "virtual_page_view",
+    event: "page_view",
     page_title: document.title,
     page_location: window.location.href,
     page_referrer: document.referrer,
