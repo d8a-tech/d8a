@@ -162,27 +162,53 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionIsEngaged.ID,
 	ProtocolInterfaces.SessionIsEngaged.Field,
 	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// Check if ANY event in the session is engaged
+		hasSegEngaged := false
+		pageViewCount := 0
+		screenViewCount := 0
+		purchaseCount := 0
+
+		// Check all events in the session
 		for _, event := range session.Events {
-			if event.BoundHit.MustParsedRequest().QueryParams == nil {
+			// Check seg parameter (10+ seconds engagement)
+			if event.BoundHit.MustParsedRequest().QueryParams != nil {
+				segValue := event.BoundHit.MustParsedRequest().QueryParams.Get("seg")
+				if segValue != "" {
+					casted, err := strconv.ParseInt(segValue, 10, 64)
+					if err == nil && casted != 0 {
+						hasSegEngaged = true
+					}
+				}
+			}
+
+			// Check event name for engagement signals
+			eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+			if !ok {
 				continue
 			}
-			segValue := event.BoundHit.MustParsedRequest().QueryParams.Get("seg")
-			if segValue == "" {
+			eventNameStr, ok := eventName.(string)
+			if !ok {
 				continue
 			}
-			// Try to parse as int64
-			casted, err := strconv.ParseInt(segValue, 10, 64)
-			if err != nil {
-				continue
+
+			switch eventNameStr {
+			case PageViewEventType:
+				pageViewCount++
+			case ScreenViewEventType:
+				screenViewCount++
+			case PurchaseEventType:
+				purchaseCount++
 			}
-			// If any event has a non-zero engagement value, session is engaged
-			if casted != 0 {
-				return int64(1), nil
-			}
+		}
+		if hasSegEngaged || pageViewCount >= 2 || screenViewCount >= 2 || purchaseCount >= 1 {
+			return int64(1), nil
 		}
 		return int64(0), nil
 	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventName.ID,
+		},
+	),
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Is Engaged",
