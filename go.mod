@@ -5,7 +5,6 @@ go 1.25.3
 require (
 	cloud.google.com/go/bigquery v1.72.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
-	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/apache/arrow-go/v18 v18.5.0
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/fasthttp/router v1.5.4
@@ -30,7 +29,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.39.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
-	google.golang.org/api v0.259.0
+	google.golang.org/api v0.260.0
 	oras.land/oras-go/v2 v2.6.0
 )
 
@@ -71,7 +70,7 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/google/flatbuffers v25.9.23+incompatible // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.7 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.9 // indirect
 	github.com/googleapis/gax-go/v2 v2.16.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
