@@ -22,9 +22,8 @@ var CoreInterfaces = struct {
 	EventPageHostname schema.Interface
 	EventPagePath     schema.Interface
 	EventPageTitle    schema.Interface
-	EventPageReferrer    schema.Interface
-	EventIgnoreReferrer  schema.Interface
-	EventPlatform        schema.Interface
+	EventPageReferrer schema.Interface
+	EventPlatform     schema.Interface
 
 	// Event UTM parameters
 	EventUtmCampaign        schema.Interface
@@ -64,7 +63,9 @@ var CoreInterfaces = struct {
 	DeviceWebBrowser             schema.Interface
 	DeviceWebBrowserVersion      schema.Interface
 
+	// Debug-related columns
 	EventTrackingProtocol schema.Interface
+	EventIgnoreReferrer   schema.Interface
 
 	// Session-scoped event columns
 	SSEIsEntry           schema.Interface
