@@ -63,7 +63,9 @@ var CoreInterfaces = struct {
 	DeviceWebBrowser             schema.Interface
 	DeviceWebBrowserVersion      schema.Interface
 
+	// Debug-related columns
 	EventTrackingProtocol schema.Interface
+	EventIgnoreReferrer   schema.Interface
 
 	// Session-scoped event columns
 	SSEIsEntry           schema.Interface
@@ -185,6 +187,10 @@ var CoreInterfaces = struct {
 	EventPageReferrer: schema.Interface{
 		ID:    "core.d8a.tech/events/page_referrer",
 		Field: &arrow.Field{Name: "page_referrer", Type: arrow.BinaryTypes.String},
+	},
+	EventIgnoreReferrer: schema.Interface{
+		ID:    "core.d8a.tech/events/ignore_referrer",
+		Field: &arrow.Field{Name: "ignore_referrer", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	EventPlatform: schema.Interface{
 		ID:    "core.d8a.tech/events/platform",
