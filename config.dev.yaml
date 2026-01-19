@@ -6,7 +6,7 @@ receiver:
   batch_timeout: 1s
 
 sessions:
-  duration: 5s
+  timeout: 5s
 
 monitoring:
   enabled: false
