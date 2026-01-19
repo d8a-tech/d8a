@@ -92,6 +92,18 @@ var eventIgnoreReferrerColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
+var eventIgnoreReferrerCoreColumn = columns.FromQueryParamEventColumn(
+	columns.CoreInterfaces.EventIgnoreReferrer.ID,
+	columns.CoreInterfaces.EventIgnoreReferrer.Field,
+	"ir",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(columns.NilIfError(columns.CastToBool(columns.CoreInterfaces.EventIgnoreReferrer.ID))),
+	columns.WithEventColumnDocs(
+		"Ignore Referrer",
+		"If true, referrer must not be used for session source attribution.",
+	),
+)
+
 var eventTrackingProtocolColumn = columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 	return "ga4_gtag", nil
 })

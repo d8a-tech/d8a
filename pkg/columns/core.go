@@ -22,8 +22,9 @@ var CoreInterfaces = struct {
 	EventPageHostname schema.Interface
 	EventPagePath     schema.Interface
 	EventPageTitle    schema.Interface
-	EventPageReferrer schema.Interface
-	EventPlatform     schema.Interface
+	EventPageReferrer    schema.Interface
+	EventIgnoreReferrer  schema.Interface
+	EventPlatform        schema.Interface
 
 	// Event UTM parameters
 	EventUtmCampaign        schema.Interface
@@ -185,6 +186,10 @@ var CoreInterfaces = struct {
 	EventPageReferrer: schema.Interface{
 		ID:    "core.d8a.tech/events/page_referrer",
 		Field: &arrow.Field{Name: "page_referrer", Type: arrow.BinaryTypes.String},
+	},
+	EventIgnoreReferrer: schema.Interface{
+		ID:    "core.d8a.tech/events/ignore_referrer",
+		Field: &arrow.Field{Name: "ignore_referrer", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	EventPlatform: schema.Interface{
 		ID:    "core.d8a.tech/events/platform",

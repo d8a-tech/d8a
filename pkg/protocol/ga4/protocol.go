@@ -260,6 +260,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventPageHostnameColumn,
 			eventTrackingProtocolColumn,
 			eventIgnoreReferrerColumn,
+			eventIgnoreReferrerCoreColumn,
 			eventPlatformColumn,
 			eventEngagementTimeMsColumn,
 			eventMethodColumn,

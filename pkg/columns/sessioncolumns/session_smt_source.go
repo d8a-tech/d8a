@@ -64,6 +64,9 @@ var SessionSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 		schema.DependsOnEntry{
 			Interface: columns.CoreInterfaces.EventUtmTerm.ID,
 		},
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventIgnoreReferrer.ID,
+		},
 	),
 	columns.WithSessionColumnDocs(
 		"Session Source",
@@ -203,18 +206,28 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 		}
 	}
 
-	refRaw := event.BoundHit.MustParsedRequest().Headers.Get("Referer")
-	if refRaw != "" {
-		if parsed, err := url.Parse(refRaw); err == nil {
-			result.refRaw = refRaw
-			result.refURL = parsed
-			result.refQP = parsed.Query()
-			result.refHost = strings.ReplaceAll(
-				strings.ToLower(parsed.Hostname()),
-				" ",
-				"-",
-			)
-			result.refHostNoWWW = trimWWW(result.refHost)
+	// Check if ignore_referrer is set to true - if so, skip referrer parsing
+	ignoreReferrer := false
+	if v := event.Values[columns.CoreInterfaces.EventIgnoreReferrer.Field.Name]; v != nil {
+		if b, ok := v.(bool); ok {
+			ignoreReferrer = b
+		}
+	}
+
+	if !ignoreReferrer {
+		refRaw := event.BoundHit.MustParsedRequest().Headers.Get("Referer")
+		if refRaw != "" {
+			if parsed, err := url.Parse(refRaw); err == nil {
+				result.refRaw = refRaw
+				result.refURL = parsed
+				result.refQP = parsed.Query()
+				result.refHost = strings.ReplaceAll(
+					strings.ToLower(parsed.Hostname()),
+					" ",
+					"-",
+				)
+				result.refHostNoWWW = trimWWW(result.refHost)
+			}
 		}
 	}
 

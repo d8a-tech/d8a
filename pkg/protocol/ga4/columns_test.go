@@ -571,6 +571,30 @@ func TestEventColumns(t *testing.T) {
 			fieldName:   "params_ignore_referrer",
 			description: "Empty ignore referrer should be false",
 		},
+		{
+			name:        "EventIgnoreReferrerCore_True",
+			param:       "ir",
+			value:       "1",
+			expected:    true,
+			fieldName:   "ignore_referrer",
+			description: "Core ignore referrer set to true",
+		},
+		{
+			name:        "EventIgnoreReferrerCore_False",
+			param:       "ir",
+			value:       "0",
+			expected:    false,
+			fieldName:   "ignore_referrer",
+			description: "Core ignore referrer set to false",
+		},
+		{
+			name:        "EventIgnoreReferrerCore_Empty",
+			param:       "ir",
+			value:       "",
+			expected:    nil,
+			fieldName:   "ignore_referrer",
+			description: "Empty core ignore referrer should be nil",
+		},
 
 		// Integer fields
 		{

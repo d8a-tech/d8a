@@ -775,6 +775,37 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "SessionSourceMediumTerm_IgnoreReferrer_False_UsesRefererHeader",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureHeader(0, "Referer", "https://other-site.com/blog/article?id=123"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("other-site.com"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_IgnoreReferrer_True_IgnoresRefererHeader",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "ir", "1"),
+				EnsureHeader(0, "Referer", "https://other-site.com/blog/article?id=123"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("direct"),
+					s("none"),
+					s(""),
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
