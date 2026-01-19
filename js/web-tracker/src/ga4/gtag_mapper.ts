@@ -32,10 +32,6 @@ const ITEM_KEY_MAP: Record<string, string> = {
   promotion_name: "pn",
 };
 
-function isScalar(v: unknown) {
-  return v == null || typeof v === "string" || typeof v === "number" || typeof v === "boolean";
-}
-
 // Note: we intentionally treat arrays as "object-like" here to preserve the historical
 // runtime behavior of `encodeItemToPrValue` (previously `typeof v === "object"`).
 function isObjectLike(v: unknown): v is Record<string, unknown> {
@@ -47,6 +43,8 @@ function toEpValue(v: unknown) {
   if (typeof v === "string") return v;
   if (typeof v === "boolean") return v ? "1" : "0";
   if (typeof v === "number") return String(v);
+  // Arrays: convert to comma-separated string
+  if (Array.isArray(v)) return v.join(",");
   return String(v);
 }
 
@@ -82,18 +80,16 @@ export function encodeItemToPrValue(item: unknown) {
   for (const [srcKey, dstKey] of Object.entries(ITEM_KEY_MAP)) {
     if (!(srcKey in it)) continue;
     const v = it[srcKey];
-    if (!isScalar(v)) continue;
     const str = toEpValue(v);
     if (str == null) continue;
     knownParts.push(`${dstKey}${str}`);
   }
 
-  // Custom params: any scalar key not in ITEM_KEY_MAP.
+  // Custom params: any key not in ITEM_KEY_MAP.
   let idx = 0;
   for (const key of Object.keys(it)) {
     if (key in ITEM_KEY_MAP) continue;
     const v = it[key];
-    if (!isScalar(v)) continue;
     const str = toEpValue(v);
     if (str == null) continue;
     customParts.push(`k${idx}${key}`);
@@ -281,7 +277,7 @@ export function buildGa4CollectQueryParams({
     }
   }
 
-  // Generic mapping: remaining scalar keys -> ep/epn based on type.
+  // Generic mapping: remaining keys -> ep/epn based on type.
   for (const key of Object.keys(p)) {
     if (key === "items") continue;
     if (key === "currency") continue;
@@ -315,8 +311,6 @@ export function buildGa4CollectQueryParams({
     if (key === "send_to") continue;
 
     const v = p[key];
-    if (!isScalar(v)) continue;
-
     if (typeof v === "number") addEpn(params, key, v);
     else addEp(params, key, toEpValue(v));
   }

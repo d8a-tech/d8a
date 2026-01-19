@@ -334,9 +334,12 @@ test("encodeItemToPrValue: handles items with non-scalar values (arrays, objects
 
   const pr = encodeItemToPrValue(item);
   assert.match(pr, /^idSKU_123~nmTest~/);
-  // Non-scalar values should be skipped
-  assert.doesNotMatch(pr, /nested_object/);
-  assert.doesNotMatch(pr, /array_value/);
+  // Objects should be converted to "[object Object]"
+  assert.match(pr, /nested_object/);
+  assert.match(pr, /\[object Object\]/);
+  // Arrays should be converted to comma-separated strings
+  assert.match(pr, /array_value/);
+  assert.match(pr, /1,2,3/);
   // Valid scalar should be included
   assert.match(pr, /valid_string/);
 });
@@ -548,4 +551,82 @@ test("buildGa4CollectQueryParams: campaign + content_group map to GA params", ()
   assert.equal(q.get("ct"), "TERM");
   assert.equal(q.get("cc"), "CONTENT");
   assert.equal(q.get("ep.content_group"), "GROUP1");
+});
+
+test("encodeItemToPrValue: converts array values to comma-separated strings", () => {
+  const item = {
+    item_id: "SKU_123",
+    item_name: ["sneakers", "trainers", "athletic shoes"],
+    quantity: [8, 10, 12],
+    custom_tags: ["tag1", "tag2", "tag3"],
+    mixed_array: [1, "two", true, null, undefined],
+    empty_array: [],
+  };
+
+  const pr = encodeItemToPrValue(item);
+  // String arrays should be joined with commas
+  assert.match(pr, /nmsneakers,trainers,athletic shoes/);
+  // Numeric arrays should be joined with commas
+  assert.match(pr, /qt8,10,12/);
+  // Custom arrays should be joined with commas
+  assert.match(pr, /tag1,tag2,tag3/);
+  // Mixed type arrays: numbers, strings, booleans preserved; null/undefined become empty strings
+  assert.match(pr, /1,two,true,,/);
+  // Empty arrays result in empty string
+  assert.match(pr, /empty_array/);
+});
+
+test("buildGa4CollectQueryParams: handles arrays and objects in event params and items", () => {
+  const q = buildGa4CollectQueryParams({
+    ...getDefaultBuildParams(),
+    propertyId: "80e1d6d0-560d-419f-ac2a-fe9281e93386",
+    eventName: "purchase",
+    eventParams: {
+      transaction_id: "T_12345",
+      value: 99.99,
+      currency: "USD",
+      // Arrays in event params
+      event_tags: ["promo_2026", "free_shipping"],
+      // Objects in event params
+      user_context: {
+        membership: "gold",
+        is_first_purchase: false,
+      },
+      items: [
+        {
+          item_id: "SKU_001",
+          item_name: "sneakers",
+          price: 99.99,
+          quantity: 1,
+          // Arrays in item properties
+          item_categories: ["Footwear", "Men", "Sale"],
+          // Objects in item properties
+          item_details: {
+            color: "white",
+            size: 42,
+            material: "leather",
+          },
+        },
+      ],
+    },
+    cookieHeader: "",
+    browser: getDefaultBuildParams().browser,
+  });
+
+  // Arrays in event params should be comma-separated
+  assert.equal(q.get("ep.event_tags"), "promo_2026,free_shipping");
+
+  // Objects in event params should be "[object Object]"
+  assert.equal(q.get("ep.user_context"), "[object Object]");
+
+  // Check item encoding
+  const pr1 = q.get("pr1");
+  assert.ok(pr1);
+  assert.match(pr1!, /idSKU_001~nmsneakers~pr99\.99~qt1/);
+  // Arrays in items should be comma-separated
+  assert.match(pr1!, /item_categories/);
+  assert.match(pr1!, /Footwear,Men,Sale/);
+  // Objects in items should be "[object Object]"
+  assert.match(pr1!, /item_details/);
+  assert.match(pr1!, /\[object Object\]/);
 });
