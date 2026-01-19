@@ -5,7 +5,6 @@ go 1.25.3
 require (
 	cloud.google.com/go/bigquery v1.72.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.42.0
-	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/apache/arrow-go/v18 v18.5.0
 	github.com/dgraph-io/ristretto/v2 v2.3.0
 	github.com/fasthttp/router v1.5.4
@@ -20,7 +19,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/clickhouse v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.40.0
 	github.com/urfave/cli-altsrc/v3 v3.1.0
-	github.com/urfave/cli/v3 v3.6.1
+	github.com/urfave/cli/v3 v3.6.2
 	github.com/valyala/fasthttp v1.69.0
 	go.etcd.io/bbolt v1.4.3
 	go.opentelemetry.io/otel v1.39.0
