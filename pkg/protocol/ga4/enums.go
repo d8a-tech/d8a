@@ -30,4 +30,6 @@ const (
 	PurchaseEventType = "purchase"
 	// AddToCartEventType is the event type for add to cart
 	AddToCartEventType = "add_to_cart"
+	// ScreenViewEventType is the event type for screen views
+	ScreenViewEventType = "screen_view"
 )
