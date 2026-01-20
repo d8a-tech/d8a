@@ -66,7 +66,7 @@ func createTestDrivers(t *testing.T) []testDriverConfig {
 			30*time.Second,
 			NewFieldTypeMapper(),
 		),
-		5*time.Second, // Table creation timeout for tests
+		WithTableCreationTimeout(5*time.Second), // Table creation timeout for tests
 	)
 	configs = append(configs, emulatorWithBatchWriterConfig)
 
@@ -109,7 +109,7 @@ func createEmulatorDriver(t *testing.T) testDriverConfig {
 	driver := NewBigQueryTableDriver(
 		client, datasetName,
 		NewStreamingWriter(client, datasetName, 30*time.Second, NewFieldTypeMapper()),
-		5*time.Second, // Table creation timeout for tests
+		WithTableCreationTimeout(5*time.Second), // Table creation timeout for tests
 	)
 
 	cleanup := func() {
@@ -171,7 +171,7 @@ func createRealBigQueryDriver(t *testing.T) *testDriverConfig {
 	driver := NewBigQueryTableDriver(
 		client, datasetName,
 		NewLoadJobWriter(client, datasetName, 30*time.Second, NewFieldTypeMapper()),
-		5*time.Second, // Table creation timeout for tests
+		WithTableCreationTimeout(5*time.Second), // Table creation timeout for tests
 	)
 
 	return &testDriverConfig{
@@ -498,4 +498,72 @@ func TestBigqueryCreateTableAlreadyExists(t *testing.T) {
 			testutils.TestCreateTable(t, config.driver, generateUniqueTableName("test_create_table_already_exists"))
 		})
 	}
+}
+
+func TestBigQueryPartitioning(t *testing.T) {
+	ctx := context.Background()
+	projectID := "testproject"
+	datasetName := "test_dataset"
+
+	bigQueryContainer, err := tcbigquery.Run(ctx,
+		"ghcr.io/goccy/bigquery-emulator:0.6.1",
+		tcbigquery.WithDataYAML(strings.NewReader(`projects:
+ - id: `+projectID+`
+   datasets:
+   - id: `+datasetName+`
+     tables: []
+`)),
+		tcbigquery.WithProjectID(projectID),
+		testcontainers.WithImagePlatform("linux/amd64"),
+	)
+	require.NoError(t, err)
+	defer func() {
+		if err := testcontainers.TerminateContainer(bigQueryContainer); err != nil {
+			log.Printf("failed to terminate container: %s", err)
+		}
+	}()
+
+	client, err := bigquery.NewClient(
+		ctx, projectID,
+		option.WithEndpoint(bigQueryContainer.URI()),
+		option.WithoutAuthentication(),
+	)
+	require.NoError(t, err)
+
+	t.Run("default_no_partitioning", func(t *testing.T) {
+		// given - driver without partitioning option
+		driver := NewBigQueryTableDriver(
+			client, datasetName,
+			NewStreamingWriter(client, datasetName, 30*time.Second, NewFieldTypeMapper()),
+			WithTableCreationTimeout(5*time.Second),
+		)
+
+		// when - create table
+		tableName := generateUniqueTableName("test_no_partitioning")
+		err := driver.CreateTable(tableName, testutils.TestSchema())
+		require.NoError(t, err)
+
+		// then - verify TimePartitioning is nil
+		tableRef := client.Dataset(datasetName).Table(tableName)
+		metadata, err := tableRef.Metadata(ctx)
+		require.NoError(t, err)
+		assert.Nil(t, metadata.TimePartitioning)
+	})
+
+	t.Run("with_partition_by_field_empty_panics", func(t *testing.T) {
+		// given/when/then - WithPartitionByField with empty field should panic
+		require.Panics(t, func() {
+			_ = WithPartitionByField("")
+		})
+	})
+
+	t.Run("with_partition_by_empty_field_panics", func(t *testing.T) {
+		// given/when/then - WithPartitionBy with empty field should panic
+		require.Panics(t, func() {
+			_ = WithPartitionBy(PartitioningConfig{
+				Interval: PartitionIntervalDay,
+				Field:    "",
+			})
+		})
+	})
 }

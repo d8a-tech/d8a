@@ -21,31 +21,17 @@ type bigQueryTableDriver struct {
 	fieldTypeMapper      warehouse.FieldTypeMapper[SpecificBigQueryType]
 	typeComparer         *warehouse.TypeComparer
 	writer               Writer
-}
-
-// NewBigQueryTableDriver creates a new BigQuery table driver.
-func NewBigQueryTableDriver(
-	db *bigquery.Client, dataset string,
-	writer Writer,
-	tableCreationTimeout time.Duration,
-) warehouse.Driver {
-	return &bigQueryTableDriver{
-		db:                   db,
-		dataset:              dataset,
-		fieldTypeMapper:      NewFieldTypeMapper(),
-		queryTimeout:         30 * time.Second,
-		tableCreationTimeout: tableCreationTimeout,
-		writer:               writer,
-		typeComparer: warehouse.NewTypeComparer(
-			int32Int64CompatibilityRule,
-			float32Float64CompatibilityRule,
-		),
-	}
+	partitioning         *PartitioningConfig
 }
 
 func (d *bigQueryTableDriver) CreateTable(table string, schema *arrow.Schema) error {
+	var timePartitioning *bigquery.TimePartitioning
+	if d.partitioning != nil {
+		timePartitioning = toBQTimePartitioning(*d.partitioning)
+	}
 	metadata := &bigquery.TableMetadata{
-		Schema: bigquery.Schema{},
+		Schema:           bigquery.Schema{},
+		TimePartitioning: timePartitioning,
 	}
 
 	for _, field := range schema.Fields() {
@@ -86,7 +72,45 @@ func (d *bigQueryTableDriver) CreateTable(table string, schema *arrow.Schema) er
 	if err := d.waitForTableCreation(table); err != nil {
 		return fmt.Errorf("table creation verification failed: %w", err)
 	}
+	// Set partition expiration via ALTER TABLE query
+	if d.partitioning != nil {
+		if err := d.setPartitionExpiration(ctx, table); err != nil {
+			return err
+		}
+	}
 
+	return nil
+}
+
+// setPartitionExpiration sets the partition expiration for a table using ALTER TABLE query.
+func (d *bigQueryTableDriver) setPartitionExpiration(ctx context.Context, table string) error {
+	// Safely escape identifiers to prevent SQL injection
+	datasetEscaped, err := escapeBigQueryIdentifier(d.dataset)
+	if err != nil {
+		return fmt.Errorf("invalid dataset identifier: %w", err)
+	}
+	tableEscaped, err := escapeBigQueryIdentifier(table)
+	if err != nil {
+		return fmt.Errorf("invalid table identifier: %w", err)
+	}
+	var expirationValue string
+	if d.partitioning.ExpirationDays == 0 {
+		expirationValue = "NULL"
+	} else {
+		expirationValue = fmt.Sprintf("%d", d.partitioning.ExpirationDays)
+	}
+	q := d.db.Query(
+		fmt.Sprintf(
+			"ALTER TABLE %s.%s SET OPTIONS (partition_expiration_days = %s)",
+			datasetEscaped,
+			tableEscaped,
+			expirationValue,
+		),
+	)
+	_, err = q.Read(ctx)
+	if err != nil {
+		return fmt.Errorf("created table, but failed to set partition expiration: %w", err)
+	}
 	return nil
 }
 

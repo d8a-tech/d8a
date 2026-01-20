@@ -179,6 +179,27 @@ var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   10 * time.Second,
 }
 
+var bigQueryPartitionFieldFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-partition-field",
+	Usage:   "BigQuery partition field (top-level TIMESTAMP or DATE). By default uses date_utc column.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("BIGQUERY_PARTITION_FIELD", "bigquery.partition_field"),
+	Value:   "date_utc",
+}
+
+var bigQueryPartitionIntervalFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "bigquery-partition-interval",
+	Usage:   "BigQuery partition interval (HOUR, DAY, MONTH, YEAR). By default uses DAY interval.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("BIGQUERY_PARTITION_INTERVAL", "bigquery.partition_interval"),
+	Value:   "DAY",
+}
+
+var bigQueryPartitionExpirationDaysFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "bigquery-partition-expiration-days",
+	Usage:   "BigQuery partition expiration in days. 0 means partitions do not expire. By default uses no expiration.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("BIGQUERY_PARTITION_EXPIRATION_DAYS", "bigquery.partition_expiration_days"),
+	Value:   0,
+}
+
 var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "property-id",
 	Usage:   "Property ID, used to satisfy interfaces required by d8a cloud. Ends up as column in the warehouse.",
@@ -287,4 +308,7 @@ var warehouseConfigFlags = []cli.Flag{
 	bigQueryWriterTypeFlag,
 	bigQueryQueryTimeoutFlag,
 	bigQueryTableCreationTimeoutFlag,
+	bigQueryPartitionFieldFlag,
+	bigQueryPartitionIntervalFlag,
+	bigQueryPartitionExpirationDaysFlag,
 }
