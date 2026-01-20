@@ -90,15 +90,49 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 	// Create writer based on type
 	writer := createBigQueryWriter(cmd, client, datasetName)
 
+	partitionOpt := createBigQueryPartitionOption(cmd)
+
 	return warehouse.NewStaticBatchedDriverRegistry(
 		ctx,
 		whBigQuery.NewBigQueryTableDriver(
 			client,
 			datasetName,
 			writer,
-			cmd.Duration(bigQueryTableCreationTimeoutFlag.Name),
+			whBigQuery.WithTableCreationTimeout(cmd.Duration(bigQueryTableCreationTimeoutFlag.Name)),
+			whBigQuery.WithQueryTimeout(cmd.Duration(bigQueryQueryTimeoutFlag.Name)),
+			partitionOpt,
 		),
 	)
+}
+
+// createBigQueryPartitionOption creates a BigQuery partition option from command flags.
+// Returns nil if partition field is not set.
+func createBigQueryPartitionOption(cmd *cli.Command) whBigQuery.BigQueryTableDriverOption {
+	partitionField := strings.TrimSpace(cmd.String(bigQueryPartitionFieldFlag.Name))
+	if partitionField == "" {
+		return nil
+	}
+
+	intervalRaw := strings.ToUpper(strings.TrimSpace(cmd.String(bigQueryPartitionIntervalFlag.Name)))
+	var interval whBigQuery.PartitionInterval
+	switch intervalRaw {
+	case string(whBigQuery.PartitionIntervalHour):
+		interval = whBigQuery.PartitionIntervalHour
+	case string(whBigQuery.PartitionIntervalDay), "":
+		interval = whBigQuery.PartitionIntervalDay
+	case string(whBigQuery.PartitionIntervalMonth):
+		interval = whBigQuery.PartitionIntervalMonth
+	case string(whBigQuery.PartitionIntervalYear):
+		interval = whBigQuery.PartitionIntervalYear
+	default:
+		logrus.Fatalf("unsupported bigquery partition interval %q (expected HOUR, DAY, MONTH, YEAR)", intervalRaw)
+	}
+
+	return whBigQuery.WithPartitionBy(whBigQuery.PartitioningConfig{
+		Interval:       interval,
+		Field:          partitionField,
+		ExpirationDays: cmd.Int(bigQueryPartitionExpirationDaysFlag.Name),
+	})
 }
 
 func createBigQueryWriter(

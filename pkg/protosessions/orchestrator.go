@@ -697,7 +697,7 @@ func (o *Orchestrator) recordAndWarnLag(ctx context.Context, bucketNumber int64)
 	lag := time.Duration(
 		o.timingWheel.BucketNumber(time.Now().UTC())-bucketNumber,
 	) * o.timingWheel.tickInterval
-	if lag > time.Minute && time.Since(o.lastLagWarn) > time.Second {
+	if lag > time.Minute*5 && time.Since(o.lastLagWarn) > time.Second {
 		logrus.Warnf("Processing lag is high: %s", lag)
 		o.lastLagWarn = time.Now()
 	}
