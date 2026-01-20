@@ -11,7 +11,7 @@ The script-tag bundle auto-installs on load and supports optional `src` query pa
 - `?gl=<name>`: gtag/GTM consent queue name (defaults to `dataLayer`)
 
 ```html
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
@@ -67,7 +67,7 @@ npm test
 
 This package can produce a single browser bundle:
 
-- `dist/web-tracker.min.js`: Script-tag bundle (auto-installs on load)
+- `dist/wt.min.js`: Script-tag bundle (auto-installs on load)
 - `dist/index.min.mjs`: ESM bundle
 
 Build:
@@ -83,7 +83,7 @@ npm run build
 The `example/` directory contains two pages to quickly validate behavior in a browser:
 
 - `example/index.html`: **dev/local** setup (served by Vite; imports from `../src/` and calls `installD8a()`).
-- `example/prod.html`: **production-like** setup (loads `../dist/web-tracker.min.js`, which auto-installs on load).
+- `example/prod.html`: **production-like** setup (loads `../dist/wt.min.js`, which auto-installs on load).
 
 ### Dev example (no build step)
 

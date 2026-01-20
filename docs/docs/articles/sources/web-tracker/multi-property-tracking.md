@@ -26,7 +26,7 @@ Use this when you want one `d8a()` API and one queue, and you want every event t
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
@@ -114,10 +114,10 @@ Use this when you want strict separation between trackers: each instance will ha
 <!-- prettier-ignore -->
 ```html
 <!-- Instance 1 (defaults: global=d8a, queue=d8aLayer) -->
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
 
 <!-- Instance 2 (global=d8a2, queue=d8aLayer2) -->
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js?l=d8aLayer2&g=d8a2"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js?l=d8aLayer2&g=d8a2"></script>
 <script>
   // Instance 1 (default)
   window.d8aLayer = window.d8aLayer || [];

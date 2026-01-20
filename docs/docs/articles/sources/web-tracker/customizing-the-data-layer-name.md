@@ -16,7 +16,7 @@ Use this when you load the d8a web tracker via a script tag and want to keep the
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js?l=myQueue"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js?l=myQueue"></script>
 
 <script>
   window.myQueue = window.myQueue || [];
@@ -35,7 +35,7 @@ Use this when you load the d8a web tracker via a script tag but prefer setting t
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/web-tracker.min.js"></script>
+<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
 
 <script>
   window.d8aDataLayerName = 'myQueue';

@@ -26,7 +26,7 @@ async function main() {
       format: "iife",
       platform: "browser",
       minify: true,
-      outfile: "dist/web-tracker.min.js",
+      outfile: "dist/wt.min.js",
       banner: { js: banner },
     }),
   );
@@ -47,10 +47,10 @@ async function main() {
 
   // Copy to static location
   const copies = [
-    { src: "dist/web-tracker.min.js", dest: "../../pkg/protocol/d8a/static/web-tracker.min.js" },
+    { src: "dist/wt.min.js", dest: "../../pkg/protocol/d8a/static/wt.min.js" },
     {
-      src: "dist/web-tracker.min.js.map",
-      dest: "../../pkg/protocol/d8a/static/web-tracker.min.js.map",
+      src: "dist/wt.min.js.map",
+      dest: "../../pkg/protocol/d8a/static/wt.min.js.map",
     },
   ];
 

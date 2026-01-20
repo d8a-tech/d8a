@@ -18,7 +18,7 @@ async function main() {
     target: ["es2018"],
     format: "iife",
     platform: "browser",
-    outfile: "dist/ga4-duplicator.min.js",
+    outfile: "dist/gd.min.js",
     banner: { js: banner },
   });
 
@@ -31,27 +31,27 @@ async function main() {
     target: ["es2018"],
     format: "iife",
     platform: "browser",
-    outfile: "dist/ga4-duplicator.js",
+    outfile: "dist/gd.js",
     banner: { js: banner },
   });
 
   // Copy to static location
   const copies = [
     {
-      src: "dist/ga4-duplicator.min.js",
-      dest: "../../pkg/protocol/ga4/static/ga4-duplicator.min.js",
+      src: "dist/gd.min.js",
+      dest: "../../pkg/protocol/ga4/static/gd.min.js",
     },
     {
-      src: "dist/ga4-duplicator.min.js",
-      dest: "../../docs/docs/articles/sources/ga4-duplicator/ga4-duplicator.min.js",
+      src: "dist/gd.min.js",
+      dest: "../../docs/docs/articles/sources/ga4-duplicator/gd.min.js",
     },
     {
-      src: "dist/ga4-duplicator.js",
-      dest: "../../docs/docs/articles/sources/ga4-duplicator/ga4-duplicator.js",
+      src: "dist/gd.js",
+      dest: "../../docs/docs/articles/sources/ga4-duplicator/gd.js",
     },
     {
-      src: "dist/ga4-duplicator.js.map",
-      dest: "../../pkg/protocol/ga4/static/ga4-duplicator.min.js.map",
+      src: "dist/gd.js.map",
+      dest: "../../pkg/protocol/ga4/static/gd.min.js.map",
     },
   ];
 

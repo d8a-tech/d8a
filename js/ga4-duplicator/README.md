@@ -17,7 +17,7 @@ Supported interception methods:
 Include the built script in your HTML and initialize the duplicator:
 
 ```html
-<script src="dist/ga4-duplicator.min.js"></script>
+<script src="dist/gd.min.js"></script>
 <script>
   window.createGA4Duplicator({
     server_container_url: "https://your-d8a-endpoint.com",
@@ -56,13 +56,13 @@ window.createGA4Duplicator({
 ```bash
 npm run build:prod
 ```
-Output: `dist/ga4-duplicator.min.js`
+Output: `dist/gd.min.js`
 
 ### Development build:
 ```bash
 npm run build:dev
 ```
-Output: `dist/ga4-duplicator.js`
+Output: `dist/gd.js`
 
 ## Source Code Hashing
 
