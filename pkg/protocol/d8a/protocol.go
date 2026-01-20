@@ -38,10 +38,10 @@ func (p *d8aProtocol) Interfaces() any {
 	return p.child.Interfaces()
 }
 
-//go:embed static/web-tracker.min.js
+//go:embed static/wt.min.js
 var staticWebTracker []byte
 
-//go:embed static/web-tracker.min.js.map
+//go:embed static/wt.min.js.map
 var staticWebTrackerMap []byte
 
 func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
@@ -59,7 +59,7 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 	return append(newEndpoints, []protocol.ProtocolEndpoint{
 		{
 			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/d/web-tracker.min.js",
+			Path:     "/d/wt.min.js",
 			IsCustom: true,
 			CustomHandler: func(ctx *fasthttp.RequestCtx) {
 				ctx.SetStatusCode(fasthttp.StatusOK)
@@ -69,7 +69,7 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 		},
 		{
 			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/d/web-tracker.min.js.map",
+			Path:     "/d/wt.min.js.map",
 			IsCustom: true,
 			CustomHandler: func(ctx *fasthttp.RequestCtx) {
 				ctx.SetStatusCode(fasthttp.StatusOK)

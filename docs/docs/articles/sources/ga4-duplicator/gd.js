@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-01-11T21:18:24.380Z */
+/* ga4-duplicator - built 2026-01-20T20:38:48.641Z */
 "use strict";
 (() => {
   // src/ga4-duplicator.ts
@@ -313,4 +313,4 @@
     window.__ga4DuplicatorInitialized = true;
   };
 })();
-//# sourceMappingURL=ga4-duplicator.js.map
+//# sourceMappingURL=gd.js.map

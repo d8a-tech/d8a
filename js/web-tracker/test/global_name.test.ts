@@ -20,7 +20,7 @@ test("resolveGlobalName: reads from currentScript ?g=", () => {
     d8aGlobalName: "",
     document: {
       cookie: "",
-      currentScript: { src: "https://cdn.example.org/web-tracker.min.js?g=d8a2&l=d8aLayer2" },
+      currentScript: { src: "https://cdn.example.org/wt.min.js?g=d8a2&l=d8aLayer2" },
     },
     location: { href: "https://example.org/" },
   });
@@ -34,7 +34,7 @@ test("installD8a: does not overwrite an existing custom global", () => {
       cookie: "",
       title: "T",
       referrer: "",
-      currentScript: { src: "https://cdn.example.org/web-tracker.min.js?g=d8a2&l=d8aLayer2" },
+      currentScript: { src: "https://cdn.example.org/wt.min.js?g=d8a2&l=d8aLayer2" },
     },
     fetch: async () => ({ status: 0 }),
   }) as ReturnType<typeof makeWindowMock> & {

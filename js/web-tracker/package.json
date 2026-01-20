@@ -24,7 +24,7 @@
       "types": "./index.d.ts",
       "import": "./dist/index.min.mjs"
     },
-    "./browser": "./dist/web-tracker.min.js"
+    "./browser": "./dist/wt.min.js"
   },
   "files": [
     "dist/",

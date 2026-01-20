@@ -214,10 +214,10 @@ func (p *ga4Protocol) Interfaces() any {
 	return ProtocolInterfaces
 }
 
-//go:embed static/ga4-duplicator.min.js
+//go:embed static/gd.min.js
 var staticDuplicatorJS []byte
 
-//go:embed static/ga4-duplicator.min.js.map
+//go:embed static/gd.min.js.map
 var staticDuplicatorJSMap []byte
 
 func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
@@ -228,7 +228,7 @@ func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 		},
 		{
 			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/g/ga4-duplicator.min.js",
+			Path:     "/g/gd.min.js",
 			IsCustom: true,
 			CustomHandler: func(ctx *fasthttp.RequestCtx) {
 				ctx.SetStatusCode(fasthttp.StatusOK)
@@ -238,7 +238,7 @@ func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 		},
 		{
 			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/g/ga4-duplicator.min.js.map",
+			Path:     "/g/gd.min.js.map",
 			IsCustom: true,
 			CustomHandler: func(ctx *fasthttp.RequestCtx) {
 				ctx.SetStatusCode(fasthttp.StatusOK)
