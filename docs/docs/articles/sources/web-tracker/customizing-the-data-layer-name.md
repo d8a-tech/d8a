@@ -16,7 +16,7 @@ Use this when you load the d8a web tracker via a script tag and want to keep the
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/wt.min.js?l=myQueue"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js?l=myQueue"></script>
 
 <script>
   window.myQueue = window.myQueue || [];
@@ -35,7 +35,7 @@ Use this when you load the d8a web tracker via a script tag but prefer setting t
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js"></script>
 
 <script>
   window.d8aDataLayerName = 'myQueue';
@@ -57,12 +57,12 @@ Use this when you install the package via npm (module) and pass `dataLayerName` 
 Install the package:
 
 ```bash
-npm install @d8a-tech/web-tracker
+npm install @d8a-tech/wt
 ```
 
 <!-- prettier-ignore -->
 ```javascript
-import { installD8a } from '@d8a-tech/web-tracker';
+import { installD8a } from '@d8a-tech/wt';
 
 installD8a({ dataLayerName: 'myQueue' });
 

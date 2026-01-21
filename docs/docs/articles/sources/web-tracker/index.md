@@ -21,7 +21,7 @@ Add the snippet to your page:
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
@@ -39,14 +39,14 @@ Add the snippet to your page:
 First, install the package:
 
 ```bash
-npm install @d8a-tech/web-tracker
+npm install @d8a-tech/wt
 ```
 
 Then use the following code to initialize:
 
 <!-- prettier-ignore -->
 ```javascript
-import { installD8a } from '@d8a-tech/web-tracker';
+import { installD8a } from '@d8a-tech/wt';
 
 installD8a();
 
