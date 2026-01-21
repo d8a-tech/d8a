@@ -1,0 +1,100 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.2.3)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          
+          # Validate semver format (basic check)
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$'; then
+            echo "Error: Invalid version format: $VERSION"
+            exit 1
+          fi
+          
+          # Detect if this is a prerelease (contains - after version numbers)
+          if echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then
+            NPM_TAG="next"
+            echo "Detected prerelease version, using tag: $NPM_TAG"
+          else
+            NPM_TAG="latest"
+            echo "Detected stable version, using tag: $NPM_TAG"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION with tag: $NPM_TAG"
+
+      - name: Publish ga4-duplicator
+        working-directory: js/ga4-duplicator
+        run: |
+          # Safety check: ensure package is not private
+          if grep -q '"private":\s*true' package.json; then
+            echo "Error: package.json has private: true"
+            exit 1
+          fi
+          
+          # Check if version already exists
+          if npm view "@d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Error: @d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }} already exists on npm"
+            exit 1
+          fi
+          
+          npm ci
+          npm run hash
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+          npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
+
+      - name: Publish web-tracker
+        working-directory: js/web-tracker
+        run: |
+          # Safety check: ensure package is not private
+          if grep -q '"private":\s*true' package.json; then
+            echo "Error: package.json has private: true"
+            exit 1
+          fi
+          
+          # Check if version already exists
+          if npm view "@d8a-tech/wt@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Error: @d8a-tech/wt@${{ steps.version.outputs.version }} already exists on npm"
+            exit 1
+          fi
+          
+          npm ci
+          npm run hash
+          npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+          npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"

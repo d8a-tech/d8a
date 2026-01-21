@@ -42,7 +42,7 @@ Install d8a using:
 
 <!-- prettier-ignore -->
 ```html
-<script async src="https://global.t.d8a.tech/d/wt.min.js?l=dataLayer&g=gtag"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js?l=dataLayer&g=gtag"></script>
 <script>
   window.dataLayer = window.dataLayer || [];
   window.gtag = window.gtag || function(){dataLayer.push(arguments);};
@@ -60,7 +60,7 @@ Install d8a using:
 
 <!-- prettier-ignore -->
 ```javascript
-import { installD8a } from '@d8a-tech/web-tracker';
+import { installD8a } from '@d8a-tech/wt';
 
 installD8a({ dataLayerName: 'dataLayer', globalName: 'gtag' });
 

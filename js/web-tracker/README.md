@@ -11,7 +11,7 @@ The script-tag bundle auto-installs on load and supports optional `src` query pa
 - `?gl=<name>`: gtag/GTM consent queue name (defaults to `dataLayer`)
 
 ```html
-<script async src="https://global.t.d8a.tech/d/wt.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js"></script>
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function(){d8aLayer.push(arguments);};
@@ -26,11 +26,11 @@ The script-tag bundle auto-installs on load and supports optional `src` query pa
 ## Installation (npm module)
 
 ```bash
-npm install @d8a-tech/web-tracker
+npm install @d8a-tech/wt
 ```
 
 ```javascript
-import { installD8a } from "@d8a-tech/web-tracker";
+import { installD8a } from "@d8a-tech/wt";
 
 // Optional overrides:
 // - dataLayerName: d8a queue name (defaults to "d8aLayer")

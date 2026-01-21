@@ -1,5 +1,5 @@
 {
-  "name": "@d8a-tech/web-tracker",
+  "name": "@d8a-tech/wt",
   "version": "0.1.0",
   "description": "The d8a web tracker provides a GA4 gtag-style API that sends GA4 gtag-compatible requests directly to a d8a collector.",
   "license": "MIT",
