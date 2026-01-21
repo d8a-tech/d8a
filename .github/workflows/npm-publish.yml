@@ -46,8 +46,18 @@ jobs:
             exit 1
           fi
           
+          # Detect if this is a prerelease (contains - after version numbers)
+          if echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-'; then
+            NPM_TAG="next"
+            echo "Detected prerelease version, using tag: $NPM_TAG"
+          else
+            NPM_TAG="latest"
+            echo "Detected stable version, using tag: $NPM_TAG"
+          fi
+          
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing version: $VERSION"
+          echo "npm_tag=$NPM_TAG" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION with tag: $NPM_TAG"
 
       - name: Publish web-tracker
         working-directory: js/web-tracker
@@ -67,7 +77,7 @@ jobs:
           npm ci
           npm run hash
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
-          npm publish --access public
+          npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
 
       - name: Publish ga4-duplicator
         working-directory: js/ga4-duplicator
@@ -87,4 +97,4 @@ jobs:
           npm ci
           npm run hash
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
-          npm publish --access public
+          npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
