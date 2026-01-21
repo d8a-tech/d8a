@@ -15,6 +15,11 @@ const schema: RJSFSchema = {
             title: 'Are you using d8a Cloud?',
             default: true,
         },
+        useJsDelivrCdn: {
+            type: 'boolean',
+            title: 'Use JSDelivr CDN',
+            default: true,
+        },
         destinations: {
             type: 'array',
             title:
@@ -68,7 +73,13 @@ const schema: RJSFSchema = {
 };
 
 const uiSchema: UiSchema = {
-    'ui:order': ['isCloud', 'property_id', 'endpoint_url', 'destinations'],
+    'ui:order': [
+        'isCloud',
+        'useJsDelivrCdn',
+        'property_id',
+        'endpoint_url',
+        'destinations',
+    ],
     destinations: {
 
         'ui:options': {
@@ -87,11 +98,14 @@ const uiSchema: UiSchema = {
 export default function GA4DuplicatorSnippetGenerator({
     ga4DuplicatorMin,
 }: GA4DuplicatorSnippetGeneratorProps) {
+    const jsDelivrUrl =
+        'https://cdn.jsdelivr.net/npm/@d8a-tech/ga4-duplicator/dist/gd.min.js';
+
     return (
         <DynamicForm
             schema={schema}
             uiSchema={uiSchema}
-            formData={{ isCloud: true }}
+            formData={{ isCloud: true, useJsDelivrCdn: true }}
         >
             {(formData, isValid) => {
                 if (!isValid) {
@@ -128,10 +142,16 @@ export default function GA4DuplicatorSnippetGenerator({
                 }
 
                 const configJson = JSON.stringify(config, null, 2);
+                const useJsDelivrCdn = formData.useJsDelivrCdn !== false;
 
                 return (
                     <CodeBlock language="html" title="GA4 Duplicator Snippet">
-                        {`<script>
+                        {useJsDelivrCdn
+                            ? `<script src="${jsDelivrUrl}"></script>
+<script>
+window.createGA4Duplicator(${configJson});
+</script>`
+                            : `<script>
 // GA4 Duplicator initialization
 ${ga4DuplicatorMin}
 
