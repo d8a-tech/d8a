@@ -1,11 +1,29 @@
 {
   "name": "@d8a/ga4-duplicator",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "GA4 network request duplicator (browser inline script) - TypeScript source + minified dist build.",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d8a-tech/d8a.git",
+    "directory": "js/ga4-duplicator"
+  },
+  "bugs": {
+    "url": "https://github.com/d8a-tech/d8a/issues"
+  },
+  "homepage": "https://d8a.tech",
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "src.hash"
+  ],
   "scripts": {
+    "prepack": "npm run build",
     "build": "node scripts/build.mjs",
     "hash": "node scripts/hash.mjs",
     "typecheck": "tsc -p . --noEmit",
