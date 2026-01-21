@@ -69,8 +69,8 @@ jobs:
           fi
           
           # Check if version already exists
-          if npm view "@d8a/ga4-duplicator@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            echo "Error: @d8a/ga4-duplicator@${{ steps.version.outputs.version }} already exists on npm"
+          if npm view "@d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Error: @d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }} already exists on npm"
             exit 1
           fi
           
