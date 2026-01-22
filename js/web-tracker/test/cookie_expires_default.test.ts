@@ -69,7 +69,7 @@ test("cookie_expires default: does not emit Max-Age=0 (cookies persist)", () => 
 
   // No cookie_expires set here; before the fix, this defaulted to null -> Max-Age=0.
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     cookie_domain: "none",
     cookie_flags: "SameSite=Lax",
   });
@@ -91,7 +91,7 @@ test("cookie_expires default: _d8a_G-<property> has same default lifetime as _d8
   const d8a = getD8a(w);
 
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     cookie_domain: "none",
     cookie_flags: "SameSite=Lax",
   });

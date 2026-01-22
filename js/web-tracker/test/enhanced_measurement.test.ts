@@ -59,7 +59,7 @@ test("enhanced measurement: site search fires view_search_results on page load (
   dl.push([
     "config",
     PROPERTY_ID,
-    { server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}` },
+    { server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c` },
   ]);
 
   const { consumer } = installD8a({ windowRef: w });
@@ -82,7 +82,7 @@ test("enhanced measurement: outbound click emits click event with outbound=1", a
 
   const d8a = getD8a(w);
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
   });
 
   const a = makeAnchor({
@@ -107,13 +107,84 @@ test("enhanced measurement: outbound click emits click event with outbound=1", a
   assert.equal(u.searchParams.get("ep.link_classes"), "outbound-link primary");
 });
 
+test("enhanced measurement: events are pushed to dataLayer for GTM filtering", async () => {
+  // Test site search
+  const w1 = makeWindow({ href: "http://example.test/?q=test+search" });
+  const dataLayer1 = ensureArraySlot(w1, "d8aLayer");
+  installD8a({ windowRef: w1 });
+
+  const d8a1 = getD8a(w1);
+  d8a1("config", PROPERTY_ID, {
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
+  });
+
+  await tick();
+
+  // Verify view_search_results event was pushed to dataLayer
+  const searchEvent = dataLayer1.find(
+    (item) => Array.isArray(item) && item[0] === "event" && item[1] === "view_search_results",
+  ) as [string, string, Record<string, unknown>] | undefined;
+  assert.ok(searchEvent, "view_search_results event should be pushed to dataLayer");
+  assert.equal(searchEvent[1], "view_search_results");
+  assert.equal(searchEvent[2].search_term, "test search");
+
+  // Test outbound click
+  const w2 = makeWindow({ href: "http://example.test/" });
+  const dataLayer2 = ensureArraySlot(w2, "d8aLayer");
+  installD8a({ windowRef: w2 });
+
+  const d8a2 = getD8a(w2);
+  d8a2("config", PROPERTY_ID, {
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
+  });
+
+  const a = makeAnchor({
+    href: "https://other.test/path",
+    id: "test-link",
+    className: "test-class",
+  });
+  const clickHandler = w2.__docListeners.get("click")?.[0];
+  assert.ok(clickHandler);
+  clickHandler({ target: a });
+
+  await tick();
+
+  // Verify click event was pushed to dataLayer
+  const clickEvent = dataLayer2.find(
+    (item) => Array.isArray(item) && item[0] === "event" && item[1] === "click",
+  ) as [string, string, Record<string, unknown>] | undefined;
+  assert.ok(clickEvent, "click event should be pushed to dataLayer");
+  assert.equal(clickEvent[1], "click");
+  assert.equal(clickEvent[2].link_domain, "other.test");
+  assert.equal(clickEvent[2].outbound, "1");
+  assert.equal(clickEvent[2].link_id, "test-link");
+
+  // Test file download
+  const downloadLink = makeAnchor({
+    href: "https://example.test/file.pdf",
+    id: "download-link",
+  });
+  clickHandler({ target: downloadLink });
+
+  await tick();
+
+  // Verify file_download event was pushed to dataLayer
+  const downloadEvent = dataLayer2.find(
+    (item) => Array.isArray(item) && item[0] === "event" && item[1] === "file_download",
+  ) as [string, string, Record<string, unknown>] | undefined;
+  assert.ok(downloadEvent, "file_download event should be pushed to dataLayer");
+  assert.equal(downloadEvent[1], "file_download");
+  assert.equal(downloadEvent[2].file_extension, "pdf");
+  assert.equal(downloadEvent[2].link_id, "download-link");
+});
+
 test("enhanced measurement: file download emits file_download event", async () => {
   const w = makeWindow({ href: "http://example.test/" });
   installD8a({ windowRef: w });
 
   const d8a = getD8a(w);
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
   });
 
   const a = makeAnchor({
@@ -145,7 +216,7 @@ test("enhanced measurement: outbound clicks can be disabled via config", async (
 
   const d8a = getD8a(w);
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     outbound_clicks_enabled: false,
   });
 
@@ -168,7 +239,7 @@ test("enhanced measurement: file download on outbound link only fires file_downl
 
   const d8a = getD8a(w);
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
   });
 
   // Link is both a download (PDF) and outbound (different domain)
@@ -197,7 +268,7 @@ test("enhanced measurement: site search can be disabled via config", async () =>
     "config",
     PROPERTY_ID,
     {
-      server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+      server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
       site_search_enabled: false,
     },
   ]);
@@ -218,7 +289,7 @@ test("enhanced measurement: file downloads can be disabled via config", async ()
 
   const d8a = getD8a(w);
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     file_downloads_enabled: false,
   });
 

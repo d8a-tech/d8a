@@ -145,7 +145,12 @@ export function installD8a({
 
   // Enhanced measurement
   try {
-    const em = createEnhancedMeasurement({ windowRef: w, getState: consumer.getState, dispatcher });
+    const em = createEnhancedMeasurement({
+      windowRef: w,
+      getState: consumer.getState,
+      dataLayerName: dl,
+      dispatcher,
+    });
     onConfigCbs.push(() => em.onConfig());
     em.start();
   } catch {

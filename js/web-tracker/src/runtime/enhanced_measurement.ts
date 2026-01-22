@@ -1,6 +1,7 @@
 import { getPropertyConfig, getPropertyIds, getSetParams } from "./config_resolver.ts";
 import type { RuntimeState, WindowLike } from "../types.ts";
 import { isRecord } from "../utils/is_record.ts";
+import { ensureArraySlot } from "../utils/window_slots.ts";
 
 function parseList(v: unknown, fallback: string[] = []) {
   if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
@@ -105,10 +106,12 @@ function getLinkText(a: unknown) {
 export function createEnhancedMeasurement({
   windowRef,
   getState,
+  dataLayerName,
   dispatcher,
 }: {
   windowRef: WindowLike;
   getState: () => RuntimeState;
+  dataLayerName: string;
   dispatcher: {
     enqueueEvent: (name: string, params: Record<string, unknown>) => void;
     flushNow?: (opts?: { useBeacon?: boolean }) => unknown;
@@ -118,6 +121,7 @@ export function createEnhancedMeasurement({
   if (!w) throw new Error("createEnhancedMeasurement: windowRef is required");
   if (typeof getState !== "function")
     throw new Error("createEnhancedMeasurement: getState is required");
+  if (!dataLayerName) throw new Error("createEnhancedMeasurement: dataLayerName is required");
   if (!dispatcher) throw new Error("createEnhancedMeasurement: dispatcher is required");
 
   type BoolKey = "site_search_enabled" | "outbound_clicks_enabled" | "file_downloads_enabled";
@@ -230,10 +234,9 @@ export function createEnhancedMeasurement({
     }
 
     for (const [term, pids] of termToProps.entries()) {
-      dispatcher.enqueueEvent("view_search_results", {
-        search_term: term,
-        send_to: pids,
-      });
+      // Push to dataLayer so GTM can filter it
+      const dataLayer = ensureArraySlot(w, dataLayerName);
+      dataLayer.push(["event", "view_search_results", { search_term: term, send_to: pids }]);
     }
   }
 
@@ -328,15 +331,21 @@ export function createEnhancedMeasurement({
 
     // Prefer file_download over outbound click if both apply.
     if (downloadDestinations.length > 0) {
-      dispatcher.enqueueEvent("file_download", {
-        link_url: linkUrl,
-        ...(linkId ? { link_id: linkId } : {}),
-        ...(linkClasses ? { link_classes: linkClasses } : {}),
-        ...(linkText ? { link_text: linkText } : {}),
-        file_name: fileName,
-        file_extension: ext,
-        send_to: downloadDestinations,
-      });
+      // Push to dataLayer so GTM can filter it
+      const dataLayer = ensureArraySlot(w, dataLayerName);
+      dataLayer.push([
+        "event",
+        "file_download",
+        {
+          link_url: linkUrl,
+          ...(linkId ? { link_id: linkId } : {}),
+          ...(linkClasses ? { link_classes: linkClasses } : {}),
+          ...(linkText ? { link_text: linkText } : {}),
+          file_name: fileName,
+          file_extension: ext,
+          send_to: downloadDestinations,
+        },
+      ]);
       // For click-driven events prefer fetch(keepalive) instead of sendBeacon,
       // since some browsers/extensions block beacons/pings by default.
       dispatcher.flushNow?.({ useBeacon: false });
@@ -344,14 +353,20 @@ export function createEnhancedMeasurement({
     }
 
     if (outboundDestinations.length > 0) {
-      dispatcher.enqueueEvent("click", {
-        link_url: linkUrl,
-        ...(linkId ? { link_id: linkId } : {}),
-        ...(linkClasses ? { link_classes: linkClasses } : {}),
-        link_domain: linkHostname,
-        outbound: "1",
-        send_to: outboundDestinations,
-      });
+      // Push to dataLayer so GTM can filter it
+      const dataLayer = ensureArraySlot(w, dataLayerName);
+      dataLayer.push([
+        "event",
+        "click",
+        {
+          link_url: linkUrl,
+          ...(linkId ? { link_id: linkId } : {}),
+          ...(linkClasses ? { link_classes: linkClasses } : {}),
+          link_domain: linkHostname,
+          outbound: "1",
+          send_to: outboundDestinations,
+        },
+      ]);
       // For click-driven events prefer fetch(keepalive) instead of sendBeacon,
       // since some browsers/extensions block beacons/pings by default.
       dispatcher.flushNow?.({ useBeacon: false });

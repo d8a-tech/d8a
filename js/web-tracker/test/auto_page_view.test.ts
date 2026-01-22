@@ -18,7 +18,7 @@ test("config: send_page_view default triggers automatic page_view", () => {
 
   d8a("js", new Date("2025-01-01T00:00:00Z"));
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
   });
 
   assert.equal(w.fetchCalls.length, 1);
@@ -33,7 +33,7 @@ test("config: send_page_view=false disables automatic page_view", () => {
 
   d8a("js", new Date("2025-01-01T00:00:00Z"));
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
   });
 

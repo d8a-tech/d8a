@@ -29,7 +29,7 @@ test("overrides precedence: event > config > set > browser", () => {
 
   // config overrides set
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
     page_location: "https://cfg.example/",
     campaign_source: "cfgSource",
@@ -63,7 +63,7 @@ test("client_id override forces cid (even if cookie exists)", () => {
   const d8a = getD8a(w);
 
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
     client_id: "TEST_CLIENT_99999.88888",
   });
@@ -80,7 +80,7 @@ test("ignore_referrer=true sends ir=1 but keeps referrer value", () => {
   const d8a = getD8a(w);
 
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
     ignore_referrer: true,
   });

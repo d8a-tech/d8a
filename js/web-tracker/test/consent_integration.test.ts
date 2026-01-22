@@ -22,7 +22,7 @@ test("consent via d8a() affects outgoing gcs/gcd", async () => {
 
   d8a("js", new Date("2025-01-01T00:00:00Z"));
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
   });
 
@@ -77,7 +77,7 @@ test("consent via gtag()/dataLayer is preferred over d8a consent", () => {
   const d8a = getD8a(w);
   d8a("js", new Date("2025-01-01T00:00:00Z"));
   d8a("config", PROPERTY_ID, {
-    server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}`,
+    server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c`,
     send_page_view: false,
   });
 

@@ -20,7 +20,7 @@ test("queue consumer drains existing dataLayer items and patches push", () => {
   d8aLayer.push([
     "config",
     PROPERTY_ID,
-    { server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}` },
+    { server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c` },
   ]);
   d8aLayer.push(["event", "page_view", { page_location: "https://example.org/" }]);
 
@@ -48,7 +48,7 @@ test("queue consumer supports custom data layer name", () => {
   myQueue.push([
     "config",
     PROPERTY_ID,
-    { server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}` },
+    { server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c` },
   ]);
   myQueue.push(["event", "purchase", { value: 1 }]);
 

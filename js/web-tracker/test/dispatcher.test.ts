@@ -17,7 +17,7 @@ test("dispatcher enqueues and flushes via fetch with keepalive", async () => {
   const state = createRuntimeState();
   state.propertyIds = [PROPERTY_ID];
   state.propertyConfigs = {
-    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c` },
   };
 
   const d = createDispatcher({ windowRef: w, getState: () => state });
@@ -26,7 +26,7 @@ test("dispatcher enqueues and flushes via fetch with keepalive", async () => {
   assert.equal(w.fetchCalls.length, 1);
   assert.match(
     w.fetchCalls[0].url,
-    new RegExp(`^https://tracker\\.example\\.test/d/c/${PROPERTY_ID}\\?`),
+    new RegExp(`^https://tracker\\.example\\.test/${PROPERTY_ID}/d/c\\?`),
   );
   const opts = w.fetchCalls[0].opts;
   assert.ok(isRecord(opts));
@@ -39,7 +39,7 @@ test("debug_mode: adds _dbg=1 and ep.debug_mode=1 to tracking requests", async (
   state.propertyIds = [PROPERTY_ID];
   state.propertyConfigs = {
     [PROPERTY_ID]: {
-      server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}`,
+      server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c`,
       debug_mode: true,
     },
   };
@@ -78,7 +78,7 @@ test("dispatcher includes consent wire params (gcs/gcd) based on default+update 
   const state = createRuntimeState();
   state.propertyIds = [PROPERTY_ID];
   state.propertyConfigs = {
-    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c` },
   };
   state.consentDefault = {
     ad_storage: "denied",
@@ -113,7 +113,7 @@ test("dispatcher prefers gtag consent state (from dataLayer) over d8a consent st
   const state = createRuntimeState();
   state.propertyIds = [PROPERTY_ID];
   state.propertyConfigs = {
-    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c` },
   };
 
   // d8a consent (should be ignored if gtag consent is available)
@@ -174,7 +174,7 @@ test("dispatcher: analytics_storage denied => does not read cookie cid; uses eph
   const state = createRuntimeState();
   state.propertyIds = [PROPERTY_ID];
   state.propertyConfigs = {
-    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c` },
   };
   state.consent = { analytics_storage: "denied" };
   state.consentDefault = { analytics_storage: "denied" };
@@ -231,7 +231,7 @@ test("seg flips to 1 after configured engaged time threshold and updates session
     state.propertyConfigs = {
       // cookie_update=false normally prevents refresh; seg flip should still update value.
       [PROPERTY_ID]: {
-        server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}`,
+        server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c`,
         cookie_update: false,
         session_engagement_time_sec: 10,
       },

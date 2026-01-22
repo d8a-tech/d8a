@@ -34,7 +34,7 @@ test("installD8a is idempotent: double install does not double-patch queue or at
   dl.push([
     "config",
     PROPERTY_ID,
-    { server_container_url: `https://tracker.example.test/d/c/${PROPERTY_ID}` },
+    { server_container_url: `https://tracker.example.test/${PROPERTY_ID}/d/c` },
   ]);
   const before = r1.consumer.getState().events.length;
   dl.push(["event", "purchase", { value: 1 }]);
