@@ -17,7 +17,7 @@ The web tracker is currently in **beta** - feel free to report any problems via 
 <div className="d8a-tabs-border">
 <Tabs>
 <TabItem value="script-tag" label="Script tag" default>
-Add the snippet to your page:
+Paste this code as high in the `<head>` of the page as possible:
 
 <!-- prettier-ignore -->
 ```html
