@@ -4,6 +4,9 @@
  * work well for content-centric websites.
  */
 
+/* Import Klaro consent manager styles */
+@import './klaro.css';
+
 /* You can override the default Infima variables here. */
 :root {
   --ifm-color-primary: #f59e42;

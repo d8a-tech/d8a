@@ -63,7 +63,10 @@ const config: Config = {
     ],
   ],
 
-  clientModules: [require.resolve('./plugins/spa-tracking')],
+  clientModules: [
+    require.resolve('./plugins/spa-tracking'),
+    require.resolve('./plugins/klaro'),
+  ],
 
   themeConfig: {
     // Replace with your project's social card
