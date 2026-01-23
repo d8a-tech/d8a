@@ -2221,7 +2221,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "sct",
 			value:       "5",
 			expected:    int64(5),
-			fieldName:   "ga_session_number",
+			fieldName:   "client_session_number",
 			description: "Valid session number",
 		},
 		{
@@ -2229,7 +2229,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "sct",
 			value:       "invalid",
 			expected:    nil,
-			fieldName:   "ga_session_number",
+			fieldName:   "client_session_number",
 			description: "Invalid session number should be nil",
 		},
 		{
@@ -2237,7 +2237,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "sct",
 			value:       "",
 			expected:    nil,
-			fieldName:   "ga_session_number",
+			fieldName:   "client_session_number",
 			description: "Empty session number should be nil",
 		},
 		{
@@ -2245,7 +2245,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "sid",
 			value:       "session123",
 			expected:    "session123",
-			fieldName:   "ga_session_id",
+			fieldName:   "client_session_id",
 			description: "Valid session ID",
 		},
 		{
@@ -2253,7 +2253,7 @@ func TestEventColumns(t *testing.T) {
 			param:       "sid",
 			value:       "",
 			expected:    nil,
-			fieldName:   "ga_session_id",
+			fieldName:   "client_session_id",
 			description: "Empty session ID should be nil",
 		},
 	}

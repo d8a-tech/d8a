@@ -68,7 +68,6 @@ var CoreInterfaces = struct {
 	EventIgnoreReferrer   schema.Interface
 
 	// Session-scoped event columns
-	SSEIsEntry           schema.Interface
 	SSESessionHitNumber  schema.Interface
 	SSESessionPageNumber schema.Interface
 	SSETimeOnPage        schema.Interface
@@ -319,10 +318,6 @@ var CoreInterfaces = struct {
 	EventTrackingProtocol: schema.Interface{
 		ID:    "core.d8a.tech/events/tracking_protocol",
 		Field: &arrow.Field{Name: "tracking_protocol", Type: arrow.BinaryTypes.String},
-	},
-	SSEIsEntry: schema.Interface{
-		ID:    "core.d8a.tech/events/session_is_entry",
-		Field: &arrow.Field{Name: "session_is_entry", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SSESessionHitNumber: schema.Interface{
 		ID:    "core.d8a.tech/events/session_hit_number",
