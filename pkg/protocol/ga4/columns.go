@@ -58,8 +58,8 @@ var ProtocolInterfaces = struct {
 	EventItems                         schema.Interface
 
 	// Session columns
-	GaSessionID                  schema.Interface
-	GaSessionNumber              schema.Interface
+	ClientSessionID              schema.Interface
+	ClientSessionNumber          schema.Interface
 	EventGtmDebug                schema.Interface
 	EventPageLoadHash            schema.Interface
 	EventParams                  schema.Interface
@@ -296,13 +296,13 @@ var ProtocolInterfaces = struct {
 			)),
 		},
 	},
-	GaSessionID: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/ga_session_id",
-		Field: &arrow.Field{Name: "ga_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	ClientSessionID: schema.Interface{
+		ID:    "ga4.protocols.d8a.tech/event/client_session_id",
+		Field: &arrow.Field{Name: "client_session_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	GaSessionNumber: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/ga_session_number",
-		Field: &arrow.Field{Name: "ga_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	ClientSessionNumber: schema.Interface{
+		ID:    "ga4.protocols.d8a.tech/event/client_session_number",
+		Field: &arrow.Field{Name: "client_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventGtmDebug: schema.Interface{
 		ID:    "ga4.protocols.d8a.tech/event/gtm_debug",

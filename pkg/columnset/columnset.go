@@ -95,6 +95,5 @@ func sessionScopedEventColumns() []schema.SessionScopedEventColumn {
 	return []schema.SessionScopedEventColumn{
 		eventcolumns.SSESessionHitNumber,
 		eventcolumns.SSESessionPageNumber,
-		eventcolumns.SSEIsEntry,
 	}
 }

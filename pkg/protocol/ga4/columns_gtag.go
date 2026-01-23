@@ -133,28 +133,28 @@ var eventEngagementTimeMsColumn = columns.FromQueryParamEventColumn(
 )
 
 var eventGa4SessionIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.GaSessionID.ID,
-	ProtocolInterfaces.GaSessionID.Field,
+	ProtocolInterfaces.ClientSessionID.ID,
+	ProtocolInterfaces.ClientSessionID.Field,
 	"sid",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.GaSessionID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.ClientSessionID.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"GA Session ID",
-		"The Google Analytics 4 session identifier. A unique identifier for the current session, used by GA4 to group events into sessions. Extracted from the first-party cookie. Use only to compare numbers with GA4. For real session data calculated on the backend, use the session_id column. ", // nolint:lll // it's a description
+		"Client Session ID",
+		"The client - assigned session identifier. A unique identifier for the current session, as calculated by the client library. Extracted from the first-party cookie. For real session data calculated on the backend, use the session_id column. ", // nolint:lll // it's a description
 	),
 )
 
 var eventGa4SessionNumberColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.GaSessionNumber.ID,
-	ProtocolInterfaces.GaSessionNumber.Field,
+	ProtocolInterfaces.ClientSessionNumber.ID,
+	ProtocolInterfaces.ClientSessionNumber.Field,
 	"sct",
 	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.GaSessionNumber.ID)),
+	columns.WithEventColumnCast(columns.CastToInt64OrNil(ProtocolInterfaces.ClientSessionNumber.ID)),
 	columns.WithEventColumnDocs(
-		"GA Session Number",
-		"The Google Analytics 4 sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie. ", // nolint:lll // it's a description
+		"Client Session Number",
+		"The client - assigned sequential count of sessions for this user. Increments with each new session (e.g., 1 for first session, 2 for second). Extracted from the first-party cookie. ", // nolint:lll // it's a description
 	),
 )
 
@@ -222,7 +222,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		// Mark as returning if ANY event in the session has GA session number 2+.
 		for _, event := range session.Events {
-			raw, ok := event.Values[ProtocolInterfaces.GaSessionNumber.Field.Name]
+			raw, ok := event.Values[ProtocolInterfaces.ClientSessionNumber.Field.Name]
 			if !ok || raw == nil {
 				continue
 			}
@@ -238,7 +238,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface: ProtocolInterfaces.GaSessionNumber.ID,
+			Interface: ProtocolInterfaces.ClientSessionNumber.ID,
 		},
 	),
 	columns.WithSessionColumnRequired(false),
