@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/warehouse"
 )
 
 // InterfaceID represents a unique identifier for a column.
@@ -73,7 +74,18 @@ func FromColumns[T Column](columns []T) *arrow.Schema {
 func WithExtraFields[T Column](columns []T, extraFields ...arrow.Field) *arrow.Schema {
 	fields := make([]arrow.Field, len(columns), len(columns)+len(extraFields))
 	for i, column := range columns {
-		fields[i] = *column.Implements().Field
+		// Copy the field to avoid mutating the original
+		field := *column.Implements().Field
+		// Inject description metadata if available
+		docs := column.Docs()
+		if docs.Description != "" {
+			field.Metadata = warehouse.MergeArrowMetadata(
+				field.Metadata,
+				warehouse.ColumnDescriptionMetadataKey,
+				docs.Description,
+			)
+		}
+		fields[i] = field
 	}
 	fields = append(fields, extraFields...)
 	return arrow.NewSchema(fields, nil)

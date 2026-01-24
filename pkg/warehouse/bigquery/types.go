@@ -291,10 +291,12 @@ func (m *bigQueryNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowTyp
 	schema := make(bigquery.Schema, 0, len(structType.Fields()))
 
 	for _, field := range structType.Fields() {
+		// Merge parent type metadata into existing field metadata to preserve descriptions
+		mergedMetadata := warehouse.MergeArrowMetadata(field.Metadata, metadataParentType, "struct")
 		fieldArrowType := warehouse.ArrowType{
 			ArrowDataType: field.Type,
 			Nullable:      field.Nullable,
-			Metadata:      arrow.NewMetadata([]string{metadataParentType}, []string{"struct"}),
+			Metadata:      mergedMetadata,
 		}
 		fieldType, err := m.SubMapper.ArrowToWarehouse(fieldArrowType)
 		if err != nil {
@@ -309,6 +311,10 @@ func (m *bigQueryNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowTyp
 		}
 		if fieldType.Schema != nil {
 			schemaField.Schema = *fieldType.Schema
+		}
+		// Extract description from field metadata if available
+		if desc, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey); ok && desc != "" {
+			schemaField.Description = desc
 		}
 		schema = append(schema, schemaField)
 	}

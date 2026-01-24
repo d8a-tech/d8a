@@ -334,6 +334,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							Sources:  cli.EnvVars("PROPERTY_ID"),
 							Required: true,
 						},
+						protocolFlag,
 					},
 					warehouseConfigFlags,
 				),
