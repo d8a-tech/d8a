@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -31,17 +30,14 @@ func TestWithExtraFields_DescriptionMetadata(t *testing.T) {
 	tests := []struct {
 		name        string
 		description string
-		wantPresent bool
 	}{
 		{
 			name:        "description present",
 			description: "Test column description",
-			wantPresent: true,
 		},
 		{
 			name:        "empty description",
 			description: "",
-			wantPresent: false,
 		},
 	}
 
@@ -63,14 +59,8 @@ func TestWithExtraFields_DescriptionMetadata(t *testing.T) {
 			require.Len(t, schema.Fields(), 1)
 
 			field := schema.Field(0)
-			desc, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey)
-
-			if tt.wantPresent {
-				assert.True(t, ok, "description metadata should be present")
-				assert.Equal(t, tt.description, desc)
-			} else {
-				assert.False(t, ok, "description metadata should not be present")
-			}
+			// WithExtraFields does not inject documentation into metadata.
+			assert.Equal(t, arrow.Metadata{}, field.Metadata)
 		})
 	}
 }
@@ -96,15 +86,8 @@ func TestWithExtraFields_PreservesExistingMetadata(t *testing.T) {
 	schema := WithExtraFields([]*testColumn{col})
 	field := schema.Field(0)
 
-	// Verify description was added
-	desc, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey)
-	assert.True(t, ok)
-	assert.Equal(t, "test description", desc)
-
 	// Verify existing metadata was preserved
-	existingVal, ok := warehouse.GetArrowMetadataValue(field.Metadata, "existing_key")
-	assert.True(t, ok)
-	assert.Equal(t, "existing_value", existingVal)
+	assert.Equal(t, existingMetadata, field.Metadata)
 }
 
 func TestWithExtraFields_DoesNotMutateOriginalField(t *testing.T) {
@@ -129,11 +112,7 @@ func TestWithExtraFields_DoesNotMutateOriginalField(t *testing.T) {
 	schema := WithExtraFields([]*testColumn{col})
 	field := schema.Field(0)
 
-	// Verify description was added to schema field
-	_, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey)
-	assert.True(t, ok)
-
 	// Verify original field was not mutated
-	_, ok = warehouse.GetArrowMetadataValue(originalField.Metadata, warehouse.ColumnDescriptionMetadataKey)
-	assert.False(t, ok, "original field should not be mutated")
+	assert.Equal(t, arrow.Metadata{}, originalField.Metadata)
+	assert.Equal(t, arrow.Metadata{}, field.Metadata)
 }

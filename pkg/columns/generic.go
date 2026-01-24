@@ -10,6 +10,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
+	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,9 +59,10 @@ func NewSimpleSessionColumn(
 	getValue func(*schema.Session) (any, schema.D8AColumnWriteError),
 	options ...SessionColumnOptions,
 ) schema.SessionColumn {
+	fieldCopy := *field
 	c := &simpleSessionColumn{
 		id:    id,
-		field: field,
+		field: &fieldCopy,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
 			Type:        field,
@@ -224,6 +226,13 @@ func WithSessionColumnCast(castFunc func(any) (any, schema.D8AColumnWriteError))
 func WithSessionColumnDocs(displayName, description string) SessionColumnOptions {
 	return func(c *simpleSessionColumn) {
 		c.docs = defaultDocumentation(c.Implements(), displayName, description)
+		if description != "" {
+			c.field.Metadata = warehouse.MergeArrowMetadata(
+				c.field.Metadata,
+				warehouse.ColumnDescriptionMetadataKey,
+				description,
+			)
+		}
 	}
 }
 
@@ -272,9 +281,10 @@ func NewSimpleEventColumn(
 	getValue func(*schema.Event) (any, schema.D8AColumnWriteError),
 	options ...EventColumnOptions,
 ) schema.EventColumn {
+	fieldCopy := *field
 	c := &simpleEventColumn{
 		id:    id,
-		field: field,
+		field: &fieldCopy,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
 			Type:        field,
@@ -396,6 +406,13 @@ func WithEventColumnCast(castFunc func(any) (any, schema.D8AColumnWriteError)) E
 func WithEventColumnDocs(displayName, description string) EventColumnOptions {
 	return func(c *simpleEventColumn) {
 		c.docs = defaultDocumentation(c.Implements(), displayName, description)
+		if description != "" {
+			c.field.Metadata = warehouse.MergeArrowMetadata(
+				c.field.Metadata,
+				warehouse.ColumnDescriptionMetadataKey,
+				description,
+			)
+		}
 	}
 }
 
@@ -608,6 +625,13 @@ func WithSessionScopedEventColumnCast(
 func WithSessionScopedEventColumnDocs(displayName, description string) SessionScopedEventColumnOptions {
 	return func(c *simpleSessionScopedEventColumn) {
 		c.docs = defaultDocumentation(c.Implements(), displayName, description)
+		if description != "" {
+			c.field.Metadata = warehouse.MergeArrowMetadata(
+				c.field.Metadata,
+				warehouse.ColumnDescriptionMetadataKey,
+				description,
+			)
+		}
 	}
 }
 
@@ -620,9 +644,10 @@ func NewSimpleSessionScopedEventColumn(
 	getValue func(*schema.Session, int) (any, schema.D8AColumnWriteError),
 	options ...SessionScopedEventColumnOptions,
 ) schema.SessionScopedEventColumn {
+	fieldCopy := *field
 	c := &simpleSessionScopedEventColumn{
 		id:    id,
-		field: field,
+		field: &fieldCopy,
 		docs: schema.Documentation{
 			ColumnName:  field.Name,
 			Type:        field,
