@@ -21,6 +21,110 @@ import (
 	tcbigquery "github.com/testcontainers/testcontainers-go/modules/gcloud/bigquery"
 )
 
+func TestFieldToBQFieldSchema(t *testing.T) {
+	tests := []struct {
+		name            string
+		field           *arrow.Field
+		fieldSchema     SpecificBigQueryType
+		wantDescription string
+	}{
+		{
+			name: "with description metadata",
+			field: &arrow.Field{
+				Name:     "test_field",
+				Type:     arrow.BinaryTypes.String,
+				Nullable: false,
+				Metadata: warehouse.MergeArrowMetadata(
+					arrow.Metadata{},
+					warehouse.ColumnDescriptionMetadataKey,
+					"Test column description",
+				),
+			},
+			fieldSchema: SpecificBigQueryType{
+				FieldType: bigquery.StringFieldType,
+				Required:  true,
+				Repeated:  false,
+			},
+			wantDescription: "Test column description",
+		},
+		{
+			name: "without description metadata",
+			field: &arrow.Field{
+				Name:     "test_field",
+				Type:     arrow.BinaryTypes.String,
+				Nullable: false,
+				Metadata: arrow.Metadata{},
+			},
+			fieldSchema: SpecificBigQueryType{
+				FieldType: bigquery.StringFieldType,
+				Required:  true,
+				Repeated:  false,
+			},
+			wantDescription: "",
+		},
+		{
+			name: "with empty description metadata",
+			field: &arrow.Field{
+				Name:     "test_field",
+				Type:     arrow.BinaryTypes.String,
+				Nullable: false,
+				Metadata: warehouse.MergeArrowMetadata(
+					arrow.Metadata{},
+					warehouse.ColumnDescriptionMetadataKey,
+					"",
+				),
+			},
+			fieldSchema: SpecificBigQueryType{
+				FieldType: bigquery.StringFieldType,
+				Required:  true,
+				Repeated:  false,
+			},
+			wantDescription: "",
+		},
+		{
+			name: "with nested schema",
+			field: &arrow.Field{
+				Name:     "nested_field",
+				Type:     arrow.BinaryTypes.String,
+				Nullable: false,
+				Metadata: warehouse.MergeArrowMetadata(
+					arrow.Metadata{},
+					warehouse.ColumnDescriptionMetadataKey,
+					"Nested field description",
+				),
+			},
+			fieldSchema: SpecificBigQueryType{
+				FieldType: bigquery.RecordFieldType,
+				Required:  true,
+				Repeated:  false,
+				Schema: &bigquery.Schema{
+					{Name: "inner", Type: bigquery.StringFieldType},
+				},
+			},
+			wantDescription: "Nested field description",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bqField := fieldToBQFieldSchema(tt.field, tt.fieldSchema)
+
+			assert.Equal(t, tt.field.Name, bqField.Name)
+			assert.Equal(t, tt.fieldSchema.FieldType, bqField.Type)
+			assert.Equal(t, tt.fieldSchema.Required, bqField.Required)
+			assert.Equal(t, tt.fieldSchema.Repeated, bqField.Repeated)
+			assert.Equal(t, tt.wantDescription, bqField.Description)
+
+			if tt.fieldSchema.Schema != nil {
+				require.NotNil(t, bqField.Schema)
+				assert.Equal(t, *tt.fieldSchema.Schema, bqField.Schema)
+			} else {
+				assert.Nil(t, bqField.Schema)
+			}
+		})
+	}
+}
+
 // generateUniqueTableName generates a unique table name with timestamp that sorts alphabetically with newest first
 // Format: prefix_YYYYMMDD_HHMMSS_nanoseconds
 // The timestamp ensures uniqueness and proper sorting (newest first alphabetically)
