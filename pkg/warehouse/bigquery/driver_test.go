@@ -24,13 +24,13 @@ import (
 func TestFieldToBQFieldSchema(t *testing.T) {
 	tests := []struct {
 		name            string
-		field           arrow.Field
+		field           *arrow.Field
 		fieldSchema     SpecificBigQueryType
 		wantDescription string
 	}{
 		{
 			name: "with description metadata",
-			field: arrow.Field{
+			field: &arrow.Field{
 				Name:     "test_field",
 				Type:     arrow.BinaryTypes.String,
 				Nullable: false,
@@ -49,7 +49,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 		},
 		{
 			name: "without description metadata",
-			field: arrow.Field{
+			field: &arrow.Field{
 				Name:     "test_field",
 				Type:     arrow.BinaryTypes.String,
 				Nullable: false,
@@ -64,7 +64,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 		},
 		{
 			name: "with empty description metadata",
-			field: arrow.Field{
+			field: &arrow.Field{
 				Name:     "test_field",
 				Type:     arrow.BinaryTypes.String,
 				Nullable: false,
@@ -83,7 +83,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 		},
 		{
 			name: "with nested schema",
-			field: arrow.Field{
+			field: &arrow.Field{
 				Name:     "nested_field",
 				Type:     arrow.BinaryTypes.String,
 				Nullable: false,

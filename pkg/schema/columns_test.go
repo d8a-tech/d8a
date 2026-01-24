@@ -11,7 +11,7 @@ import (
 
 // testColumn is a test implementation of Column interface
 type testColumn struct {
-	docs      Documentation
+	docs       Documentation
 	implements Interface
 }
 

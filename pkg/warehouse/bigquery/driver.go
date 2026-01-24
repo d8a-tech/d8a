@@ -26,7 +26,7 @@ type bigQueryTableDriver struct {
 
 // fieldToBQFieldSchema converts an Arrow field and its mapped BigQuery type to a BigQuery FieldSchema,
 // including description from field metadata if available.
-func fieldToBQFieldSchema(field arrow.Field, fieldSchema SpecificBigQueryType) *bigquery.FieldSchema {
+func fieldToBQFieldSchema(field *arrow.Field, fieldSchema SpecificBigQueryType) *bigquery.FieldSchema {
 	bqField := &bigquery.FieldSchema{
 		Name:     field.Name,
 		Type:     fieldSchema.FieldType,
@@ -41,7 +41,11 @@ func fieldToBQFieldSchema(field arrow.Field, fieldSchema SpecificBigQueryType) *
 	}
 
 	// Extract description from field metadata if available
-	if desc, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey); ok && desc != "" {
+	desc, ok := warehouse.GetArrowMetadataValue(
+		field.Metadata,
+		warehouse.ColumnDescriptionMetadataKey,
+	)
+	if ok && desc != "" {
 		bqField.Description = desc
 	}
 
@@ -68,7 +72,7 @@ func (d *bigQueryTableDriver) CreateTable(table string, schema *arrow.Schema) er
 		if err != nil {
 			return err
 		}
-		metadata.Schema = append(metadata.Schema, fieldToBQFieldSchema(field, fieldSchema))
+		metadata.Schema = append(metadata.Schema, fieldToBQFieldSchema(&field, fieldSchema))
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), d.queryTimeout)
@@ -195,7 +199,7 @@ func (d *bigQueryTableDriver) AddColumn(table string, field *arrow.Field) error 
 	}
 
 	// Create new BigQuery field schema with description
-	newBQField := fieldToBQFieldSchema(*field, fieldSchema)
+	newBQField := fieldToBQFieldSchema(field, fieldSchema)
 
 	// Update table schema by adding the new field
 	updatedSchema := make(bigquery.Schema, len(metadata.Schema)+1)

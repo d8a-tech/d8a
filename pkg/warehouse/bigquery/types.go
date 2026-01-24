@@ -281,68 +281,109 @@ func (m *bigQueryNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowTyp
 		return SpecificBigQueryType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, MapperName)
 	}
 
-	for _, field := range structType.Fields() {
-		if err := m.validatePrimitiveField(field.Type); err != nil {
-			return SpecificBigQueryType{}, err
-		}
+	if err := m.validateStructFields(structType); err != nil {
+		return SpecificBigQueryType{}, err
 	}
 
+	fieldTypes, schema, err := m.buildFieldTypesAndSchema(structType)
+	if err != nil {
+		return SpecificBigQueryType{}, err
+	}
+
+	return SpecificBigQueryType{
+		FieldType:  bigquery.RecordFieldType,
+		Required:   false,
+		Repeated:   false,
+		Schema:     &schema,
+		FormatFunc: m.createFormatFunc(structType, fieldTypes),
+	}, nil
+}
+
+func (m *bigQueryNestedTypeMapper) validateStructFields(structType *arrow.StructType) error {
+	for _, field := range structType.Fields() {
+		if err := m.validatePrimitiveField(field.Type); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *bigQueryNestedTypeMapper) buildFieldTypesAndSchema(
+	structType *arrow.StructType,
+) ([]SpecificBigQueryType, bigquery.Schema, error) {
 	fieldTypes := make([]SpecificBigQueryType, 0, len(structType.Fields()))
 	schema := make(bigquery.Schema, 0, len(structType.Fields()))
 
 	for _, field := range structType.Fields() {
-		// Merge parent type metadata into existing field metadata to preserve descriptions
-		mergedMetadata := warehouse.MergeArrowMetadata(field.Metadata, metadataParentType, "struct")
-		fieldArrowType := warehouse.ArrowType{
-			ArrowDataType: field.Type,
-			Nullable:      field.Nullable,
-			Metadata:      mergedMetadata,
-		}
-		fieldType, err := m.SubMapper.ArrowToWarehouse(fieldArrowType)
+		fieldType, schemaField, err := m.mapFieldToBigQuery(&field)
 		if err != nil {
-			return SpecificBigQueryType{}, fmt.Errorf("error mapping field %s: %w", field.Name, err)
+			return nil, nil, err
 		}
 		fieldTypes = append(fieldTypes, fieldType)
-		schemaField := &bigquery.FieldSchema{
-			Name:     field.Name,
-			Type:     fieldType.FieldType,
-			Required: fieldType.Required,
-			Repeated: fieldType.Repeated,
-		}
-		if fieldType.Schema != nil {
-			schemaField.Schema = *fieldType.Schema
-		}
-		// Extract description from field metadata if available
-		if desc, ok := warehouse.GetArrowMetadataValue(field.Metadata, warehouse.ColumnDescriptionMetadataKey); ok && desc != "" {
-			schemaField.Description = desc
-		}
 		schema = append(schema, schemaField)
 	}
 
-	return SpecificBigQueryType{
-		FieldType: bigquery.RecordFieldType,
-		Required:  false,
-		Repeated:  false,
-		Schema:    &schema,
-		FormatFunc: func(_ SpecificBigQueryType) func(i any, m arrow.Metadata) (any, error) {
-			return func(i any, metadata arrow.Metadata) (any, error) {
-				record, ok := i.(map[string]any)
-				if !ok {
-					return nil, fmt.Errorf("expected map[string]any for nested type, got %T", i)
-				}
-				for idx, field := range structType.Fields() {
-					if value, exists := record[field.Name]; exists {
-						formatted, err := fieldTypes[idx].Format(value, metadata)
-						if err != nil {
-							return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
-						}
-						record[field.Name] = formatted
-					}
-				}
-				return record, nil
+	return fieldTypes, schema, nil
+}
+
+func (m *bigQueryNestedTypeMapper) mapFieldToBigQuery(
+	field *arrow.Field,
+) (SpecificBigQueryType, *bigquery.FieldSchema, error) {
+	// Merge parent type metadata into existing field metadata to preserve descriptions
+	mergedMetadata := warehouse.MergeArrowMetadata(field.Metadata, metadataParentType, "struct")
+	fieldArrowType := warehouse.ArrowType{
+		ArrowDataType: field.Type,
+		Nullable:      field.Nullable,
+		Metadata:      mergedMetadata,
+	}
+	fieldType, err := m.SubMapper.ArrowToWarehouse(fieldArrowType)
+	if err != nil {
+		return SpecificBigQueryType{}, nil, fmt.Errorf("error mapping field %s: %w", field.Name, err)
+	}
+
+	schemaField := &bigquery.FieldSchema{
+		Name:     field.Name,
+		Type:     fieldType.FieldType,
+		Required: fieldType.Required,
+		Repeated: fieldType.Repeated,
+	}
+	if fieldType.Schema != nil {
+		schemaField.Schema = *fieldType.Schema
+	}
+	// Extract description from field metadata if available
+	desc, ok := warehouse.GetArrowMetadataValue(
+		field.Metadata,
+		warehouse.ColumnDescriptionMetadataKey,
+	)
+	if ok && desc != "" {
+		schemaField.Description = desc
+	}
+
+	return fieldType, schemaField, nil
+}
+
+func (m *bigQueryNestedTypeMapper) createFormatFunc(
+	structType *arrow.StructType,
+	fieldTypes []SpecificBigQueryType,
+) func(SpecificBigQueryType) func(i any, m arrow.Metadata) (any, error) {
+	return func(_ SpecificBigQueryType) func(i any, metadata arrow.Metadata) (any, error) {
+		return func(i any, metadata arrow.Metadata) (any, error) {
+			record, ok := i.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("expected map[string]any for nested type, got %T", i)
 			}
-		},
-	}, nil
+			for idx, field := range structType.Fields() {
+				if value, exists := record[field.Name]; exists {
+					formatted, err := fieldTypes[idx].Format(value, metadata)
+					if err != nil {
+						return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
+					}
+					record[field.Name] = formatted
+				}
+			}
+			return record, nil
+		}
+	}
 }
 
 // validatePrimitiveField ensures that the field type is primitive (no nested Lists or Structs)
