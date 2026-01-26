@@ -1,6 +1,9 @@
-/* ga4-duplicator - built 2026-01-26T21:34:18.343Z */
+/* ga4-duplicator - built 2026-01-26T22:11:23.436Z */
 "use strict";
 (() => {
+  // src/version.ts
+  var version = "D8A_VERSION_PLACEHOLDER";
+
   // src/ga4-duplicator.ts
   window.createGA4Duplicator = function(options) {
     class FetchInterceptor {
@@ -288,6 +291,8 @@
       try {
         const src = new URL(originalUrl, location.href);
         dst.search = src.search;
+        dst.searchParams.set("_dtv", version);
+        dst.searchParams.set("_dtn", "gd");
       } catch (e) {
       }
       return dst.toString();
