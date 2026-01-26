@@ -7,11 +7,41 @@ const isWatch = process.argv.includes("--watch");
 
 writeHash();
 
+function getVersion() {
+  // Prefer explicit override
+  if (process.env.D8A_BUILD_VERSION) {
+    return process.env.D8A_BUILD_VERSION;
+  }
+
+  // Prefer GITHUB_REF_NAME if it looks like a tag (starts with 'v')
+  if (process.env.GITHUB_REF_NAME && process.env.GITHUB_REF_NAME.startsWith("v")) {
+    return process.env.GITHUB_REF_NAME;
+  }
+
+  // Fall back to package.json version with 'v' prefix
+  const packageJson = JSON.parse(fs.readFileSync("package.json", "utf-8"));
+  if (packageJson.version) {
+    return `v${packageJson.version}`;
+  }
+
+  // Final fallback: dev-YY-MM
+  const now = new Date();
+  const year = String(now.getUTCFullYear()).slice(-2);
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `dev-${year}-${month}`;
+}
+
+const version = getVersion();
+const versionDefine = {
+  __D8A_VERSION__: JSON.stringify(version),
+};
+
 const common = {
   bundle: true,
   sourcemap: true,
   target: ["es2018"],
   logLevel: "info",
+  define: versionDefine,
 };
 
 const banner = `/* web-tracker - built ${new Date().toISOString()} */`;
