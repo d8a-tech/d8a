@@ -103,6 +103,25 @@ describe("GA4 Duplicator Blackbox Tests", () => {
     return calls[callIndex];
   };
 
+  const verifyD8tvParam = (mockFn: any, callIndex: number = 0) => {
+    const calls = mockFn.mock.calls;
+    expect(calls.length).toBeGreaterThan(callIndex);
+    const url = calls[callIndex][0];
+    expect(url).toContain("_dtv=");
+    try {
+      const urlObj = new URL(url);
+      const d8tvValue = urlObj.searchParams.get("_dtv");
+      expect(d8tvValue).toBeTruthy();
+      return d8tvValue;
+    } catch {
+      // Fallback for relative URLs or malformed URLs
+      const match = url.match(/[?&]_dtv=([^&?#]+)/);
+      expect(match).toBeTruthy();
+      expect(match![1]).toBeTruthy();
+      return match![1];
+    }
+  };
+
   describe("Fetch Interception", () => {
     it("should duplicate a GA4 fetch request", async () => {
       initDuplicator();
@@ -116,6 +135,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(firstCallUrl).toBe(GA4_URL);
 
       verifyDuplicateSent(fetchMock, 1);
+      verifyD8tvParam(fetchMock, 1);
     });
 
     it("should NOT duplicate non-GA4 fetch request", async () => {
@@ -239,6 +259,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       // Duplicate logic (uses fetch)
       expect(fetchMock).toHaveBeenCalledTimes(1);
       verifyDuplicateSent(fetchMock, 0);
+      verifyD8tvParam(fetchMock, 0);
     });
 
     it("should handle POST XHR with body", () => {
@@ -310,6 +331,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
       const duplicateCall = verifyDuplicateSent(sendBeaconMock, 1);
       expect(duplicateCall[1]).toBe(data);
+      verifyD8tvParam(sendBeaconMock, 1);
     });
 
     it("should NOT duplicate non-GA4 sendBeacon request", () => {
@@ -354,6 +376,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       // Script interceptor uses fetch for duplication
       expect(fetchMock).toHaveBeenCalledTimes(1);
       verifyDuplicateSent(fetchMock, 0);
+      verifyD8tvParam(fetchMock, 0);
     });
 
     it("should duplicate when script src is set via setAttribute", () => {

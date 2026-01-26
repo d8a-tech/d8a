@@ -61,6 +61,8 @@ jobs:
 
       - name: Publish ga4-duplicator
         working-directory: js/ga4-duplicator
+        env:
+          D8A_BUILD_VERSION: v${{ steps.version.outputs.version }}
         run: |
           # Safety check: ensure package is not private
           if grep -q '"private":\s*true' package.json; then
@@ -69,8 +71,8 @@ jobs:
           fi
           
           # Check if version already exists
-          if npm view "@d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
-            echo "Error: @d8a-tech/ga4-duplicator@${{ steps.version.outputs.version }} already exists on npm"
+          if npm view "@d8a-tech/gd@${{ steps.version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "Error: @d8a-tech/gd@${{ steps.version.outputs.version }} already exists on npm"
             exit 1
           fi
           
@@ -81,6 +83,8 @@ jobs:
 
       - name: Publish web-tracker
         working-directory: js/web-tracker
+        env:
+          D8A_BUILD_VERSION: v${{ steps.version.outputs.version }}
         run: |
           # Safety check: ensure package is not private
           if grep -q '"private":\s*true' package.json; then

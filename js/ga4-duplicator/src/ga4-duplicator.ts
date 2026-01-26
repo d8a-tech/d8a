@@ -2,6 +2,8 @@
  * GA4 Duplicator - Intercepts GA4 collect calls and sends duplicates to D8A.
  */
 
+import { version } from "./version";
+
 interface GA4Destination {
   measurement_id: string;
   server_container_url: string;
@@ -376,6 +378,8 @@ interface GA4DuplicatorOptions {
     try {
       const src = new URL(originalUrl, location.href);
       dst.search = src.search;
+      dst.searchParams.set("_dtv", version);
+      dst.searchParams.set("_dtn", "gd");
     } catch {}
     return dst.toString();
   }

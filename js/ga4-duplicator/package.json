@@ -1,5 +1,5 @@
 {
-  "name": "@d8a-tech/ga4-duplicator",
+  "name": "@d8a-tech/gd",
   "version": "0.1.0",
   "type": "module",
   "description": "GA4 network request duplicator (browser inline script) - TypeScript source + minified dist build.",

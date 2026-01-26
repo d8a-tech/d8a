@@ -99,7 +99,7 @@ export default function GA4DuplicatorSnippetGenerator({
     ga4DuplicatorMin,
 }: GA4DuplicatorSnippetGeneratorProps) {
     const jsDelivrUrl =
-        'https://cdn.jsdelivr.net/npm/@d8a-tech/ga4-duplicator/dist/gd.min.js';
+        'https://cdn.jsdelivr.net/npm/@d8a-tech/gd/dist/gd.min.js';
 
     return (
         <DynamicForm
