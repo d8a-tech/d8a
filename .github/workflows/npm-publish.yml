@@ -79,6 +79,7 @@ jobs:
           npm ci
           npm run hash
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+          npm run build
           npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
 
       - name: Publish web-tracker
@@ -101,4 +102,5 @@ jobs:
           npm ci
           npm run hash
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+          npm run build
           npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
