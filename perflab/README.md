@@ -23,13 +23,13 @@ docker compose down
 
 ## Usage
 
-Launch the server with monitoring enabled:
+Launch the server with monitoring enabled and related flags:
 ```bash
 go run main.go server --monitoring-enabled --monitoring-otel-endpoint localhost:4317 --monitoring-otel-export-interval 1s --monitoring-otel-insecure true
 ```
 or just use the bundled development config file:
 ```bash
-go run main.go server --config config.yaml
+go run main.go server --config config.dev.yaml --monitoring-enabled
 ```
 
 Go to Grafana to see the dashboard: http://localhost:3000
