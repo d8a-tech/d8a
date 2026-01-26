@@ -18,13 +18,7 @@ function getVersion() {
     return process.env.GITHUB_REF_NAME;
   }
 
-  // Fall back to package.json version with 'v' prefix
-  const packageJson = JSON.parse(fs.readFileSync("package.json", "utf-8"));
-  if (packageJson.version) {
-    return `v${packageJson.version}`;
-  }
-
-  // Final fallback: dev-YY-MM
+  // Fallback: dev-YY-MM (UTC)
   const now = new Date();
   const year = String(now.getUTCFullYear()).slice(-2);
   const month = String(now.getUTCMonth() + 1).padStart(2, "0");
