@@ -33,7 +33,7 @@ function getVersion() {
 
 const version = getVersion();
 const versionDefine = {
-  D8A_VERSION_PLACEHOLDER: JSON.stringify(version),
+  __D8A_VERSION__: JSON.stringify(version),
 };
 
 async function main() {

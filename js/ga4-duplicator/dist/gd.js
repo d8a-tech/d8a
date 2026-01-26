@@ -1,8 +1,8 @@
-/* ga4-duplicator - built 2026-01-26T22:11:23.436Z */
+/* ga4-duplicator - built 2026-01-26T22:28:30.628Z */
 "use strict";
 (() => {
   // src/version.ts
-  var version = "D8A_VERSION_PLACEHOLDER";
+  var version = "v0.1.0" ? "v0.1.0" : devVersionUtc();
 
   // src/ga4-duplicator.ts
   window.createGA4Duplicator = function(options) {
