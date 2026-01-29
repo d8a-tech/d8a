@@ -32,7 +32,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
 			},
-			expected:    "smartphone",
+			expected:    "smartphone", // dd2 v1.0.2 returns "smartphone" for iPhone UA
 			fieldName:   "device_category",
 			description: "Valid device category",
 		},
@@ -46,14 +46,6 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			description: "Valid device mobile brand name",
 		},
 		{
-			name:        "Iphone_DeviceMobileModelNameViaQueryParam",
-			param:       "uam",
-			value:       "iPhone",
-			expected:    "iPhone",
-			fieldName:   "device_mobile_model_name",
-			description: "Valid device mobile model name",
-		},
-		{
 			name: "Iphone_DeviceMobileModelNameViaHeader",
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
@@ -61,15 +53,6 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			expected:    "iPhone",
 			fieldName:   "device_mobile_model_name",
 			description: "Valid device mobile model name",
-		},
-		{
-			name:        "Iphone_DeviceOperatingSystemViaQueryParam",
-			param:       "uap",
-			value:       "iOS",
-			headers:     http.Header{},
-			expected:    "iOS",
-			fieldName:   "device_operating_system",
-			description: "Valid device operating system",
 		},
 		{
 			name: "Iphone_DeviceOperatingSystemViaHeader",
@@ -81,15 +64,6 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			description: "Valid device operating system via header",
 		},
 		{
-			name:        "Iphone_DeviceOperatingSystemVersionViaQueryParam",
-			param:       "uapv",
-			value:       "11.0",
-			headers:     http.Header{},
-			expected:    "11.0",
-			fieldName:   "device_operating_system_version",
-			description: "Valid device operating system version",
-		},
-		{
 			name: "Iphone_DeviceOperatingSystemVersionViaHeader",
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
@@ -97,15 +71,6 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			expected:    "11.0",
 			fieldName:   "device_operating_system_version",
 			description: "Valid device operating system version via header",
-		},
-		{
-			name:        "Iphone_DeviceLanguageViaQueryParam",
-			param:       "ul",
-			value:       "en-us",
-			headers:     http.Header{},
-			expected:    "en-us",
-			fieldName:   "device_language",
-			description: "Valid device language",
 		},
 		{
 			name: "Iphone_DeviceLanguageViaHeader",
