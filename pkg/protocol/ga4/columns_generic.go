@@ -1,11 +1,13 @@
 package ga4
 
 import (
+	"fmt"
+
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/archbottle/dd2/pkg/detector"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
-	"github.com/slipros/devicedetector"
 )
 
 // ColumnFromRawQueryParamOrDeviceInfo creates a new event colum, parsing raw value from
@@ -14,7 +16,7 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 	interfaceID schema.InterfaceID,
 	field *arrow.Field,
 	queryParam string,
-	deviceInfoFunc func(event *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError),
+	deviceInfoFunc func(event *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError),
 	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
@@ -27,7 +29,7 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 					return paramV, nil
 				}
 			}
-			ua, err := getDeviceInfo(event)
+			result, err := getDeviceInfo(event)
 			if err != nil {
 				logrus.Warnf(
 					"%s: %v",
@@ -36,10 +38,36 @@ func ColumnFromRawQueryParamOrDeviceInfo(
 				)
 				return nil, nil // nolint:nilnil // nil is valid
 			}
-			if ua == nil {
+			if result == nil {
 				return nil, nil // nolint:nilnil // nil is valid
 			}
-			return deviceInfoFunc(event, ua)
+			return deviceInfoFunc(event, result)
+		},
+		options...,
+	)
+}
+
+// ColumnFromDeviceInfo creates a new event column, using device info from the user agent
+func ColumnFromDeviceInfo(
+	interfaceID schema.InterfaceID,
+	field *arrow.Field,
+	deviceInfoFunc func(event *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError),
+	options ...columns.EventColumnOptions,
+) schema.EventColumn {
+	return columns.NewSimpleEventColumn(
+		interfaceID,
+		field,
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			result, err := getDeviceInfo(event)
+			if err != nil {
+				return nil, schema.NewBrokenEventError(
+					fmt.Sprintf("failed to get device info: %v", err),
+				)
+			}
+			if result == nil {
+				return nil, nil // nolint:nilnil // nil is valid
+			}
+			return deviceInfoFunc(event, result)
 		},
 		options...,
 	)

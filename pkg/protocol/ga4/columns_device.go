@@ -2,44 +2,74 @@ package ga4
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/archbottle/dd2/pkg/clienthints"
+	"github.com/archbottle/dd2/pkg/detector"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/dgraph-io/ristretto/v2"
 	"github.com/sirupsen/logrus"
-	"github.com/slipros/devicedetector"
 )
 
 // DeviceCategorySmartphone is a const value for core.d8a.tech/events/device_category for smartphone devices
 const DeviceCategorySmartphone = "smartphone"
 
 type deviceParser interface {
-	Parse(userAgent string) *devicedetector.DeviceInfo
+	Parse(ua string, ch *clienthints.ClientHints) *detector.ParseResult
 }
 
 type cachingDeviceParser struct {
-	dd    *devicedetector.DeviceDetector
-	cache *ristretto.Cache[string, *devicedetector.DeviceInfo]
+	dd    *detector.DeviceDetector
+	cache *ristretto.Cache[string, *detector.ParseResult]
 }
 
-func (p *cachingDeviceParser) Parse(userAgent string) *devicedetector.DeviceInfo {
-	item, ok := p.cache.Get(userAgent)
+func (p *cachingDeviceParser) Parse(ua string, ch *clienthints.ClientHints) *detector.ParseResult {
+	// Build cache key from UA + relevant client hint headers
+	cacheKey := buildCacheKey(ua, ch)
+	item, ok := p.cache.Get(cacheKey)
 	if ok {
 		return item
 	}
-	deviceInfo := p.dd.Parse(userAgent)
-	p.cache.SetWithTTL(userAgent, deviceInfo, 1, time.Second*30)
-	return deviceInfo
+	result := p.dd.Parse(ua, ch)
+	p.cache.SetWithTTL(cacheKey, result, 1, time.Second*30)
+	return result
+}
+
+// buildCacheKey creates a cache key from UA and client hints to ensure
+// different hint combinations produce different cache entries
+func buildCacheKey(ua string, ch *clienthints.ClientHints) string {
+	if ch == nil {
+		return ua
+	}
+	var parts []string
+	parts = append(parts, ua)
+	if ch.GetBrandList() != nil {
+		parts = append(parts, fmt.Sprintf("brands:%v", ch.GetBrandList()))
+	}
+	if ch.IsMobile() {
+		parts = append(parts, "mobile:1")
+	}
+	if platform := ch.GetOperatingSystem(); platform != "" {
+		parts = append(parts, fmt.Sprintf("platform:%s", platform))
+	}
+	if platformVer := ch.GetOperatingSystemVersion(); platformVer != "" {
+		parts = append(parts, fmt.Sprintf("platformVer:%s", platformVer))
+	}
+	if model := ch.GetModel(); model != "" {
+		parts = append(parts, fmt.Sprintf("model:%s", model))
+	}
+	return strings.Join(parts, "|")
 }
 
 var dd = func() deviceParser {
-	dd, err := devicedetector.NewDeviceDetector()
+	dd, err := detector.New()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create device detector: %v", err))
 	}
-	c, err := ristretto.NewCache(&ristretto.Config[string, *devicedetector.DeviceInfo]{
+	c, err := ristretto.NewCache(&ristretto.Config[string, *detector.ParseResult]{
 		NumCounters: 100000,
 		MaxCost:     10000,
 		BufferItems: 64,
@@ -53,17 +83,22 @@ var dd = func() deviceParser {
 	}
 }()
 
-func getDeviceInfo(event *schema.Event) (*devicedetector.DeviceInfo, error) {
-	ua, ok := event.Metadata["user_agent"]
+func getDeviceInfo(event *schema.Event) (*detector.ParseResult, error) {
+	// Check cache in metadata (using new key to avoid confusion)
+	cached, ok := event.Metadata["device_detector"]
 	if ok {
-		typedUA, ok := ua.(*devicedetector.DeviceInfo)
-		if ok {
-			return typedUA, nil
+		if result, ok := cached.(*detector.ParseResult); ok {
+			return result, nil
 		}
 	}
-	newUa := dd.Parse(event.BoundHit.MustParsedRequest().Headers.Get("User-Agent"))
-	event.Metadata["user_agent"] = newUa
-	return newUa, nil
+
+	// Parse with dd2
+	headers := event.BoundHit.MustParsedRequest().Headers
+	ua := headers.Get("User-Agent")
+	ch := clienthints.New(headers)
+	result := dd.Parse(ua, ch)
+	event.Metadata["device_detector"] = result
+	return result, nil
 }
 
 var deviceCategoryColumn = columns.NewSimpleEventColumn(
@@ -78,7 +113,7 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 			}
 		}
 
-		ua, err := getDeviceInfo(event)
+		result, err := getDeviceInfo(event)
 		if err != nil {
 			logrus.Warnf(
 				"deviceCategoryColumn: %s: %v",
@@ -87,8 +122,13 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 			)
 			return nil, nil // nolint:nilnil // nil is valid
 		}
-		if ua != nil {
-			return ua.Type, nil
+		if result != nil {
+			deviceType := result.GetDevice()
+			if deviceType != detector.DeviceTypeUnknown {
+				if name, ok := detector.DeviceTypeNames[deviceType]; ok {
+					return name, nil
+				}
+			}
 		}
 		return nil, nil // nolint:nilnil // nil is valid
 	},
@@ -102,8 +142,12 @@ var deviceMobileBrandNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceMobileBrandName.ID,
 	columns.CoreInterfaces.DeviceMobileBrandName.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.GetBrandName(), nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		brand := result.GetBrand()
+		if brand == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return brand, nil
 	},
 	columns.WithEventColumnDocs(
 		"Device Brand (mobile)",
@@ -115,8 +159,12 @@ var deviceMobileModelNameColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceMobileModelName.ID,
 	columns.CoreInterfaces.DeviceMobileModelName.Field,
 	"uam",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.Model, nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		model := result.GetModel()
+		if model == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return model, nil
 	},
 	columns.WithEventColumnDocs(
 		"Device Model (mobile)",
@@ -128,8 +176,15 @@ var deviceOperatingSystemColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceOperatingSystem.ID,
 	columns.CoreInterfaces.DeviceOperatingSystem.Field,
 	"uap",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.GetOs().Name, nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		os := result.GetOS()
+		if os == nil {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		if os.Name == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return os.Name, nil
 	},
 	columns.WithEventColumnDocs(
 		"Operating System",
@@ -141,8 +196,15 @@ var deviceOperatingSystemVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceOperatingSystemVersion.ID,
 	columns.CoreInterfaces.DeviceOperatingSystemVersion.Field,
 	"uapv",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.GetOs().Version, nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		os := result.GetOS()
+		if os == nil {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		if os.Version == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return os.Version, nil
 	},
 	columns.WithEventColumnDocs(
 		"Operating System Version",
@@ -174,8 +236,15 @@ var deviceWebBrowserColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceWebBrowser.ID,
 	columns.CoreInterfaces.DeviceWebBrowser.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.GetClient().Name, nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		client := result.GetClient()
+		if client == nil {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		if client.Name == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return client.Name, nil
 	},
 	columns.WithEventColumnDocs(
 		"Web Browser",
@@ -187,8 +256,15 @@ var deviceWebBrowserVersionColumn = ColumnFromRawQueryParamOrDeviceInfo(
 	columns.CoreInterfaces.DeviceWebBrowserVersion.ID,
 	columns.CoreInterfaces.DeviceWebBrowserVersion.Field,
 	"",
-	func(_ *schema.Event, di *devicedetector.DeviceInfo) (any, schema.D8AColumnWriteError) {
-		return di.GetClient().Version, nil
+	func(_ *schema.Event, result *detector.ParseResult) (any, schema.D8AColumnWriteError) {
+		client := result.GetClient()
+		if client == nil {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		if client.Version == "" {
+			return nil, nil // nolint:nilnil // nil is valid
+		}
+		return client.Version, nil
 	},
 	columns.WithEventColumnDocs(
 		"Web Browser Version",
