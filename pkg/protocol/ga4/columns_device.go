@@ -93,6 +93,7 @@ func getDeviceInfo(event *schema.Event) (*detector.ParseResult, error) {
 	}
 
 	// Parse with dd2
+	// Headers are already canonicalized by the receiver package
 	headers := event.BoundHit.MustParsedRequest().Headers
 	ua := headers.Get("User-Agent")
 	ch := clienthints.New(headers)
@@ -123,6 +124,9 @@ var deviceCategoryColumn = columns.NewSimpleEventColumn(
 			return nil, nil // nolint:nilnil // nil is valid
 		}
 		if result != nil {
+			if result.IsDesktop() {
+				return detector.DeviceTypeNames[detector.DeviceTypeDesktop], nil
+			}
 			deviceType := result.GetDevice()
 			if deviceType != detector.DeviceTypeUnknown {
 				if name, ok := detector.DeviceTypeNames[deviceType]; ok {

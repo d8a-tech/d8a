@@ -27,6 +27,17 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 		fieldName   string
 		description string
 	}{
+
+		{
+			name: "Desktop_DeviceCategory",
+			headers: http.Header{
+				"User-Agent": []string{
+					"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36"},
+			},
+			expected:    "desktop",
+			fieldName:   "device_category",
+			description: "Valid device category",
+		},
 		{
 			name: "Iphone_DeviceCategory",
 			headers: http.Header{
@@ -162,10 +173,16 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
 			hit.EventName = PageViewEventType
+			var cfg []columntests.CaseConfigFunc
+			// Ensure query params are non-empty so param columns don't break the event (they cast nil as error).
+			cfg = append(cfg, columntests.EnsureQueryParam(0, "v", "2"))
 			for key, values := range tc.headers {
 				for _, value := range values {
-					hit.Request.Headers.Add(key, value)
+					cfg = append(cfg, columntests.EnsureHeader(0, key, value))
 				}
+			}
+			if tc.param != "" {
+				cfg = append(cfg, columntests.EnsureQueryParam(0, tc.param, tc.value))
 			}
 			// given
 			columntests.ColumnTestCase(
@@ -177,12 +194,14 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 						assert.Error(t, closeErr)
 					} else {
 						require.NoError(t, closeErr)
+						require.NotEmpty(t, whd.WriteCalls, "expected at least one warehouse write call")
+						require.NotEmpty(t, whd.WriteCalls[0].Records, "expected at least one record written")
 						record := whd.WriteCalls[0].Records[0]
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
 				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
-				columntests.EnsureQueryParam(0, tc.param, tc.value))
+				cfg...)
 		})
 	}
 }
