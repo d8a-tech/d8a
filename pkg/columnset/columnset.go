@@ -73,6 +73,14 @@ func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
 		eventcolumns.ClickIDsWbraidColumn,
 		eventcolumns.ClickIDsFbclidColumn,
 		eventcolumns.ClickIDsMsclkidColumn,
+		// Device columns
+		eventcolumns.DeviceCategoryColumn,
+		eventcolumns.DeviceMobileBrandNameColumn,
+		eventcolumns.DeviceMobileModelNameColumn,
+		eventcolumns.DeviceOperatingSystemColumn,
+		eventcolumns.DeviceOperatingSystemVersionColumn,
+		eventcolumns.DeviceWebBrowserColumn,
+		eventcolumns.DeviceWebBrowserVersionColumn,
 	}
 }
 

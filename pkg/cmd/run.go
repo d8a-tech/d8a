@@ -67,6 +67,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			traceFlag,
 			configFlag,
 		},
+		Version: version,
 		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 			switch {
 			case cmd.Bool(traceFlag.Name):

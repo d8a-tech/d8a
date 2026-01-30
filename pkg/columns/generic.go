@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
@@ -1019,5 +1020,36 @@ func ProtocolColumn(iv func(_ *schema.Event) (any, schema.D8AColumnWriteError)) 
 			"Tracking Protocol",
 			"The tracking protocol implementation used to send this event. Identifies which protocol parser processed the incoming hit (e.g., 'ga4_gtag', 'ga4_firebase').", // nolint:lll // it's a description
 		),
+	)
+}
+
+// NewLanguageColumn creates a new event column for device language that first tries to extract
+// the language from the request using the provided extractor function, then falls back to
+// the Accept-Language header if the extractor returns no value.
+func NewLanguageColumn(
+	interfaceID schema.InterfaceID,
+	field *arrow.Field,
+	extractFromRequest func(*hits.ParsedRequest) (string, bool),
+	options ...EventColumnOptions,
+) schema.EventColumn {
+	return NewSimpleEventColumn(
+		interfaceID,
+		field,
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			// Try extractor first
+			if extractFromRequest != nil {
+				req := event.BoundHit.MustParsedRequest()
+				if value, ok := extractFromRequest(req); ok && value != "" {
+					return value, nil
+				}
+			}
+			// Fall back to Accept-Language header
+			acceptLanguage := event.BoundHit.MustParsedRequest().Headers.Get("Accept-Language")
+			if acceptLanguage != "" {
+				return acceptLanguage, nil
+			}
+			return nil, nil // nolint:nilnil // nil is valid
+		},
+		options...,
 	)
 }
