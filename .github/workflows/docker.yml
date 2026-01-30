@@ -40,6 +40,17 @@ jobs:
             type=sha
             type=raw,value=latest
 
+      - name: Override version.go with tag version
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Strip 'v' prefix if present
+          VERSION="${VERSION#v}"
+          cat > pkg/cmd/version.go <<EOF
+          package cmd
+
+          const version = "$VERSION"
+          EOF
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

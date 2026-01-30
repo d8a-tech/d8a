@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/textproto"
+	"net/url"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -141,13 +144,15 @@ func recordRequestMetrics(ctx context.Context, statusCode int, start time.Time) 
 }
 
 func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*hits.Hit, error) {
-	queryParams := map[string][]string{}
+	queryParams := url.Values{}
 	for key, value := range ctx.QueryArgs().All() {
-		queryParams[string(key)] = append(queryParams[string(key)], string(value))
+		queryParams.Add(string(key), string(value))
 	}
-	headers := map[string][]string{}
+	headers := http.Header{}
 	for key, value := range ctx.Request.Header.All() {
-		headers[string(key)] = append(headers[string(key)], string(value))
+		// Canonicalize header keys inline to ensure consistent access (e.g., "User-Agent" vs "user-agent")
+		canonicalKey := textproto.CanonicalMIMEHeaderKey(string(key))
+		headers.Add(canonicalKey, string(value))
 	}
 	bodyCopy := make([]byte, len(ctx.Request.Body()))
 	copy(bodyCopy, ctx.Request.Body())
