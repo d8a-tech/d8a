@@ -20,13 +20,37 @@ Before configuring BigQuery, make sure you have:
 - A GCP project ID (you can find it in the Google Cloud Console)
 - A BigQuery dataset
 
-You'll also need to create a service account with BigQuery Admin permissions and download its credentials. We'll walk through that next.
+D8a supports two authentication methods for BigQuery:
+
+- **OAuth 2.0**: Connect using your personal Google account. This grants write access to BigQuery across all your Google projects. Good for personal use.
+- **Service Account**: Upload a service account JSON key file. Allows setting more granular permissions, good for organizations.
+
+We'll walk through both options below.
 
 ## Getting credentials
 
-D8a needs a service account to authenticate with BigQuery. Here's how to create one and get the credentials:
+D8a supports two authentication methods. Choose the one that best fits your needs:
 
-### Step 1: Create the service account
+### Option 1: OAuth 2.0 (Cloud-only)
+
+OAuth 2.0 allows you to connect using your personal Google account. This method is simpler to set up and doesn't require creating a service account.
+
+**How it works:**
+
+1. In the d8a UI, click **Authorize with Google (OAuth 2)**
+2. A new window will open asking you to sign in to your Google account
+3. Review and grant the requested permissions
+4. The window will close automatically and your integration will be created
+
+:::warning
+OAuth integrations are shared at the tenant level. Once you create an OAuth integration, it becomes available to all users in your tenant who have access to integrations. This means your colleagues can select the same integration and use it to configure their own BigQuery warehouse connections with different project, dataset, and table settings. The OAuth credentials grant write access to BigQuery across all Google projects associated with the authenticated Google account. Because of that, it's recommended to use OAuth 2.0 for personal tenants.
+:::
+
+### Option 2: Service Account (Cloud and On-premises)
+
+Service accounts allow you to set more granular permissions and are better suited for organizational use. Here's how to create one:
+
+#### Step 1: Create the service account
 
 1. Open the [Google Cloud Console](https://console.cloud.google.com/)
 2. Select your project from the dropdown at the top
@@ -35,7 +59,7 @@ D8a needs a service account to authenticate with BigQuery. Here's how to create 
 5. Give it a name (e.g., `d8a-bigquery`) and optionally add a description
 6. Click **CREATE AND CONTINUE**
 
-### Step 2: Grant permissions
+#### Step 2: Grant permissions
 
 1. In the "Grant this service account access to project" section, find and select the **BigQuery Admin** role
    - You can type "BigQuery Admin" in the role search box to find it quickly
@@ -45,7 +69,7 @@ D8a needs a service account to authenticate with BigQuery. Here's how to create 
 This role is required because it grants d8a the necessary permissions to create and modify tables, write data, and manage BigQuery resources.
 :::
 
-### Step 3: Download the key
+#### Step 3: Download the key
 
 1. Find your newly created service account in the list and click on it
 2. Go to the **KEYS** tab
@@ -54,12 +78,10 @@ This role is required because it grants d8a the necessary permissions to create 
 5. Click **CREATE** — this will download a JSON file to your computer
 
 :::caution Important
-Keep credentials secure. This file contains credentials that allow access to your BigQuery data. You'll need to copy its contents into your configuration file next.
+Keep credentials secure. This file contains credentials that allow access to your BigQuery data. You'll need to upload this file in the d8a UI next.
 :::
 
 ## Configuring credentials
-
-Now that you have the service account JSON file, it's time to add it to your d8a configuration.
 
 ### Step 1: Get your project ID and dataset name
 
@@ -72,7 +94,21 @@ Choose the option that matches your installation type (Cloud or On-premises):
 
 #### Option A: Cloud installation
 
-Fill in the BigQuery settings in the d8a UI. Navigate to the BigQuery configuration section and provide the following fields:
+In the d8a UI, navigate to the BigQuery configuration section. You'll see two options for authentication:
+
+**Using OAuth 2.0:**
+
+1. Click **Authorize with Google (OAuth 2)**
+2. Sign in to your Google account in the popup window
+3. Review and grant the requested permissions
+4. The window will close automatically once authorization is complete
+
+**Using Service Account:**
+
+1. Click **Choose JSON file** under "Upload Service Account JSON key"
+2. Select the JSON file you downloaded earlier
+
+After selecting your authentication method, click next and provide the following fields:
 
 - **Database name** \* (required)
 
@@ -89,9 +125,6 @@ Fill in the BigQuery settings in the d8a UI. Navigate to the BigQuery configurat
 - **BigQuery Table Name** (optional)
 
   - The table in which you want to store the data (defaults to `events`)
-
-- **BigQuery Credentials (JSON)** \* (required)
-  - The whole content of the JSON file that you downloaded earlier (simply paste the file contents into the field)
 
 **Verifying your setup:**
 
