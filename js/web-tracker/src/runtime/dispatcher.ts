@@ -15,6 +15,7 @@ import { createDebugLogger } from "./debug_logger.ts";
 import { resolveBool, resolveString } from "./param_precedence.ts";
 import { resolveCookieSettings } from "../cookies/cookie_settings.ts";
 import { updateAndWriteSharedSession } from "../cookies/session_manager.ts";
+import { attachD8aCollectMetadata } from "../utils/collect_metadata.ts";
 import { isRecord } from "../utils/is_record.ts";
 import type { BrowserContext, PropertyConfig, RuntimeState, WindowLike } from "../types.ts";
 
@@ -367,6 +368,7 @@ export function createDispatcher({
           },
           debugMode: resolvedDebugMode,
         });
+        attachD8aCollectMetadata(q);
         const url = `${collectBase}?${q.toString()}`;
         sendPromises.push(sendWithRetries({ url, windowRef: w, useBeacon }));
       }

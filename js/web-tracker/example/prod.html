@@ -26,12 +26,12 @@
       window.d8a = window.d8a || function () { d8aLayer.push(arguments); };
 
       d8a("js", new Date());
-      d8a("config", "lol1", {
+      d8a("config", "property1", {
         server_container_url: "http://localhost:8080/g/collect",
       });
-      d8a("config", "lol2", {
-        server_container_url: "https://global.t.d8a.tech/lol2/d/c",
-        cookie_prefix: "lol2",
+      d8a("config", "property2", {
+        server_container_url: "http://localhost:8080/g/collect",
+        cookie_prefix: "property2_",
       });
       // Send a test event.
       d8a("event", "purchase", {
