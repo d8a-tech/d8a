@@ -16,14 +16,15 @@ import (
 func TestEventColumns(t *testing.T) {
 	// Test cases for event columns with different values
 	var eventColumnTestCases = []struct {
-		name        string
-		param       string
-		value       string
-		expected    any
-		expectedErr bool
-		fieldName   string
-		description string
-		hits        columntests.TestHits
+		name               string
+		param              string
+		value              string
+		expected           any
+		expectedErr        bool
+		expectWriteSkipped bool
+		fieldName          string
+		description        string
+		hits               columntests.TestHits
 	}{
 		// App params
 		{
@@ -399,12 +400,12 @@ func TestEventColumns(t *testing.T) {
 			description: "Valid measurement ID",
 		},
 		{
-			name:        "EventMeasurementID_Empty",
-			param:       "tid",
-			value:       "",
-			expected:    nil,
-			fieldName:   "measurement_id",
-			description: "Empty measurement ID should be nil",
+			name:               "EventMeasurementID_Empty",
+			param:              "tid",
+			value:              "",
+			expectWriteSkipped: true,
+			fieldName:          "measurement_id",
+			description:        "Empty measurement ID should break the event and skip writing",
 		},
 
 		// Optional document fields
@@ -2265,11 +2266,24 @@ func TestEventColumns(t *testing.T) {
 			if hits == nil {
 				hits = columntests.TestHits{columntests.TestHitOne()}
 			}
+			for _, h := range hits {
+				EnsureValidTestHit(h)
+			}
 			columntests.ColumnTestCase(
 				t,
 				hits,
 				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
 					// when + then
+					if tc.expectWriteSkipped {
+						require.NoError(t, closeErr)
+						if len(whd.WriteCalls) == 0 {
+							return
+						}
+						for _, wc := range whd.WriteCalls {
+							assert.Empty(t, wc.Records)
+						}
+						return
+					}
 					if tc.expectedErr {
 						assert.Error(t, closeErr)
 					} else {

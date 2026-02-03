@@ -16,6 +16,7 @@ func simpleHits(h [][3]string) columntests.TestHits {
 	var allHits = make([]*hits.Hit, len(h))
 	for i, hit := range h {
 		allHits[i] = hits.New()
+		EnsureValidTestHit(allHits[i])
 		allHits[i].EventName = hit[0]
 		allHits[i].Request.QueryParams.Add("en", hit[0])
 		allHits[i].Request.QueryParams.Add("dl", hit[1])
