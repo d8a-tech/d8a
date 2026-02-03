@@ -28,6 +28,9 @@ test("dispatcher enqueues and flushes via fetch with keepalive", async () => {
     w.fetchCalls[0].url,
     new RegExp(`^https://tracker\\.example\\.test/d/c/${PROPERTY_ID}\\?`),
   );
+  const u = new URL(w.fetchCalls[0].url);
+  assert.ok(u.searchParams.get("_dtv"), "_dtv should be set");
+  assert.equal(u.searchParams.get("_dtn"), "wt", "_dtn should be web-tracker name");
   const opts = w.fetchCalls[0].opts;
   assert.ok(isRecord(opts));
   assert.equal(opts.keepalive, true);
