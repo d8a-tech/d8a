@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -90,12 +92,10 @@ func (d *extensionBasedOCIDownloader) Download(
 	if err != nil {
 		return "", fmt.Errorf("failed to create repository: %w", err)
 	}
-
 	destDir := destinationDir
 	if err := os.MkdirAll(destDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create destination directory: %w", err)
 	}
-
 	_, existingMMDBPath, err := d.validate(ctx, repository, tag, destDir)
 	if err != nil {
 		return "", err
@@ -144,6 +144,12 @@ func (d *extensionBasedOCIDownloader) Download(
 
 	if mmdbPath == "" {
 		return "", fmt.Errorf("no .mmdb file found in downloaded layers")
+	}
+
+	// Clean up old MMDB files after successful download
+	if err := d.cleanupOldMMDBFiles(destDir, mmdbPath); err != nil {
+		logrus.WithError(err).Warn("failed to cleanup old MMDB files")
+		// Don't fail the download if cleanup fails
 	}
 
 	return mmdbPath, nil
@@ -240,6 +246,83 @@ func (d *extensionBasedOCIDownloader) writeBlob(
 	return outPath, nil
 }
 
+// selectBestMMDBFile deterministically selects the best MMDB file from the destination directory.
+// It prefers files with YYYY-MM version pattern (e.g., dbip-city-lite-2026-01.mmdb), selecting the highest year-month.
+// If no versioned files are found, it falls back to lexicographically greatest filename.
+// Returns empty string if no .mmdb files are found.
+func selectBestMMDBFile(destDir, extension string) (string, error) {
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		return "", fmt.Errorf("failed to read destination directory: %w", err)
+	}
+
+	var mmdbFiles []string
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == extension {
+			mmdbFiles = append(mmdbFiles, entry.Name())
+		}
+	}
+
+	if len(mmdbFiles) == 0 {
+		return "", nil
+	}
+
+	// Pattern to match YYYY-MM in filename (e.g., dbip-city-lite-2026-01.mmdb)
+	versionPattern := regexp.MustCompile(`(\d{4})-(\d{2})`)
+
+	type versionedFile struct {
+		name       string
+		year       int
+		month      int
+		hasVersion bool
+	}
+
+	var versioned []versionedFile
+	var unversioned []string
+
+	for _, f := range mmdbFiles {
+		matches := versionPattern.FindStringSubmatch(f)
+		if len(matches) == 3 {
+			var year, month int
+			_, err := fmt.Sscanf(matches[1], "%d", &year)
+			if err != nil {
+				return "", fmt.Errorf("failed to scan year: %w", err)
+			}
+			_, err = fmt.Sscanf(matches[2], "%d", &month)
+			if err != nil {
+				return "", fmt.Errorf("failed to scan month: %w", err)
+			}
+			versioned = append(versioned, versionedFile{
+				name:       f,
+				year:       year,
+				month:      month,
+				hasVersion: true,
+			})
+		} else {
+			unversioned = append(unversioned, f)
+		}
+	}
+
+	// If we have versioned files, prefer the one with highest year-month
+	if len(versioned) > 0 {
+		sort.Slice(versioned, func(i, j int) bool {
+			if versioned[i].year != versioned[j].year {
+				return versioned[i].year > versioned[j].year
+			}
+			return versioned[i].month > versioned[j].month
+		})
+		return filepath.Join(destDir, versioned[0].name), nil
+	}
+
+	// Fallback to lexicographically greatest filename
+	if len(unversioned) > 0 {
+		sort.Strings(unversioned)
+		return filepath.Join(destDir, unversioned[len(unversioned)-1]), nil
+	}
+
+	return "", nil
+}
+
 func (d *extensionBasedOCIDownloader) validate(
 	ctx context.Context,
 	repository *remote.Repository,
@@ -266,18 +349,10 @@ func (d *extensionBasedOCIDownloader) validate(
 		return remoteDesc, "", nil
 	}
 
-	// Find existing MMDB file
-	entries, err := os.ReadDir(destDir)
+	// Find existing MMDB file using deterministic selection
+	mmdbPath, err := selectBestMMDBFile(destDir, d.searchedExtension)
 	if err != nil {
-		return ocispec.Descriptor{}, "", fmt.Errorf("failed to read destination directory: %w", err)
-	}
-
-	var mmdbPath string
-	for _, entry := range entries {
-		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".mmdb" {
-			mmdbPath = filepath.Join(destDir, entry.Name())
-			break
-		}
+		return ocispec.Descriptor{}, "", err
 	}
 
 	if mmdbPath == "" {
@@ -285,6 +360,36 @@ func (d *extensionBasedOCIDownloader) validate(
 	}
 
 	return remoteDesc, mmdbPath, nil
+}
+
+// cleanupOldMMDBFiles removes all .mmdb files in destDir except the one specified by keepPath.
+func (d *extensionBasedOCIDownloader) cleanupOldMMDBFiles(destDir, keepPath string) error {
+	entries, err := os.ReadDir(destDir)
+	if err != nil {
+		return fmt.Errorf("failed to read destination directory: %w", err)
+	}
+
+	keepBase := filepath.Base(keepPath)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if filepath.Ext(entry.Name()) == d.searchedExtension && entry.Name() != keepBase {
+			oldPath := filepath.Join(destDir, entry.Name())
+			if err := os.Remove(oldPath); err != nil {
+				logrus.WithFields(logrus.Fields{
+					"path":  oldPath,
+					"error": err,
+				}).Warn("failed to remove old MMDB file")
+				// Continue with other files even if one fails
+			} else {
+				logrus.WithFields(logrus.Fields{
+					"path": oldPath,
+				}).Info("removed old MMDB file")
+			}
+		}
+	}
+	return nil
 }
 
 func (d *extensionBasedOCIDownloader) manifestDigestFilePath(destDir string) string {
