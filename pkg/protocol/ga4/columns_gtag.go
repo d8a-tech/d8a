@@ -327,7 +327,7 @@ var eventMeasurementIDColumn = columns.FromQueryParamEventColumn(
 	"tid",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventMeasurementID.ID)),
+		columns.StrErrIfEmpty(ProtocolInterfaces.EventMeasurementID.ID),
 	),
 	columns.WithEventColumnDocs(
 		"Measurement ID",

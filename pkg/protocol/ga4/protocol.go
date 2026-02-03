@@ -191,6 +191,10 @@ func (p *ga4Protocol) ClientID(request *hits.ParsedRequest) (string, error) {
 }
 
 func (p *ga4Protocol) PropertyID(ctx *protocol.RequestContext) (string, error) {
+	tid := ctx.Parsed.QueryParams.Get("tid")
+	if tid == "" {
+		return "", errors.New("`tid` is a required query parameter for ga4 protocol")
+	}
 	return p.propertyIDExtractor.PropertyID(ctx)
 }
 

@@ -20,6 +20,7 @@ func simpleHitsWithTime(h [][4]any) columntests.TestHits {
 	var allHits = make([]*hits.Hit, len(h))
 	for i, hit := range h {
 		allHits[i] = hits.New()
+		EnsureValidTestHit(allHits[i])
 		eventType, ok := hit[0].(string)
 		if !ok {
 			panic("event type must be string")

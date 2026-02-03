@@ -48,6 +48,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
 			hit.EventName = PageViewEventType
+			EnsureValidTestHit(hit)
 			var cfg []columntests.CaseConfigFunc
 			// Ensure query params are non-empty so param columns don't break the event (they cast nil as error).
 			cfg = append(cfg, columntests.EnsureQueryParam(0, "v", "2"))

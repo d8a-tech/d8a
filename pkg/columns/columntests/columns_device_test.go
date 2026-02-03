@@ -166,7 +166,10 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			hit.EventName = ga4.PageViewEventType
 			var cfg []CaseConfigFunc
 			// Ensure query params are non-empty so param columns don't break the event (they cast nil as error).
-			cfg = append(cfg, EnsureQueryParam(0, "v", "2"))
+			cfg = append(cfg,
+				EnsureQueryParam(0, "v", "2"),
+				EnsureQueryParam(0, "tid", "G-TESTMEASUREMENTID"),
+			)
 			for key, values := range tc.headers {
 				for _, value := range values {
 					cfg = append(cfg, EnsureHeader(0, key, value))

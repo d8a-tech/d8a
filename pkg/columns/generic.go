@@ -504,14 +504,18 @@ func CastToBool(_ schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError
 const MaxStringLength = 8096
 
 // StrErrIfEmpty casts a value to string or returns an error if conversion fails or value is empty
-func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, error) {
-	return func(value any) (any, error) {
+func StrErrIfEmpty(ifID schema.InterfaceID) func(any) (any, schema.D8AColumnWriteError) {
+	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
-			return nil, fmt.Errorf("%s: value is not a string: %v", ifID, value)
+			return nil, schema.NewBrokenEventError(
+				fmt.Sprintf("%s: value is not a string: %v", ifID, value),
+			)
 		}
 		if valueStr == "" {
-			return nil, fmt.Errorf("%s: value is empty: %v", ifID, value)
+			return nil, schema.NewBrokenEventError(
+				fmt.Sprintf("%s: value is empty: %v", ifID, value),
+			)
 		}
 		if len(valueStr) > MaxStringLength {
 			return valueStr[:MaxStringLength], nil

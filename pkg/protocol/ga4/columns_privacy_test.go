@@ -106,6 +106,7 @@ func TestEventPrivacyColumns(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
 			hit.EventName = "foo_event"
+			EnsureValidTestHit(hit)
 			// given
 			columntests.ColumnTestCase(
 				t,
