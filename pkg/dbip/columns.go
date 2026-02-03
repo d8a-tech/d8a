@@ -167,6 +167,15 @@ func GeoColumns(
 	if destinationDirectory == "" {
 		destinationDirectory = "/tmp"
 	}
+
+	// Check for existing local MMDB files before attempting download.
+	bestLocalMMDBPath, err := selectBestMMDBFile(destinationDirectory, ".mmdb")
+	if err != nil {
+		logrus.WithError(err).Warn("failed to scan for existing MMDB files, proceeding with download attempt")
+		bestLocalMMDBPath = ""
+	}
+
+	// Attempt to download/check for new version
 	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
 	defer cancel()
 	mmdbPath, err := downloader.Download(
@@ -176,8 +185,18 @@ func GeoColumns(
 		destinationDirectory,
 	)
 	if err != nil {
-		logrus.WithError(err).Panic("failed to download MMDB city database")
+		// If download/check failed but we have a local file, warn and use it
+		if bestLocalMMDBPath != "" {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"fallback_path": bestLocalMMDBPath,
+			}).Warn("failed to download/check MMDB city database, using existing local file")
+			mmdbPath = bestLocalMMDBPath
+		} else {
+			// No local file and download failed - fail startup
+			logrus.WithError(err).Panic("failed to download MMDB city database and no existing local file found")
+		}
 	}
+
 	t, err := NewGeoColumnFactory(mmdbPath, cacheConfig)
 	if err != nil {
 		logrus.WithError(err).Panic("failed to create geo column template")
