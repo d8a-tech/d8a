@@ -51,7 +51,7 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
   </tr>
 </table>
 
-You can also see the full demo [here](https://lookerstudio.google.com/reporting/e1cca887-5030-48d9-8a3a-40b90b0f84dd).
+You can also see the full demo [here](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
 ## Running
 
