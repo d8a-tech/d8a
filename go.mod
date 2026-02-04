@@ -29,7 +29,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.40.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.19.0
-	google.golang.org/api v0.262.0
+	google.golang.org/api v0.265.0
 	oras.land/oras-go/v2 v2.6.0
 )
 
