@@ -1,7 +1,0 @@
-- Apply docs style guide to all documentation work (applies to `docs/docs/**`):
-  - Headings start with a capital letter.
-  - Preserve product/company names (e.g., Google, Looker Studio) and database names (ClickHouse, BigQuery).
-  - Preserve acronyms (GA4, UTM, URL, etc.).
-  - Preserve step labels (e.g., `Step 1: Create a configuration file`).
-  - Otherwise use sentence case for the rest of the heading.
-

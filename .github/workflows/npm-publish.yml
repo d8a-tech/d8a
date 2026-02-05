@@ -102,3 +102,11 @@ jobs:
           npm run hash
           npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
           npm publish --access public --tag "${{ steps.version.outputs.npm_tag }}"
+
+      - name: Purge jsdelivr cache for ga4-duplicator
+        run: |
+          curl -X POST https://purge.jsdelivr.net/npm/@d8a-tech/gd/dist/gd.min.js
+
+      - name: Purge jsdelivr cache for web-tracker
+        run: |
+          curl -X POST https://purge.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js
