@@ -12,7 +12,9 @@ Most important packages and abstractions of the tracker project:
 
 - `pkg/receiver` - receives hits from the http endpoint and places them into the message queue as tasks
   - `Storage` - interface for storing a collection of hits, implementations include `receiver.BatchingStorage`, `receiver.dropToStdoutStorage`
-- `pkg/transformer` - reads tasks from the queue and transforms the hits into events
+- `pkg/protosessions` - reads tasks from the queue and groups hits into protosessions, then closes them into sessions
+- `pkg/sessions` - handles session closing, column processing, and writing to warehouse
+- `pkg/warehouse` - provides abstractions for writing data to various data warehouses
 
 
 Other, utility packages:
@@ -42,19 +44,19 @@ flowchart LR
     D --> E[Session Closing<br/>Columns + Warehouse]
 ```
 
-The tracking pipeline, it its essence looks as follows:
+The tracking pipeline, in its essence looks as follows:
 
-1. The HTTP request containing tracked data is received by the `receiver` package. It contains mappings from the HTTP path to specific `protocol.Protocol` implementation (like GA4, Matomo, etc). Protocol helps the `receiver` to create a `hits.Hit` object. It's a very narrow wraper over a http request, containing some additional attributes essential for later processing (`ClientID`, `PropertyID`) and session creation.
+1. The HTTP request containing tracked data is received by the `receiver` package. It contains mappings from the HTTP path to specific `protocol.Protocol` implementation (like GA4, Matomo, etc). Protocol helps the `receiver` to create a `hits.Hit` object. It's a very narrow wrapper over a http request, containing some additional attributes essential for later processing (`ClientID`, `PropertyID`) and session creation.
 
 2. After a hit is created, it's pushed to implementation of `receiver.Storage` interface. It's a very simple interface, that just accepts a hit and stores it. Under the hood, there's a batcher that buffers hits and pushes them to a generic queue (`worker.Publisher` implementation).
 
 3. On the other side, a `worker.Consumer` implementation reads the tasks, a `worker.TaskHandler` deserializes generic bytes back into `hits.Hit` objects. The protosession logic kicks in.
 
-4. A protosession is a collection of hits, that may form a session in the future. It's perfectly possible, that a collection of hits will be split into multiple sessions. The logic in `protosessions` in essence groups the potentially related hits into a single collection. When a given period of time since the last hit was added to given protosession is reached, the protosession is closed using `protosessions.Closer` imlpementation.
+4. A protosession is a collection of hits, that may form a session in the future. It's perfectly possible, that a collection of hits will be split into multiple sessions. The logic in `protosessions` in essence groups the potentially related hits into a single collection. When a given period of time since the last hit was added to given protosession is reached, the protosession is closed using `protosessions.Closer` implementation.
 
 5. In the future we'll have asynchronous closers, that publish ready sessions to queues. Now, we have an in-place closer, that closes the session and immediately writes it to the warehouse. Logic in `session` handles that, specifically `sessions.NewDirectCloser` interface. Session closing executes the columns machinery and writes the session to the warehouse configured for given property. The columns machinery allows defining dependencies between columns, including columns that may be contributed by other parts of the system (for example `core.d8a.tech/events/type` is defined in `columns` package, but as it's not possible to extract event type in a generic way, the implementation is contributed by respective `protocol` implementation).
 
-6. After the columns machinery creates rows for specific tables, it writes it to `warehouse.Driver` implementation. The types of columns are defined in columns machinery using Apache Arrow types, the drivers are resonsible for mapping them to their native types. 
+6. After the columns machinery creates rows for specific tables, it writes it to `warehouse.Driver` implementation. The types of columns are defined in columns machinery using Apache Arrow types, the drivers are responsible for mapping them to their native types. 
 
 ## 1. Hit creation
 
@@ -67,7 +69,7 @@ flowchart LR
     D --> E[Storage]
 ```
 
-Everyting begins in the `receiver` package. It's a HTTP server, that receives requests and creates `hits.Hit` objects. It's currently implemented in `fasthttp`, but it's very loosely coupled to the underlying HTTP server.
+Everything begins in the `receiver` package. It's a HTTP server, that receives requests and creates `hits.Hit` objects. It's currently implemented in `fasthttp`, but it's very loosely coupled to the underlying HTTP server.
 
 The main goal of `receiver` package is to create a `hits.Hit` object from every incoming request and pass it ASAP to some persistent storage, so it won't be lost.
 
@@ -90,13 +92,13 @@ type Hit struct {
 
 Basically it wraps all the HTTP request fields with some additional info, usable with next pipeline steps, namely:
 
-* `ClientID`, which is deeply described in [idenifiers](glossary.md). Basically it's a unique, anonymous (by itself) identifier of a client, stored on the client side (for example using cookies) and used to identify the client across multiple requests. The `ClientID` is later used to connect individual hits into proto-sessions and also for partitioning (in d8a cloud).
-* `PropertyID`, which is a unique identifier of a property, as GA4 understands it. Other protocols are forced to use GA4 nomenclature, but are free to store the analogous indentifiers in this field (like `Matomo` uses `idSite`). Later pipeline steps configuration, use the `PropertyID` to get the entities, that may be configured for given property, like:
+* `ClientID`, which is deeply described in [identifiers](glossary.md). Basically it's a unique, anonymous (by itself) identifier of a client, stored on the client side (for example using cookies) and used to identify the client across multiple requests. The `ClientID` is later used to connect individual hits into proto-sessions and also for partitioning (in d8a cloud).
+* `PropertyID`, which is a unique identifier of a property, as GA4 understands it. Other protocols are forced to use GA4 nomenclature, but are free to store the analogous identifiers in this field (like `Matomo` uses `idSite`). Later pipeline steps configuration, use the `PropertyID` to get the entities, that may be configured for given property, like:
 	* table layout (single merged table or separate tables for sessions and events)
 	* table columns
 	* destination warehouse
 
-The two above are obiosuly protocol-specific, that's why `receiver` delegates the parsing of HTTP request when creating those, to the respective `protocol.Protocol` implementation.
+The two above are obviously protocol-specific, that's why `receiver` delegates the parsing of HTTP request when creating those, to the respective `protocol.Protocol` implementation.
 
 ## 2. Receiver storage & batching
 
@@ -203,7 +205,7 @@ The current implementation doesn't allow a single proto-session to be processed 
 The `protesessions` package also handles some dynamic logic via `protosessions.Middleware` interface:
 
 * **Evicting** - a proto-session may be evicted from given worker if the system detects, that it should be connected to another proto-session. This may happen for example if the system detects, that two proto-sessions are coming from the same device (have the same session stamp). This may mean, that user removed cookies or used different browser, and two proto-sessions are preliminarily connected into one.
-* **Compaction** - all the information about proto-sessions is stored in simple and generic data-structures - a `storage.Set` and `storage.KV` implementations (currently `bolt`). If a - future - `storage.Set` or `storage.KV` is memory-constrained (for example Redis), it may happen that even in 30-minute window, the system will have too many proto-sessions to process. To avoid that, `protosessions` calculates the size of each proto-session and compacts it if it's too big. Currently the compaction is done in-place, by replacing raw hits with compressed ones in the same `storage.Set`. Newerltheless, the interfaces are already laid in a way, that allows adding layered storage, that would allow for more efficient compaction (for example, storing compressed proto-sessions in a separate `storage.Set` backed by Object Storage).
+* **Compaction** - all the information about proto-sessions is stored in simple and generic data-structures - a `storage.Set` and `storage.KV` implementations (currently `bolt`). If a - future - `storage.Set` or `storage.KV` is memory-constrained (for example Redis), it may happen that even in 30-minute window, the system will have too many proto-sessions to process. To avoid that, `protosessions` calculates the size of each proto-session and compacts it if it's too big. Currently the compaction is done in-place, by replacing raw hits with compressed ones in the same `storage.Set`. Nevertheless, the interfaces are already laid in a way, that allows adding layered storage, that would allow for more efficient compaction (for example, storing compressed proto-sessions in a separate `storage.Set` backed by Object Storage).
 
 The closing of protosessions happens by the `protosessions.Closer` interface. 
 
@@ -338,11 +340,11 @@ type SessionColumn interface {
 
 ```
 
-It also allows paralell implementations for the same column interface, for example as paid extras (competing geoip implementations - we don't need to select between MaxMind or DbIP - we can use both and let the user decide which one to use).
+It also allows parallel implementations for the same column interface, for example as paid extras (competing geoip implementations - we don't need to select between MaxMind or DbIP - we can use both and let the user decide which one to use).
 
 Most column implementations are in `columns/eventcolumns` and `columns/sessioncolumns` packages, some will be scattered across `protocol` implementations. General interfaces are in `columns` package.
 
-Most of the machinery itself is implemented in `sessions` package, bothe the `Closer` implementation and utilities for combining everything together.
+Most of the machinery itself is implemented in `sessions` package, both the `Closer` implementation and utilities for combining everything together.
 
 :::warning
 	The logic in columns machinery lacks a critical feature - session splitting. Currently it takes all the protosession events and makes them a session. In reality there will be multiple cases, where such protosession should be split into multiple sessions.
@@ -382,7 +384,20 @@ This allows for a lot of flexibility, but in practice two approaches will probab
 
 ## 6. Warehouse
 
-Most of the logic in `warehouse` package cycles around the following interface:
+```mermaid
+flowchart LR
+    A[Session Rows<br/>Arrow Schema] --> B[Warehouse Driver<br/>Type Mapping]
+    B --> C[Schema Management<br/>CreateTable/AddColumn]
+    B --> D[Data Writing<br/>Batch Insert]
+    C --> E[BigQuery/ClickHouse<br/>Native Types]
+    D --> E
+```
+
+The `warehouse` package provides a unified interface for writing session data to various data warehouses. It abstracts away warehouse-specific details while maintaining compatibility with Apache Arrow schemas used throughout the columns machinery.
+
+### 6.1 Driver interface
+
+The core abstraction is the `Driver` interface, which defines operations for table management and data ingestion:
 
 ```go
 // Driver abstracts data warehouse operations for table management and data ingestion.
@@ -401,7 +416,7 @@ type Driver interface {
 	// Schema must match table structure. Rows contain column_name -> value mappings.
 	// Implementation handles type conversion and batch optimization.
 	// Returns error on type mismatch, constraint violation, or connection issues.
-	Write(table string, schema *arrow.Schema, rows []map[string]any) error
+	Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error
 
 	// MissingColumns compares provided schema against existing table structure.
 	// Returns fields that exist in schema but not in table.
@@ -411,6 +426,82 @@ type Driver interface {
 }
 ```
 
-:::danger
-	Work in progress
-:::
+The `Write` method accepts rows as `[]map[string]any`, where each map represents a row with column names as keys. This format is produced by the `Layout.ToRows` method from the columns machinery.
+
+### 6.2 Type mapping
+
+Warehouse drivers must convert between Apache Arrow types and warehouse-native types. This is handled through the `FieldTypeMapper` interface:
+
+```go
+// FieldTypeMapper provides bidirectional conversion between Arrow types and warehouse-specific types.
+type FieldTypeMapper[WHT SpecificWarehouseType] interface {
+	ArrowToWarehouse(arrowType ArrowType) (WHT, error)
+	WarehouseToArrow(warehouseType WHT) (ArrowType, error)
+}
+```
+
+Each warehouse implementation (BigQuery, ClickHouse) provides its own type mapper that handles:
+- Primitive types (integers, floats, strings, booleans)
+- Complex types (timestamps, dates, arrays, structs)
+- Nullability handling
+- Type-specific formatting for data insertion
+
+The type mapping system also supports compatibility rules, allowing certain type conversions (e.g., INT32 ↔ INT64) to be considered valid during schema comparisons.
+
+### 6.3 Schema management
+
+Drivers handle schema evolution through three main operations:
+
+1. **CreateTable** - Creates a new table with the specified Arrow schema. The driver converts Arrow field definitions to warehouse-specific DDL statements. For SQL-based warehouses, this uses the `QueryMapper` interface to generate CREATE TABLE statements.
+
+2. **AddColumn** - Adds a new column to an existing table. Before adding, the driver checks if the column already exists to avoid errors. This enables schema evolution as new columns are added to the column definitions.
+
+3. **MissingColumns** - Detects schema drift by comparing the expected schema (from column definitions) with the actual table schema. This is used before writes to automatically add missing columns. The method also performs type compatibility checking to ensure existing columns match expected types.
+
+The `FindMissingColumns` function provides common logic for comparing schemas, handling both missing columns and type incompatibilities. It uses a `FieldCompatibilityChecker` to determine if existing columns are compatible with expected types.
+
+### 6.4 Implementations
+
+Currently, two warehouse implementations are provided:
+
+- **BigQuery** (`pkg/warehouse/bigquery`) - Uses the BigQuery Go client library. Supports time partitioning configuration and handles BigQuery-specific features like nested/repeated fields. Uses streaming inserts for data writes.
+
+- **ClickHouse** (`pkg/warehouse/clickhouse`) - Uses the ClickHouse Go driver. Generates SQL DDL statements using a `QueryMapper` implementation. Uses batch inserts for efficient data loading. Supports ClickHouse-specific types and table engines.
+
+Both implementations handle:
+- Connection management and timeouts
+- Error handling with warehouse-specific error types
+- Schema caching for performance
+- Type conversion and validation
+
+### 6.5 Batching
+
+The `NewBatchingDriver` function wraps any driver to provide automatic batching of writes. It accumulates writes in memory and flushes them either:
+- When the batch size reaches a configured maximum (default: 5000 rows)
+- After a time interval (default: 1 second)
+- When the context is cancelled (final flush)
+
+This reduces the number of write operations to the warehouse, improving throughput for high-volume scenarios.
+
+### 6.6 Registry pattern
+
+The `Registry` interface allows different properties to use different warehouse configurations:
+
+```go
+type Registry interface {
+	Get(propertyID string) (Driver, error)
+}
+```
+
+The `NewStaticDriverRegistry` creates a registry that returns the same driver for all properties, suitable for single-tenant deployments. The registry automatically wraps drivers with logging for observability.
+
+### 6.7 Integration with session closing
+
+When a protosession is closed, the `sessions.SessionWriter` uses the warehouse registry to get the appropriate driver for the property. It then:
+
+1. Retrieves the table layout and columns for the property
+2. Processes sessions through the columns machinery to generate rows
+3. Converts sessions to table rows using the layout's `ToRows` method
+4. Writes rows to each table in parallel using the warehouse driver
+
+The writer handles schema management automatically - if columns are missing, they are added before writing. This ensures that schema changes in column definitions are automatically reflected in the warehouse tables.

@@ -28,6 +28,7 @@ const (
 var (
 	requestCounter     metric.Int64Counter
 	requestLatencyHist metric.Float64Histogram
+	hitCounter         metric.Int64Counter
 )
 
 func init() {
@@ -42,6 +43,10 @@ func init() {
 		metric.WithDescription("HTTP request latency in seconds"),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+	)
+	hitCounter, _ = meter.Int64Counter(
+		"receiver.hits.total",
+		metric.WithDescription("Total number of hits (as each request may contain multiple hits)"),
 	)
 }
 
@@ -58,6 +63,16 @@ func statusGroup(statusCode int) string {
 	default:
 		return "unknown"
 	}
+}
+
+func extractTrackingLibrary(queryParams url.Values) string {
+	logrus.Debugf("queryParams: %v", queryParams)
+	dtn := queryParams.Get("_dtn")
+	dtv := queryParams.Get("_dtv")
+	if dtn == "" || dtv == "" {
+		return "unknown"
+	}
+	return dtn + "@" + dtv
 }
 
 // Server holds all server-related dependencies and configuration
@@ -121,6 +136,11 @@ func (s *Server) handleRequest(
 			return
 		}
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
+
+		hitCounter.Add(reqCtx, 1,
+			metric.WithAttributes(
+				attribute.String("tracking_library", extractTrackingLibrary(hit.Request.QueryParams)),
+			))
 	}
 	err = s.storage.Push(hits)
 	if err != nil {
@@ -237,7 +257,9 @@ func (s *Server) setupRouter(ctx context.Context) *router.Router {
 					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 						start := time.Now()
-						defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+						defer func() {
+							recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+						}()
 						endpoint.CustomHandler(fctx)
 					})
 				}
@@ -247,7 +269,9 @@ func (s *Server) setupRouter(ctx context.Context) *router.Router {
 				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 					start := time.Now()
-					defer recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+					defer func() {
+						recordRequestMetrics(ctx, fctx.Response.StatusCode(), start)
+					}()
 					s.handleRequest(ctx, fctx, protocol)
 				})
 			}

@@ -18,7 +18,7 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 1,
-    "id": 24,
+    "id": 1,
     "links": [],
     "panels": [
         {
@@ -42,7 +42,7 @@
                 "content": "# D8A\n\nD8a is a web tracker that can implement multiple protocols and supports writing to multiple warehouses. This dashboard is an overview of its performance, can be used both during performance tweaking and in production.",
                 "mode": "markdown"
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "title": "",
             "transparent": true,
             "type": "text"
@@ -95,7 +95,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -163,7 +163,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -231,7 +231,7 @@
                 "textMode": "auto",
                 "wideLayout": true
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "disableTextWrap": false,
@@ -272,7 +272,7 @@
                 "content": "# Receiver",
                 "mode": "markdown"
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "title": "",
             "transparent": true,
             "type": "text"
@@ -311,6 +311,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -385,7 +386,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -419,9 +420,23 @@
                     "range": true,
                     "refId": "B",
                     "useBackend": false
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${datasource}"
+                    },
+                    "editorMode": "code",
+                    "expr": "sum(rate(receiver_hits_total[$__rate_interval]))",
+                    "hide": false,
+                    "instant": false,
+                    "interval": "$__rate_interval",
+                    "legendFormat": "hits pushed to the pipeline",
+                    "range": true,
+                    "refId": "C"
                 }
             ],
-            "title": "Request rate",
+            "title": "Requests and hits",
             "type": "timeseries"
         },
         {
@@ -458,6 +473,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -487,7 +503,7 @@
             },
             "gridPos": {
                 "h": 6,
-                "w": 12,
+                "w": 6,
                 "x": 12,
                 "y": 8
             },
@@ -505,7 +521,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -562,6 +578,72 @@
             "type": "timeseries"
         },
         {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "PBFA97CFB590B2093"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "custom": {
+                        "hideFrom": {
+                            "legend": false,
+                            "tooltip": false,
+                            "viz": false
+                        }
+                    },
+                    "mappings": []
+                },
+                "overrides": []
+            },
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 18,
+                "y": 8
+            },
+            "id": 46,
+            "options": {
+                "displayLabels": [
+                    "percent"
+                ],
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "pieType": "pie",
+                "reduceOptions": {
+                    "calcs": [
+                        "lastNotNull"
+                    ],
+                    "fields": "",
+                    "values": false
+                },
+                "sort": "desc",
+                "tooltip": {
+                    "hideZeros": false,
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "pluginVersion": "12.3.1",
+            "targets": [
+                {
+                    "editorMode": "code",
+                    "expr": "sum(receiver_hits_total) by (tracking_library)",
+                    "legendFormat": "__auto",
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "title": "Tracking libraries used",
+            "transparent": true,
+            "type": "piechart"
+        },
+        {
             "fieldConfig": {
                 "defaults": {},
                 "overrides": []
@@ -582,7 +664,7 @@
                 "content": "# Worker",
                 "mode": "markdown"
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "title": "",
             "transparent": true,
             "type": "text"
@@ -621,6 +703,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -695,7 +778,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -751,6 +834,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -825,7 +909,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -868,7 +952,7 @@
                 "content": "# Orchestrator",
                 "mode": "markdown"
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "title": "",
             "transparent": true,
             "type": "text"
@@ -907,6 +991,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -958,7 +1043,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -1014,6 +1099,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -1061,7 +1147,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -1134,6 +1220,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -1181,7 +1268,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -1271,6 +1358,7 @@
                             "type": "linear"
                         },
                         "showPoints": "auto",
+                        "showValues": false,
                         "spanNulls": false,
                         "stacking": {
                             "group": "A",
@@ -1318,7 +1406,7 @@
                     "sort": "desc"
                 }
             },
-            "pluginVersion": "12.1.0",
+            "pluginVersion": "12.3.1",
             "targets": [
                 {
                     "datasource": {
@@ -2896,27 +2984,22 @@
     ],
     "preload": false,
     "refresh": "30s",
-    "schemaVersion": 41,
+    "schemaVersion": 42,
     "tags": [],
     "templating": {
         "list": [
             {
                 "current": {
-                    "selected": false,
                     "text": "Prometheus",
-                    "value": "Prometheus"
+                    "value": "PBFA97CFB590B2093"
                 },
-                "definition": "prometheus",
-                "hide": 0,
                 "includeAll": false,
                 "label": "Data Source",
-                "multi": false,
                 "name": "datasource",
                 "options": [],
                 "query": "prometheus",
                 "refresh": 1,
                 "regex": "",
-                "skipUrlSync": false,
                 "type": "datasource"
             }
         ]
