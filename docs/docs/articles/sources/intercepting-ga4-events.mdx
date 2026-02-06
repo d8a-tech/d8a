@@ -34,7 +34,7 @@ This method keeps your existing GA4 setup intact while duplicating events to a c
 
    - Click **New** to create a new tag
    - Choose **Custom HTML** as the tag type
-   - Name it: `GA4 Request Duplicator`
+   - Name it: `D8A GA4 Duplicator`
 
 3. **Add Your Interception Code**
    - Paste your custom code generated below into the HTML field
@@ -71,23 +71,20 @@ server_container_url: trackingURL,
 </Tabs>
 </div>
 
-4. **Configure the Trigger**
+4. **Save the tag**
 
-   - In the **Triggering** section, click to add a trigger
-   - Select **Initialization - All Pages**
-   - This ensures the code runs before any GA4 events fire
+   - Save your **D8A GA4 Duplicator** tag so it is available when you configure the Google Tag in the next step
+   - Note: You do not need to add a trigger to this tag
 
-5. **Set Up Tag Sequencing**
+5. **Fire the duplicator before the Google Tag**
 
-   - In the tag configuration, expand **Advanced Settings**
-   - Go to **Tag Sequencing**
-   - Under "Setup Tag", select your main **Google Tag** (your GA4 configuration tag)
-   - This ensures the GA4 tag loads first, then your duplicator runs
+   - Open your **Google Tag** (your GA4 configuration tag)
+   - Expand **Advanced Settings** → **Tag Sequencing**
+   - Under **Fire a tag before _Google Tag Name_ fires**, select your **D8A GA4 Duplicator** tag
 
 6. **Save and Publish**
    - Save your tag
    - Submit the changes and publish your container
-   - Test thoroughly to ensure both GA4 and your custom endpoint receive events
 
 You can now [test your web tracking setup](#testing-your-web-tracking-setup).
 
