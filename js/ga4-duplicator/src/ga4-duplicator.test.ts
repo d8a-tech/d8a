@@ -138,6 +138,27 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       verifyD8tvParam(fetchMock, 1);
     });
 
+    it("should be idempotent when initialized multiple times", async () => {
+      // given
+      // (this simulates loading the library+init snippet multiple times)
+      initDuplicator();
+      initDuplicator();
+      initDuplicator();
+      initDuplicator();
+      initDuplicator();
+
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+
+      // then
+      // 1. Original fetch called
+      // 2. Duplicate fetch called
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][0]).toBe(GA4_URL);
+      verifyDuplicateSent(fetchMock, 1);
+      verifyD8tvParam(fetchMock, 1);
+    });
+
     it("should NOT duplicate non-GA4 fetch request", async () => {
       initDuplicator();
       const OTHER_URL = "https://example.com/api";
