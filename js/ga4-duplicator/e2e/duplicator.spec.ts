@@ -24,25 +24,28 @@ test.describe("GA4 Duplicator", () => {
   }
 
   async function injectDuplicatorScript(page: any, count: number) {
-    await page.evaluate(({ count: c }) => {
-      return new Promise<void>((resolve, reject) => {
-        let loaded = 0;
-        const base = "/dist/gd.js";
-        const stamp = `${Date.now()}-${Math.random()}`;
+    await page.evaluate(
+      ({ count: c }) => {
+        return new Promise<void>((resolve, reject) => {
+          let loaded = 0;
+          const base = "/dist/gd.js";
+          const stamp = `${Date.now()}-${Math.random()}`;
 
-        for (let i = 0; i < c; i++) {
-          const s = document.createElement("script");
-          s.async = false;
-          s.src = `${base}?dup=${encodeURIComponent(stamp)}&i=${i}`;
-          s.onload = () => {
-            loaded++;
-            if (loaded === c) resolve();
-          };
-          s.onerror = () => reject(new Error(`failed to load ${s.src}`));
-          document.head.appendChild(s);
-        }
-      });
-    }, { count });
+          for (let i = 0; i < c; i++) {
+            const s = document.createElement("script");
+            s.async = false;
+            s.src = `${base}?dup=${encodeURIComponent(stamp)}&i=${i}`;
+            s.onload = () => {
+              loaded++;
+              if (loaded === c) resolve();
+            };
+            s.onerror = () => reject(new Error(`failed to load ${s.src}`));
+            document.head.appendChild(s);
+          }
+        });
+      },
+      { count },
+    );
   }
 
   async function verifyDuplication(

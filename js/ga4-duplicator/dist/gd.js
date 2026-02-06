@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-02-06T19:59:55.740Z */
+/* ga4-duplicator - built 2026-02-06T20:02:42.199Z */
 "use strict";
 (() => {
   // src/version.ts
