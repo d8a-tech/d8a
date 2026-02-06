@@ -1,8 +1,8 @@
-/* ga4-duplicator - built 2026-01-26T22:50:28.871Z */
+/* ga4-duplicator - built 2026-02-06T19:59:55.740Z */
 "use strict";
 (() => {
   // src/version.ts
-  var version = "dev-26-01" ? "dev-26-01" : devVersionUtc();
+  var version = "dev-26-02" ? "dev-26-02" : devVersionUtc();
 
   // src/ga4-duplicator.ts
   window.createGA4Duplicator = function(options) {
