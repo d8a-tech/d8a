@@ -161,12 +161,26 @@ var CoreInterfaces = struct {
 		},
 	},
 	EventDateUTC: schema.Interface{
-		ID:    "core.d8a.tech/events/date_utc",
-		Field: &arrow.Field{Name: "date_utc", Type: arrow.FixedWidthTypes.Date32},
+		ID: "core.d8a.tech/events/date_utc",
+		Field: &arrow.Field{
+			Name: "date_utc",
+			Type: arrow.FixedWidthTypes.Date32,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("Delta", "LZ4")},
+			),
+		},
 	},
 	EventTimestampUTC: schema.Interface{
-		ID:    "core.d8a.tech/events/timestamp_utc",
-		Field: &arrow.Field{Name: "timestamp_utc", Type: arrow.FixedWidthTypes.Timestamp_s},
+		ID: "core.d8a.tech/events/timestamp_utc",
+		Field: &arrow.Field{
+			Name: "timestamp_utc",
+			Type: arrow.FixedWidthTypes.Timestamp_s,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("Delta", "LZ4")},
+			),
+		},
 	},
 	EventClientID: schema.Interface{
 		ID:    "core.d8a.tech/events/client_id",

@@ -6,6 +6,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 )
 
 type clickhouseQueryMapper struct {
@@ -91,9 +92,28 @@ func (q *clickhouseQueryMapper) Field(field *arrow.Field) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	// Build column definition starting with type
+	columnDef := fieldType.TypeAsString
+
 	// Append column modifiers (e.g., "DEFAULT") if present
 	if fieldType.ColumnModifiers != "" && fieldType.DefaultSQLExpression != "" {
-		return fmt.Sprintf("%s DEFAULT %s", fieldType.TypeAsString, fieldType.DefaultSQLExpression), nil
+		columnDef = fmt.Sprintf("%s DEFAULT %s", columnDef, fieldType.DefaultSQLExpression)
 	}
-	return fieldType.TypeAsString, nil
+
+	// Append CODEC clause if metadata is present
+	codecValue, hasCodec := warehouse.GetArrowMetadataValue(field.Metadata, meta.ClickhouseCodecMetadata)
+	if hasCodec {
+		codecValue = strings.TrimSpace(codecValue)
+		if codecValue == "" {
+			return "", fmt.Errorf("codec metadata value cannot be empty for field %s", field.Name)
+		}
+		// Basic validation: should start with CODEC(
+		if !strings.HasPrefix(codecValue, "CODEC(") {
+			return "", fmt.Errorf("invalid codec metadata value for field %s: must start with 'CODEC('", field.Name)
+		}
+		columnDef = fmt.Sprintf("%s %s", columnDef, codecValue)
+	}
+
+	return columnDef, nil
 }

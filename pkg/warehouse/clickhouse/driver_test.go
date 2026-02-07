@@ -11,6 +11,7 @@ import (
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/d8a-tech/d8a/pkg/warehouse/testutils"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -373,6 +374,40 @@ func (suite *ClickHouseTestSuite) TestMultipleTypeIncompatibilities() {
 
 	suite.Require().Equal(arrow.BinaryTypes.String, errorColumns["string_field"].ExistingType)
 	suite.Require().Equal(arrow.PrimitiveTypes.Int64, errorColumns["string_field"].ExpectedType)
+}
+
+func (suite *ClickHouseTestSuite) TestMissingColumnsIgnoresCodecMetadata() {
+	tableName := "test_codec_metadata_ignore"
+
+	// given - create table without codec
+	createQuery := fmt.Sprintf(`
+		CREATE TABLE testdb.%s (
+			test_column String
+		) ENGINE = MergeTree() ORDER BY tuple()
+	`, tableName)
+	_, err := clickhouse.OpenDB(suite.opts).Exec(createQuery)
+	suite.Require().NoError(err, "should create table successfully")
+
+	// when - check with same Arrow type but with codec metadata
+	inputFields := []arrow.Field{
+		{
+			Name:     "test_column",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: false,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("Delta", "ZSTD")},
+			),
+		},
+	}
+	inputSchema := arrow.NewSchema(inputFields, nil)
+
+	missing, err := suite.driver.MissingColumns(tableName, inputSchema)
+
+	// then - should not report missing columns or type incompatibility
+	// Codec metadata should be ignored in semantic diff
+	suite.Require().NoError(err, "codec metadata should not cause type incompatibility")
+	suite.Require().Empty(missing, "codec metadata should not cause missing columns")
 }
 
 func (suite *ClickHouseTestSuite) TestBasicWrites() {
