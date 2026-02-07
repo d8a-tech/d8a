@@ -48,6 +48,15 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			description: "Valid device category",
 		},
 		{
+			name: "Bot_DeviceCategory",
+			headers: http.Header{
+				"User-Agent": []string{"2ip bot"},
+			},
+			expected:    "bot",
+			fieldName:   "device_category",
+			description: "Valid device category for bot",
+		},
+		{
 			name: "Iphone_DeviceMobileBrandName",
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
