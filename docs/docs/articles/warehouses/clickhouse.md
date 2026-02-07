@@ -29,11 +29,12 @@ clickhouse:
 
 ## Metadata
 
-ClickHouse-specific optimizations can be applied via Arrow field metadata:
+ClickHouse-specific optimizations can be applied via Arrow field metadata (this information is usable for developers implementing new columns, currently this cannot be controlled from configuration):
 
 | Metadata Key | Value | Description |
 |--------------|-------|-------------|
 | `clickhouse.low_cardinality` | `"true"` | Wraps the column type as `LowCardinality(T)` for improved storage efficiency and query performance on columns with low cardinality. Applies to any type supported by Clickhouse; |
+| `clickhouse.codec` | `"CODEC(Delta, ZSTD)"` | Appends a CODEC clause to the column definition in ClickHouse DDL. The value should be a complete CODEC clause (e.g., `CODEC(Delta, ZSTD)` or `CODEC(Delta)`). Use the `meta.Codec(codec, compressionAlg)` helper function to generate the value. Codec metadata does not affect semantic schema compatibility checks. |
 
 ## Verifying your setup
 

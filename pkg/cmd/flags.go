@@ -143,7 +143,7 @@ var clickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "clickhouse-order-by",
 	Usage:   "Comma-separated list of columns for ORDER BY clause (e.g., 'property_id,date_utc'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "clickhouse.order_by"),
-	Value:   "property_id,name,date_utc",
+	Value:   "property_id,date_utc,session_id",
 }
 
 var clickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{

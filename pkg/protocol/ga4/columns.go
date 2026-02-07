@@ -211,9 +211,16 @@ var ProtocolInterfaces = struct {
 	EventMeasurementID: schema.Interface{
 		ID: "ga4.protocols.d8a.tech/event/measurement_id",
 		Field: &arrow.Field{
-			Name:     "measurement_id",
-			Type:     arrow.BinaryTypes.String,
-			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+			Name: "measurement_id",
+			Type: arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata(
+				[]string{
+					meta.ClickhouseLowCardinalityMetadata,
+				},
+				[]string{
+					"true",
+				},
+			),
 		},
 	},
 	// ignore_referrer - used in session_start event
@@ -799,6 +806,10 @@ var ProtocolInterfaces = struct {
 			Name:     "session_is_engaged",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("T64", "LZ4")},
+			),
 		},
 	},
 	SessionReturningUser: schema.Interface{
@@ -807,6 +818,10 @@ var ProtocolInterfaces = struct {
 			Name:     "session_returning_user",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("T64", "LZ4")},
+			),
 		},
 	},
 	SessionAbandonedCart: schema.Interface{
@@ -815,6 +830,10 @@ var ProtocolInterfaces = struct {
 			Name:     "session_abandoned_cart",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseCodecMetadata},
+				[]string{meta.Codec("T64", "LZ4")},
+			),
 		},
 	},
 	EventParamItemProductID: schema.Interface{
