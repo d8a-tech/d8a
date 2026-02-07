@@ -12,6 +12,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/sirupsen/logrus"
 )
 
@@ -230,7 +231,7 @@ func WithSessionColumnDocs(displayName, description string) SessionColumnOptions
 		if description != "" {
 			c.field.Metadata = warehouse.MergeArrowMetadata(
 				c.field.Metadata,
-				warehouse.ColumnDescriptionMetadataKey,
+				meta.ColumnDescriptionMetadataKey,
 				description,
 			)
 		}
@@ -410,7 +411,7 @@ func WithEventColumnDocs(displayName, description string) EventColumnOptions {
 		if description != "" {
 			c.field.Metadata = warehouse.MergeArrowMetadata(
 				c.field.Metadata,
-				warehouse.ColumnDescriptionMetadataKey,
+				meta.ColumnDescriptionMetadataKey,
 				description,
 			)
 		}
@@ -633,7 +634,7 @@ func WithSessionScopedEventColumnDocs(displayName, description string) SessionSc
 		if description != "" {
 			c.field.Metadata = warehouse.MergeArrowMetadata(
 				c.field.Metadata,
-				warehouse.ColumnDescriptionMetadataKey,
+				meta.ColumnDescriptionMetadataKey,
 				description,
 			)
 		}

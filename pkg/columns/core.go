@@ -5,6 +5,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 )
 
 // CoreInterfaces are the core columns that are always present in the schema.
@@ -136,16 +137,28 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "id", Type: arrow.BinaryTypes.String},
 	},
 	EventName: schema.Interface{
-		ID:    "core.d8a.tech/events/name",
-		Field: &arrow.Field{Name: "name", Type: arrow.BinaryTypes.String},
+		ID: "core.d8a.tech/events/name",
+		Field: &arrow.Field{
+			Name:     "name",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventPropertyID: schema.Interface{
-		ID:    "core.d8a.tech/events/property_id",
-		Field: &arrow.Field{Name: "property_id", Type: arrow.BinaryTypes.String},
+		ID: "core.d8a.tech/events/property_id",
+		Field: &arrow.Field{
+			Name:     "property_id",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventPropertyName: schema.Interface{
-		ID:    "core.d8a.tech/events/property_name",
-		Field: &arrow.Field{Name: "property_name", Type: arrow.BinaryTypes.String},
+		ID: "core.d8a.tech/events/property_name",
+		Field: &arrow.Field{
+			Name:     "property_name",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventDateUTC: schema.Interface{
 		ID:    "core.d8a.tech/events/date_utc",
@@ -192,8 +205,12 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "ignore_referrer", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	EventPlatform: schema.Interface{
-		ID:    "core.d8a.tech/events/platform",
-		Field: &arrow.Field{Name: "platform", Type: arrow.BinaryTypes.String},
+		ID: "core.d8a.tech/events/platform",
+		Field: &arrow.Field{
+			Name:     "platform",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventUtmCampaign: schema.Interface{
 		ID:    "core.d8a.tech/events/utm_campaign",
@@ -272,20 +289,35 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "geo_metro", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	GeoCountry: schema.Interface{
-		ID:    "core.d8a.tech/events/geo_country",
-		Field: &arrow.Field{Name: "geo_country", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/events/geo_country",
+		Field: &arrow.Field{
+			Name:     "geo_country",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	GeoContinent: schema.Interface{
-		ID:    "core.d8a.tech/events/geo_continent",
-		Field: &arrow.Field{Name: "geo_continent", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/events/geo_continent",
+		Field: &arrow.Field{
+			Name:     "geo_continent",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	GeoSubContinent: schema.Interface{
 		ID:    "core.d8a.tech/events/geo_sub_continent",
 		Field: &arrow.Field{Name: "geo_sub_continent", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	DeviceCategory: schema.Interface{
-		ID:    "core.d8a.tech/events/device_category",
-		Field: &arrow.Field{Name: "device_category", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/events/device_category",
+		Field: &arrow.Field{
+			Name:     "device_category",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	DeviceLanguage: schema.Interface{
 		ID:    "core.d8a.tech/events/device_language",
@@ -300,24 +332,38 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "device_mobile_model_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	DeviceOperatingSystem: schema.Interface{
-		ID:    "core.d8a.tech/events/device_operating_system",
-		Field: &arrow.Field{Name: "device_operating_system", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/events/device_operating_system",
+		Field: &arrow.Field{
+			Name:     "device_operating_system",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	DeviceOperatingSystemVersion: schema.Interface{
 		ID:    "core.d8a.tech/events/device_operating_system_version",
 		Field: &arrow.Field{Name: "device_operating_system_version", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	DeviceWebBrowser: schema.Interface{
-		ID:    "core.d8a.tech/events/device_web_browser",
-		Field: &arrow.Field{Name: "device_web_browser", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/events/device_web_browser",
+		Field: &arrow.Field{
+			Name:     "device_web_browser",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	DeviceWebBrowserVersion: schema.Interface{
 		ID:    "core.d8a.tech/events/device_web_browser_version",
 		Field: &arrow.Field{Name: "device_web_browser_version", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventTrackingProtocol: schema.Interface{
-		ID:    "core.d8a.tech/events/tracking_protocol",
-		Field: &arrow.Field{Name: "tracking_protocol", Type: arrow.BinaryTypes.String},
+		ID: "core.d8a.tech/events/tracking_protocol",
+		Field: &arrow.Field{
+			Name:     "tracking_protocol",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	SSESessionHitNumber: schema.Interface{
 		ID:    "core.d8a.tech/events/session_hit_number",
@@ -517,8 +563,13 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "session_unique_file_downloads", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionSplitCause: schema.Interface{
-		ID:    "core.d8a.tech/sessions/split_cause",
-		Field: &arrow.Field{Name: "session_split_cause", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "core.d8a.tech/sessions/split_cause",
+		Field: &arrow.Field{
+			Name:     "session_split_cause",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 }
 

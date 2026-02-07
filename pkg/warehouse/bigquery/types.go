@@ -7,6 +7,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 )
 
 // MapperName is the name of the BigQuery type mapper
@@ -353,7 +354,7 @@ func (m *bigQueryNestedTypeMapper) mapFieldToBigQuery(
 	// Extract description from field metadata if available
 	desc, ok := warehouse.GetArrowMetadataValue(
 		field.Metadata,
-		warehouse.ColumnDescriptionMetadataKey,
+		meta.ColumnDescriptionMetadataKey,
 	)
 	if ok && desc != "" {
 		schemaField.Description = desc

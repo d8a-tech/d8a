@@ -8,6 +8,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 )
 
 // ClickhouseMapperName is the name of the ClickHouse type mapper
@@ -562,6 +563,71 @@ func newClickhouseNestedTypeMapper(
 	}
 }
 
+// clickhouseLowCardinalityTypeMapper wraps any ClickHouse type as LowCardinality(...) when metadata flag is present
+type clickhouseLowCardinalityTypeMapper struct {
+	SubMapper warehouse.FieldTypeMapper[SpecificClickhouseType]
+}
+
+func (m *clickhouseLowCardinalityTypeMapper) ArrowToWarehouse(
+	arrowType warehouse.ArrowType,
+) (SpecificClickhouseType, error) {
+	// Match only when metadata contains clickhouse.low_cardinality=true
+	if !hasLowCardinalityMetadata(arrowType.Metadata) {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+
+	// Create a copy of the Arrow type with LowCardinality metadata removed to prevent recursion
+	arrowTypeCopy := arrowType.Copy()
+	// Remove the LowCardinality metadata key
+	keys := make([]string, 0, arrowTypeCopy.Metadata.Len())
+	values := make([]string, 0, arrowTypeCopy.Metadata.Len())
+	for i := 0; i < arrowTypeCopy.Metadata.Len(); i++ {
+		key := arrowTypeCopy.Metadata.Keys()[i]
+		if key != meta.ClickhouseLowCardinalityMetadata {
+			keys = append(keys, key)
+			values = append(values, arrowTypeCopy.Metadata.Values()[i])
+		}
+	}
+	arrowTypeCopy.Metadata = arrow.NewMetadata(keys, values)
+
+	// Map the inner type (without LowCardinality metadata)
+	baseType, err := m.SubMapper.ArrowToWarehouse(arrowTypeCopy)
+	if err != nil {
+		return SpecificClickhouseType{}, err
+	}
+
+	// Wrap the base type as LowCardinality(<base.TypeAsString>)
+	return SpecificClickhouseType{
+		TypeAsString:         fmt.Sprintf("LowCardinality(%s)", baseType.TypeAsString),
+		ColumnModifiers:      baseType.ColumnModifiers,
+		DefaultValue:         baseType.DefaultValue,
+		DefaultSQLExpression: baseType.DefaultSQLExpression,
+		FormatFunc:           baseType.FormatFunc,
+	}, nil
+}
+
+func (m *clickhouseLowCardinalityTypeMapper) WarehouseToArrow(
+	warehouseType SpecificClickhouseType,
+) (warehouse.ArrowType, error) {
+	// Strip LowCardinality wrapper if present
+	if !isLowCardinalityType(warehouseType.TypeAsString) {
+		return warehouse.ArrowType{}, warehouse.NewUnsupportedMappingErr(warehouseType, ClickhouseMapperName)
+	}
+
+	// Extract inner type
+	innerTypeStr := extractLowCardinalityInnerType(warehouseType.TypeAsString)
+
+	// Map the inner type (without LowCardinality wrapper)
+	innerType := anyType(innerTypeStr)
+	arrowType, err := m.SubMapper.WarehouseToArrow(innerType)
+	if err != nil {
+		return warehouse.ArrowType{}, err
+	}
+
+	// Return the inner Arrow type without adding any LowCardinality metadata
+	return arrowType, nil
+}
+
 // clickhouseNullabilityAsDefaultMapper converts nullable Arrow fields to NOT NULL with DEFAULT
 // This avoids Nullable storage overhead in ClickHouse while preserving semantic nullability
 type clickhouseNullabilityAsDefaultMapper struct {
@@ -801,6 +867,9 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificClickhouseType] {
 		actualMapper: actualNestedMapper,
 	}
 
+	// LowCardinality mapper wraps types when metadata flag is present (must be first to wrap whatever the chain produces)
+	lowCardinalityMapper := &clickhouseLowCardinalityTypeMapper{SubMapper: deferredMapper}
+
 	// nullability-as-default mapper converts nullable scalars to DEFAULT instead of Nullable(...)
 	nullabilityAsDefaultMapper := &clickhouseNullabilityAsDefaultMapper{SubMapper: deferredMapper}
 
@@ -810,7 +879,12 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificClickhouseType] {
 		nullabilityAsDefaultMapper,
 	}
 
-	comprehensiveMapper = warehouse.NewTypeMapper(append(complexMappers, baseMappers...))
+	// LowCardinality mapper must be first so it can wrap whatever the rest of the chain produces
+	allMappers := append(
+		[]warehouse.FieldTypeMapper[SpecificClickhouseType]{lowCardinalityMapper},
+		append(complexMappers, baseMappers...)...,
+	)
+	comprehensiveMapper = warehouse.NewTypeMapper(allMappers)
 
 	return comprehensiveMapper
 }

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,8 +40,8 @@ func TestGetArrowMetadataValue(t *testing.T) {
 		},
 		{
 			name:     "description key exists",
-			metadata: arrow.NewMetadata([]string{ColumnDescriptionMetadataKey}, []string{"test description"}),
-			key:      ColumnDescriptionMetadataKey,
+			metadata: arrow.NewMetadata([]string{meta.ColumnDescriptionMetadataKey}, []string{"test description"}),
+			key:      meta.ColumnDescriptionMetadataKey,
 			wantVal:  "test description",
 			wantOk:   true,
 		},
@@ -91,7 +92,7 @@ func TestMergeArrowMetadata(t *testing.T) {
 		{
 			name:     "merge description into existing metadata",
 			existing: arrow.NewMetadata([]string{"other"}, []string{"othervalue"}),
-			key:      ColumnDescriptionMetadataKey,
+			key:      meta.ColumnDescriptionMetadataKey,
 			value:    "column description",
 			wantVal:  "column description",
 			wantOk:   true,
