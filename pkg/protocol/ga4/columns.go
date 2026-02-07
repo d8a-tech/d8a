@@ -799,7 +799,6 @@ var ProtocolInterfaces = struct {
 			Name:     "session_is_engaged",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
-			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
 		},
 	},
 	SessionReturningUser: schema.Interface{
@@ -808,7 +807,6 @@ var ProtocolInterfaces = struct {
 			Name:     "session_returning_user",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
-			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
 		},
 	},
 	SessionAbandonedCart: schema.Interface{
@@ -817,7 +815,6 @@ var ProtocolInterfaces = struct {
 			Name:     "session_abandoned_cart",
 			Type:     arrow.PrimitiveTypes.Int64,
 			Nullable: true,
-			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
 		},
 	},
 	EventParamItemProductID: schema.Interface{
