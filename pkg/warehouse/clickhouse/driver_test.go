@@ -22,7 +22,7 @@ const ClickHouseCreateTableQuery = `CREATE TABLE testdb.analytics_events (
 	id String,
 	user_id Int64,
 	timestamp DateTime64(0) DEFAULT '1970-01-01 00:00:00',
-	event_type String,
+	event_type LowCardinality(String),
 	session_id String,
 	is_active Bool,
 	score Float64,

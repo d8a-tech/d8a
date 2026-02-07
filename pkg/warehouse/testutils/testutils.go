@@ -13,6 +13,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,12 @@ func TestSchema() *arrow.Schema {
 		{Name: "id", Type: arrow.BinaryTypes.String, Nullable: false},
 		{Name: "user_id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},
 		{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: true},
-		{Name: "event_type", Type: arrow.BinaryTypes.String, Nullable: false},
+		{
+			Name:     "event_type",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: false,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 		{Name: "session_id", Type: arrow.BinaryTypes.String, Nullable: false},
 		{Name: "is_active", Type: arrow.FixedWidthTypes.Boolean, Nullable: false},
 		{Name: "score", Type: arrow.PrimitiveTypes.Float64, Nullable: false},

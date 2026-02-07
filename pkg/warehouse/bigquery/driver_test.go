@@ -17,6 +17,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/d8a-tech/d8a/pkg/warehouse/testutils"
 	tcbigquery "github.com/testcontainers/testcontainers-go/modules/gcloud/bigquery"
 )
@@ -36,7 +37,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 				Nullable: false,
 				Metadata: warehouse.MergeArrowMetadata(
 					arrow.Metadata{},
-					warehouse.ColumnDescriptionMetadataKey,
+					meta.ColumnDescriptionMetadataKey,
 					"Test column description",
 				),
 			},
@@ -70,7 +71,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 				Nullable: false,
 				Metadata: warehouse.MergeArrowMetadata(
 					arrow.Metadata{},
-					warehouse.ColumnDescriptionMetadataKey,
+					meta.ColumnDescriptionMetadataKey,
 					"",
 				),
 			},
@@ -89,7 +90,7 @@ func TestFieldToBQFieldSchema(t *testing.T) {
 				Nullable: false,
 				Metadata: warehouse.MergeArrowMetadata(
 					arrow.Metadata{},
-					warehouse.ColumnDescriptionMetadataKey,
+					meta.ColumnDescriptionMetadataKey,
 					"Nested field description",
 				),
 			},

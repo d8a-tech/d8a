@@ -10,6 +10,7 @@ import (
 	"cloud.google.com/go/bigquery"
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/sirupsen/logrus"
 )
 
@@ -43,7 +44,7 @@ func fieldToBQFieldSchema(field *arrow.Field, fieldSchema SpecificBigQueryType) 
 	// Extract description from field metadata if available
 	desc, ok := warehouse.GetArrowMetadataValue(
 		field.Metadata,
-		warehouse.ColumnDescriptionMetadataKey,
+		meta.ColumnDescriptionMetadataKey,
 	)
 	if ok && desc != "" {
 		bqField.Description = desc

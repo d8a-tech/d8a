@@ -5,6 +5,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -243,6 +244,75 @@ func getTestCases() []TypeMappingTestCase {
 				"timestamp_field DateTime64(0))",
 		},
 
+		// === LOWCARDINALITY TESTS ===
+		{
+			BaseTestCase: BaseTestCase{
+				name:        "string with low cardinality metadata",
+				expectError: false,
+			},
+			arrowType: warehouse.ArrowType{
+				ArrowDataType: arrow.BinaryTypes.String,
+				Metadata: arrow.NewMetadata(
+					[]string{meta.ClickhouseLowCardinalityMetadata},
+					[]string{"true"},
+				),
+			},
+			expectedCHType: "LowCardinality(String)",
+		},
+		{
+			BaseTestCase: BaseTestCase{
+				name:        "int64 with low cardinality metadata",
+				expectError: false,
+			},
+			arrowType: warehouse.ArrowType{
+				ArrowDataType: arrow.PrimitiveTypes.Int64,
+				Metadata: arrow.NewMetadata(
+					[]string{meta.ClickhouseLowCardinalityMetadata},
+					[]string{"true"},
+				),
+			},
+			expectedCHType: "LowCardinality(Int64)",
+		},
+		{
+			BaseTestCase: BaseTestCase{
+				name:        "nullable string with low cardinality metadata",
+				expectError: false,
+			},
+			arrowType: warehouse.ArrowType{
+				ArrowDataType: arrow.BinaryTypes.String,
+				Nullable:      true,
+				Metadata: arrow.NewMetadata(
+					[]string{meta.ClickhouseLowCardinalityMetadata},
+					[]string{"true"},
+				),
+			},
+			expectedCHType: "LowCardinality(String)",
+		},
+		{
+			BaseTestCase: BaseTestCase{
+				name:        "string without low cardinality metadata",
+				expectError: false,
+			},
+			arrowType: warehouse.ArrowType{
+				ArrowDataType: arrow.BinaryTypes.String,
+			},
+			expectedCHType: "String",
+		},
+		{
+			BaseTestCase: BaseTestCase{
+				name:        "string with low cardinality metadata set to false",
+				expectError: false,
+			},
+			arrowType: warehouse.ArrowType{
+				ArrowDataType: arrow.BinaryTypes.String,
+				Metadata: arrow.NewMetadata(
+					[]string{meta.ClickhouseLowCardinalityMetadata},
+					[]string{"false"},
+				),
+			},
+			expectedCHType: "String",
+		},
+
 		// === UNSUPPORTED REPEATED NESTED CASES ===
 		// List of Struct containing unsupported primitive types
 		{
@@ -449,4 +519,44 @@ func TestRoundTripMapping(t *testing.T) {
 			assert.Equal(t, tc.arrowType.ArrowDataType.ID(), backToArrow.ArrowDataType.ID())
 		})
 	}
+}
+
+func TestLowCardinalityStripping(t *testing.T) {
+	t.Run("LowCardinality(String) strips to plain String", func(t *testing.T) {
+		// given
+		mapper := NewFieldTypeMapper()
+		chType := anyType("LowCardinality(String)")
+
+		// when
+		arrowType, err := mapper.WarehouseToArrow(chType)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, arrow.BinaryTypes.String.ID(), arrowType.ArrowDataType.ID())
+		// Verify no LowCardinality metadata is present
+		_, hasMetadata := arrowType.Metadata.GetValue(meta.ClickhouseLowCardinalityMetadata)
+		assert.False(t, hasMetadata, "LowCardinality metadata should not be present after stripping")
+	})
+
+	t.Run("nullable string with LowCardinality has DEFAULT modifier", func(t *testing.T) {
+		// given
+		mapper := NewFieldTypeMapper()
+		arrowType := warehouse.ArrowType{
+			ArrowDataType: arrow.BinaryTypes.String,
+			Nullable:      true,
+			Metadata: arrow.NewMetadata(
+				[]string{meta.ClickhouseLowCardinalityMetadata},
+				[]string{"true"},
+			),
+		}
+
+		// when
+		chType, err := mapper.ArrowToWarehouse(arrowType)
+
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, "LowCardinality(String)", chType.TypeAsString)
+		assert.Equal(t, "DEFAULT", chType.ColumnModifiers)
+		assert.Equal(t, "''", chType.DefaultSQLExpression)
+	})
 }

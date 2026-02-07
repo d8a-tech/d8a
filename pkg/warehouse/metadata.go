@@ -4,11 +4,6 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
-// ColumnDescriptionMetadataKey is the metadata key used to store column descriptions
-// in Arrow field metadata. This is used to pass descriptions from schema definitions
-// to warehouse drivers (e.g., BigQuery) that support column descriptions.
-const ColumnDescriptionMetadataKey = "d8a.column.description"
-
 // GetArrowMetadataValue retrieves a value from Arrow metadata by key.
 // Returns the value and true if found, empty string and false otherwise.
 func GetArrowMetadataValue(md arrow.Metadata, key string) (string, bool) {

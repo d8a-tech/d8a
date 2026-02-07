@@ -4,6 +4,7 @@ package ga4
 import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/d8a-tech/d8a/pkg/warehouse/meta"
 )
 
 // Item attribute keys used inside the nested items array
@@ -208,8 +209,12 @@ var ProtocolInterfaces = struct {
 	EventGl schema.Interface
 }{
 	EventMeasurementID: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/measurement_id",
-		Field: &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String},
+		ID: "ga4.protocols.d8a.tech/event/measurement_id",
+		Field: &arrow.Field{
+			Name:     "measurement_id",
+			Type:     arrow.BinaryTypes.String,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	// ignore_referrer - used in session_start event
 	EventIParamgnoreReferrer: schema.Interface{
@@ -305,8 +310,13 @@ var ProtocolInterfaces = struct {
 		Field: &arrow.Field{Name: "client_session_number", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventGtmDebug: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/gtm_debug",
-		Field: &arrow.Field{Name: "gtm_debug", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID: "ga4.protocols.d8a.tech/event/gtm_debug",
+		Field: &arrow.Field{
+			Name:     "gtm_debug",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventPageLoadHash: schema.Interface{
 		ID:    "ga4.protocols.d8a.tech/event/page_load_hash",
@@ -784,16 +794,31 @@ var ProtocolInterfaces = struct {
 		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionIsEngaged: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/session/is_engaged",
-		Field: &arrow.Field{Name: "session_is_engaged", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		ID: "ga4.protocols.d8a.tech/session/is_engaged",
+		Field: &arrow.Field{
+			Name:     "session_is_engaged",
+			Type:     arrow.PrimitiveTypes.Int64,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	SessionReturningUser: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/session/returning_user",
-		Field: &arrow.Field{Name: "session_returning_user", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		ID: "ga4.protocols.d8a.tech/session/returning_user",
+		Field: &arrow.Field{
+			Name:     "session_returning_user",
+			Type:     arrow.PrimitiveTypes.Int64,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	SessionAbandonedCart: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/session/abandoned_cart",
-		Field: &arrow.Field{Name: "session_abandoned_cart", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		ID: "ga4.protocols.d8a.tech/session/abandoned_cart",
+		Field: &arrow.Field{
+			Name:     "session_abandoned_cart",
+			Type:     arrow.PrimitiveTypes.Int64,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
 	},
 	EventParamItemProductID: schema.Interface{
 		ID:    "ga4.protocols.d8a.tech/event/item/params_product_id",
