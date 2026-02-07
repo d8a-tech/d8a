@@ -15,8 +15,11 @@ const ClickhouseMapperName = "clickhouse"
 
 // SpecificClickhouseType represents a ClickHouse data type with its string representation and formatting function
 type SpecificClickhouseType struct {
-	TypeAsString string
-	FormatFunc   func(i any, m arrow.Metadata) (any, error)
+	TypeAsString         string
+	ColumnModifiers      string // e.g., "DEFAULT" for nullable fields stored as NOT NULL with DEFAULT
+	DefaultValue         any    // Go-level default value for this type (nil if not applicable)
+	DefaultSQLExpression string // SQL expression for DEFAULT clause (e.g., "''", "0", "'1970-01-01'")
+	FormatFunc           func(i any, m arrow.Metadata) (any, error)
 }
 
 // Format formats a value according to the ClickHouse type's formatting function
@@ -132,7 +135,9 @@ func (m *clickhouseTimestampTypeMapper) ArrowToWarehouse(
 ) (SpecificClickhouseType, error) {
 	if arrowType.ArrowDataType == arrow.FixedWidthTypes.Timestamp_s {
 		return SpecificClickhouseType{
-			TypeAsString: fmt.Sprintf("DateTime64(%s)", PrecisionMetadataValueSecond),
+			TypeAsString:         fmt.Sprintf("DateTime64(%s)", PrecisionMetadataValueSecond),
+			DefaultValue:         time.Unix(0, 0),
+			DefaultSQLExpression: "'1970-01-01 00:00:00'",
 			FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 				switch v := i.(type) {
 				case int32:
@@ -314,24 +319,46 @@ func (m *clickhouseArrayTypeMapper) formatNestedArray(
 
 	result := make([]map[string]any, 0, len(slice))
 	for _, record := range slice {
-		recordMap := make(map[string]any)
 		record, ok := record.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("expected map[string]any for nested type element, got %T", record)
 		}
 
-		for idx, field := range structType.Fields() {
-			if value, exists := record[field.Name]; exists {
-				formatted, err := fieldTypes[idx].Format(value, metadata)
-				if err != nil {
-					return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
-				}
-				recordMap[field.Name] = formatted
-			}
+		recordMap, err := formatNestedRecord(record, structType, fieldTypes, metadata)
+		if err != nil {
+			return nil, err
 		}
 		result = append(result, recordMap)
 	}
 	return result, nil
+}
+
+// formatNestedRecord formats a single nested record (struct) for ClickHouse
+// It ensures all struct fields are populated, using defaults for missing/nil values
+func formatNestedRecord(
+	record map[string]any,
+	structType *arrow.StructType,
+	fieldTypes []SpecificClickhouseType,
+	metadata arrow.Metadata,
+) (map[string]any, error) {
+	recordMap := make(map[string]any)
+
+	// Always populate every struct field (missing or nil values will be converted to defaults)
+	for idx, field := range structType.Fields() {
+		var value any
+		var exists bool
+		if value, exists = record[field.Name]; !exists {
+			value = nil // Missing field - pass nil to formatter
+		}
+		// If value exists but is nil, also pass nil to formatter
+		// The nullability-as-default wrapper will convert nil to the correct default
+		formatted, err := fieldTypes[idx].Format(value, metadata)
+		if err != nil {
+			return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
+		}
+		recordMap[field.Name] = formatted
+	}
+	return recordMap, nil
 }
 
 // validateStructContainsPrimitiveTypesOnly validates that a struct contains only primitive types
@@ -455,20 +482,14 @@ func (m *clickhouseNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowT
 			}
 			result := make([]map[string]any, 0, len(iAsCollection))
 			for _, record := range iAsCollection {
-				recordMap := make(map[string]any)
 				record, ok := record.(map[string]any)
 				if !ok {
 					return nil, fmt.Errorf("expected map[string]any for nested type, got %T", i)
 				}
 
-				for idx, field := range structType.Fields() {
-					if value, exists := record[field.Name]; exists {
-						formatted, err := fieldTypes[idx].Format(value, metadata)
-						if err != nil {
-							return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
-						}
-						recordMap[field.Name] = formatted
-					}
+				recordMap, err := formatNestedRecord(record, structType, fieldTypes, metadata)
+				if err != nil {
+					return nil, err
 				}
 				result = append(result, recordMap)
 			}
@@ -541,75 +562,89 @@ func newClickhouseNestedTypeMapper(
 	}
 }
 
-type clickhouseNullableTypeMapper struct {
+// clickhouseNullabilityAsDefaultMapper converts nullable Arrow fields to NOT NULL with DEFAULT
+// This avoids Nullable storage overhead in ClickHouse while preserving semantic nullability
+type clickhouseNullabilityAsDefaultMapper struct {
 	SubMapper warehouse.FieldTypeMapper[SpecificClickhouseType]
 }
 
-func (m *clickhouseNullableTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowType) (SpecificClickhouseType, error) {
-	// ClickHouse doesn't support nullable arrays - reject array types
-	if _, isListType := arrowType.ArrowDataType.(*arrow.ListType); isListType {
-		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
-	}
-
-	// For nullable types, we just pass through the inner type and mark it as nullable
-	// In real ClickHouse, this would be handled by the field's nullable property
+func (m *clickhouseNullabilityAsDefaultMapper) ArrowToWarehouse(
+	arrowType warehouse.ArrowType,
+) (SpecificClickhouseType, error) {
+	// Only handle nullable scalar types (not arrays/structs)
 	if !arrowType.Nullable {
 		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
 	}
 
-	newInstance := arrowType.Copy()
-	newInstance.Nullable = false
-	innerType, err := m.SubMapper.ArrowToWarehouse(newInstance)
+	// Reject ListType and StructType - they should not use this mapper
+	if _, isListType := arrowType.ArrowDataType.(*arrow.ListType); isListType {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+	if _, isStructType := arrowType.ArrowDataType.(*arrow.StructType); isStructType {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+
+	// Create inner type with Nullable=false
+	innerType := arrowType.Copy()
+	innerType.Nullable = false
+
+	// Map the inner type
+	innerMappedType, err := m.SubMapper.ArrowToWarehouse(innerType)
 	if err != nil {
 		return SpecificClickhouseType{}, err
 	}
 
+	// Create nil-safe wrapper that converts nil to type-specific defaults
+	nilSafeFormatFunc := func(i any, metadata arrow.Metadata) (any, error) {
+		if i == nil {
+			// Convert nil to type-specific default based on Arrow type
+			defaultValue := m.getDefaultValueForType(arrowType.ArrowDataType)
+			return innerMappedType.Format(defaultValue, metadata)
+		}
+		return innerMappedType.Format(i, metadata)
+	}
+
 	return SpecificClickhouseType{
-		TypeAsString: fmt.Sprintf("Nullable(%s)", innerType.TypeAsString),
-		FormatFunc: func(i any, metadata arrow.Metadata) (any, error) {
-			if i == nil {
-				return nil, nil //nolint:nilnil // nil is a valid value for Nullable type in ClickHouse
-			}
-			return innerType.Format(i, metadata)
-		},
+		TypeAsString:         innerMappedType.TypeAsString,
+		ColumnModifiers:      "DEFAULT",
+		DefaultValue:         innerMappedType.DefaultValue,
+		DefaultSQLExpression: innerMappedType.DefaultSQLExpression,
+		FormatFunc:           nilSafeFormatFunc,
 	}, nil
 }
 
-func (m *clickhouseNullableTypeMapper) WarehouseToArrow(
+func (m *clickhouseNullabilityAsDefaultMapper) WarehouseToArrow(
 	warehouseType SpecificClickhouseType,
 ) (warehouse.ArrowType, error) {
-	if !isNullableType(warehouseType.TypeAsString) {
-		return warehouse.ArrowType{}, warehouse.NewUnsupportedMappingErr(warehouseType, ClickhouseMapperName)
-	}
+	// This mapper only handles ArrowToWarehouse direction
+	// WarehouseToArrow is handled by the regular mappers
+	return warehouse.ArrowType{}, warehouse.NewUnsupportedMappingErr(warehouseType, ClickhouseMapperName)
+}
 
-	// Extract inner type from Nullable(InnerType)
-	innerTypeStr := extractNullableInnerType(warehouseType.TypeAsString)
-
-	// ClickHouse doesn't support nullable arrays or nested types - reject them
-	if isArrayType(innerTypeStr) || isNestedType(innerTypeStr) {
-		return warehouse.ArrowType{}, warehouse.NewUnsupportedMappingErr(warehouseType, ClickhouseMapperName)
-	}
-
-	innerType := SpecificClickhouseType{TypeAsString: innerTypeStr}
-
-	// Map the inner type back to Arrow
-	innerArrowType, err := m.SubMapper.WarehouseToArrow(innerType)
+// getDefaultValueForType returns the Go-level default value for a given Arrow type
+// by using the type mapper to get the mapped type's DefaultValue
+func (m *clickhouseNullabilityAsDefaultMapper) getDefaultValueForType(dataType arrow.DataType) any {
+	arrowType := warehouse.ArrowType{ArrowDataType: dataType, Nullable: false}
+	chType, err := m.SubMapper.ArrowToWarehouse(arrowType)
 	if err != nil {
-		return warehouse.ArrowType{}, err
+		return nil
 	}
-	innerArrowType.Nullable = true
-	return innerArrowType, nil
+	return chType.DefaultValue
 }
 
 var clickhouseBool = SpecificClickhouseType{
-	TypeAsString: "Bool",
+	TypeAsString:         "Bool",
+	DefaultValue:         false,
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		return i, nil
 	},
 }
 
 var clickhouseString = SpecificClickhouseType{
-	TypeAsString: "String",
+	TypeAsString:         "String",
+	DefaultValue:         "",
+	DefaultSQLExpression: "''",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		iAsStr, ok := i.(string)
 		if !ok {
@@ -620,7 +655,9 @@ var clickhouseString = SpecificClickhouseType{
 }
 
 var clickhouseInt64 = SpecificClickhouseType{
-	TypeAsString: "Int64",
+	TypeAsString:         "Int64",
+	DefaultValue:         int64(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case int64:
@@ -636,7 +673,9 @@ var clickhouseInt64 = SpecificClickhouseType{
 }
 
 var clickhouseInt32 = SpecificClickhouseType{
-	TypeAsString: "Int32",
+	TypeAsString:         "Int32",
+	DefaultValue:         int32(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case int32:
@@ -652,7 +691,9 @@ var clickhouseInt32 = SpecificClickhouseType{
 }
 
 var clickhouseFloat64 = SpecificClickhouseType{
-	TypeAsString: "Float64",
+	TypeAsString:         "Float64",
+	DefaultValue:         float64(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case float64:
@@ -666,7 +707,9 @@ var clickhouseFloat64 = SpecificClickhouseType{
 }
 
 var clickhouseFloat32 = SpecificClickhouseType{
-	TypeAsString: "Float32",
+	TypeAsString:         "Float32",
+	DefaultValue:         float32(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case float32:
@@ -680,7 +723,9 @@ var clickhouseFloat32 = SpecificClickhouseType{
 }
 
 var clickhouseDate32 = SpecificClickhouseType{
-	TypeAsString: "Date32",
+	TypeAsString:         "Date32",
+	DefaultValue:         time.Unix(0, 0),
+	DefaultSQLExpression: "'1970-01-01'",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case time.Time:
@@ -756,12 +801,13 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificClickhouseType] {
 		actualMapper: actualNestedMapper,
 	}
 
-	nullableMapper := &clickhouseNullableTypeMapper{SubMapper: deferredMapper}
+	// nullability-as-default mapper converts nullable scalars to DEFAULT instead of Nullable(...)
+	nullabilityAsDefaultMapper := &clickhouseNullabilityAsDefaultMapper{SubMapper: deferredMapper}
 
 	complexMappers := []warehouse.FieldTypeMapper[SpecificClickhouseType]{
 		arrayMapper,
 		restrictedNestedMapper,
-		nullableMapper,
+		nullabilityAsDefaultMapper,
 	}
 
 	comprehensiveMapper = warehouse.NewTypeMapper(append(complexMappers, baseMappers...))

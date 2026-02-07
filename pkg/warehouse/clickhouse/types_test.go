@@ -19,11 +19,10 @@ type BaseTestCase struct {
 // TypeMappingTestCase contains all data needed for type mapping tests
 type TypeMappingTestCase struct {
 	BaseTestCase
-	arrowType         warehouse.ArrowType
-	expectedCHType    string
-	customMapper      warehouse.FieldTypeMapper[SpecificClickhouseType] // for special cases
-	useNestedMapper   bool                                              // for testing nested mapper directly
-	useNullableMapper bool                                              // for testing nullable mapper directly
+	arrowType       warehouse.ArrowType
+	expectedCHType  string
+	customMapper    warehouse.FieldTypeMapper[SpecificClickhouseType] // for special cases
+	useNestedMapper bool                                              // for testing nested mapper directly
 }
 
 func getTestCases() []TypeMappingTestCase {
@@ -149,51 +148,6 @@ func getTestCases() []TypeMappingTestCase {
 		},
 		{
 			BaseTestCase: BaseTestCase{
-				name:        "nullable string",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.BinaryTypes.String, Nullable: true},
-			expectedCHType:    "Nullable(String)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
-				name:        "nullable int32",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.PrimitiveTypes.Int32, Nullable: true},
-			expectedCHType:    "Nullable(Int32)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
-				name:        "nullable int64",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.PrimitiveTypes.Int64, Nullable: true},
-			expectedCHType:    "Nullable(Int64)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
-				name:        "nullable float32",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.PrimitiveTypes.Float32, Nullable: true},
-			expectedCHType:    "Nullable(Float32)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
-				name:        "nullable bool",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.FixedWidthTypes.Boolean, Nullable: true},
-			expectedCHType:    "Nullable(Bool)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
 				name:        "complex nested with arrays",
 				expectError: true,
 			},
@@ -238,7 +192,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "value", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(key Nullable(String), value Nullable(Int64))",
+			expectedCHType: "Nested(key String, value Int64)",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -253,7 +207,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(id Int32, score Nullable(Float64), active Nullable(Bool), name Nullable(String))",
+			expectedCHType: "Nested(id Int32, score Float64, active Bool, name String)",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -266,7 +220,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: false},
 				)),
 			},
-			expectedCHType: "Nested(event_name Nullable(String), timestamp DateTime64(0))",
+			expectedCHType: "Nested(event_name String, timestamp DateTime64(0))",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -284,8 +238,8 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "timestamp_field", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: false},
 				)),
 			},
-			expectedCHType: "Nested(str_field Nullable(String), int32_field Int32, int64_field Int64, " +
-				"float32_field Nullable(Float32), float64_field Nullable(Float64), bool_field Nullable(Bool), " +
+			expectedCHType: "Nested(str_field String, int32_field Int32, int64_field Int64, " +
+				"float32_field Float32, float64_field Float64, bool_field Bool, " +
 				"timestamp_field DateTime64(0))",
 		},
 
@@ -385,15 +339,6 @@ func getTestCases() []TypeMappingTestCase {
 		},
 		{
 			BaseTestCase: BaseTestCase{
-				name:        "nullable date32",
-				expectError: false,
-			},
-			arrowType:         warehouse.ArrowType{ArrowDataType: arrow.FixedWidthTypes.Date32, Nullable: true},
-			expectedCHType:    "Nullable(Date32)",
-			useNullableMapper: true,
-		},
-		{
-			BaseTestCase: BaseTestCase{
 				name:        "array of date32",
 				expectError: false,
 			},
@@ -412,7 +357,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "birth_date", Type: arrow.FixedWidthTypes.Date32, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(name Nullable(String), score Nullable(Float64), birth_date Nullable(Date32))",
+			expectedCHType: "Nested(name String, score Float64, birth_date Date32)",
 		},
 	}
 }
@@ -430,8 +375,6 @@ func TestArrowToWarehouse(t *testing.T) {
 				mapper = &clickhouseArrayTypeMapper{SubMapper: tc.customMapper}
 			case tc.useNestedMapper:
 				mapper = newClickhouseNestedTypeMapper(NewFieldTypeMapper())
-			case tc.useNullableMapper:
-				mapper = &clickhouseNullableTypeMapper{SubMapper: NewFieldTypeMapper()}
 			default:
 				mapper = NewFieldTypeMapper()
 			}
@@ -463,13 +406,7 @@ func TestWarehouseToArrow(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			var mapper warehouse.FieldTypeMapper[SpecificClickhouseType]
-
-			if tc.useNullableMapper {
-				mapper = &clickhouseNullableTypeMapper{SubMapper: NewFieldTypeMapper()}
-			} else {
-				mapper = NewFieldTypeMapper()
-			}
+			mapper := NewFieldTypeMapper()
 
 			// First create the CH type from Arrow type
 			chType, err := mapper.ArrowToWarehouse(tc.arrowType)
@@ -495,13 +432,7 @@ func TestRoundTripMapping(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			var mapper warehouse.FieldTypeMapper[SpecificClickhouseType]
-
-			if tc.useNullableMapper {
-				mapper = &clickhouseNullableTypeMapper{SubMapper: NewFieldTypeMapper()}
-			} else {
-				mapper = NewFieldTypeMapper()
-			}
+			mapper := NewFieldTypeMapper()
 
 			// when - Arrow to ClickHouse
 			chType, err := mapper.ArrowToWarehouse(tc.arrowType)

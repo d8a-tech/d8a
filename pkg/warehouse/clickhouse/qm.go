@@ -91,5 +91,9 @@ func (q *clickhouseQueryMapper) Field(field *arrow.Field) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Append column modifiers (e.g., "DEFAULT") if present
+	if fieldType.ColumnModifiers != "" && fieldType.DefaultSQLExpression != "" {
+		return fmt.Sprintf("%s DEFAULT %s", fieldType.TypeAsString, fieldType.DefaultSQLExpression), nil
+	}
 	return fieldType.TypeAsString, nil
 }
