@@ -846,6 +846,30 @@ func TestComplexWrites(t *testing.T, driver warehouse.Driver, tableName string) 
 			}()},
 		},
 		{
+			name:    "valid_row_with_nested_object_missing_keys",
+			success: true,
+			rows: []map[string]any{func() map[string]any {
+				theCopy := maps.Clone(validRow)
+				theCopy["tags"] = []any{"mobile", "analytics"}
+				theCopy["metrics"] = []any{2.3, 4.7}
+				theCopy["properties"] = []any{
+					map[string]any{
+						"key": "foo",
+						// "value" key is entirely missing
+					},
+					map[string]any{
+						// "key" is entirely missing
+						"value": "bar",
+					},
+					map[string]any{
+						"key":   "baz",
+						"value": "qux",
+					},
+				}
+				return theCopy
+			}()},
+		},
+		{
 			name:    "missing_single_non_nullable_column",
 			success: false,
 			rows: []map[string]any{func() map[string]any {

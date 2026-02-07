@@ -28,7 +28,14 @@ func (p *cachingDeviceParser) GetFullInfo(ua string, ch *clienthints.ClientHints
 	if ok {
 		return item
 	}
-	result := detector.GetInfoFromUserAgent(p.dd, ua, ch)
+	parseResult := p.dd.Parse(ua, ch)
+	result := parseResult.GetFullInfo()
+	if parseResult.IsBot() {
+		bot := parseResult.GetBot()
+		result.Device.Type = "bot"
+		result.Device.Brand = bot.Name
+		result.Device.Model = bot.URL
+	}
 	p.cache.SetWithTTL(cacheKey, result, 1, time.Second*30)
 	return result
 }
