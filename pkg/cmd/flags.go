@@ -139,6 +139,20 @@ var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "",
 }
 
+var clickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-order-by",
+	Usage:   "Comma-separated list of columns for ORDER BY clause (e.g., 'property_id,date_utc'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "clickhouse.order_by"),
+	Value:   "property_id,name,date_utc",
+}
+
+var clickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "clickhouse-partition-by",
+	Usage:   "Expression for PARTITION BY clause (e.g., 'toYYYYMM(date_utc)'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PARTITION_BY", "clickhouse.partition_by"),
+	Value:   "toYYYYMM(date_utc)",
+}
+
 // BigQuery flags
 var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "bigquery-project-id",
@@ -302,6 +316,8 @@ var warehouseConfigFlags = []cli.Flag{
 	clickhouseDatabaseFlag,
 	clickhouseUsernameFlag,
 	clickhousePasswordFlag,
+	clickhouseOrderByFlag,
+	clickhousePartitionByFlag,
 	bigQueryProjectIDFlag,
 	bigQueryDatasetNameFlag,
 	bigQueryCredsJSONFlag,

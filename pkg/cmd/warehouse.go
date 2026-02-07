@@ -201,12 +201,34 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		MaxCompressionBuffer: 10240,
 	}
 
+	// Build ClickHouse driver options from flags
+	var opts []whClickhouse.Options
+	orderByStr := strings.TrimSpace(cmd.String(clickhouseOrderByFlag.Name))
+	if orderByStr != "" {
+		orderByParts := strings.Split(orderByStr, ",")
+		orderBy := make([]string, 0, len(orderByParts))
+		for _, part := range orderByParts {
+			trimmed := strings.TrimSpace(part)
+			if trimmed != "" {
+				orderBy = append(orderBy, trimmed)
+			}
+		}
+		if len(orderBy) > 0 {
+			opts = append(opts, whClickhouse.WithOrderBy(orderBy))
+		}
+	}
+
+	partitionByStr := strings.TrimSpace(cmd.String(clickhousePartitionByFlag.Name))
+	if partitionByStr != "" {
+		opts = append(opts, whClickhouse.WithPartitionBy(partitionByStr))
+	}
+
 	return warehouse.NewStaticBatchedDriverRegistry(
 		ctx,
 		whClickhouse.NewClickHouseTableDriver(
 			options,
 			database,
-			whClickhouse.WithOrderBy([]string{"id"}),
+			opts...,
 		),
 	)
 }
