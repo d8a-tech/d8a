@@ -91,5 +91,33 @@ func (q *clickhouseQueryMapper) Field(field *arrow.Field) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Append column modifiers (e.g., "DEFAULT") if present
+	if fieldType.ColumnModifiers != "" {
+		// For DEFAULT modifier, we need to provide explicit default values based on type
+		defaultExpr := q.getDefaultExpression(field.Type)
+		return fmt.Sprintf("%s DEFAULT %s", fieldType.TypeAsString, defaultExpr), nil
+	}
 	return fieldType.TypeAsString, nil
+}
+
+// getDefaultExpression returns the explicit default expression for a given Arrow type
+// ClickHouse requires explicit default values when using DEFAULT modifier
+func (q *clickhouseQueryMapper) getDefaultExpression(dataType arrow.DataType) string {
+	switch dataType {
+	case arrow.BinaryTypes.String:
+		return "''"
+	case arrow.FixedWidthTypes.Boolean:
+		return "0"
+	case arrow.PrimitiveTypes.Int32, arrow.PrimitiveTypes.Int64:
+		return "0"
+	case arrow.PrimitiveTypes.Float32, arrow.PrimitiveTypes.Float64:
+		return "0"
+	case arrow.FixedWidthTypes.Timestamp_s:
+		return "'1970-01-01 00:00:00'"
+	case arrow.FixedWidthTypes.Date32:
+		return "'1970-01-01'"
+	default:
+		// Fallback for unknown types
+		return "''"
+	}
 }

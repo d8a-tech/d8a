@@ -15,8 +15,9 @@ const ClickhouseMapperName = "clickhouse"
 
 // SpecificClickhouseType represents a ClickHouse data type with its string representation and formatting function
 type SpecificClickhouseType struct {
-	TypeAsString string
-	FormatFunc   func(i any, m arrow.Metadata) (any, error)
+	TypeAsString    string
+	ColumnModifiers string // e.g., "DEFAULT" for nullable fields stored as NOT NULL with DEFAULT
+	FormatFunc      func(i any, m arrow.Metadata) (any, error)
 }
 
 // Format formats a value according to the ClickHouse type's formatting function
@@ -320,14 +321,20 @@ func (m *clickhouseArrayTypeMapper) formatNestedArray(
 			return nil, fmt.Errorf("expected map[string]any for nested type element, got %T", record)
 		}
 
+		// Always populate every struct field (missing or nil values will be converted to defaults)
 		for idx, field := range structType.Fields() {
-			if value, exists := record[field.Name]; exists {
-				formatted, err := fieldTypes[idx].Format(value, metadata)
-				if err != nil {
-					return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
-				}
-				recordMap[field.Name] = formatted
+			var value any
+			var exists bool
+			if value, exists = record[field.Name]; !exists {
+				value = nil // Missing field - pass nil to formatter
 			}
+			// If value exists but is nil, also pass nil to formatter
+			// The nullability-as-default wrapper will convert nil to the correct default
+			formatted, err := fieldTypes[idx].Format(value, metadata)
+			if err != nil {
+				return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
+			}
+			recordMap[field.Name] = formatted
 		}
 		result = append(result, recordMap)
 	}
@@ -461,14 +468,20 @@ func (m *clickhouseNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowT
 					return nil, fmt.Errorf("expected map[string]any for nested type, got %T", i)
 				}
 
+				// Always populate every struct field (missing or nil values will be converted to defaults)
 				for idx, field := range structType.Fields() {
-					if value, exists := record[field.Name]; exists {
-						formatted, err := fieldTypes[idx].Format(value, metadata)
-						if err != nil {
-							return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
-						}
-						recordMap[field.Name] = formatted
+					var value any
+					var exists bool
+					if value, exists = record[field.Name]; !exists {
+						value = nil // Missing field - pass nil to formatter
 					}
+					// If value exists but is nil, also pass nil to formatter
+					// The nullability-as-default wrapper will convert nil to the correct default
+					formatted, err := fieldTypes[idx].Format(value, metadata)
+					if err != nil {
+						return nil, fmt.Errorf("error formatting field %s: %w", field.Name, err)
+					}
+					recordMap[field.Name] = formatted
 				}
 				result = append(result, recordMap)
 			}
@@ -538,6 +551,87 @@ func newClickhouseNestedTypeMapper(
 	return &clickhouseNestedTypeMapper{
 		parser:    &clickhouseParser{},
 		SubMapper: subMapper,
+	}
+}
+
+// clickhouseNullabilityAsDefaultMapper converts nullable Arrow fields to NOT NULL with DEFAULT
+// This avoids Nullable storage overhead in ClickHouse while preserving semantic nullability
+type clickhouseNullabilityAsDefaultMapper struct {
+	SubMapper warehouse.FieldTypeMapper[SpecificClickhouseType]
+}
+
+func (m *clickhouseNullabilityAsDefaultMapper) ArrowToWarehouse(arrowType warehouse.ArrowType) (SpecificClickhouseType, error) {
+	// Only handle nullable scalar types (not arrays/structs)
+	if !arrowType.Nullable {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+
+	// Reject ListType and StructType - they should not use this mapper
+	if _, isListType := arrowType.ArrowDataType.(*arrow.ListType); isListType {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+	if _, isStructType := arrowType.ArrowDataType.(*arrow.StructType); isStructType {
+		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
+	}
+
+	// Create inner type with Nullable=false
+	innerType := arrowType.Copy()
+	innerType.Nullable = false
+
+	// Map the inner type
+	innerMappedType, err := m.SubMapper.ArrowToWarehouse(innerType)
+	if err != nil {
+		return SpecificClickhouseType{}, err
+	}
+
+	// Create nil-safe wrapper that converts nil to type-specific defaults
+	nilSafeFormatFunc := func(i any, metadata arrow.Metadata) (any, error) {
+		if i == nil {
+			// Convert nil to type-specific default based on Arrow type
+			defaultValue := m.getDefaultValueForType(arrowType.ArrowDataType)
+			return innerMappedType.Format(defaultValue, metadata)
+		}
+		return innerMappedType.Format(i, metadata)
+	}
+
+	return SpecificClickhouseType{
+		TypeAsString:    innerMappedType.TypeAsString,
+		ColumnModifiers: "DEFAULT",
+		FormatFunc:      nilSafeFormatFunc,
+	}, nil
+}
+
+func (m *clickhouseNullabilityAsDefaultMapper) WarehouseToArrow(
+	warehouseType SpecificClickhouseType,
+) (warehouse.ArrowType, error) {
+	// This mapper only handles ArrowToWarehouse direction
+	// WarehouseToArrow is handled by the regular mappers
+	return warehouse.ArrowType{}, warehouse.NewUnsupportedMappingErr(warehouseType, ClickhouseMapperName)
+}
+
+// getDefaultValueForType returns the Go-level default value for a given Arrow type
+func (m *clickhouseNullabilityAsDefaultMapper) getDefaultValueForType(dataType arrow.DataType) any {
+	switch dataType {
+	case arrow.BinaryTypes.String:
+		return ""
+	case arrow.FixedWidthTypes.Boolean:
+		return false
+	case arrow.PrimitiveTypes.Int32:
+		return int32(0)
+	case arrow.PrimitiveTypes.Int64:
+		return int64(0)
+	case arrow.PrimitiveTypes.Float32:
+		return float32(0)
+	case arrow.PrimitiveTypes.Float64:
+		return float64(0)
+	case arrow.FixedWidthTypes.Timestamp_s:
+		return time.Unix(0, 0)
+	case arrow.FixedWidthTypes.Date32:
+		return time.Unix(0, 0)
+	default:
+		// Fallback: return nil and let the formatter handle it
+		// This should not happen for supported types
+		return nil
 	}
 }
 
@@ -756,11 +850,15 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificClickhouseType] {
 		actualMapper: actualNestedMapper,
 	}
 
+	// nullability-as-default mapper must come BEFORE nullable mapper
+	// so nullable scalars are converted to DEFAULT instead of Nullable(...)
+	nullabilityAsDefaultMapper := &clickhouseNullabilityAsDefaultMapper{SubMapper: deferredMapper}
 	nullableMapper := &clickhouseNullableTypeMapper{SubMapper: deferredMapper}
 
 	complexMappers := []warehouse.FieldTypeMapper[SpecificClickhouseType]{
 		arrayMapper,
 		restrictedNestedMapper,
+		nullabilityAsDefaultMapper, // Must be before nullableMapper
 		nullableMapper,
 	}
 

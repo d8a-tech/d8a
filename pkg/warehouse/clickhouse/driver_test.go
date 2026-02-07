@@ -21,7 +21,7 @@ import (
 const ClickHouseCreateTableQuery = `CREATE TABLE testdb.analytics_events (
 	id String,
 	user_id Int64,
-	timestamp Nullable(DateTime64(0)),
+	timestamp DateTime64(0) DEFAULT '1970-01-01 00:00:00',
 	event_type String,
 	session_id String,
 	is_active Bool,
@@ -32,10 +32,10 @@ const ClickHouseCreateTableQuery = `CREATE TABLE testdb.analytics_events (
 	tags Array(String),
 	metrics Array(Float64),
 	properties Nested(
-		key Nullable(String),
-		value Nullable(String)
+		key String,
+		value String
 	  ),
-	  created_date Nullable(Date32)
+	  created_date Date32 DEFAULT '1970-01-01'
   ) ENGINE = MergeTree()
   PARTITION BY toYYYYMM(timestamp)
   ORDER BY (event_type, user_id, timestamp)

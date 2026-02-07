@@ -122,7 +122,7 @@ func (d *clickhouseDriver) columns(ctx context.Context, table string) ([]*arrow.
 	defer cancel()
 
 	query := `
-		SELECT name, type 
+		SELECT name, type, default_kind, default_expression
 		FROM system.columns 
 		WHERE database = ? AND table = ?
 	`
@@ -142,8 +142,8 @@ func (d *clickhouseDriver) columns(ctx context.Context, table string) ([]*arrow.
 
 	for rows.Next() {
 		hasRows = true
-		var columnName, columnType string
-		if err := rows.Scan(&columnName, &columnType); err != nil {
+		var columnName, columnType, defaultKind, defaultExpression string
+		if err := rows.Scan(&columnName, &columnType, &defaultKind, &defaultExpression); err != nil {
 			return nil, err
 		}
 
@@ -151,6 +151,14 @@ func (d *clickhouseDriver) columns(ctx context.Context, table string) ([]*arrow.
 		arrowType, err := d.fieldTypeMapper.WarehouseToArrow(anyType(columnType))
 		if err != nil {
 			return nil, err
+		}
+
+		// If the column is physically NOT NULL but has a default expression,
+		// we treat it as semantically nullable for D8A's schema abstraction.
+		// This is the "semantic NULL via DEFAULT" approach.
+		if !arrowType.Nullable && defaultKind == "DEFAULT" {
+			arrowType.Nullable = true
+			// No custom metadata needed - defaults are only used for semantic nullability
 		}
 
 		// Create Arrow field
@@ -310,7 +318,18 @@ func (d *clickhouseDriver) areFieldsCompatible(existing, input *arrow.Field) (bo
 	_, existingIsArray := existing.Type.(*arrow.ListType)
 	_, inputIsArray := input.Type.(*arrow.ListType)
 
-	if !existingIsArray && !inputIsArray && existing.Nullable != input.Nullable {
+	// For scalar types (non-List, non-Struct), allow nullability differences
+	// Rationale: ClickHouse nullability is a physical optimization; semantic-nullability
+	// is represented via DEFAULT and/or Arrow schema. This prevents false negatives during
+	// migration windows (existing tables may still use Nullable(T) while new DDL uses T DEFAULT).
+	_, existingIsStruct := existing.Type.(*arrow.StructType)
+	_, inputIsStruct := input.Type.(*arrow.StructType)
+
+	if !existingIsArray && !inputIsArray && !existingIsStruct && !inputIsStruct {
+		// Both are scalars - allow nullability differences
+		// (existing.Nullable != input.Nullable is OK for scalars)
+	} else if !existingIsArray && !inputIsArray && existing.Nullable != input.Nullable {
+		// For non-scalar types, still enforce strict nullability matching
 		return false, fmt.Errorf("nullability differs - existing: %t, input: %t", existing.Nullable, input.Nullable)
 	}
 
