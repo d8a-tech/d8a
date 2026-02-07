@@ -15,9 +15,11 @@ const ClickhouseMapperName = "clickhouse"
 
 // SpecificClickhouseType represents a ClickHouse data type with its string representation and formatting function
 type SpecificClickhouseType struct {
-	TypeAsString    string
-	ColumnModifiers string // e.g., "DEFAULT" for nullable fields stored as NOT NULL with DEFAULT
-	FormatFunc      func(i any, m arrow.Metadata) (any, error)
+	TypeAsString         string
+	ColumnModifiers      string // e.g., "DEFAULT" for nullable fields stored as NOT NULL with DEFAULT
+	DefaultValue         any    // Go-level default value for this type (nil if not applicable)
+	DefaultSQLExpression string // SQL expression for DEFAULT clause (e.g., "''", "0", "'1970-01-01'")
+	FormatFunc           func(i any, m arrow.Metadata) (any, error)
 }
 
 // Format formats a value according to the ClickHouse type's formatting function
@@ -133,7 +135,9 @@ func (m *clickhouseTimestampTypeMapper) ArrowToWarehouse(
 ) (SpecificClickhouseType, error) {
 	if arrowType.ArrowDataType == arrow.FixedWidthTypes.Timestamp_s {
 		return SpecificClickhouseType{
-			TypeAsString: fmt.Sprintf("DateTime64(%s)", PrecisionMetadataValueSecond),
+			TypeAsString:         fmt.Sprintf("DateTime64(%s)", PrecisionMetadataValueSecond),
+			DefaultValue:         time.Unix(0, 0),
+			DefaultSQLExpression: "'1970-01-01 00:00:00'",
 			FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 				switch v := i.(type) {
 				case int32:
@@ -560,7 +564,9 @@ type clickhouseNullabilityAsDefaultMapper struct {
 	SubMapper warehouse.FieldTypeMapper[SpecificClickhouseType]
 }
 
-func (m *clickhouseNullabilityAsDefaultMapper) ArrowToWarehouse(arrowType warehouse.ArrowType) (SpecificClickhouseType, error) {
+func (m *clickhouseNullabilityAsDefaultMapper) ArrowToWarehouse(
+	arrowType warehouse.ArrowType,
+) (SpecificClickhouseType, error) {
 	// Only handle nullable scalar types (not arrays/structs)
 	if !arrowType.Nullable {
 		return SpecificClickhouseType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, ClickhouseMapperName)
@@ -595,9 +601,11 @@ func (m *clickhouseNullabilityAsDefaultMapper) ArrowToWarehouse(arrowType wareho
 	}
 
 	return SpecificClickhouseType{
-		TypeAsString:    innerMappedType.TypeAsString,
-		ColumnModifiers: "DEFAULT",
-		FormatFunc:      nilSafeFormatFunc,
+		TypeAsString:         innerMappedType.TypeAsString,
+		ColumnModifiers:      "DEFAULT",
+		DefaultValue:         innerMappedType.DefaultValue,
+		DefaultSQLExpression: innerMappedType.DefaultSQLExpression,
+		FormatFunc:           nilSafeFormatFunc,
 	}, nil
 }
 
@@ -610,29 +618,14 @@ func (m *clickhouseNullabilityAsDefaultMapper) WarehouseToArrow(
 }
 
 // getDefaultValueForType returns the Go-level default value for a given Arrow type
+// by using the type mapper to get the mapped type's DefaultValue
 func (m *clickhouseNullabilityAsDefaultMapper) getDefaultValueForType(dataType arrow.DataType) any {
-	switch dataType {
-	case arrow.BinaryTypes.String:
-		return ""
-	case arrow.FixedWidthTypes.Boolean:
-		return false
-	case arrow.PrimitiveTypes.Int32:
-		return int32(0)
-	case arrow.PrimitiveTypes.Int64:
-		return int64(0)
-	case arrow.PrimitiveTypes.Float32:
-		return float32(0)
-	case arrow.PrimitiveTypes.Float64:
-		return float64(0)
-	case arrow.FixedWidthTypes.Timestamp_s:
-		return time.Unix(0, 0)
-	case arrow.FixedWidthTypes.Date32:
-		return time.Unix(0, 0)
-	default:
-		// Fallback: return nil and let the formatter handle it
-		// This should not happen for supported types
+	arrowType := warehouse.ArrowType{ArrowDataType: dataType, Nullable: false}
+	chType, err := m.SubMapper.ArrowToWarehouse(arrowType)
+	if err != nil {
 		return nil
 	}
+	return chType.DefaultValue
 }
 
 type clickhouseNullableTypeMapper struct {
@@ -696,14 +689,18 @@ func (m *clickhouseNullableTypeMapper) WarehouseToArrow(
 }
 
 var clickhouseBool = SpecificClickhouseType{
-	TypeAsString: "Bool",
+	TypeAsString:         "Bool",
+	DefaultValue:         false,
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		return i, nil
 	},
 }
 
 var clickhouseString = SpecificClickhouseType{
-	TypeAsString: "String",
+	TypeAsString:         "String",
+	DefaultValue:         "",
+	DefaultSQLExpression: "''",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		iAsStr, ok := i.(string)
 		if !ok {
@@ -714,7 +711,9 @@ var clickhouseString = SpecificClickhouseType{
 }
 
 var clickhouseInt64 = SpecificClickhouseType{
-	TypeAsString: "Int64",
+	TypeAsString:         "Int64",
+	DefaultValue:         int64(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case int64:
@@ -730,7 +729,9 @@ var clickhouseInt64 = SpecificClickhouseType{
 }
 
 var clickhouseInt32 = SpecificClickhouseType{
-	TypeAsString: "Int32",
+	TypeAsString:         "Int32",
+	DefaultValue:         int32(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case int32:
@@ -746,7 +747,9 @@ var clickhouseInt32 = SpecificClickhouseType{
 }
 
 var clickhouseFloat64 = SpecificClickhouseType{
-	TypeAsString: "Float64",
+	TypeAsString:         "Float64",
+	DefaultValue:         float64(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case float64:
@@ -760,7 +763,9 @@ var clickhouseFloat64 = SpecificClickhouseType{
 }
 
 var clickhouseFloat32 = SpecificClickhouseType{
-	TypeAsString: "Float32",
+	TypeAsString:         "Float32",
+	DefaultValue:         float32(0),
+	DefaultSQLExpression: "0",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case float32:
@@ -774,7 +779,9 @@ var clickhouseFloat32 = SpecificClickhouseType{
 }
 
 var clickhouseDate32 = SpecificClickhouseType{
-	TypeAsString: "Date32",
+	TypeAsString:         "Date32",
+	DefaultValue:         time.Unix(0, 0),
+	DefaultSQLExpression: "'1970-01-01'",
 	FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 		switch v := i.(type) {
 		case time.Time:
