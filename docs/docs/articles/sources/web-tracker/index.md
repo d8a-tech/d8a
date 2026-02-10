@@ -74,6 +74,10 @@ By default, `send_page_view` is enabled, so the tracker will send a `page_view`.
   - Example (Self-Hosted): `https://example.org/d/c`
 - For all available options, see [Configuration](configuration.md).
 
+::::note
+The web tracker also works when the GA4 tracking protocol is enabled. This is useful if you originally redirected GA4 traffic to d8a and now want to continue sending data to the same property using the web tracker. In that case, you need to change the endpoint from `/d/c` to `/g/collect`.
+::::
+
 ## Events
 
 The tracker supports sending events using `d8a('event', '<event_name>', { ... })`. Here are some of the most commonly used events:
