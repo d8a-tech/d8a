@@ -31,12 +31,15 @@ sessions:
 
 warehouse:
   driver: clickhouse
+
 clickhouse:
   host: clickhouse
   port: "9000"
   database: d8a
   username: default
   password: "verySecuredD8aDatabase"
+
+protocol: ga4 # Set to 'd8a' when using the d8a web tracker and the /d/c endpoint
 EOF
 ```
 
