@@ -310,9 +310,9 @@ var protocolFlag *cli.StringFlag = &cli.StringFlag{
 
 var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "telemetry-url",
-	Usage:   "Telemetry endpoint URL for sending usage events. Fully anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
+	Usage:   "Telemetry endpoint URL for sending usage events. Anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("TELEMETRY_URL", "telemetry.url"),
-	Value:   "",
+	Value:   "https://global.t.d8a.tech/28b4fbc6-a4d0-49c4-883f-58314f83416e/g/collect",
 }
 
 var warehouseConfigFlags = []cli.Flag{
