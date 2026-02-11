@@ -49,6 +49,7 @@ func getServerFlags() []cli.Flag {
 			monitoringOTelInsecureFlag,
 			storageBoltDirectoryFlag,
 			storageQueueDirectoryFlag,
+			telemetryURLFlag,
 		},
 		warehouseConfigFlags,
 	)

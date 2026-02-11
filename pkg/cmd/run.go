@@ -27,6 +27,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/storagepublisher"
+	"github.com/d8a-tech/d8a/pkg/telemetry"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
@@ -170,6 +171,32 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							logrus.Errorf("Error shutting down metrics: %v", err)
 						}
 					}()
+
+					// Start telemetry
+					telemetryURL := cmd.String(telemetryURLFlag.Name)
+					if telemetryURL != "" {
+						telemetry.Start(
+							telemetry.WithURL(telemetryURL),
+							telemetry.WithEvent(
+								telemetry.OnStartup,
+								telemetry.SimpleEvent(
+									"app_started",
+									telemetry.ClientIDGeneratedOnStartup(),
+								).WithParam("app_version", telemetry.Raw(version)),
+							),
+							telemetry.WithEvent(
+								telemetry.EveryXHours(24*time.Hour),
+								telemetry.SimpleEvent(
+									"app_running",
+									telemetry.ClientIDGeneratedOnStartup(),
+								).WithParam(
+									"app_version", telemetry.Raw(version),
+								).WithParam(
+									"params_exposure_time", telemetry.NumberOfSecsSinceStarted(),
+								),
+							),
+						)
+					}
 
 					// Set up signal handling
 					sigChan := make(chan os.Signal, 1)
