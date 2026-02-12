@@ -53,13 +53,17 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 
 You can also see the full demo [here](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
-## Running
+## Running d8a
 
-### Production setup (using docker)
+### Cloud
+
+You can use our free Cloud at [app.d8a.tech](https://app.d8a.tech/).
+
+### Local production setup (using docker)
 
 See the [Getting started guide](https://docs.d8a.tech/getting-started).
 
-### Development setup (from source)
+### Local development setup (from source)
 
 1. Run it.
 
