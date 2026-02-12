@@ -17,3 +17,4 @@ monitoring:
 storage:
   bolt_directory: /tmp/
   queue_directory: /tmp/d8a-queue
+  spool_enabled: false # Enable for production
