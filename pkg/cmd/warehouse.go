@@ -68,12 +68,11 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 	}
 
 	// Build credentials from JSON
-	googleCreds, credErr := google.CredentialsFromJSONWithParams(
+	googleCreds, credErr := google.CredentialsFromJSONWithType(
 		ctx,
 		raw,
-		google.CredentialsParams{
-			Scopes: []string{"https://www.googleapis.com/auth/bigquery"},
-		},
+		google.ServiceAccountCredentialsType,
+		"https://www.googleapis.com/auth/bigquery",
 	)
 	if credErr != nil {
 		logrus.Fatalf("failed to parse BigQuery credentials JSON: %v", credErr)
