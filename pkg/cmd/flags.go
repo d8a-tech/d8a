@@ -301,6 +301,27 @@ var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "./queue",
 }
 
+var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "storage-spool-enabled",
+	Usage:   "Enable spooling of sessions to a filesystem-based spool before writing to the warehouse. This can improve performance by deferring the writes to the warehouse.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_SPOOL_ENABLED", "storage.spool_enabled"),
+	Value:   true,
+}
+
+var storageSpoolDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "storage-spool-directory",
+	Usage:   "Directory path where sessions are stored in a filesystem-based spool before being written to the warehouse. This directory acts as a persistent buffer between the session writer and the warehouse.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_SPOOL_DIRECTORY", "storage.spool_directory"),
+	Value:   "./spool",
+}
+
+var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "storage-spool-write-chan-buffer",
+	Usage:   "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_SPOOL_WRITE_CHAN_BUFFER", "storage.spool_write_chan_buffer"),
+	Value:   1000,
+}
+
 var protocolFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "protocol",
 	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4', 'd8a'.",
@@ -334,4 +355,39 @@ var warehouseConfigFlags = []cli.Flag{
 	bigQueryPartitionFieldFlag,
 	bigQueryPartitionIntervalFlag,
 	bigQueryPartitionExpirationDaysFlag,
+}
+
+func getServerFlags() []cli.Flag {
+	return mergeFlags(
+		[]cli.Flag{
+			serverPortFlag,
+			receiverBatchSizeFlag,
+			receiverBatchTimeoutFlag,
+			receiverMaxHitKbytesFlag,
+			sessionsTimeoutFlag,
+			sessionsJoinBySessionStampFlag,
+			sessionsJoinByUserIDFlag,
+			dbipEnabled,
+			dbipDestinationDirectory,
+			dbipDownloadTimeoutFlag,
+			propertyIDFlag,
+			propertyNameFlag,
+			propertySettingsSplitByUserIDFlag,
+			propertySettingsSplitByCampaignFlag,
+			protocolFlag,
+			propertySettingsSplitByTimeSinceFirstEventFlag,
+			propertySettingsSplitByMaxEventsFlag,
+			monitoringEnabledFlag,
+			monitoringOTelEndpointFlag,
+			monitoringOTelExportIntervalFlag,
+			monitoringOTelInsecureFlag,
+			storageBoltDirectoryFlag,
+			storageQueueDirectoryFlag,
+			storageSpoolEnabledFlag,
+			storageSpoolDirectoryFlag,
+			storageSpoolWriteChanBufferFlag,
+			telemetryURLFlag,
+		},
+		warehouseConfigFlags,
+	)
 }

@@ -262,6 +262,34 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						)
 						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySettings(cmd))
 
+						var batchingCleanup func()
+						var consumeErr error
+						defer func() {
+							if batchingCleanup != nil {
+								batchingCleanup()
+							}
+							workerErrChan <- consumeErr
+						}()
+						sessionWriter := sessions.NewSessionWriter(
+							ctx,
+							whr,
+							cr,
+							layoutRegistry,
+							splitterRegistry,
+						)
+						if cmd.Bool(storageSpoolEnabledFlag.Name) {
+							batchedWriter, cleanup, err := sessions.NewBackgroundBatchingWriter(
+								ctx,
+								sessionWriter,
+								sessions.WithSpoolDir(cmd.String(storageSpoolDirectoryFlag.Name)),
+								sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
+							)
+							if err != nil {
+								logrus.Panicf("failed to create session writer: %v", err)
+							}
+							sessionWriter = batchedWriter
+							batchingCleanup = cleanup
+						}
 						w := worker.NewWorker(
 							[]worker.TaskHandler{
 								worker.NewGenericTaskHandler(
@@ -288,13 +316,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 											10,
 											func(_ int) protosessions.Closer {
 												return sessions.NewDirectCloser(
-													sessions.NewSessionWriter(
-														ctx,
-														whr,
-														cr,
-														layoutRegistry,
-														splitterRegistry,
-													),
+													sessionWriter,
 													5*time.Second,
 												)
 											},
@@ -306,7 +328,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							[]worker.Middleware{},
 						)
 
-						if err := workerConsumer.Consume(func(task *worker.Task) error {
+						consumeErr = workerConsumer.Consume(func(task *worker.Task) error {
 							// Check if context is done before processing task
 							select {
 							case <-ctx.Done():
@@ -315,12 +337,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							default:
 								return w.Process(task)
 							}
-						}); err != nil {
-							workerErrChan <- err
-							return
-						}
-
-						workerErrChan <- nil
+						})
 					}()
 
 					// Start server and handle its error

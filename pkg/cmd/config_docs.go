@@ -23,38 +23,6 @@ var (
 	yamlPathRegex = regexp.MustCompile(`yamlValueSource\{[^}]*keyPath:"([^"]+)"[^}]*\}`)
 )
 
-func getServerFlags() []cli.Flag {
-	return mergeFlags(
-		[]cli.Flag{
-			serverPortFlag,
-			receiverBatchSizeFlag,
-			receiverBatchTimeoutFlag,
-			receiverMaxHitKbytesFlag,
-			sessionsTimeoutFlag,
-			sessionsJoinBySessionStampFlag,
-			sessionsJoinByUserIDFlag,
-			dbipEnabled,
-			dbipDestinationDirectory,
-			dbipDownloadTimeoutFlag,
-			propertyIDFlag,
-			propertyNameFlag,
-			propertySettingsSplitByUserIDFlag,
-			propertySettingsSplitByCampaignFlag,
-			protocolFlag,
-			propertySettingsSplitByTimeSinceFirstEventFlag,
-			propertySettingsSplitByMaxEventsFlag,
-			monitoringEnabledFlag,
-			monitoringOTelEndpointFlag,
-			monitoringOTelExportIntervalFlag,
-			monitoringOTelInsecureFlag,
-			storageBoltDirectoryFlag,
-			storageQueueDirectoryFlag,
-			telemetryURLFlag,
-		},
-		warehouseConfigFlags,
-	)
-}
-
 func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 	var name, usage, configKey, envVar, flagType, defaultValue string
 

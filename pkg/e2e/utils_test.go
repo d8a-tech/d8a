@@ -119,6 +119,7 @@ monitoring:
 storage:
   bolt_directory: %s/
   queue_directory: %s/queue
+  spool_enabled: false
 
 server:
   port: %d
