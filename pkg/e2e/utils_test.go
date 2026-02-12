@@ -116,6 +116,9 @@ sessions:
 monitoring:
   enabled: false
 
+telemetry:
+  url: ""
+
 storage:
   bolt_directory: %s/
   queue_directory: %s/queue
