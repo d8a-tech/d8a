@@ -317,7 +317,7 @@ var storageSpoolDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 
 var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "storage-spool-write-chan-buffer",
-	Usage:   "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.",
+	Usage:   "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("STORAGE_SPOOL_WRITE_CHAN_BUFFER", "storage.spool_write_chan_buffer"),
 	Value:   1000,
 }

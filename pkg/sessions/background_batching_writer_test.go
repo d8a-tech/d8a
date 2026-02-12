@@ -250,6 +250,9 @@ func TestCleanupFlushesLvl1ToLvl2AndStops(t *testing.T) {
 	err = writer.Write(sessions1...)
 	require.NoError(t, err)
 
+	// Give the actor time to receive from writeChan and add to lvl1 (Write is fire-and-forget)
+	time.Sleep(100 * time.Millisecond)
+
 	// when
 	// Call cleanup (should flush lvl1 to lvl2, but NOT lvl2 to child)
 	cleanup()
