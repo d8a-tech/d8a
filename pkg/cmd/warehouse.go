@@ -68,9 +68,10 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 	}
 
 	// Build credentials from JSON
-	googleCreds, credErr := google.CredentialsFromJSON(
+	googleCreds, credErr := google.CredentialsFromJSONWithType(
 		ctx,
 		raw,
+		google.ServiceAccount,
 		"https://www.googleapis.com/auth/bigquery",
 	)
 	if credErr != nil {
