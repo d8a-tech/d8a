@@ -68,7 +68,7 @@ var sessionsJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "sessions-join-by-user-id",
 	Usage:   "When enabled, the system will merge proto-sessions that share the same user ID, even if they have different client IDs. This enables cross-device session tracking for authenticated users, allowing hits from different devices or browsers to be grouped into a single session when they share the same authenticated user identifier. Only hits that include a user ID value will participate in this joining behavior.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("SESSIONS_JOIN_BY_USER_ID", "sessions.join_by_user_id"),
-	Value:   false,
+	Value:   true,
 }
 
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
