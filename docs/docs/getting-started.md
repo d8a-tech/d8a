@@ -25,6 +25,7 @@ cat > config.yaml <<EOF
 storage:
   bolt_directory: /storage/
   queue_directory: /storage/d8a-queue
+  spool_directory: /storage/spool
 
 sessions:
   timeout: 10s # Adjust this after the testing phase to a production value
