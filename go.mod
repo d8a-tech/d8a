@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/bigquery v1.73.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.43.0
 	github.com/apache/arrow-go/v18 v18.5.1
-	github.com/archbottle/dd2 v1.0.2
+	github.com/archbottle/dd2 v1.1.0
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/fasthttp/router v1.5.4
 	github.com/fxamacker/cbor/v2 v2.9.0

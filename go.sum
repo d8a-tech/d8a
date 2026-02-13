@@ -46,8 +46,8 @@ github.com/apache/arrow/go/v15 v15.0.2 h1:60IliRbiyTWCWjERBCkO1W4Qun9svcYoZrSLcy
 github.com/apache/arrow/go/v15 v15.0.2/go.mod h1:DGXsR3ajT524njufqf95822i+KTh+yea1jass9YXgjA=
 github.com/apache/thrift v0.22.0 h1:r7mTJdj51TMDe6RtcmNdQxgn9XcyfGDOzegMDRg47uc=
 github.com/apache/thrift v0.22.0/go.mod h1:1e7J/O1Ae6ZQMTYdy9xa3w9k+XHWPfRvdPyJeynQ+/g=
-github.com/archbottle/dd2 v1.0.2 h1:Hwd9OfKGwlWguOA7Nsk4KZwMIuCIuxcumzxyRk88TjM=
-github.com/archbottle/dd2 v1.0.2/go.mod h1:F+hQm7E7TjuuS+ss78rWlDTjh3Gv32hhhTzihqCE9tI=
+github.com/archbottle/dd2 v1.1.0 h1:qEWJwD4yqSQRLhJgzeQAKs44soozqIstxTEIPJjYc5c=
+github.com/archbottle/dd2 v1.1.0/go.mod h1:F+hQm7E7TjuuS+ss78rWlDTjh3Gv32hhhTzihqCE9tI=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=
