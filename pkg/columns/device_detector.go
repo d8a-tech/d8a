@@ -4,6 +4,7 @@ package columns
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/archbottle/dd2/pkg/clienthints"
@@ -66,7 +67,12 @@ func buildDeviceCacheKey(ua string, ch *clienthints.ClientHints) string {
 	return strings.Join(parts, "|")
 }
 
-var deviceDetector = func() deviceParser {
+var (
+	deviceDetectorOnce sync.Once
+	deviceDetector     deviceParser
+)
+
+func initDeviceDetector() {
 	dd, err := detector.New()
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create device detector: %v", err))
@@ -79,16 +85,18 @@ var deviceDetector = func() deviceParser {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create device detector cache: %v", err))
 	}
-	return &cachingDeviceParser{
+	deviceDetector = &cachingDeviceParser{
 		dd:    dd,
 		cache: c,
 	}
-}()
+}
 
 // DeviceFullInfo retrieves device detection FullInfo for an event, using caching
 // to avoid redundant parsing. The result is cached both globally (ristretto) and
 // per-event (metadata) for reuse across multiple columns.
 func DeviceFullInfo(event *schema.Event) (*detector.FullInfo, error) {
+	deviceDetectorOnce.Do(initDeviceDetector)
+
 	// Check cache in metadata
 	cached, ok := event.Metadata["device_detector_full_info"]
 	if ok {
