@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-02-15T16:45:52.109Z */
+/* ga4-duplicator - built 2026-02-15T17:10:38.667Z */
 "use strict";
 (() => {
   // src/version.ts
@@ -41,12 +41,17 @@
                   if (typeof dupBody === "string") {
                     bodyStr = dupBody;
                   } else if (dupBody instanceof Blob) {
-                    originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                      (error) => {
-                        if (ctx.debug)
-                          console.error("gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):", error);
-                      }
-                    );
+                    originalFetch(duplicateUrl, {
+                      method: "POST",
+                      body: dupBody,
+                      keepalive: true
+                    }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):",
+                          error
+                        );
+                    });
                     return;
                   }
                   const lines = bodyStr.split("\n");
@@ -56,26 +61,36 @@
                     if (line) {
                       const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
                       const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                      originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
-                        if (ctx.debug)
-                          console.error("gtm interceptor: error duplicating GET fetch (from convert_to_get):", error);
-                      });
+                      originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
+                        (error) => {
+                          if (ctx.debug)
+                            console.error(
+                              "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                              error
+                            );
+                        }
+                      );
                       sentAny = true;
                     }
                   }
                   if (!sentAny) {
                     originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                       if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating GET fetch (empty body convert_to_get):", error);
+                        console.error(
+                          "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
+                          error
+                        );
                     });
                   }
                 } else {
-                  originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                    (error) => {
-                      if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating POST fetch:", error);
-                    }
-                  );
+                  originalFetch(duplicateUrl, {
+                    method: "POST",
+                    body: dupBody,
+                    keepalive: true
+                  }).catch((error) => {
+                    if (ctx.debug)
+                      console.error("gtm interceptor: error duplicating POST fetch:", error);
+                  });
                 }
               });
             }
@@ -126,7 +141,10 @@
                       const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
                       fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
                         if (ctx.debug)
-                          console.error("gtm interceptor: error duplicating GET xhr (from convert_to_get):", error);
+                          console.error(
+                            "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
+                            error
+                          );
                       });
                       sentAny = true;
                     }
@@ -134,7 +152,10 @@
                   if (!sentAny) {
                     fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                       if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating GET xhr (empty body convert_to_get):", error);
+                        console.error(
+                          "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
+                          error
+                        );
                     });
                   }
                 } else {
@@ -185,7 +206,10 @@
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
                     fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
                       if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating GET beacon (from convert_to_get):", error);
+                        console.error(
+                          "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
+                          error
+                        );
                     });
                     sentAny = true;
                   }
@@ -193,7 +217,10 @@
                 if (!sentAny) {
                   fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                     if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating GET beacon (empty body convert_to_get):", error);
+                      console.error(
+                        "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
+                        error
+                      );
                   });
                 }
               } else {

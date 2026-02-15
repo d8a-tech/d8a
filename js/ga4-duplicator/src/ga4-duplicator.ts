@@ -89,12 +89,17 @@ interface GA4DuplicatorOptions {
                   bodyStr = dupBody;
                 } else if (dupBody instanceof Blob) {
                   // For blob, we can't easily convert synchronously, so fall back to POST
-                  originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                    (error) => {
-                      if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):", error);
-                    },
-                  );
+                  originalFetch(duplicateUrl, {
+                    method: "POST",
+                    body: dupBody,
+                    keepalive: true,
+                  }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):",
+                        error,
+                      );
+                  });
                   return;
                 }
 
@@ -105,10 +110,15 @@ interface GA4DuplicatorOptions {
                   if (line) {
                     const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                    originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
-                      if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating GET fetch (from convert_to_get):", error);
-                    });
+                    originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
+                      (error) => {
+                        if (ctx.debug)
+                          console.error(
+                            "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                            error,
+                          );
+                      },
+                    );
                     sentAny = true;
                   }
                 }
@@ -117,17 +127,22 @@ interface GA4DuplicatorOptions {
                 if (!sentAny) {
                   originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                     if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating GET fetch (empty body convert_to_get):", error);
+                      console.error(
+                        "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
+                        error,
+                      );
                   });
                 }
               } else {
                 // Original POST duplication
-                originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                  (error) => {
-                    if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating POST fetch:", error);
-                  },
-                );
+                originalFetch(duplicateUrl, {
+                  method: "POST",
+                  body: dupBody,
+                  keepalive: true,
+                }).catch((error) => {
+                  if (ctx.debug)
+                    console.error("gtm interceptor: error duplicating POST fetch:", error);
+                });
               }
             });
           }
@@ -193,7 +208,10 @@ interface GA4DuplicatorOptions {
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
                     fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
                       if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating GET xhr (from convert_to_get):", error);
+                        console.error(
+                          "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
+                          error,
+                        );
                     });
                     sentAny = true;
                   }
@@ -203,7 +221,10 @@ interface GA4DuplicatorOptions {
                 if (!sentAny) {
                   fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                     if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating GET xhr (empty body convert_to_get):", error);
+                      console.error(
+                        "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
+                        error,
+                      );
                   });
                 }
               } else {
@@ -264,7 +285,10 @@ interface GA4DuplicatorOptions {
                   const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
                   fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
                     if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating GET beacon (from convert_to_get):", error);
+                      console.error(
+                        "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
+                        error,
+                      );
                   });
                   sentAny = true;
                 }
@@ -274,7 +298,10 @@ interface GA4DuplicatorOptions {
               if (!sentAny) {
                 fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                   if (ctx.debug)
-                    console.error("gtm interceptor: error duplicating GET beacon (empty body convert_to_get):", error);
+                    console.error(
+                      "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
+                      error,
+                    );
                 });
               }
             } else {
@@ -397,7 +424,8 @@ interface GA4DuplicatorOptions {
       destinations.push({
         measurement_id: dest.measurement_id,
         server_container_url: dest.server_container_url,
-        convert_to_get: dest.convert_to_get !== undefined ? dest.convert_to_get : options.convert_to_get,
+        convert_to_get:
+          dest.convert_to_get !== undefined ? dest.convert_to_get : options.convert_to_get,
       });
     }
   }
