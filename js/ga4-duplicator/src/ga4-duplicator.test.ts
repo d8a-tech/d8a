@@ -447,4 +447,256 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       verifyDuplicateSent(fetchMock, 1, DEFAULT_URL, "G-OTHER");
     });
   });
+
+  describe("convert_to_get option", () => {
+    it("should duplicate fetch POST as GET when global convert_to_get is enabled", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const bodyLine = "en=page_view&_et=3674";
+
+      // when
+      await fetch(GA4_URL, { method: "POST", body: bodyLine });
+
+      // then
+      // 1 original POST + 1 duplicate GET
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const originalCall = fetchMock.mock.calls[0];
+      expect(originalCall[0]).toBe(GA4_URL);
+      expect(originalCall[1].method).toBe("POST");
+
+      const duplicateCall = fetchMock.mock.calls[1];
+      expect(duplicateCall[1].method).toBe("GET");
+      expect(duplicateCall[0]).toContain(TRACKING_URL);
+      expect(duplicateCall[0]).toContain("en=page_view");
+      expect(duplicateCall[0]).toContain("_et=3674");
+    });
+
+    it("should split multi-line POST body into separate GET requests when convert_to_get is enabled", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const multiLineBody = "en=page_view&_et=3674\nen=click&_et=799\nen=scroll&_et=150";
+
+      // when
+      await fetch(GA4_URL, { method: "POST", body: multiLineBody });
+
+      // then
+      // 1 original POST + 3 duplicate GETs (one per line)
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+
+      // Check original POST
+      expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+
+      // Check 3 duplicate GETs
+      for (let i = 1; i <= 3; i++) {
+        expect(fetchMock.mock.calls[i][1].method).toBe("GET");
+        expect(fetchMock.mock.calls[i][0]).toContain(TRACKING_URL);
+      }
+
+      // Verify each GET has merged params
+      expect(fetchMock.mock.calls[1][0]).toContain("en=page_view");
+      expect(fetchMock.mock.calls[1][0]).toContain("_et=3674");
+      expect(fetchMock.mock.calls[2][0]).toContain("en=click");
+      expect(fetchMock.mock.calls[2][0]).toContain("_et=799");
+      expect(fetchMock.mock.calls[3][0]).toContain("en=scroll");
+      expect(fetchMock.mock.calls[3][0]).toContain("_et=150");
+    });
+
+    it("should send single GET when POST body is empty and convert_to_get is enabled", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+
+      // when
+      await fetch(GA4_URL, { method: "POST", body: "" });
+
+      // then
+      // 1 original POST + 1 duplicate GET (no body lines, so one GET with only URL params)
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+    });
+
+    it("should duplicate XHR POST as GET when convert_to_get is enabled", () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const bodyLine = "en=page_view&_et=3674";
+
+      // when
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", GA4_URL);
+      xhr.send(bodyLine);
+
+      // then
+      // 1 duplicate GET (original XHR is mocked)
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[0][0]).toContain(TRACKING_URL);
+      expect(fetchMock.mock.calls[0][0]).toContain("en=page_view");
+    });
+
+    it("should split multi-line XHR POST body into separate GET requests when convert_to_get is enabled", () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const multiLineBody = "en=page_view&_et=3674\nen=click&_et=799";
+
+      // when
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", GA4_URL);
+      xhr.send(multiLineBody);
+
+      // then
+      // 2 duplicate GETs (one per line)
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[0][0]).toContain("en=page_view");
+      expect(fetchMock.mock.calls[1][0]).toContain("en=click");
+    });
+
+    it("should send beacon as GET fetch when convert_to_get is enabled", () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const bodyLine = "en=page_view&_et=3674";
+
+      // when
+      navigator.sendBeacon(GA4_URL, bodyLine);
+
+      // then
+      // 1 original sendBeacon + 1 duplicate GET via fetch
+      expect(sendBeaconMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[0][0]).toContain("en=page_view");
+    });
+
+    it("should respect per-destination convert_to_get override", async () => {
+      // given
+      const DEST1_URL = "https://dest1.com";
+      const DEFAULT_URL = "https://default.com";
+
+      initDuplicator({
+        destinations: [
+          { measurement_id: "G-SPECIFIC", server_container_url: DEST1_URL, convert_to_get: true },
+        ],
+        server_container_url: DEFAULT_URL,
+        convert_to_get: false, // Global is false
+      });
+
+      const URL1 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC&gtm=1&tag_exp=1";
+      const URL_OTHER =
+        "https://www.google-analytics.com/g/collect?v=2&tid=G-OTHER&gtm=1&tag_exp=1";
+
+      const bodyLine = "en=page_view&_et=3674";
+
+      // when
+      await fetch(URL1, { method: "POST", body: bodyLine });
+      await fetch(URL_OTHER, { method: "POST", body: bodyLine });
+
+      // then
+      // 2 original POSTs + 2 duplicates (1 GET for G-SPECIFIC, 1 POST for G-OTHER)
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+
+      // First request: G-SPECIFIC (convert_to_get: true) -> GET
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][0]).toContain(DEST1_URL);
+
+      // Second request: G-OTHER (convert_to_get: false) -> POST
+      expect(fetchMock.mock.calls[3][1].method).toBe("POST");
+      expect(fetchMock.mock.calls[3][0]).toContain(DEFAULT_URL);
+    });
+
+    it("should inherit global convert_to_get when destination does not override", async () => {
+      // given
+      const DEST1_URL = "https://dest1.com";
+      const DEST2_URL = "https://dest2.com";
+
+      initDuplicator({
+        destinations: [
+          { measurement_id: "G-SPECIFIC1", server_container_url: DEST1_URL },
+          { measurement_id: "G-SPECIFIC2", server_container_url: DEST2_URL, convert_to_get: false },
+        ],
+        convert_to_get: true, // Global is true
+      });
+
+      const URL1 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC1&gtm=1&tag_exp=1";
+      const URL2 = "https://www.google-analytics.com/g/collect?v=2&tid=G-SPECIFIC2&gtm=1&tag_exp=1";
+
+      const bodyLine = "en=page_view&_et=3674";
+
+      // when
+      await fetch(URL1, { method: "POST", body: bodyLine });
+      await fetch(URL2, { method: "POST", body: bodyLine });
+
+      // then
+      // 2 original POSTs + 2 duplicates (1 GET for SPECIFIC1, 1 POST for SPECIFIC2)
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+
+      // First request: G-SPECIFIC1 (inherits global convert_to_get: true) -> GET
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][0]).toContain(DEST1_URL);
+
+      // Second request: G-SPECIFIC2 (explicit convert_to_get: false) -> POST
+      expect(fetchMock.mock.calls[3][1].method).toBe("POST");
+      expect(fetchMock.mock.calls[3][0]).toContain(DEST2_URL);
+    });
+
+    it("should NOT convert GET requests when convert_to_get is enabled", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+
+      // when
+      await fetch(GA4_URL, { method: "GET" });
+
+      // then
+      // 1 original GET + 1 duplicate GET (GET is not converted)
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+    });
+
+    it("should keep POST method when convert_to_get is disabled (default)", async () => {
+      // given
+      initDuplicator({}); // No convert_to_get option
+
+      // when
+      const body = "en=page_view&_et=3674";
+      await fetch(GA4_URL, { method: "POST", body });
+
+      // then
+      // 1 original POST + 1 duplicate POST
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][1].method).toBe("POST");
+      expect(fetchMock.mock.calls[1][1].method).toBe("POST");
+      expect(fetchMock.mock.calls[1][1].body).toBe(body);
+    });
+
+    it("should handle empty lines in multi-line body when convert_to_get is enabled", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const bodyWithEmptyLines = "en=page_view&_et=3674\n\n\nen=click&_et=799\n\n";
+
+      // when
+      await fetch(GA4_URL, { method: "POST", body: bodyWithEmptyLines });
+
+      // then
+      // 1 original POST + 2 duplicate GETs (empty lines are skipped)
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[2][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][0]).toContain("en=page_view");
+      expect(fetchMock.mock.calls[2][0]).toContain("en=click");
+    });
+
+    it("should preserve _dtv and _dtn params in converted GET requests", async () => {
+      // given
+      initDuplicator({ convert_to_get: true });
+      const bodyLine = "en=page_view";
+
+      // when
+      await fetch(GA4_URL, { method: "POST", body: bodyLine });
+
+      // then
+      const duplicateUrl = fetchMock.mock.calls[1][0];
+      expect(duplicateUrl).toContain("_dtv=");
+      expect(duplicateUrl).toContain("_dtn=gd");
+    });
+  });
 });
