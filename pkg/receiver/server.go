@@ -245,12 +245,9 @@ func (s *Server) Run(ctx context.Context) error {
 func (s *Server) setupRouter(ctx context.Context) *router.Router {
 	r := router.New()
 	for _, protocol := range s.protocols {
-		protocol := protocol
 		for _, endpoint := range protocol.Endpoints() {
-			endpoint := endpoint
 			if endpoint.IsCustom {
 				for _, method := range endpoint.Methods {
-					method := method
 					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 						start := time.Now()
@@ -263,7 +260,6 @@ func (s *Server) setupRouter(ctx context.Context) *router.Router {
 				continue
 			}
 			for _, method := range endpoint.Methods {
-				method := method
 				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
 				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 					start := time.Now()

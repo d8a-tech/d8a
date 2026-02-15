@@ -57,44 +57,8 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 		newEndpoints = append(newEndpoints, endpoint)
 	}
 	return append(newEndpoints, []protocol.ProtocolEndpoint{
-		{
-			Methods:  []string{fasthttp.MethodGet, fasthttp.MethodOptions},
-			Path:     "/d/wt.min.js",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				if string(ctx.Method()) == fasthttp.MethodOptions {
-					ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-					ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-					ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-					ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-					ctx.SetStatusCode(fasthttp.StatusNoContent)
-					return
-				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-				ctx.Response.Header.Set("Content-Type", "text/javascript")
-				ctx.SetBody(staticWebTracker)
-			},
-		},
-		{
-			Methods:  []string{fasthttp.MethodGet, fasthttp.MethodOptions},
-			Path:     "/d/wt.min.js.map",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				if string(ctx.Method()) == fasthttp.MethodOptions {
-					ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-					ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-					ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-					ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-					ctx.SetStatusCode(fasthttp.StatusNoContent)
-					return
-				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-				ctx.Response.Header.Set("Content-Type", "application/json")
-				ctx.SetBody(staticWebTrackerMap)
-			},
-		},
+		ga4.StaticCORSEndpoint("/d/wt.min.js", "text/javascript", staticWebTracker),
+		ga4.StaticCORSEndpoint("/d/wt.min.js.map", "application/json", staticWebTrackerMap),
 	}...)
 }
 

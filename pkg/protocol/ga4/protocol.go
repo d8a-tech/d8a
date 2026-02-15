@@ -260,44 +260,8 @@ func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 				ctx.SetStatusCode(fasthttp.StatusNoContent)
 			},
 		},
-		{
-			Methods:  []string{fasthttp.MethodGet, fasthttp.MethodOptions},
-			Path:     "/g/gd.min.js",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				if string(ctx.Method()) == fasthttp.MethodOptions {
-					ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-					ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-					ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-					ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-					ctx.SetStatusCode(fasthttp.StatusNoContent)
-					return
-				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-				ctx.Response.Header.Set("Content-Type", "text/javascript")
-				ctx.SetBody(staticDuplicatorJS)
-			},
-		},
-		{
-			Methods:  []string{fasthttp.MethodGet, fasthttp.MethodOptions},
-			Path:     "/g/gd.min.js.map",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				if string(ctx.Method()) == fasthttp.MethodOptions {
-					ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-					ctx.Response.Header.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-					ctx.Response.Header.Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With")
-					ctx.Response.Header.Set("Access-Control-Max-Age", "86400")
-					ctx.SetStatusCode(fasthttp.StatusNoContent)
-					return
-				}
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-				ctx.Response.Header.Set("Content-Type", "application/json")
-				ctx.SetBody(staticDuplicatorJSMap)
-			},
-		},
+		StaticCORSEndpoint("/g/gd.min.js", "text/javascript", staticDuplicatorJS),
+		StaticCORSEndpoint("/g/gd.min.js.map", "application/json", staticDuplicatorJSMap),
 	}
 }
 
