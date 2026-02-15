@@ -227,7 +227,7 @@ var staticDuplicatorJSMap []byte
 func (p *ga4Protocol) Endpoints() []protocol.ProtocolEndpoint {
 	return []protocol.ProtocolEndpoint{
 		{
-			Methods: []string{fasthttp.MethodPost},
+			Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
 			Path:    "/g/collect",
 		},
 		{
