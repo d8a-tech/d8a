@@ -106,12 +106,6 @@ func (s *Server) handleRequest(
 	ctx *fasthttp.RequestCtx,
 	selectedProtocol protocol.Protocol,
 ) {
-	// Handle preflight requests early
-	if string(ctx.Method()) == fasthttp.MethodOptions {
-		ctx.SetStatusCode(fasthttp.StatusNoContent)
-		return
-	}
-
 	// Log raw HTTP request
 	b := bytes.NewBuffer(make([]byte, 0, 64*1024))
 	if _, err := ctx.Request.WriteTo(b); err != nil {

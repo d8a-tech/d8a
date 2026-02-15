@@ -57,26 +57,8 @@ func (p *d8aProtocol) Endpoints() []protocol.ProtocolEndpoint {
 		newEndpoints = append(newEndpoints, endpoint)
 	}
 	return append(newEndpoints, []protocol.ProtocolEndpoint{
-		{
-			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/d/wt.min.js",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Content-Type", "text/javascript")
-				ctx.SetBody(staticWebTracker)
-			},
-		},
-		{
-			Methods:  []string{fasthttp.MethodGet},
-			Path:     "/d/wt.min.js.map",
-			IsCustom: true,
-			CustomHandler: func(ctx *fasthttp.RequestCtx) {
-				ctx.SetStatusCode(fasthttp.StatusOK)
-				ctx.Response.Header.Set("Content-Type", "application/json")
-				ctx.SetBody(staticWebTrackerMap)
-			},
-		},
+		ga4.StaticCORSEndpoint("/d/wt.min.js", "text/javascript", staticWebTracker),
+		ga4.StaticCORSEndpoint("/d/wt.min.js.map", "application/json", staticWebTrackerMap),
 	}...)
 }
 
