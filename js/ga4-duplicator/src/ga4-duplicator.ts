@@ -7,12 +7,14 @@ import { version } from "./version";
 interface GA4Destination {
   measurement_id: string;
   server_container_url: string;
+  convert_to_get?: boolean;
 }
 
 interface GA4DuplicatorOptions {
   server_container_url?: string;
   destinations?: GA4Destination[];
   debug?: boolean;
+  convert_to_get?: boolean;
 }
 
 (window as any).createGA4Duplicator = function (options: GA4DuplicatorOptions) {
@@ -23,6 +25,7 @@ interface GA4DuplicatorOptions {
     debug: boolean;
     isTargetUrl(url: string | null | undefined): boolean;
     buildDuplicateUrl(url: string): string;
+    getConvertToGet(url: string): boolean;
   }
 
   /**
@@ -71,6 +74,7 @@ interface GA4DuplicatorOptions {
 
           // Then send duplicate
           const duplicateUrl = ctx.buildDuplicateUrl(requestUrl);
+          const convertToGet = ctx.getConvertToGet(requestUrl);
 
           if (upperMethod === "GET") {
             originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
@@ -78,12 +82,68 @@ interface GA4DuplicatorOptions {
             });
           } else if (upperMethod === "POST") {
             prepareBodyPromise.then((dupBody) => {
-              originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                (error) => {
+              if (convertToGet) {
+                // Convert POST to GET: split body into lines and send each as a separate GET request
+                let bodyStr = "";
+                if (typeof dupBody === "string") {
+                  bodyStr = dupBody;
+                } else if (dupBody instanceof Blob) {
+                  // For blob, we can't easily convert synchronously, so fall back to POST
+                  originalFetch(duplicateUrl, {
+                    method: "POST",
+                    body: dupBody,
+                    keepalive: true,
+                  }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):",
+                        error,
+                      );
+                  });
+                  return;
+                }
+
+                const lines = bodyStr.split("\n");
+                let sentAny = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i].trim();
+                  if (line) {
+                    const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
+                    const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                    originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
+                      (error) => {
+                        if (ctx.debug)
+                          console.error(
+                            "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                            error,
+                          );
+                      },
+                    );
+                    sentAny = true;
+                  }
+                }
+
+                // If body is empty or all lines were empty, send one GET with just URL params
+                if (!sentAny) {
+                  originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
+                        error,
+                      );
+                  });
+                }
+              } else {
+                // Original POST duplication
+                originalFetch(duplicateUrl, {
+                  method: "POST",
+                  body: dupBody,
+                  keepalive: true,
+                }).catch((error) => {
                   if (ctx.debug)
                     console.error("gtm interceptor: error duplicating POST fetch:", error);
-                },
-              );
+                });
+              }
             });
           }
 
@@ -118,18 +178,64 @@ interface GA4DuplicatorOptions {
           try {
             const method = (this._requestMethod || "GET").toUpperCase();
             const duplicateUrl = ctx.buildDuplicateUrl(this._requestUrl);
+            const convertToGet = ctx.getConvertToGet(this._requestUrl);
 
             if (method === "GET") {
               fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                 if (ctx.debug) console.error("gtm interceptor: error duplicating GET xhr:", error);
               });
             } else if (method === "POST") {
-              fetch(duplicateUrl, { method: "POST", body: body as any, keepalive: true }).catch(
-                (error) => {
-                  if (ctx.debug)
-                    console.error("gtm interceptor: error duplicating POST xhr:", error);
-                },
-              );
+              if (convertToGet) {
+                // Convert POST to GET: split body into lines and send each as a separate GET request
+                let bodyStr = "";
+                if (typeof body === "string") {
+                  bodyStr = body;
+                } else if (body && typeof body === "object") {
+                  // Try to convert Document or other types to string
+                  try {
+                    bodyStr = String(body);
+                  } catch {
+                    bodyStr = "";
+                  }
+                }
+
+                const lines = bodyStr.split("\n");
+                let sentAny = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i].trim();
+                  if (line) {
+                    const mergedUrl = ctx.buildDuplicateUrl(this._requestUrl);
+                    const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                    fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
+                          error,
+                        );
+                    });
+                    sentAny = true;
+                  }
+                }
+
+                // If body is empty or all lines were empty, send one GET with just URL params
+                if (!sentAny) {
+                  fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
+                        error,
+                      );
+                  });
+                }
+              } else {
+                // Original POST duplication
+                fetch(duplicateUrl, { method: "POST", body: body as any, keepalive: true }).catch(
+                  (error) => {
+                    if (ctx.debug)
+                      console.error("gtm interceptor: error duplicating POST xhr:", error);
+                  },
+                );
+              }
             }
           } catch (dupErr) {
             if (ctx.debug) console.error("gtm interceptor: xhr duplication failed:", dupErr);
@@ -154,7 +260,54 @@ interface GA4DuplicatorOptions {
         if (ctx.isTargetUrl(url as string)) {
           const originalResult = originalSendBeacon.apply(this, arguments as any);
           try {
-            originalSendBeacon.call(navigator, ctx.buildDuplicateUrl(url as string), data);
+            const duplicateUrl = ctx.buildDuplicateUrl(url as string);
+            const convertToGet = ctx.getConvertToGet(url as string);
+
+            if (convertToGet) {
+              // Convert sendBeacon POST to GET: split body into lines and send each as a separate GET request
+              let bodyStr = "";
+              if (typeof data === "string") {
+                bodyStr = data;
+              } else if (data && typeof data === "object") {
+                try {
+                  bodyStr = String(data);
+                } catch {
+                  bodyStr = "";
+                }
+              }
+
+              const lines = bodyStr.split("\n");
+              let sentAny = false;
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line) {
+                  const mergedUrl = ctx.buildDuplicateUrl(url as string);
+                  const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                  fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
+                        error,
+                      );
+                  });
+                  sentAny = true;
+                }
+              }
+
+              // If body is empty or all lines were empty, send one GET with just URL params
+              if (!sentAny) {
+                fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                  if (ctx.debug)
+                    console.error(
+                      "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
+                      error,
+                    );
+                });
+              }
+            } else {
+              // Original sendBeacon duplication
+              originalSendBeacon.call(navigator, duplicateUrl, data);
+            }
           } catch (e) {
             if (ctx.debug) console.error("gtm interceptor: error duplicating sendBeacon:", e);
           }
@@ -267,7 +420,13 @@ interface GA4DuplicatorOptions {
   const destinations: GA4Destination[] = [];
   if (options.destinations && Array.isArray(options.destinations)) {
     for (let i = 0; i < options.destinations.length; i++) {
-      destinations.push(options.destinations[i]);
+      const dest = options.destinations[i];
+      destinations.push({
+        measurement_id: dest.measurement_id,
+        server_container_url: dest.server_container_url,
+        convert_to_get:
+          dest.convert_to_get !== undefined ? dest.convert_to_get : options.convert_to_get,
+      });
     }
   }
 
@@ -275,6 +434,7 @@ interface GA4DuplicatorOptions {
     destinations.push({
       measurement_id: "*",
       server_container_url: options.server_container_url,
+      convert_to_get: options.convert_to_get,
     });
   }
 
@@ -316,6 +476,29 @@ interface GA4DuplicatorOptions {
       }
     }
     return null;
+  }
+
+  function mergeBodyLineWithUrl(originalUrl: string, bodyLine: string): string {
+    try {
+      const url = new URL(originalUrl, location.href);
+      const lineParams = new URLSearchParams(bodyLine);
+
+      // Line parameters override URL parameters
+      for (const [key] of lineParams.entries()) {
+        url.searchParams.delete(key);
+      }
+      for (const [key, value] of lineParams.entries()) {
+        url.searchParams.append(key, value);
+      }
+
+      return url.toString();
+    } catch {
+      // Fallback: if URL parsing fails, try string manipulation
+      const urlWithoutQuery = originalUrl.split("?")[0];
+      const originalParams = originalUrl.match(/\?(.*)/) ? originalUrl.match(/\?(.*)/)![1] : "";
+      const merged = originalParams + (originalParams && bodyLine ? "&" : "") + bodyLine;
+      return urlWithoutQuery + (merged ? "?" + merged : "");
+    }
   }
 
   function getDuplicateEndpointUrl(dest: GA4Destination): URL {
@@ -384,10 +567,17 @@ interface GA4DuplicatorOptions {
     return dst.toString();
   }
 
+  function getConvertToGet(url: string): boolean {
+    const id = getMeasurementId(url);
+    const dest = getDestinationForId(id);
+    return dest ? !!dest.convert_to_get : false;
+  }
+
   const context: InterceptorContext = {
     debug: !!options.debug,
     isTargetUrl,
     buildDuplicateUrl,
+    getConvertToGet,
   };
 
   const interceptors: NetworkInterceptor[] = [

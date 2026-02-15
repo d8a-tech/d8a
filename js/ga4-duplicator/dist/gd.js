@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-02-06T20:02:42.199Z */
+/* ga4-duplicator - built 2026-02-15T17:10:38.667Z */
 "use strict";
 (() => {
   // src/version.ts
@@ -29,18 +29,69 @@
             }
             const originalPromise = originalFetch.apply(this, arguments);
             const duplicateUrl = ctx.buildDuplicateUrl(requestUrl);
+            const convertToGet = ctx.getConvertToGet(requestUrl);
             if (upperMethod === "GET") {
               originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                 if (ctx.debug) console.error("gtm interceptor: error duplicating GET fetch:", error);
               });
             } else if (upperMethod === "POST") {
               prepareBodyPromise.then((dupBody) => {
-                originalFetch(duplicateUrl, { method: "POST", body: dupBody, keepalive: true }).catch(
-                  (error) => {
+                if (convertToGet) {
+                  let bodyStr = "";
+                  if (typeof dupBody === "string") {
+                    bodyStr = dupBody;
+                  } else if (dupBody instanceof Blob) {
+                    originalFetch(duplicateUrl, {
+                      method: "POST",
+                      body: dupBody,
+                      keepalive: true
+                    }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating POST fetch (convert_to_get with Blob):",
+                          error
+                        );
+                    });
+                    return;
+                  }
+                  const lines = bodyStr.split("\n");
+                  let sentAny = false;
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                      const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
+                      const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                      originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
+                        (error) => {
+                          if (ctx.debug)
+                            console.error(
+                              "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                              error
+                            );
+                        }
+                      );
+                      sentAny = true;
+                    }
+                  }
+                  if (!sentAny) {
+                    originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
+                          error
+                        );
+                    });
+                  }
+                } else {
+                  originalFetch(duplicateUrl, {
+                    method: "POST",
+                    body: dupBody,
+                    keepalive: true
+                  }).catch((error) => {
                     if (ctx.debug)
                       console.error("gtm interceptor: error duplicating POST fetch:", error);
-                  }
-                );
+                  });
+                }
               });
             }
             return originalPromise;
@@ -64,17 +115,57 @@
             try {
               const method = (this._requestMethod || "GET").toUpperCase();
               const duplicateUrl = ctx.buildDuplicateUrl(this._requestUrl);
+              const convertToGet = ctx.getConvertToGet(this._requestUrl);
               if (method === "GET") {
                 fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
                   if (ctx.debug) console.error("gtm interceptor: error duplicating GET xhr:", error);
                 });
               } else if (method === "POST") {
-                fetch(duplicateUrl, { method: "POST", body, keepalive: true }).catch(
-                  (error) => {
-                    if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating POST xhr:", error);
+                if (convertToGet) {
+                  let bodyStr = "";
+                  if (typeof body === "string") {
+                    bodyStr = body;
+                  } else if (body && typeof body === "object") {
+                    try {
+                      bodyStr = String(body);
+                    } catch (e) {
+                      bodyStr = "";
+                    }
                   }
-                );
+                  const lines = bodyStr.split("\n");
+                  let sentAny = false;
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                      const mergedUrl = ctx.buildDuplicateUrl(this._requestUrl);
+                      const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                      fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                        if (ctx.debug)
+                          console.error(
+                            "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
+                            error
+                          );
+                      });
+                      sentAny = true;
+                    }
+                  }
+                  if (!sentAny) {
+                    fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
+                          error
+                        );
+                    });
+                  }
+                } else {
+                  fetch(duplicateUrl, { method: "POST", body, keepalive: true }).catch(
+                    (error) => {
+                      if (ctx.debug)
+                        console.error("gtm interceptor: error duplicating POST xhr:", error);
+                    }
+                  );
+                }
               }
             } catch (dupErr) {
               if (ctx.debug) console.error("gtm interceptor: xhr duplication failed:", dupErr);
@@ -93,7 +184,48 @@
           if (ctx.isTargetUrl(url)) {
             const originalResult = originalSendBeacon.apply(this, arguments);
             try {
-              originalSendBeacon.call(navigator, ctx.buildDuplicateUrl(url), data);
+              const duplicateUrl = ctx.buildDuplicateUrl(url);
+              const convertToGet = ctx.getConvertToGet(url);
+              if (convertToGet) {
+                let bodyStr = "";
+                if (typeof data === "string") {
+                  bodyStr = data;
+                } else if (data && typeof data === "object") {
+                  try {
+                    bodyStr = String(data);
+                  } catch (e) {
+                    bodyStr = "";
+                  }
+                }
+                const lines = bodyStr.split("\n");
+                let sentAny = false;
+                for (let i = 0; i < lines.length; i++) {
+                  const line = lines[i].trim();
+                  if (line) {
+                    const mergedUrl = ctx.buildDuplicateUrl(url);
+                    const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
+                    fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
+                          error
+                        );
+                    });
+                    sentAny = true;
+                  }
+                }
+                if (!sentAny) {
+                  fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                    if (ctx.debug)
+                      console.error(
+                        "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
+                        error
+                      );
+                  });
+                }
+              } else {
+                originalSendBeacon.call(navigator, duplicateUrl, data);
+              }
             } catch (e) {
               if (ctx.debug) console.error("gtm interceptor: error duplicating sendBeacon:", e);
             }
@@ -198,13 +330,19 @@
     const destinations = [];
     if (options.destinations && Array.isArray(options.destinations)) {
       for (let i = 0; i < options.destinations.length; i++) {
-        destinations.push(options.destinations[i]);
+        const dest = options.destinations[i];
+        destinations.push({
+          measurement_id: dest.measurement_id,
+          server_container_url: dest.server_container_url,
+          convert_to_get: dest.convert_to_get !== void 0 ? dest.convert_to_get : options.convert_to_get
+        });
       }
     }
     if (options.server_container_url) {
       destinations.push({
         measurement_id: "*",
-        server_container_url: options.server_container_url
+        server_container_url: options.server_container_url,
+        convert_to_get: options.convert_to_get
       });
     }
     if (destinations.length === 0) {
@@ -241,6 +379,24 @@
         }
       }
       return null;
+    }
+    function mergeBodyLineWithUrl(originalUrl, bodyLine) {
+      try {
+        const url = new URL(originalUrl, location.href);
+        const lineParams = new URLSearchParams(bodyLine);
+        for (const [key] of lineParams.entries()) {
+          url.searchParams.delete(key);
+        }
+        for (const [key, value] of lineParams.entries()) {
+          url.searchParams.append(key, value);
+        }
+        return url.toString();
+      } catch (e) {
+        const urlWithoutQuery = originalUrl.split("?")[0];
+        const originalParams = originalUrl.match(/\?(.*)/) ? originalUrl.match(/\?(.*)/)[1] : "";
+        const merged = originalParams + (originalParams && bodyLine ? "&" : "") + bodyLine;
+        return urlWithoutQuery + (merged ? "?" + merged : "");
+      }
     }
     function getDuplicateEndpointUrl(dest) {
       const trackingURL = String(dest.server_container_url || "").trim();
@@ -297,10 +453,16 @@
       }
       return dst.toString();
     }
+    function getConvertToGet(url) {
+      const id = getMeasurementId(url);
+      const dest = getDestinationForId(id);
+      return dest ? !!dest.convert_to_get : false;
+    }
     const context = {
       debug: !!options.debug,
       isTargetUrl,
-      buildDuplicateUrl
+      buildDuplicateUrl,
+      getConvertToGet
     };
     const interceptors = [
       new FetchInterceptor(),
