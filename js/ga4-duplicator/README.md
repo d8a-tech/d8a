@@ -28,9 +28,10 @@ Include the built script in your HTML and initialize the duplicator:
 
 ### Configuration Options
 
-- `server_container_url`: Default D8A server endpoint URL.Can be overridden for each destination.
-- `destinations`: Array of destination objects with measurement_id and server_container_url (default: []).
-- `debug`: Enable debug logging (default: false)
+- `server_container_url`: Default D8A server endpoint URL. Can be overridden for each destination.
+- `destinations`: Array of destination objects with `measurement_id`, `server_container_url`, and optional `convert_to_get` (default: []).
+- `debug`: Enable debug logging (default: false).
+- `convert_to_get`: Convert POST requests into multiple GET requests (default: false). This is useful for environments that don't support POST or when you want to split batched requests into individual hits.
 
 ### Multiple Destinations
 
@@ -44,7 +45,8 @@ window.createGA4Duplicator({
     },
     {
       measurement_id: "G-XYZ789",
-      server_container_url: "https://endpoint2.com"
+      server_container_url: "https://endpoint2.com",
+      convert_to_get: true
     }
   ]
 });
