@@ -459,6 +459,39 @@ interface GA4DuplicatorOptions {
     }
   }
 
+  function ensureBareQueryFlag(url: string, flag: string): string {
+    const u = String(url || "");
+    const f = String(flag || "").trim();
+    if (!u || !f) return u;
+
+    // Keep fragment intact
+    const hashIdx = u.indexOf("#");
+    const beforeHash = hashIdx >= 0 ? u.slice(0, hashIdx) : u;
+    const hash = hashIdx >= 0 ? u.slice(hashIdx) : "";
+
+    const qIdx = beforeHash.indexOf("?");
+    const base = qIdx >= 0 ? beforeHash.slice(0, qIdx) : beforeHash;
+    const rawQuery = qIdx >= 0 ? beforeHash.slice(qIdx + 1) : "";
+
+    const parts = rawQuery
+      ? rawQuery
+          .split("&")
+          .map((p) => p.trim())
+          .filter(Boolean)
+      : [];
+
+    const kept: string[] = [];
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      if (p === f) continue;
+      if (p.startsWith(f + "=")) continue;
+      kept.push(p);
+    }
+
+    const newQuery = kept.length > 0 ? kept.join("&") + "&" + f : f;
+    return base + "?" + newQuery + hash;
+  }
+
   function getMeasurementId(url: string): string {
     try {
       const parsed = new URL(url, location.href);
@@ -491,13 +524,13 @@ interface GA4DuplicatorOptions {
         url.searchParams.append(key, value);
       }
 
-      return url.toString();
+      return ensureBareQueryFlag(url.toString(), "richsstsse");
     } catch {
       // Fallback: if URL parsing fails, try string manipulation
       const urlWithoutQuery = originalUrl.split("?")[0];
       const originalParams = originalUrl.match(/\?(.*)/) ? originalUrl.match(/\?(.*)/)![1] : "";
       const merged = originalParams + (originalParams && bodyLine ? "&" : "") + bodyLine;
-      return urlWithoutQuery + (merged ? "?" + merged : "");
+      return ensureBareQueryFlag(urlWithoutQuery + (merged ? "?" + merged : ""), "richsstsse");
     }
   }
 
@@ -564,7 +597,7 @@ interface GA4DuplicatorOptions {
       dst.searchParams.set("_dtv", version);
       dst.searchParams.set("_dtn", "gd");
     } catch {}
-    return dst.toString();
+    return ensureBareQueryFlag(dst.toString(), "richsstsse");
   }
 
   function getConvertToGet(url: string): boolean {
