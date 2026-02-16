@@ -138,6 +138,15 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       verifyD8tvParam(fetchMock, 1);
     });
 
+    it("should attach richsstsse to duplicated request as a bare param", async () => {
+      initDuplicator();
+      await fetch(GA4_URL, { method: "GET" });
+
+      const duplicateUrl = fetchMock.mock.calls[1][0] as string;
+      expect(duplicateUrl).toMatch(/[?&]richsstsse(?:&|$)/);
+      expect(duplicateUrl).not.toContain("richsstsse=");
+    });
+
     it("should be idempotent when initialized multiple times", async () => {
       // given
       // (this simulates loading the library+init snippet multiple times)

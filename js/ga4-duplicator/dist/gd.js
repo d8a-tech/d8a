@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-02-15T17:10:38.667Z */
+/* ga4-duplicator - built 2026-02-16T07:54:31.276Z */
 "use strict";
 (() => {
   // src/version.ts
@@ -363,6 +363,27 @@
         return pattern.toLowerCase() === id.toLowerCase();
       }
     }
+    function ensureBareQueryFlag(url, flag) {
+      const u = String(url || "");
+      const f = String(flag || "").trim();
+      if (!u || !f) return u;
+      const hashIdx = u.indexOf("#");
+      const beforeHash = hashIdx >= 0 ? u.slice(0, hashIdx) : u;
+      const hash = hashIdx >= 0 ? u.slice(hashIdx) : "";
+      const qIdx = beforeHash.indexOf("?");
+      const base = qIdx >= 0 ? beforeHash.slice(0, qIdx) : beforeHash;
+      const rawQuery = qIdx >= 0 ? beforeHash.slice(qIdx + 1) : "";
+      const parts = rawQuery ? rawQuery.split("&").map((p) => p.trim()).filter(Boolean) : [];
+      const kept = [];
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        if (p === f) continue;
+        if (p.startsWith(f + "=")) continue;
+        kept.push(p);
+      }
+      const newQuery = kept.length > 0 ? kept.join("&") + "&" + f : f;
+      return base + "?" + newQuery + hash;
+    }
     function getMeasurementId(url) {
       try {
         const parsed = new URL(url, location.href);
@@ -390,12 +411,12 @@
         for (const [key, value] of lineParams.entries()) {
           url.searchParams.append(key, value);
         }
-        return url.toString();
+        return ensureBareQueryFlag(url.toString(), "richsstsse");
       } catch (e) {
         const urlWithoutQuery = originalUrl.split("?")[0];
         const originalParams = originalUrl.match(/\?(.*)/) ? originalUrl.match(/\?(.*)/)[1] : "";
         const merged = originalParams + (originalParams && bodyLine ? "&" : "") + bodyLine;
-        return urlWithoutQuery + (merged ? "?" + merged : "");
+        return ensureBareQueryFlag(urlWithoutQuery + (merged ? "?" + merged : ""), "richsstsse");
       }
     }
     function getDuplicateEndpointUrl(dest) {
@@ -451,7 +472,7 @@
         dst.searchParams.set("_dtn", "gd");
       } catch (e) {
       }
-      return dst.toString();
+      return ensureBareQueryFlag(dst.toString(), "richsstsse");
     }
     function getConvertToGet(url) {
       const id = getMeasurementId(url);
