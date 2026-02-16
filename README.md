@@ -85,6 +85,12 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 go test ./...
 ```
 
+## Contributing
+
+We welcome contributions from the community. Bug fixes and targeted improvements are always appreciated. For larger refactors or architectural changes, we ask that you discuss your ideas with us on Discord or Github Issues first. While modern AI tools make it easy to generate extensive code changes, we need to carefully balance the needs of our community and maintain the project's direction.
+You may notice some abstractions in the codebase that seem unnecessary—these exist to support our cloud service, which uses alternative implementations in certain areas.
+Please ensure contributions are thoughtful and align with our project standards. PRs that appear to be purely AI-generated without human review and consideration may not be accepted. We value quality over quantity and appreciate the time you take to understand our codebase before contributing.
+
 ## Documentation
 
 See the following resources:
