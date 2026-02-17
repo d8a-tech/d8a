@@ -379,3 +379,371 @@ func waitForServerReady(port int, timeout time.Duration) bool {
 	}
 	return false
 }
+
+// processHandle encapsulates the state of a running background process
+type processHandle struct {
+	cmd     *exec.Cmd
+	logs    *LogCapture
+	cleanup func()
+}
+
+// startProcessInBackground starts a process with log capture and cleanup registration
+func startProcessInBackground(t *testing.T, binaryPath string, args ...string) (*processHandle, error) {
+	cmd := exec.Command(binaryPath, args...)
+
+	// Set up log capture
+	logCapture := NewLogCapture()
+
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	// Start capturing logs in background and pass through to stdout/stderr
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		logCapture.captureStream(stdoutPipe, os.Stdout)
+	}()
+	go func() {
+		defer wg.Done()
+		logCapture.captureStream(stderrPipe, os.Stderr)
+	}()
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start process: %w", err)
+	}
+
+	// Create cleanup function
+	cleanup := func() {
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		}
+		wg.Wait()
+	}
+
+	// Register cleanup with test
+	t.Cleanup(cleanup)
+
+	handle := &processHandle{
+		cmd:     cmd,
+		logs:    logCapture,
+		cleanup: cleanup,
+	}
+
+	return handle, nil
+}
+
+// buildSharedTempDirectories creates queue and storage directories for multi-process tests
+func buildSharedTempDirectories(t *testing.T) (queueDir, storageDir string) {
+	tmpDir, err := os.MkdirTemp("", "d8a-test-shared-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	queueDir = tmpDir + "/queue"
+	if err := os.MkdirAll(queueDir, 0o755); err != nil {
+		t.Fatalf("failed to create queue dir: %v", err)
+	}
+
+	storageDir = tmpDir + "/storage"
+	if err := os.MkdirAll(storageDir, 0o755); err != nil {
+		t.Fatalf("failed to create storage dir: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = os.RemoveAll(tmpDir)
+	})
+
+	return queueDir, storageDir
+}
+
+// testConfigBuilder builds YAML configuration files for multi-process tests
+type testConfigBuilder struct {
+	port             *int
+	queueDirectory   string
+	storageDirectory string
+	warehouse        string
+	sessionTimeout   time.Duration
+}
+
+// newTestConfigBuilder creates a new config builder with default values
+func newTestConfigBuilder() *testConfigBuilder {
+	return &testConfigBuilder{
+		warehouse:      "noop",
+		sessionTimeout: 2 * time.Second,
+	}
+}
+
+// WithPort sets the server port (receiver only)
+func (b *testConfigBuilder) WithPort(port int) *testConfigBuilder {
+	b.port = &port
+	return b
+}
+
+// WithQueueDirectory sets the queue directory path
+func (b *testConfigBuilder) WithQueueDirectory(dir string) *testConfigBuilder {
+	b.queueDirectory = dir
+	return b
+}
+
+// WithStorageDirectory sets the storage directory path
+func (b *testConfigBuilder) WithStorageDirectory(dir string) *testConfigBuilder {
+	b.storageDirectory = dir
+	return b
+}
+
+// WithWarehouse sets the warehouse driver
+func (b *testConfigBuilder) WithWarehouse(warehouse string) *testConfigBuilder {
+	b.warehouse = warehouse
+	return b
+}
+
+// WithSessionTimeout sets the session timeout
+func (b *testConfigBuilder) WithSessionTimeout(timeout time.Duration) *testConfigBuilder {
+	b.sessionTimeout = timeout
+	return b
+}
+
+// Build writes the config to a temporary file and returns its path
+func (b *testConfigBuilder) Build(t *testing.T) string {
+	tmpDir, err := os.MkdirTemp("", "d8a-config-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+
+	configContent := b.buildYAML()
+
+	configPath := tmpDir + "/config.yaml"
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = os.RemoveAll(tmpDir)
+	})
+
+	return configPath
+}
+
+// buildYAML constructs the YAML config content
+func (b *testConfigBuilder) buildYAML() string {
+	var content strings.Builder
+
+	fmt.Fprintf(&content, "warehouse: %s\n\n", b.warehouse)
+
+	content.WriteString("receiver:\n")
+	content.WriteString("  batch_size: 100\n")
+	content.WriteString("  batch_timeout: 100ms\n\n")
+
+	fmt.Fprintf(&content, "sessions:\n  timeout: %s\n\n", b.sessionTimeout)
+
+	content.WriteString("monitoring:\n  enabled: false\n\n")
+	content.WriteString("telemetry:\n  url: \"\"\n\n")
+
+	content.WriteString("storage:\n")
+	if b.storageDirectory != "" {
+		fmt.Fprintf(&content, "  bolt_directory: %s/\n", b.storageDirectory)
+	}
+	if b.queueDirectory != "" {
+		fmt.Fprintf(&content, "  queue_directory: %s\n", b.queueDirectory)
+	}
+	content.WriteString("  spool_enabled: false\n\n")
+
+	if b.port != nil {
+		fmt.Fprintf(&content, "server:\n  port: %d\n\n", *b.port)
+	}
+
+	content.WriteString("property:\n")
+	content.WriteString("  id: test-property\n")
+	content.WriteString("  name: Test Property\n")
+
+	return content.String()
+}
+
+// TestConfigBuilder verifies the test config builder generates valid configs
+func TestConfigBuilder(t *testing.T) {
+	tests := []struct {
+		name          string
+		setup         func(*testConfigBuilder) *testConfigBuilder
+		expectPort    bool
+		expectQueue   bool
+		expectStorage bool
+	}{
+		{
+			name: "receiver config with port",
+			setup: func(b *testConfigBuilder) *testConfigBuilder {
+				return b.WithPort(17000).
+					WithQueueDirectory("/tmp/queue").
+					WithStorageDirectory("/tmp/storage")
+			},
+			expectPort:    true,
+			expectQueue:   true,
+			expectStorage: true,
+		},
+		{
+			name: "worker config without port",
+			setup: func(b *testConfigBuilder) *testConfigBuilder {
+				return b.WithQueueDirectory("/tmp/queue").
+					WithStorageDirectory("/tmp/storage")
+			},
+			expectPort:    false,
+			expectQueue:   true,
+			expectStorage: true,
+		},
+		{
+			name: "minimal config",
+			setup: func(b *testConfigBuilder) *testConfigBuilder {
+				return b
+			},
+			expectPort:    false,
+			expectQueue:   false,
+			expectStorage: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			builder := newTestConfigBuilder()
+			builder = tt.setup(builder)
+
+			// when
+			configPath := builder.Build(t)
+
+			// then
+			content, err := os.ReadFile(configPath)
+			if err != nil {
+				t.Fatalf("failed to read config file: %v", err)
+			}
+
+			configStr := string(content)
+
+			// Verify port field presence
+			hasPort := strings.Contains(configStr, "server:\n  port:")
+			if hasPort != tt.expectPort {
+				t.Errorf("port field: got %v, want %v", hasPort, tt.expectPort)
+			}
+
+			// Verify queue directory presence
+			hasQueue := strings.Contains(configStr, "queue_directory:")
+			if hasQueue != tt.expectQueue {
+				t.Errorf("queue_directory field: got %v, want %v", hasQueue, tt.expectQueue)
+			}
+
+			// Verify storage directory presence
+			hasStorage := strings.Contains(configStr, "bolt_directory:")
+			if hasStorage != tt.expectStorage {
+				t.Errorf("bolt_directory field: got %v, want %v", hasStorage, tt.expectStorage)
+			}
+
+			// Verify required fields are present
+			if !strings.Contains(configStr, "warehouse:") {
+				t.Error("config should contain warehouse field")
+			}
+			if !strings.Contains(configStr, "sessions:") {
+				t.Error("config should contain sessions field")
+			}
+			if !strings.Contains(configStr, "property:") {
+				t.Error("config should contain property field")
+			}
+
+			// Verify file permissions
+			info, err := os.Stat(configPath)
+			if err != nil {
+				t.Fatalf("failed to stat config file: %v", err)
+			}
+			if info.Mode().Perm() != 0o600 {
+				t.Errorf("config file permissions: got %o, want 0600", info.Mode().Perm())
+			}
+		})
+	}
+}
+
+// TestMultiProcessUtilities verifies that the multi-process utilities work correctly
+func TestMultiProcessUtilities(t *testing.T) {
+	// given
+	binaryPath := buildBinary(t)
+	t.Cleanup(func() { _ = os.Remove(binaryPath) })
+
+	queueDir, storageDir := buildSharedTempDirectories(t)
+
+	// Create minimal configs for receiver and worker using the builder
+	receiverConfigPath := newTestConfigBuilder().
+		WithPort(17999).
+		WithQueueDirectory(queueDir).
+		WithStorageDirectory(storageDir).
+		Build(t)
+
+	workerConfigPath := newTestConfigBuilder().
+		WithQueueDirectory(queueDir).
+		WithStorageDirectory(storageDir).
+		Build(t)
+
+	// when - start two processes in background
+	process1, err := startProcessInBackground(t, binaryPath, "receiver", "--config", receiverConfigPath)
+	if err != nil {
+		t.Fatalf("failed to start process 1: %v", err)
+	}
+
+	process2, err := startProcessInBackground(t, binaryPath, "worker", "--config", workerConfigPath)
+	if err != nil {
+		t.Fatalf("failed to start process 2: %v", err)
+	}
+
+	// Give processes time to start and log something
+	time.Sleep(2 * time.Second)
+
+	// then - verify processes are running and log capture works
+	if process1.cmd.Process == nil {
+		t.Fatal("process1 should have a process handle")
+	}
+	if process2.cmd.Process == nil {
+		t.Fatal("process2 should have a process handle")
+	}
+
+	// Verify log capture is independent
+	if process1.logs == process2.logs {
+		t.Fatal("log captures should be independent")
+	}
+
+	// Verify logs were captured (each process should log something on startup)
+	// Wait for logs to appear with a short timeout
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		p1Lines := process1.logs.GetLines()
+		p2Lines := process2.logs.GetLines()
+		if len(p1Lines) > 0 && len(p2Lines) > 0 {
+			// Success - both processes logged something
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	p1Lines := process1.logs.GetLines()
+	p2Lines := process2.logs.GetLines()
+
+	if len(p1Lines) == 0 {
+		t.Error("process1 logs should not be empty")
+	}
+	if len(p2Lines) == 0 {
+		t.Error("process2 logs should not be empty")
+	}
+
+	// Verify directories exist
+	if _, err := os.Stat(queueDir); os.IsNotExist(err) {
+		t.Error("queue directory should exist")
+	}
+	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
+		t.Error("storage directory should exist")
+	}
+
+	// Cleanup will be handled automatically by t.Cleanup()
+}
