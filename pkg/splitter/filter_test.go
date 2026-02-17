@@ -1,8 +1,9 @@
-package filter
+package splitter
 
 import (
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,18 +98,18 @@ func TestCustomFunctions(t *testing.T) {
 
 func TestFilterModifierExcludeActive(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "block_internal",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `starts_with(ip_address, "192.168")`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -130,18 +131,18 @@ func TestFilterModifierExcludeActive(t *testing.T) {
 
 func TestFilterModifierAllowActive(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "vpn_only",
-				Type:       FilterTypeAllow,
+				Type:       properties.FilterTypeAllow,
 				Active:     true,
 				Expression: `in_cidr(ip_address, "100.64.0.0/10")`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -164,18 +165,18 @@ func TestFilterModifierAllowActive(t *testing.T) {
 
 func TestFilterModifierTestingMode(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "test_office",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     false,
 				Expression: `ip_address == "203.0.113.50"`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -201,18 +202,18 @@ func TestFilterModifierTestingMode(t *testing.T) {
 
 func TestFilterModifierComplexExpression(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "internal_or_vpn",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -234,18 +235,18 @@ func TestFilterModifierComplexExpression(t *testing.T) {
 
 func TestFilterModifierAllEventsFiltered(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "block_all",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `ip_address != ""`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -264,11 +265,11 @@ func TestFilterModifierAllEventsFiltered(t *testing.T) {
 
 func TestFilterModifierEmptyConditions(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields:     []string{"ip_address"},
-		Conditions: []ConditionConfig{},
+		Conditions: []properties.ConditionConfig{},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -288,12 +289,12 @@ func TestFilterModifierEmptyConditions(t *testing.T) {
 
 func TestFilterModifierInvalidExpression(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "invalid",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `invalid syntax here [`,
 			},
@@ -301,25 +302,25 @@ func TestFilterModifierInvalidExpression(t *testing.T) {
 	}
 
 	// when
-	_, err := New(config)
+	_, err := NewFilter(config)
 	// then
 	assert.Error(t, err)
 }
 
 func TestFilterModifierMissingField(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"missing_field"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "check_missing",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `missing_field == "test"`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -385,24 +386,24 @@ func TestFilterModifierCIDREdgeCases(t *testing.T) {
 
 func TestFilterModifierMultipleConditions(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "exclude_internal",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `starts_with(ip_address, "192.168")`,
 			},
 			{
 				Name:       "exclude_private",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `in_cidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{
@@ -426,18 +427,18 @@ func TestFilterModifierMultipleConditions(t *testing.T) {
 
 func TestFilterModifierEmptySession(t *testing.T) {
 	// given
-	config := FiltersConfig{
+	config := properties.FiltersConfig{
 		Fields: []string{"ip_address"},
-		Conditions: []ConditionConfig{
+		Conditions: []properties.ConditionConfig{
 			{
 				Name:       "test",
-				Type:       FilterTypeExclude,
+				Type:       properties.FilterTypeExclude,
 				Active:     true,
 				Expression: `ip_address != ""`,
 			},
 		},
 	}
-	modifier, err := New(config)
+	modifier, err := NewFilter(config)
 	require.NoError(t, err)
 
 	session := &schema.Session{Events: []*schema.Event{}}

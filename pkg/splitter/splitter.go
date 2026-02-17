@@ -123,8 +123,8 @@ func NewNoop() SessionModifier {
 	}
 }
 
-// New creates a new session splitter with the given conditions.
-func New(conditions ...Condition) SessionModifier {
+// NewSplitter creates a new session splitter with the given conditions.
+func NewSplitter(conditions ...Condition) SessionModifier {
 	return &splitterImpl{
 		conditions: conditions,
 	}
@@ -154,8 +154,18 @@ func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionModif
 	if settings.SplitByCampaign {
 		conditions = append(conditions, NewUTMCampaignCondition())
 	}
-
-	return New(conditions...), nil
+	splitter := NewSplitter(conditions...)
+	if len(settings.FiltersSafe().Conditions) == 0 {
+		return splitter, nil
+	}
+	filter, err := NewFilter(settings.FiltersSafe())
+	if err != nil {
+		return nil, err
+	}
+	return NewMultiModifier(
+		splitter,
+		filter,
+	), nil
 }
 
 // NewFromPropertySettingsRegistry creates a registry that builds splitters from property settings.
@@ -203,23 +213,4 @@ func (m *MultiModifier) Split(session *schema.Session) ([]*schema.Session, error
 		sessions = next
 	}
 	return sessions, nil
-}
-
-// chainedRegistry wraps a base Registry and prepends an additional SessionModifier.
-type chainedRegistry struct {
-	base    Registry
-	prepend SessionModifier
-}
-
-// NewChainedRegistry creates a registry that prepends a modifier to another registry's modifiers.
-func NewChainedRegistry(base Registry, prepend SessionModifier) Registry {
-	return &chainedRegistry{base: base, prepend: prepend}
-}
-
-func (r *chainedRegistry) Splitter(propertyID string) (SessionModifier, error) {
-	baseSplitter, err := r.base.Splitter(propertyID)
-	if err != nil {
-		return nil, err
-	}
-	return NewMultiModifier(r.prepend, baseSplitter), nil
 }

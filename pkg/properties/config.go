@@ -1,5 +1,5 @@
 // Package filter provides event filtering functionality.
-package filter
+package properties
 
 import (
 	"fmt"
@@ -32,8 +32,8 @@ type FiltersConfig struct {
 	Conditions []ConditionConfig `yaml:"conditions"`
 }
 
-// ParseConfig reads the filters section from a YAML config file.
-func ParseConfig(configFilePath string) (FiltersConfig, error) {
+// ParseFilterConfig reads the filters section from a YAML config file.
+func ParseFilterConfig(configFilePath string) (FiltersConfig, error) {
 	// nolint:gosec // configFilePath comes from CLI, not user input
 	content, err := os.ReadFile(configFilePath)
 	if err != nil {

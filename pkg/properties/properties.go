@@ -1,7 +1,9 @@
 // Package properties provides the core data models and types for property configuration.
 package properties
 
-import "time"
+import (
+	"time"
+)
 
 // Settings holds the tracking configuration for a property.
 type Settings struct {
@@ -21,4 +23,16 @@ type Settings struct {
 	SessionTimeout            time.Duration
 	SessionJoinBySessionStamp bool
 	SessionJoinByUserID       bool
+
+	Filters *FiltersConfig
+}
+
+// FiltersSafe returns the filters configuration, ensuring it is never nil.
+//
+//nolint:gocritic // hugeParam: Settings receiver is expected to be passed by value as per API contract.
+func (s Settings) FiltersSafe() FiltersConfig {
+	if s.Filters == nil {
+		return FiltersConfig{}
+	}
+	return *s.Filters
 }

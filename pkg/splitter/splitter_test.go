@@ -548,7 +548,7 @@ func TestSplitter(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
-			splitter := New(tt.conditions...)
+			splitter := NewSplitter(tt.conditions...)
 
 			// when
 			actual, err := splitter.Split(tt.session)
@@ -572,7 +572,7 @@ func TestSplitter(t *testing.T) {
 
 func TestAssignsSplitCauseToFirstEventOfNewSession(t *testing.T) {
 	// given
-	splitter := New(NewUTMCampaignCondition())
+	splitter := NewSplitter(NewUTMCampaignCondition())
 	session := &schema.Session{
 		Events: []*schema.Event{
 			schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign1"),
@@ -607,8 +607,8 @@ func TestMultiModifier(t *testing.T) {
 				},
 			},
 			modifiers: []SessionModifier{
-				New(NewUTMCampaignCondition()),
-				New(NewMaxXEventsCondition(1)),
+				NewSplitter(NewUTMCampaignCondition()),
+				NewSplitter(NewMaxXEventsCondition(1)),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -627,7 +627,7 @@ func TestMultiModifier(t *testing.T) {
 			},
 			modifiers: []SessionModifier{
 				NewNoop(),
-				New(NewUTMCampaignCondition()),
+				NewSplitter(NewUTMCampaignCondition()),
 			},
 			expected: []expectedSessions{
 				{0},
@@ -681,7 +681,7 @@ func TestMultiModifierEmptySession(t *testing.T) {
 	// given
 	multi := NewMultiModifier(
 		NewNoop(),
-		New(NewUTMCampaignCondition()),
+		NewSplitter(NewUTMCampaignCondition()),
 	)
 	session := &schema.Session{Events: []*schema.Event{}}
 
@@ -692,34 +692,4 @@ func TestMultiModifierEmptySession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, actual, 1)
 	assert.Len(t, actual[0].Events, 0)
-}
-
-func TestChainedRegistry(t *testing.T) {
-	// given - a base registry that returns a simple splitter
-	baseSplitter := New(NewUTMCampaignCondition())
-	baseRegistry := NewStaticRegistry(baseSplitter)
-
-	// Create a prepend modifier
-	prependModifier := NewNoop()
-
-	// Create chained registry
-	chainedReg := NewChainedRegistry(baseRegistry, prependModifier)
-
-	session := &schema.Session{
-		Events: []*schema.Event{
-			schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign1"),
-			schema.NewEvent(hits.New()).WithValueKey("utm_campaign", "campaign2"),
-		},
-	}
-
-	// when
-	splitter, err := chainedReg.Splitter("any-property")
-	assert.NoError(t, err)
-
-	actual, err := splitter.Split(session)
-
-	// then
-	assert.NoError(t, err)
-	// Should split due to UTM campaign change
-	assert.Equal(t, 2, len(actual))
 }

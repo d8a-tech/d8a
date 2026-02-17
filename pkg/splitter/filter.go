@@ -1,27 +1,27 @@
-package filter
+package splitter
 
 import (
 	"fmt"
 
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/d8a-tech/d8a/pkg/splitter"
 	expr "github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 )
 
 // compiledCondition holds a compiled filter condition.
 type compiledCondition struct {
-	config  ConditionConfig
+	config  properties.ConditionConfig
 	program *vm.Program
 }
 
-// filterModifier implements splitter.SessionModifier for event filtering.
+// filterModifier implements SessionModifier for event filtering.
 type filterModifier struct {
 	fields     []string
 	conditions []compiledCondition
 }
 
-// Split implements splitter.SessionModifier.
+// Split implements SessionModifier.
 // It evaluates filter conditions against events and removes matching/non-matching
 // events depending on filter type (exclude/allow). For inactive conditions
 // (testing mode), it sets event metadata instead of removing events.
@@ -60,10 +60,10 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 			if cond.config.Active {
 				// Active: apply filter logic
 				switch cond.config.Type {
-				case FilterTypeExclude:
+				case properties.FilterTypeExclude:
 					// Exclude: remove matching events
 					shouldKeep = false
-				case FilterTypeAllow:
+				case properties.FilterTypeAllow:
 					// Allow: keep only matching events, mark others for removal
 					// Will be handled by checking if any allow conditions exist
 				}
@@ -77,7 +77,7 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 		hasActiveAllowCondition := false
 		anyAllowMatched := false
 		for _, cond := range f.conditions {
-			if !cond.config.Active || cond.config.Type != FilterTypeAllow {
+			if !cond.config.Active || cond.config.Type != properties.FilterTypeAllow {
 				continue
 			}
 			hasActiveAllowCondition = true
@@ -118,15 +118,16 @@ func (f *filterModifier) buildEventEnvironment(event *schema.Event) map[string]a
 	for _, field := range f.fields {
 		if value, ok := event.Values[field]; ok {
 			// Convert to string for expr evaluation
-			if str, ok := value.(string); ok {
+			switch str := value.(type) {
+			case string:
 				env[field] = str
-			} else if str, ok := value.(*string); ok {
+			case *string:
 				if str != nil {
 					env[field] = *str
 				} else {
 					env[field] = ""
 				}
-			} else {
+			default:
 				// Try to convert other types to string
 				env[field] = fmt.Sprintf("%v", value)
 			}
@@ -139,7 +140,7 @@ func (f *filterModifier) buildEventEnvironment(event *schema.Event) map[string]a
 
 // New creates a new filter modifier from configuration.
 // Returns a noop modifier when config has no active conditions.
-func New(config FiltersConfig) (splitter.SessionModifier, error) {
+func NewFilter(config properties.FiltersConfig) (SessionModifier, error) {
 	if len(config.Conditions) == 0 {
 		return &filterModifier{fields: []string{}, conditions: []compiledCondition{}}, nil
 	}

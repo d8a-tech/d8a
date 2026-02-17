@@ -455,7 +455,7 @@ func TestSessionSplitCause(t *testing.T) {
 		},
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
 		SetSplitterRegistry(splitter.NewStaticRegistry(
-			splitter.New(
+			splitter.NewSplitter(
 				splitter.NewMaxXEventsCondition(2),
 			),
 		)),
