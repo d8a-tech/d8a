@@ -18,3 +18,38 @@ storage:
   bolt_directory: /tmp/
   queue_directory: /tmp/d8a-queue
   spool_enabled: false # Enable for production
+
+filters:
+  fields:              # column names from event.Values to inject into expr environment
+    - ip_address
+
+  conditions:
+    - name: "internal_traffic"
+      type: exclude
+      active: true
+      expression: 'starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")'
+
+    - name: "vpn_only"
+      type: allow
+      active: true
+      expression: 'in_cidr(ip_address, "100.64.0.0/10")'
+
+    - name: "test_office"
+      type: exclude
+      active: false       # testing mode: sets traffic_type = "test_office"
+      expression: 'ip_address == "203.0.113.50" || ends_with(ip_address, ".100")'
+
+    - name: "regex_bots"
+      type: exclude
+      active: true
+      expression: 'matches(ip_address, "^10\\.0\\.0\\.(1[0-9]|2[0-5])$")'
+
+    - name: "exact_block"
+      type: exclude
+      active: true
+      expression: 'ip_address == "198.51.100.1"'
+
+    - name: "contains_example"
+      type: exclude
+      active: false
+      expression: 'contains(ip_address, "168.1")'

@@ -177,3 +177,49 @@ func (r *staticRegistry) Splitter(_ string) (SessionModifier, error) {
 func NewStaticRegistry(splitter SessionModifier) Registry {
 	return &staticRegistry{splitter: splitter}
 }
+
+// MultiModifier chains multiple SessionModifiers, feeding the output
+// sessions of one into the next.
+type MultiModifier struct {
+	modifiers []SessionModifier
+}
+
+// NewMultiModifier creates a new multi-modifier that chains multiple SessionModifiers.
+func NewMultiModifier(modifiers ...SessionModifier) SessionModifier {
+	return &MultiModifier{modifiers: modifiers}
+}
+
+func (m *MultiModifier) Split(session *schema.Session) ([]*schema.Session, error) {
+	sessions := []*schema.Session{session}
+	for _, modifier := range m.modifiers {
+		var next []*schema.Session
+		for _, s := range sessions {
+			result, err := modifier.Split(s)
+			if err != nil {
+				return nil, err
+			}
+			next = append(next, result...)
+		}
+		sessions = next
+	}
+	return sessions, nil
+}
+
+// chainedRegistry wraps a base Registry and prepends an additional SessionModifier.
+type chainedRegistry struct {
+	base    Registry
+	prepend SessionModifier
+}
+
+// NewChainedRegistry creates a registry that prepends a modifier to another registry's modifiers.
+func NewChainedRegistry(base Registry, prepend SessionModifier) Registry {
+	return &chainedRegistry{base: base, prepend: prepend}
+}
+
+func (r *chainedRegistry) Splitter(propertyID string) (SessionModifier, error) {
+	baseSplitter, err := r.base.Splitter(propertyID)
+	if err != nil {
+		return nil, err
+	}
+	return NewMultiModifier(r.prepend, baseSplitter), nil
+}
