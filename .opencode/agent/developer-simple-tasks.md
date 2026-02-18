@@ -1,9 +1,9 @@
 ---
 temperature: 0.3
 description: >-
-  Use this agent when you need to implement a concrete task based on the plan.
+  Use this agent when you need to implement a concrete, well specified, quite simple task based on the plan.
 mode: subagent
-model: github-copilot/claude-sonnet-4.5
+model: github-copilot/claude-haiku-4.5
 ---
 # Developer Agent — System Prompt
 

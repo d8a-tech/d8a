@@ -315,6 +315,37 @@ var queueObjectPrefixFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "d8a/queue",
 }
 
+var queueObjectStorageMinIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "queue-objectstorage-min-interval",
+	Usage:   "Minimum polling interval for objectstorage queue consumer (only used for objectstorage backend)",
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_MIN_INTERVAL", "queue.objectstorage_min_interval"),
+	Value:   5 * time.Second,
+}
+
+var queueObjectStorageMaxIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "queue-objectstorage-max-interval",
+	Usage:   "Maximum polling interval for objectstorage queue consumer exponential backoff (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_MAX_INTERVAL", "queue.objectstorage_max_interval"),
+	Value:   1 * time.Minute,
+}
+
+var queueObjectStorageIntervalExpFactorFlag *cli.Float64Flag = &cli.Float64Flag{
+	Name:    "queue-objectstorage-interval-exp-factor",
+	Usage:   "Exponential backoff factor for objectstorage queue consumer polling interval (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_INTERVAL_EXP_FACTOR", "queue.objectstorage_interval_exp_factor"),
+	Value:   1.5,
+}
+
+var queueObjectStorageMaxItemsToReadAtOnceFlag *cli.IntFlag = &cli.IntFlag{
+	Name:  "queue-objectstorage-max-items-to-read-at-once",
+	Usage: "Maximum number of items to read in one batch from objectstorage queue (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain(
+		"QUEUE_OBJECTSTORAGE_MAX_ITEMS_TO_READ_AT_ONCE",
+		"queue.objectstorage_max_items_to_read_at_once",
+	),
+	Value: 1000,
+}
+
 var objectStorageTypeFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "object-storage-type",
 	Usage:   "Object storage type (s3 or gcs)",
@@ -475,6 +506,10 @@ func getServerFlags() []cli.Flag {
 			storageQueueDirectoryFlag,
 			queueBackendFlag,
 			queueObjectPrefixFlag,
+			queueObjectStorageMinIntervalFlag,
+			queueObjectStorageMaxIntervalFlag,
+			queueObjectStorageIntervalExpFactorFlag,
+			queueObjectStorageMaxItemsToReadAtOnceFlag,
 			objectStorageTypeFlag,
 			objectStorageS3HostFlag,
 			objectStorageS3PortFlag,

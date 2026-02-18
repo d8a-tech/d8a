@@ -17,9 +17,10 @@ func TestBuildObjectStorageQueue_PrefixIsolation(t *testing.T) {
 
 	bkt := memblob.OpenBucket(nil)
 
-	qA, err := buildObjectStorageQueue(ctx, bkt, "envA/queue")
+	// Use default intervals for this test
+	qA, err := buildObjectStorageQueue(ctx, bkt, "envA/queue", 5*time.Second, 1*time.Minute, 1.5, 1000)
 	assert.NoError(t, err)
-	qB, err := buildObjectStorageQueue(ctx, bkt, "envB/queue")
+	qB, err := buildObjectStorageQueue(ctx, bkt, "envB/queue", 5*time.Second, 1*time.Minute, 1.5, 1000)
 	assert.NoError(t, err)
 
 	assert.NoError(t, qA.Publisher.Publish(&worker.Task{Type: "t", Headers: map[string]string{}, Body: []byte("a1")}))
@@ -44,7 +45,7 @@ func TestBuildObjectStorageQueue_PrefixIsolation(t *testing.T) {
 	// then: ensure the other prefix is still present
 	ctxB, cancelB := context.WithCancel(context.Background())
 	t.Cleanup(cancelB)
-	qB2, err := buildObjectStorageQueue(ctxB, bkt, "envB/queue")
+	qB2, err := buildObjectStorageQueue(ctxB, bkt, "envB/queue", 5*time.Second, 1*time.Minute, 1.5, 1000)
 	assert.NoError(t, err)
 
 	processedB := make(chan []byte, 1)
