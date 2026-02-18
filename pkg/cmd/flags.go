@@ -460,8 +460,9 @@ var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 
 var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "filters-fields",
-	Usage: "Array of field names to make available to filter expressions. These fields can be referenced in filter condition expressions. " + //nolint:lll // it's a description
-		"Example: event_name, user_id, page_location. " +
+	Usage: "Array of field names to make available to filter expressions. Can contain any event-scoped column names. " + //nolint:lll // it's a description
+		"These fields are injected into the expression environment and can be referenced in filter condition expressions. " +
+		"Example: ip_address, event_name, user_id, page_location. The default value includes ip_address for backward compatibility. " + //nolint:lll // it's a description
 		"See [Traffic filtering](./traffic-filtering.md) for details.",
 	Sources: defaultSourceChain("FILTERS_FIELDS", "filters.fields"),
 	Value:   []string{"ip_address"},
