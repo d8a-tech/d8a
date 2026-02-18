@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -403,6 +404,18 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 					}
 					// Override fields from YAML with flag value (flag takes precedence)
 					filtersConfig.Fields = cmd.StringSlice(filtersFieldsFlag.Name)
+
+					// Parse and append JSON-encoded conditions from flag/env
+					flagConditions := cmd.StringSlice(filtersConditionsFlag.Name)
+					for _, conditionJSON := range flagConditions {
+						var condition properties.ConditionConfig
+						if err := json.Unmarshal([]byte(conditionJSON), &condition); err != nil {
+							logrus.Warnf("skipping invalid JSON condition %q: %v", conditionJSON, err)
+							continue
+						}
+						filtersConfig.Conditions = append(filtersConfig.Conditions, condition)
+					}
+
 					return &filtersConfig
 				}(),
 			},
