@@ -467,11 +467,24 @@ func buildSharedTempDirectories(t *testing.T) (queueDir, storageDir string) {
 
 // testConfigBuilder builds YAML configuration files for multi-process tests
 type testConfigBuilder struct {
-	port             *int
-	queueDirectory   string
-	storageDirectory string
-	warehouse        string
-	sessionTimeout   time.Duration
+	port                                   *int
+	queueDirectory                         string
+	storageDirectory                       string
+	warehouse                              string
+	sessionTimeout                         time.Duration
+	queueBackend                           string
+	objectStorageType                      string
+	objectStorageS3Host                    string
+	objectStorageS3Port                    *int
+	objectStorageS3AccessKey               string
+	objectStorageS3SecretKey               string
+	objectStorageS3Bucket                  string
+	objectStorageS3CreateBucket            *bool
+	queueObjectPrefix                      string
+	queueObjectStorageMinInterval          time.Duration
+	queueObjectStorageMaxInterval          time.Duration
+	queueObjectStorageIntervalExpFactor    float64
+	queueObjectStorageMaxItemsToReadAtOnce int
 }
 
 // newTestConfigBuilder creates a new config builder with default values
@@ -479,6 +492,7 @@ func newTestConfigBuilder() *testConfigBuilder {
 	return &testConfigBuilder{
 		warehouse:      "noop",
 		sessionTimeout: 2 * time.Second,
+		queueBackend:   "filesystem",
 	}
 }
 
@@ -509,6 +523,84 @@ func (b *testConfigBuilder) WithWarehouse(warehouse string) *testConfigBuilder {
 // WithSessionTimeout sets the session timeout
 func (b *testConfigBuilder) WithSessionTimeout(timeout time.Duration) *testConfigBuilder {
 	b.sessionTimeout = timeout
+	return b
+}
+
+// WithQueueBackend sets the queue backend (filesystem or objectstorage)
+func (b *testConfigBuilder) WithQueueBackend(backend string) *testConfigBuilder {
+	b.queueBackend = backend
+	return b
+}
+
+// WithObjectStorageType sets the object storage type (s3 or gcs)
+func (b *testConfigBuilder) WithObjectStorageType(osType string) *testConfigBuilder {
+	b.objectStorageType = osType
+	return b
+}
+
+// WithObjectStorageS3Host sets the S3 host
+func (b *testConfigBuilder) WithObjectStorageS3Host(host string) *testConfigBuilder {
+	b.objectStorageS3Host = host
+	return b
+}
+
+// WithObjectStorageS3Port sets the S3 port
+func (b *testConfigBuilder) WithObjectStorageS3Port(port int) *testConfigBuilder {
+	b.objectStorageS3Port = &port
+	return b
+}
+
+// WithObjectStorageS3AccessKey sets the S3 access key
+func (b *testConfigBuilder) WithObjectStorageS3AccessKey(key string) *testConfigBuilder {
+	b.objectStorageS3AccessKey = key
+	return b
+}
+
+// WithObjectStorageS3SecretKey sets the S3 secret key
+func (b *testConfigBuilder) WithObjectStorageS3SecretKey(key string) *testConfigBuilder {
+	b.objectStorageS3SecretKey = key
+	return b
+}
+
+// WithObjectStorageS3Bucket sets the S3 bucket name
+func (b *testConfigBuilder) WithObjectStorageS3Bucket(bucket string) *testConfigBuilder {
+	b.objectStorageS3Bucket = bucket
+	return b
+}
+
+// WithObjectStorageS3CreateBucket sets whether to create the bucket on startup
+func (b *testConfigBuilder) WithObjectStorageS3CreateBucket(create bool) *testConfigBuilder {
+	b.objectStorageS3CreateBucket = &create
+	return b
+}
+
+// WithQueueObjectPrefix sets the object storage prefix for queue
+func (b *testConfigBuilder) WithQueueObjectPrefix(prefix string) *testConfigBuilder {
+	b.queueObjectPrefix = prefix
+	return b
+}
+
+// WithQueueObjectStorageMinInterval sets the minimum polling interval
+func (b *testConfigBuilder) WithQueueObjectStorageMinInterval(interval time.Duration) *testConfigBuilder {
+	b.queueObjectStorageMinInterval = interval
+	return b
+}
+
+// WithQueueObjectStorageMaxInterval sets the maximum polling interval
+func (b *testConfigBuilder) WithQueueObjectStorageMaxInterval(interval time.Duration) *testConfigBuilder {
+	b.queueObjectStorageMaxInterval = interval
+	return b
+}
+
+// WithQueueObjectStorageIntervalExpFactor sets the exponential backoff factor
+func (b *testConfigBuilder) WithQueueObjectStorageIntervalExpFactor(factor float64) *testConfigBuilder {
+	b.queueObjectStorageIntervalExpFactor = factor
+	return b
+}
+
+// WithQueueObjectStorageMaxItemsToReadAtOnce sets the maximum items to read in one batch
+func (b *testConfigBuilder) WithQueueObjectStorageMaxItemsToReadAtOnce(maxItems int) *testConfigBuilder {
+	b.queueObjectStorageMaxItemsToReadAtOnce = maxItems
 	return b
 }
 
@@ -552,10 +644,57 @@ func (b *testConfigBuilder) buildYAML() string {
 	if b.storageDirectory != "" {
 		fmt.Fprintf(&content, "  bolt_directory: %s/\n", b.storageDirectory)
 	}
-	if b.queueDirectory != "" {
+	if b.queueDirectory != "" && b.queueBackend == "filesystem" {
 		fmt.Fprintf(&content, "  queue_directory: %s\n", b.queueDirectory)
 	}
 	content.WriteString("  spool_enabled: false\n\n")
+
+	// Queue configuration
+	if b.queueBackend == "objectstorage" {
+		content.WriteString("queue:\n")
+		fmt.Fprintf(&content, "  backend: %s\n", b.queueBackend)
+		if b.queueObjectPrefix != "" {
+			fmt.Fprintf(&content, "  object_prefix: %s\n", b.queueObjectPrefix)
+		}
+		if b.queueObjectStorageMinInterval > 0 {
+			fmt.Fprintf(&content, "  objectstorage_min_interval: %s\n", b.queueObjectStorageMinInterval)
+		}
+		if b.queueObjectStorageMaxInterval > 0 {
+			fmt.Fprintf(&content, "  objectstorage_max_interval: %s\n", b.queueObjectStorageMaxInterval)
+		}
+		if b.queueObjectStorageIntervalExpFactor > 0 {
+			fmt.Fprintf(&content, "  objectstorage_interval_exp_factor: %g\n", b.queueObjectStorageIntervalExpFactor)
+		}
+		if b.queueObjectStorageMaxItemsToReadAtOnce > 0 {
+			fmt.Fprintf(&content, "  objectstorage_max_items_to_read_at_once: %d\n", b.queueObjectStorageMaxItemsToReadAtOnce)
+		}
+		content.WriteString("\n")
+
+		// Object storage configuration
+		content.WriteString("object_storage:\n")
+		fmt.Fprintf(&content, "  type: %s\n", b.objectStorageType)
+		content.WriteString("  s3:\n")
+		if b.objectStorageS3Host != "" {
+			fmt.Fprintf(&content, "    host: %s\n", b.objectStorageS3Host)
+		}
+		if b.objectStorageS3Port != nil {
+			fmt.Fprintf(&content, "    port: %d\n", *b.objectStorageS3Port)
+		}
+		if b.objectStorageS3AccessKey != "" {
+			fmt.Fprintf(&content, "    access_key: %s\n", b.objectStorageS3AccessKey)
+		}
+		if b.objectStorageS3SecretKey != "" {
+			fmt.Fprintf(&content, "    secret_key: %s\n", b.objectStorageS3SecretKey)
+		}
+		if b.objectStorageS3Bucket != "" {
+			fmt.Fprintf(&content, "    bucket: %s\n", b.objectStorageS3Bucket)
+		}
+		if b.objectStorageS3CreateBucket != nil {
+			fmt.Fprintf(&content, "    create_bucket: %v\n", *b.objectStorageS3CreateBucket)
+		}
+		content.WriteString("    region: us-east-1\n")
+		content.WriteString("    protocol: http\n\n")
+	}
 
 	if b.port != nil {
 		fmt.Fprintf(&content, "server:\n  port: %d\n\n", *b.port)
@@ -607,6 +746,29 @@ func TestConfigBuilder(t *testing.T) {
 			expectQueue:   false,
 			expectStorage: false,
 		},
+		{
+			name: "objectstorage queue config",
+			setup: func(b *testConfigBuilder) *testConfigBuilder {
+				return b.WithPort(17000).
+					WithStorageDirectory("/tmp/storage").
+					WithQueueBackend("objectstorage").
+					WithObjectStorageType("s3").
+					WithObjectStorageS3Host("localhost").
+					WithObjectStorageS3Port(9000).
+					WithObjectStorageS3AccessKey("minioadmin").
+					WithObjectStorageS3SecretKey("minioadmin").
+					WithObjectStorageS3Bucket("test-queue").
+					WithObjectStorageS3CreateBucket(true).
+					WithQueueObjectPrefix("d8a/queue").
+					WithQueueObjectStorageMinInterval(10 * time.Millisecond).
+					WithQueueObjectStorageMaxInterval(50 * time.Millisecond).
+					WithQueueObjectStorageIntervalExpFactor(1.1).
+					WithQueueObjectStorageMaxItemsToReadAtOnce(500)
+			},
+			expectPort:    true,
+			expectQueue:   false,
+			expectStorage: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -653,6 +815,28 @@ func TestConfigBuilder(t *testing.T) {
 			}
 			if !strings.Contains(configStr, "property:") {
 				t.Error("config should contain property field")
+			}
+
+			// For objectstorage tests, verify queue and object_storage sections
+			if tt.name == "objectstorage queue config" {
+				if !strings.Contains(configStr, "queue:") {
+					t.Error("objectstorage config should contain queue section")
+				}
+				if !strings.Contains(configStr, "backend: objectstorage") {
+					t.Error("queue section should specify objectstorage backend")
+				}
+				if !strings.Contains(configStr, "object_storage:") {
+					t.Error("objectstorage config should contain object_storage section")
+				}
+				if !strings.Contains(configStr, "host: localhost") {
+					t.Error("object_storage.s3 section should contain host")
+				}
+				if !strings.Contains(configStr, "port: 9000") {
+					t.Error("object_storage.s3 section should contain port")
+				}
+				if !strings.Contains(configStr, "objectstorage_min_interval: 10ms") {
+					t.Error("queue section should contain objectstorage_min_interval")
+				}
 			}
 
 			// Verify file permissions
