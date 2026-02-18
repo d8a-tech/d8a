@@ -163,6 +163,7 @@ func (c *FWAConverter) tryFetch(url, base string) (map[string]float64, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
+	// #nosec G704 - URL is from trusted internal sources, not user input
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err

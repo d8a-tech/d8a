@@ -57,6 +57,7 @@ func (f *binaryMessageFormat) Serialize(t *Task) ([]byte, error) {
 
 	var buf bytes.Buffer
 	// Write length byte
+	// #nosec G115 - length checked to be <= 255 above
 	if err := buf.WriteByte(byte(len(t.Type))); err != nil {
 		return nil, fmt.Errorf("error writing type length: %w", err)
 	}
