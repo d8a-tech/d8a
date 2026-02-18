@@ -398,9 +398,14 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 				SessionJoinBySessionStamp: cmd.Bool(sessionsJoinBySessionStampFlag.Name),
 				SessionJoinByUserID:       cmd.Bool(sessionsJoinByUserIDFlag.Name),
 				Filters: func() *properties.FiltersConfig {
-					filtersConfig, err := properties.ParseFilterConfig(configFile)
-					if err != nil {
-						logrus.Panicf("failed to parse filters config: %v", err)
+					var filtersConfig properties.FiltersConfig
+					// Config file is optional; stat before parsing
+					if _, err := os.Stat(configFile); err == nil {
+						var parseErr error
+						filtersConfig, parseErr = properties.ParseFilterConfig(configFile)
+						if parseErr != nil {
+							logrus.Panicf("failed to parse filters config: %v", parseErr)
+						}
 					}
 					// Override fields from YAML with flag value (flag takes precedence)
 					filtersConfig.Fields = cmd.StringSlice(filtersFieldsFlag.Name)
