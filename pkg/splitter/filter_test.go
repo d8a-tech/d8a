@@ -194,9 +194,9 @@ func TestFilterModifierTestingMode(t *testing.T) {
 	// All events should still be present in testing mode
 	assert.Len(t, sessions[0].Events, 2)
 	// Matching event should have traffic_type metadata
-	assert.Equal(t, "test_office", sessions[0].Events[0].Metadata["engaged_filter_name"])
+	assert.Equal(t, "test_office", sessions[0].Events[0].Metadata["traffic_filter_name"])
 	// Non-matching event should not have traffic_type metadata
-	_, ok := sessions[0].Events[1].Metadata["engaged_filter_name"]
+	_, ok := sessions[0].Events[1].Metadata["traffic_filter_name"]
 	assert.False(t, ok)
 }
 

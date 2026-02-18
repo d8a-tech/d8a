@@ -69,7 +69,7 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 				}
 			} else {
 				// Inactive (testing): set metadata
-				event.Metadata["engaged_filter_name"] = cond.config.Name
+				event.Metadata["traffic_filter_name"] = cond.config.Name
 			}
 		}
 

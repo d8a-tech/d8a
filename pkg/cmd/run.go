@@ -396,6 +396,13 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 				SessionTimeout:            cmd.Duration(sessionsTimeoutFlag.Name),
 				SessionJoinBySessionStamp: cmd.Bool(sessionsJoinBySessionStampFlag.Name),
 				SessionJoinByUserID:       cmd.Bool(sessionsJoinByUserIDFlag.Name),
+				Filters: func() *properties.FiltersConfig {
+					filtersConfig, err := properties.ParseFilterConfig(configFile)
+					if err != nil {
+						logrus.Panicf("failed to parse filters config: %v", err)
+					}
+					return &filtersConfig
+				}(),
 			},
 		),
 	)

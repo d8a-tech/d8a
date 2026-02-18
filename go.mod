@@ -38,7 +38,6 @@ require (
 	golang.org/x/oauth2 v0.35.0
 	golang.org/x/sync v0.19.0
 	google.golang.org/api v0.266.0
-	google.golang.org/api v0.265.0
 	gopkg.in/yaml.v3 v3.0.1
 	oras.land/oras-go/v2 v2.6.0
 )

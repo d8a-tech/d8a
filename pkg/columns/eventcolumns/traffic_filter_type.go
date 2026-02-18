@@ -8,13 +8,13 @@ import (
 // SSETrafficType is a session-scoped event column that reads event metadata
 // set by the filter system during testing mode (when active: false).
 var SSETrafficType = columns.NewSimpleSessionScopedEventColumn(
-	columns.CoreInterfaces.SSETrafficType.ID,
-	columns.CoreInterfaces.SSETrafficType.Field,
+	columns.CoreInterfaces.SSETrafficFilterName.ID,
+	columns.CoreInterfaces.SSETrafficFilterName.Field,
 	func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
 		if i >= len(s.Events) {
 			return nil, nil //nolint:nilnil // nil is a valid value for this column
 		}
-		v, ok := s.Events[i].Metadata["engaged_filter_name"]
+		v, ok := s.Events[i].Metadata["traffic_filter_name"]
 		if !ok {
 			return nil, nil //nolint:nilnil // nil is a valid value for this column
 		}
@@ -27,6 +27,6 @@ var SSETrafficType = columns.NewSimpleSessionScopedEventColumn(
 	columns.WithSessionScopedEventColumnRequired(false),
 	columns.WithSessionScopedEventColumnDocs(
 		"Traffic Type",
-		"The traffic type classification set by the filter system during testing mode. When a filter condition is set to testing mode (active: false), matching events get this metadata set to the condition name.", // nolint:lll // it's a description
+		"Name of the traffic filter that matched this event in testing mode. If the filter were active, this event would have been excluded.", // nolint:lll // it's a description
 	),
 )
