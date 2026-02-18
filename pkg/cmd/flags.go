@@ -461,7 +461,8 @@ var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "filters-fields",
 	Usage: "Array of field names to make available to filter expressions. These fields can be referenced in filter condition expressions. " + //nolint:lll // it's a description
-		"Example: event_name, user_id, page_location. The default value includes ip_address for backward compatibility.",
+		"Example: event_name, user_id, page_location. The default value includes ip_address for backward compatibility. " +
+		"See [Traffic filtering](./traffic-filtering.md) for details.",
 	Sources: defaultSourceChain("FILTERS_FIELDS", "filters.fields"),
 	Value:   []string{"ip_address"},
 }
@@ -480,7 +481,8 @@ var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 		"'name' (string identifier), 'type' (exclude or allow), 'test_mode' (boolean), 'expression' (filter expression). " +
 		"Example: {\"name\":\"internal_traffic\",\"type\":\"exclude\",\"test_mode\":false,\"expression\":\"ip_address == '10.0.0.1'\"}. " + //nolint:lll // it's a description
 		"Can be set via CLI flag, environment variable (FILTERS_CONDITIONS), or YAML config (filters.conditions). " +
-		"Conditions from flag/env are appended to YAML conditions.",
+		"Conditions from flag/env are appended to YAML conditions. " +
+		"See [Traffic filtering](./traffic-filtering.md) for details.",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("FILTERS_CONDITIONS")
