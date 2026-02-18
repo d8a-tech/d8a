@@ -51,7 +51,16 @@ func buildWorkerRuntime(
 			getTableNames(cmd).sessionsColumnPrefix,
 		),
 	)
-	splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySettings(cmd))
+	splitterRegistry := splitter.NewFromPropertySettingsRegistry(
+		propertySettings(cmd),
+		splitter.WithCapacity(5),
+		splitter.WithTTL(30*24*time.Hour), // Static config, so no need to invalidate
+	)
+	// Special case for OSS - on top of registry we validate if rules compile right away
+	_, err = splitterRegistry.SessionModifier(cmd.String(propertyIDFlag.Name))
+	if err != nil {
+		logrus.Panicf("failed to create session modifier: %v", err)
+	}
 
 	var batchingCleanup func()
 	cleanup := func() {

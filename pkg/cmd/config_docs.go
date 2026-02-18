@@ -44,6 +44,16 @@ func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 		if len(f.Sources.Chain) > 0 {
 			configKey, envVar = parseSources(f.Sources)
 		}
+	case *cli.StringSliceFlag:
+		name = f.Name
+		usage = f.Usage
+		flagType = "string array"
+		if len(f.Value) > 0 {
+			defaultValue = fmt.Sprintf("[%s]", strings.Join(f.Value, ", "))
+		}
+		if len(f.Sources.Chain) > 0 {
+			configKey, envVar = parseSources(f.Sources)
+		}
 	case *cli.IntFlag:
 		name = f.Name
 		usage = f.Usage

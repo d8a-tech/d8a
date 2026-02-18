@@ -74,6 +74,7 @@ var CoreInterfaces = struct {
 	SSETimeOnPage        schema.Interface
 	SSEIsEntryPage       schema.Interface
 	SSEIsExitPage        schema.Interface
+	SSETrafficFilterName schema.Interface
 
 	// Session columns
 	SessionID schema.Interface
@@ -398,6 +399,10 @@ var CoreInterfaces = struct {
 	SSEIsExitPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_exit_page",
 		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SSETrafficFilterName: schema.Interface{
+		ID:    "core.d8a.tech/events/traffic_filter_name",
+		Field: &arrow.Field{Name: "traffic_filter_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 
 	SessionID: schema.Interface{

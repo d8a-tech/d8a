@@ -18,3 +18,10 @@ storage:
   bolt_directory: /tmp/
   queue_directory: /tmp/d8a-queue
   spool_enabled: false # Enable for production
+
+filters:
+  conditions:
+    - name: "internal_traffic"
+      type: exclude
+      test_mode: true
+      expression: 'starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8") || ip_address == "127.0.0.1"'
