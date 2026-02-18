@@ -2,8 +2,12 @@
 package splitter
 
 import (
+	"time"
+
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/dgraph-io/ristretto/v2"
+	"github.com/sirupsen/logrus"
 )
 
 // SplitCause indicates the reason why a session was split.
@@ -132,14 +136,14 @@ func NewSplitter(conditions ...Condition) SessionModifier {
 
 // Registry provides session splitters for properties.
 type Registry interface {
-	Splitter(propertyID string) (SessionModifier, error)
+	SessionModifier(propertyID string) (SessionModifier, error)
 }
 
 type fromPropertySettingsRegistry struct {
 	psr properties.SettingsRegistry
 }
 
-func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionModifier, error) {
+func (r *fromPropertySettingsRegistry) SessionModifier(propertyID string) (SessionModifier, error) {
 	settings, err := r.psr.GetByPropertyID(propertyID)
 	if err != nil {
 		return nil, err
@@ -169,17 +173,105 @@ func (r *fromPropertySettingsRegistry) Splitter(propertyID string) (SessionModif
 }
 
 // NewFromPropertySettingsRegistry creates a registry that builds splitters from property settings.
-func NewFromPropertySettingsRegistry(psr properties.SettingsRegistry) Registry {
-	return &fromPropertySettingsRegistry{
-		psr: psr,
+func NewFromPropertySettingsRegistry(psr properties.SettingsRegistry, cacheOpts ...CachingRegistryOption) Registry {
+	return func() Registry {
+		r, err := NewCachingRegistry(
+			&fromPropertySettingsRegistry{
+				psr: psr,
+			},
+			cacheOpts...,
+		)
+		if err != nil {
+			logrus.Panicf(
+				"failed to create caching registry for property settings: %v",
+				err,
+			)
+		}
+		return r
+	}()
+}
+
+type cachingRegistryConfig struct {
+	capacity int64
+	ttl      time.Duration
+}
+
+type cachingRegistry struct {
+	underlying Registry
+	cache      *ristretto.Cache[string, SessionModifier]
+	config     cachingRegistryConfig
+}
+
+func (r *cachingRegistry) SessionModifier(propertyID string) (SessionModifier, error) {
+	// Check cache
+	if modifier, found := r.cache.Get(propertyID); found {
+		return modifier, nil
 	}
+
+	// Cache miss - call underlying
+	modifier, err := r.underlying.SessionModifier(propertyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache
+	r.cache.SetWithTTL(propertyID, modifier, 1, r.config.ttl)
+
+	return modifier, nil
+}
+
+// CachingRegistryOption configures a caching registry.
+type CachingRegistryOption func(*cachingRegistryConfig)
+
+// WithCapacity sets the maximum number of entries in the cache.
+func WithCapacity(n int64) CachingRegistryOption {
+	return func(c *cachingRegistryConfig) {
+		c.capacity = n
+	}
+}
+
+// WithTTL sets the time-to-live for cached entries.
+func WithTTL(d time.Duration) CachingRegistryOption {
+	return func(c *cachingRegistryConfig) {
+		c.ttl = d
+	}
+}
+
+// NewCachingRegistry creates a registry that caches SessionModifier lookups.
+func NewCachingRegistry(underlying Registry, opts ...CachingRegistryOption) (Registry, error) {
+	// Create config with defaults
+	config := cachingRegistryConfig{
+		capacity: 100,
+		ttl:      5 * time.Minute,
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(&config)
+	}
+
+	// Create ristretto cache
+	cache, err := ristretto.NewCache(&ristretto.Config[string, SessionModifier]{
+		NumCounters: config.capacity * 10,
+		MaxCost:     config.capacity,
+		BufferItems: 64,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &cachingRegistry{
+		underlying: underlying,
+		cache:      cache,
+		config:     config,
+	}, nil
 }
 
 type staticRegistry struct {
 	splitter SessionModifier
 }
 
-func (r *staticRegistry) Splitter(_ string) (SessionModifier, error) {
+func (r *staticRegistry) SessionModifier(_ string) (SessionModifier, error) {
 	return r.splitter, nil
 }
 

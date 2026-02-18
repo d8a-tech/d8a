@@ -12,6 +12,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/dgraph-io/ristretto/v2"
+	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
@@ -36,8 +37,8 @@ type sessionWriterImpl struct {
 	columnsCache    *ristretto.Cache[string, schema.Columns]
 	columnsLock     sync.Mutex
 
-	splitterRegistry splitter.Registry
-	parentCtx        context.Context
+	smRegistry splitter.Registry
+	parentCtx  context.Context
 
 	sessionsProcessedCounter metric.Int64Counter
 	writeCallsCounter        metric.Int64Counter
@@ -258,15 +259,23 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 		}
 	}
 	m.eventColumnsHist.Record(ctx, time.Since(eventColumnsStart).Seconds())
-	splitterObj, err := m.splitterRegistry.Splitter(session.PropertyID)
+	smObj, err := m.smRegistry.SessionModifier(session.PropertyID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"failed to get session modifier for property ID %s: %w",
+			session.PropertyID,
+			err,
+		)
 	}
 	splitterStart := time.Now()
-	splitSessions, err := splitterObj.Split(session)
+	splitSessions, err := smObj.Split(session)
 	m.splitterHist.Record(ctx, time.Since(splitterStart).Seconds())
 	if err != nil {
-		return nil, err
+		logrus.Warnf(
+			"Could not split session for property ID %s: %s. Writing unsplit session.",
+			session.PropertyID,
+			err.Error(),
+		)
 	}
 	for _, splitSession := range splitSessions {
 		sessionScopedEventStart := time.Now()
@@ -350,7 +359,7 @@ func NewSessionWriter(
 		layoutsCache:             createDefaultCache[schema.Layout](),
 		cacheTTL:                 5 * time.Minute,
 		parentCtx:                parentCtx,
-		splitterRegistry:         splitterRegistry,
+		smRegistry:               splitterRegistry,
 		sessionsProcessedCounter: sessionsProcessedCounter,
 		writeCallsCounter:        writeCallsCounter,
 		prepareDepsHist:          prepareDepsHist,

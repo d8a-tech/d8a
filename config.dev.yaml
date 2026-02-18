@@ -24,4 +24,4 @@ filters:
     - name: "internal_traffic"
       type: exclude
       test_mode: true
-      expression: 'starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")'
+      expression: 'starts_with(ip_address, "192.168") |asdasd| in_cidr(ip_address, "10.0.0.0/8")'
