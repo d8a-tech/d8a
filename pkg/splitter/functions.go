@@ -4,9 +4,31 @@ import (
 	"net"
 	"regexp"
 	"strings"
+	"sync"
 
+	"github.com/dgraph-io/ristretto/v2"
 	expr "github.com/expr-lang/expr"
 )
+
+var (
+	regexCacheOnce sync.Once
+	regexCache     *ristretto.Cache[string, *regexp.Regexp]
+)
+
+func initRegexCache() {
+	c, err := ristretto.NewCache(&ristretto.Config[string, *regexp.Regexp]{
+		// Keep a small, global cache of compiled regex patterns.
+		// Cost is 1 per entry, so MaxCost is the max number of patterns.
+		NumCounters: 1000,
+		MaxCost:     100,
+		BufferItems: 64,
+	})
+	if err != nil {
+		// Cache is an optimization; fall back to uncached evaluation.
+		return
+	}
+	regexCache = c
+}
 
 // startsWith checks if a string starts with a prefix.
 func startsWith(params ...any) (any, error) {
@@ -93,6 +115,20 @@ func matches(params ...any) (any, error) {
 	pattern, ok := params[1].(string)
 	if !ok {
 		return false, nil
+	}
+
+	regexCacheOnce.Do(initRegexCache)
+	if regexCache != nil {
+		if re, ok := regexCache.Get(pattern); ok {
+			return re.MatchString(s), nil
+		}
+
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return false, nil
+		}
+		regexCache.Set(pattern, re, 1)
+		return re.MatchString(s), nil
 	}
 
 	matched, err := regexp.MatchString(pattern, s)

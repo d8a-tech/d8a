@@ -7,6 +7,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	expr "github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
+	"github.com/sirupsen/logrus"
 )
 
 // compiledCondition holds a compiled filter condition.
@@ -30,6 +31,17 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 		return []*schema.Session{session}, nil
 	}
 
+	allowFilteringEnabled := false
+	for _, cond := range f.conditions {
+		if cond.config.TestMode {
+			continue
+		}
+		if cond.config.Type == properties.FilterTypeAllow {
+			allowFilteringEnabled = true
+			break
+		}
+	}
+
 	// Filter events based on conditions
 	filteredEvents := make([]*schema.Event, 0, len(session.Events))
 
@@ -38,17 +50,19 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 		env := f.buildEventEnvironment(event)
 
 		shouldKeep := true
+		anyAllowMatched := false
 
 		// Evaluate all conditions
 		for _, cond := range f.conditions {
 			result, err := expr.Run(cond.program, env)
 			if err != nil {
-				// If evaluation fails, treat as non-matching
+				logrus.Warnf("failed to evaluate filter condition %q: %v", cond.config.Name, err)
 				continue
 			}
 
 			matched, ok := result.(bool)
 			if !ok {
+				logrus.Warnf("filter condition %q did not return a boolean result", cond.config.Name)
 				continue
 			}
 
@@ -57,43 +71,24 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 			}
 
 			// Condition matched
-			if !cond.config.TestMode {
-				// Not in testing mode: apply filter logic
-				switch cond.config.Type {
-				case properties.FilterTypeExclude:
-					// Exclude: remove matching events
-					shouldKeep = false
-				case properties.FilterTypeAllow:
-					// Allow: keep only matching events, mark others for removal
-					// Will be handled by checking if any allow conditions exist
-				}
-			} else {
+			if cond.config.TestMode {
 				// Testing mode: set metadata
 				event.Metadata["traffic_filter_name"] = cond.config.Name
-			}
-		}
-
-		// Handle allow-type filters: if any allow conditions exist, only keep if matched
-		hasActiveAllowCondition := false
-		anyAllowMatched := false
-		for _, cond := range f.conditions {
-			if cond.config.TestMode || cond.config.Type != properties.FilterTypeAllow {
 				continue
 			}
-			hasActiveAllowCondition = true
 
-			result, err := expr.Run(cond.program, env)
-			if err != nil {
-				continue
-			}
-			matched, ok := result.(bool)
-			if ok && matched {
+			switch cond.config.Type {
+			case properties.FilterTypeExclude:
+				// Exclude: remove matching events
+				shouldKeep = false
+			case properties.FilterTypeAllow:
 				anyAllowMatched = true
-				break
 			}
 		}
 
-		if hasActiveAllowCondition && !anyAllowMatched {
+		// If any allow filters exist (and are not in testing mode), only keep events
+		// that matched at least one allow condition.
+		if allowFilteringEnabled && !anyAllowMatched {
 			shouldKeep = false
 		}
 
