@@ -75,7 +75,7 @@ Lint command (from the service directory): `~/go/bin/golangci-lint run ./... -c 
 ## Tooling and cleanup
 
 - Canonical commands: `go mod tidy`, `go test ./...`, `~/go/bin/golangci-lint run ./... -c .golangci.yml`, `go run . <command>`.
-- When building locally, write binaries to `/tmp`: `go build -o /tmp/<service-name> .`.
+- When building locally, write binaries to `./tmp`: `go build -o ./tmp/<service-name> .`.
 - Before declaring work complete, ensure no build artifacts remain in the workspace.
 
 ## Documentation style

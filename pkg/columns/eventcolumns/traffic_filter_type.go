@@ -6,7 +6,7 @@ import (
 )
 
 // SSETrafficType is a session-scoped event column that reads event metadata
-// set by the filter system during testing mode (when active: false).
+// set by the filter system during testing mode (when test_mode: true).
 var SSETrafficType = columns.NewSimpleSessionScopedEventColumn(
 	columns.CoreInterfaces.SSETrafficFilterName.ID,
 	columns.CoreInterfaces.SSETrafficFilterName.Field,

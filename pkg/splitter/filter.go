@@ -23,8 +23,8 @@ type filterModifier struct {
 
 // Split implements SessionModifier.
 // It evaluates filter conditions against events and removes matching/non-matching
-// events depending on filter type (exclude/allow). For inactive conditions
-// (testing mode), it sets event metadata instead of removing events.
+// events depending on filter type (exclude/allow). For conditions in testing mode,
+// it sets event metadata instead of removing events.
 func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, error) {
 	if len(session.Events) == 0 {
 		return []*schema.Session{session}, nil
@@ -57,8 +57,8 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 			}
 
 			// Condition matched
-			if cond.config.Active {
-				// Active: apply filter logic
+			if !cond.config.TestMode {
+				// Not in testing mode: apply filter logic
 				switch cond.config.Type {
 				case properties.FilterTypeExclude:
 					// Exclude: remove matching events
@@ -68,7 +68,7 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 					// Will be handled by checking if any allow conditions exist
 				}
 			} else {
-				// Inactive (testing): set metadata
+				// Testing mode: set metadata
 				event.Metadata["traffic_filter_name"] = cond.config.Name
 			}
 		}
@@ -77,7 +77,7 @@ func (f *filterModifier) Split(session *schema.Session) ([]*schema.Session, erro
 		hasActiveAllowCondition := false
 		anyAllowMatched := false
 		for _, cond := range f.conditions {
-			if !cond.config.Active || cond.config.Type != properties.FilterTypeAllow {
+			if cond.config.TestMode || cond.config.Type != properties.FilterTypeAllow {
 				continue
 			}
 			hasActiveAllowCondition = true
@@ -139,7 +139,7 @@ func (f *filterModifier) buildEventEnvironment(event *schema.Event) map[string]a
 }
 
 // New creates a new filter modifier from configuration.
-// Returns a noop modifier when config has no active conditions.
+// Returns a noop modifier when config has no conditions.
 func NewFilter(config properties.FiltersConfig) (SessionModifier, error) {
 	if len(config.Conditions) == 0 {
 		return &filterModifier{fields: []string{}, conditions: []compiledCondition{}}, nil

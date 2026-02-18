@@ -457,6 +457,24 @@ var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "https://global.t.d8a.tech/28b4fbc6-a4d0-49c4-883f-58314f83416e/g/collect",
 }
 
+var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "filters-fields",
+	Usage: "Array of field names to make available to filter expressions. These fields can be referenced in filter condition expressions. " + //nolint:lll // it's a description
+		"Example: event_name, user_id, page_location. The default value includes ip_address for backward compatibility.",
+	Sources: defaultSourceChain("FILTERS_FIELDS", "filters.fields"),
+	Value:   []string{"ip_address"},
+}
+
+// Documentation-only flag (no Sources, not parsed by urfave/cli)
+var filtersConditionsFlag *cli.StringFlag = &cli.StringFlag{
+	Name: "filters-conditions",
+	Usage: "Array of filter conditions for traffic filtering. Configured via YAML only under 'filters.conditions'. " + //nolint:lll // it's a description
+		"Each condition object has: 'name' (string identifier), 'type' (exclude or allow), " +
+		"'test_mode' (boolean - when true, sets metadata only without excluding events), " +
+		"'expression' (string - filter expression using fields defined in filters.fields). " +
+		"See documentation for detailed syntax and examples.",
+}
+
 var warehouseConfigFlags = []cli.Flag{
 	warehouseDriverFlag,
 	warehouseTableFlag,
@@ -526,6 +544,8 @@ func getServerFlags() []cli.Flag {
 			storageSpoolDirectoryFlag,
 			storageSpoolWriteChanBufferFlag,
 			telemetryURLFlag,
+			filtersFieldsFlag,
+			filtersConditionsFlag,
 		},
 		warehouseConfigFlags,
 	)

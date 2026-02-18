@@ -104,7 +104,7 @@ func TestFilterModifierExcludeActive(t *testing.T) {
 			{
 				Name:       "block_internal",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `starts_with(ip_address, "192.168")`,
 			},
 		},
@@ -137,7 +137,7 @@ func TestFilterModifierAllowActive(t *testing.T) {
 			{
 				Name:       "vpn_only",
 				Type:       properties.FilterTypeAllow,
-				Active:     true,
+				TestMode:   false,
 				Expression: `in_cidr(ip_address, "100.64.0.0/10")`,
 			},
 		},
@@ -171,7 +171,7 @@ func TestFilterModifierTestingMode(t *testing.T) {
 			{
 				Name:       "test_office",
 				Type:       properties.FilterTypeExclude,
-				Active:     false,
+				TestMode:   true,
 				Expression: `ip_address == "203.0.113.50"`,
 			},
 		},
@@ -208,7 +208,7 @@ func TestFilterModifierComplexExpression(t *testing.T) {
 			{
 				Name:       "internal_or_vpn",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
@@ -241,7 +241,7 @@ func TestFilterModifierAllEventsFiltered(t *testing.T) {
 			{
 				Name:       "block_all",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `ip_address != ""`,
 			},
 		},
@@ -295,7 +295,7 @@ func TestFilterModifierInvalidExpression(t *testing.T) {
 			{
 				Name:       "invalid",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `invalid syntax here [`,
 			},
 		},
@@ -315,7 +315,7 @@ func TestFilterModifierMissingField(t *testing.T) {
 			{
 				Name:       "check_missing",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `missing_field == "test"`,
 			},
 		},
@@ -392,13 +392,13 @@ func TestFilterModifierMultipleConditions(t *testing.T) {
 			{
 				Name:       "exclude_internal",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `starts_with(ip_address, "192.168")`,
 			},
 			{
 				Name:       "exclude_private",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `in_cidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
@@ -433,7 +433,7 @@ func TestFilterModifierEmptySession(t *testing.T) {
 			{
 				Name:       "test",
 				Type:       properties.FilterTypeExclude,
-				Active:     true,
+				TestMode:   false,
 				Expression: `ip_address != ""`,
 			},
 		},

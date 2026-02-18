@@ -401,6 +401,8 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 					if err != nil {
 						logrus.Panicf("failed to parse filters config: %v", err)
 					}
+					// Override fields from YAML with flag value (flag takes precedence)
+					filtersConfig.Fields = cmd.StringSlice(filtersFieldsFlag.Name)
 					return &filtersConfig
 				}(),
 			},

@@ -20,10 +20,11 @@ const (
 
 // ConditionConfig defines a single filter condition.
 type ConditionConfig struct {
-	Name       string     `yaml:"name"`
-	Type       FilterType `yaml:"type"`
-	Active     bool       `yaml:"active"`
-	Expression string     `yaml:"expression"`
+	Name string     `yaml:"name"`
+	Type FilterType `yaml:"type"`
+	// TestMode when true sets metadata only instead of excluding events
+	TestMode   bool   `yaml:"test_mode"`
+	Expression string `yaml:"expression"`
 }
 
 // FiltersConfig defines the complete filters configuration.

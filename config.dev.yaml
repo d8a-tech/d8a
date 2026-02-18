@@ -26,30 +26,30 @@ filters:
   conditions:
     - name: "internal_traffic"
       type: exclude
-      active: true
+      test_mode: false
       expression: 'starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")'
 
     - name: "vpn_only"
       type: allow
-      active: true
+      test_mode: false
       expression: 'in_cidr(ip_address, "100.64.0.0/10")'
 
     - name: "test_office"
       type: exclude
-      active: false       # testing mode: sets traffic_type = "test_office"
+      test_mode: true       # test mode enabled: sets traffic_filter_name = "test_office"
       expression: 'ip_address == "203.0.113.50" || ends_with(ip_address, ".100")'
 
     - name: "regex_bots"
       type: exclude
-      active: true
+      test_mode: false
       expression: 'matches(ip_address, "^10\\.0\\.0\\.(1[0-9]|2[0-5])$")'
 
     - name: "exact_block"
       type: exclude
-      active: true
+      test_mode: false
       expression: 'ip_address == "198.51.100.1"'
 
     - name: "contains_example"
       type: exclude
-      active: false
+      test_mode: true
       expression: 'contains(ip_address, "168.1")'
