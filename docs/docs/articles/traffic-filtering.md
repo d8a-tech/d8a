@@ -7,7 +7,7 @@ Traffic filtering allows excluding or allowing tracking events based on conditio
 Each filter condition consists of:
 - **name**: String identifier
 - **type**: `exclude` (block matching traffic) or `allow` (permit only matching traffic)
-- **test_mode**: When `true`, sets `traffic_filter_name` column value without excluding events
+- **test_mode**: When `true`, sets `traffic_filter_name` column value without including or excluding events
 - **expression**: Expression evaluated against available fields
 
 When any `allow` filter exists, only traffic matching at least one allow condition is processed. Exclude filters block matching traffic.
