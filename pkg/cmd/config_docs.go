@@ -60,6 +60,14 @@ func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 		if len(f.Sources.Chain) > 0 {
 			configKey, envVar = parseSources(f.Sources)
 		}
+	case *cli.Float64Flag:
+		name = f.Name
+		usage = f.Usage
+		flagType = "float64"
+		defaultValue = fmt.Sprintf("%g", f.Value)
+		if len(f.Sources.Chain) > 0 {
+			configKey, envVar = parseSources(f.Sources)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported flag type: %T", flag)
 	}
