@@ -7,7 +7,7 @@ Traffic filtering allows excluding or allowing tracking events based on conditio
 Each filter condition consists of:
 - **name**: String identifier
 - **type**: `exclude` (block matching traffic) or `allow` (permit only matching traffic)
-- **test_mode**: When `true`, sets `traffic_filter_name` metadata without excluding events
+- **test_mode**: When `true`, sets `traffic_filter_name` column value without excluding events
 - **expression**: Expression evaluated against available fields
 
 When any `allow` filter exists, only traffic matching at least one allow condition is processed. Exclude filters block matching traffic.
@@ -20,7 +20,6 @@ When any `allow` filter exists, only traffic matching at least one allow conditi
 filters:
   fields:
     - ip_address
-    - event_name
 
   conditions:
     - name: "internal_traffic"
@@ -32,7 +31,7 @@ filters:
 ### Inline flags (CLI/environment variables)
 
 ```bash
-export FILTERS_FIELDS="ip_address,event_name"
+export FILTERS_FIELDS="ip_address"
 export FILTERS_CONDITIONS='{"name":"internal_traffic","type":"exclude","test_mode":false,"expression":"starts_with(ip_address, \"192.168\")"}'
 ```
 
@@ -49,7 +48,7 @@ When both YAML and inline flags are provided:
 
 ## Available fields
 
-The `filters.fields` configuration specifies which event columns are injected into the expression environment. Only listed fields can be referenced in expressions. Default: `["ip_address"]`
+The `filters.fields` configuration specifies which event columns are injected into the expression environment.
 
 ## Expression interpreter
 
@@ -61,28 +60,28 @@ d8a provides the following built-in functions for filter expressions, in additio
 
 ### String functions
 
-#### `starts_with(str, prefix)`
+#### `starts_with(str string, prefix string) bool`
 Returns `true` if `str` begins with `prefix`.
 
 ```yaml
 expression: 'starts_with(ip_address, "192.168")'
 ```
 
-#### `ends_with(str, suffix)`
+#### `ends_with(str string, suffix string) bool`
 Returns `true` if `str` ends with `suffix`.
 
 ```yaml
 expression: 'ends_with(ip_address, ".100")'
 ```
 
-#### `contains(str, substring)`
+#### `contains(str string, substring string) bool`
 Returns `true` if `str` contains `substring`.
 
 ```yaml
 expression: 'contains(ip_address, "168.1")'
 ```
 
-#### `matches(str, pattern)`
+#### `matches(str string, pattern string) bool`
 Returns `true` if `str` matches the regular expression `pattern`.
 
 ```yaml
@@ -91,7 +90,7 @@ expression: 'matches(ip_address, "^10\\.0\\.0\\.(1[0-9]|2[0-5])$")'
 
 ### Network functions
 
-#### `in_cidr(ip, cidr)`
+#### `in_cidr(ip string, cidr string) bool`
 Returns `true` if IP address `ip` is within CIDR range `cidr`.
 
 ```yaml
@@ -131,7 +130,7 @@ See [expr language definition](https://expr-lang.org/docs/language-definition) f
 - name: "page_views_only"
   type: allow
   test_mode: false
-  expression: 'event_name == "page_view" || event_name == "screen_view"'
+  expression: 'event_name == "page_view" || event_name == "screen_view"' # requires event_name in filters.fields
 ```
 
 ### Complex condition with multiple fields
@@ -139,7 +138,6 @@ See [expr language definition](https://expr-lang.org/docs/language-definition) f
 filters:
   fields:
     - ip_address
-    - event_name
     - user_id
 
   conditions:
