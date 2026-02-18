@@ -17,6 +17,7 @@ func SafeIntToUint8(v int) uint8 {
 	if v > math.MaxUint8 {
 		logrus.Panicf("value %d exceeds uint8 max value %d", v, math.MaxUint8)
 	}
+	// #nosec G115 - overflow checked above
 	return uint8(v)
 }
 
@@ -28,6 +29,7 @@ func SafeIntToUint16(v int) uint16 {
 	if v > math.MaxUint16 {
 		logrus.Panicf("value %d exceeds uint16 max value %d", v, math.MaxUint16)
 	}
+	// #nosec G115 - overflow checked above
 	return uint16(v)
 }
 
@@ -39,6 +41,7 @@ func SafeIntToUint32(v int) uint32 {
 	if v > math.MaxUint32 {
 		logrus.Panicf("value %d exceeds uint32 max value %d", v, math.MaxUint32)
 	}
+	// #nosec G115 - overflow checked above
 	return uint32(v)
 }
 
@@ -47,6 +50,7 @@ func SafeUintToInt(v uint) int {
 	if v > uint(math.MaxInt) {
 		logrus.Panicf("value %d exceeds int max value %d", v, math.MaxInt)
 	}
+	// #nosec G115 - overflow checked above
 	return int(v)
 }
 

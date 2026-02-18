@@ -31,7 +31,8 @@ type Downloader interface {
 
 // OCIRegistryCreds contains credentials and settings for accessing an OCI registry.
 type OCIRegistryCreds struct {
-	User     string
+	User string
+	// nolint:gosec // This is not a credential, but a token used for OCI authentication
 	Password string
 	Repo     string
 

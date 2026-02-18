@@ -301,6 +301,127 @@ var storageQueueDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "./queue",
 }
 
+var queueBackendFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "queue-backend",
+	Usage:   "Queue backend used between receiver and worker (filesystem or objectstorage)",
+	Sources: defaultSourceChain("QUEUE_BACKEND", "queue.backend"),
+	Value:   queueBackendFilesystem,
+}
+
+var queueObjectPrefixFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "queue-object-prefix",
+	Usage:   "Object storage prefix/namespace for queue objects (only used for objectstorage backend)",
+	Sources: defaultSourceChain("QUEUE_OBJECT_PREFIX", "queue.object_prefix"),
+	Value:   "d8a/queue",
+}
+
+var queueObjectStorageMinIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "queue-objectstorage-min-interval",
+	Usage:   "Minimum polling interval for objectstorage queue consumer (only used for objectstorage backend)",
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_MIN_INTERVAL", "queue.objectstorage_min_interval"),
+	Value:   5 * time.Second,
+}
+
+var queueObjectStorageMaxIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "queue-objectstorage-max-interval",
+	Usage:   "Maximum polling interval for objectstorage queue consumer exponential backoff (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_MAX_INTERVAL", "queue.objectstorage_max_interval"),
+	Value:   1 * time.Minute,
+}
+
+var queueObjectStorageIntervalExpFactorFlag *cli.Float64Flag = &cli.Float64Flag{
+	Name:    "queue-objectstorage-interval-exp-factor",
+	Usage:   "Exponential backoff factor for objectstorage queue consumer polling interval (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain("QUEUE_OBJECTSTORAGE_INTERVAL_EXP_FACTOR", "queue.objectstorage_interval_exp_factor"),
+	Value:   1.5,
+}
+
+var queueObjectStorageMaxItemsToReadAtOnceFlag *cli.IntFlag = &cli.IntFlag{
+	Name:  "queue-objectstorage-max-items-to-read-at-once",
+	Usage: "Maximum number of items to read in one batch from objectstorage queue (only used for objectstorage backend)", //nolint:lll // it's a description
+	Sources: defaultSourceChain(
+		"QUEUE_OBJECTSTORAGE_MAX_ITEMS_TO_READ_AT_ONCE",
+		"queue.objectstorage_max_items_to_read_at_once",
+	),
+	Value: 1000,
+}
+
+var objectStorageTypeFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-type",
+	Usage:   "Object storage type (s3 or gcs)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_TYPE", "object_storage.type"),
+}
+
+var objectStorageS3HostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-host",
+	Usage:   "S3/MinIO host (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_HOST", "object_storage.s3.host"),
+}
+
+var objectStorageS3PortFlag *cli.IntFlag = &cli.IntFlag{
+	Name:    "object-storage-s3-port",
+	Usage:   "S3/MinIO port (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PORT", "object_storage.s3.port"),
+	Value:   9000,
+}
+
+var objectStorageS3BucketFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-bucket",
+	Usage:   "S3/MinIO bucket name (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_BUCKET", "object_storage.s3.bucket"),
+}
+
+var objectStorageS3AccessKeyFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-access-key",
+	Usage:   "S3/MinIO access key (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_ACCESS_KEY", "object_storage.s3.access_key"),
+}
+
+var objectStorageS3SecretKeyFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-secret-key",
+	Usage:   "S3/MinIO secret key (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_SECRET_KEY", "object_storage.s3.secret_key"),
+}
+
+var objectStorageS3RegionFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-region",
+	Usage:   "S3 region (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_REGION", "object_storage.s3.region"),
+	Value:   "us-east-1",
+}
+
+var objectStorageS3ProtocolFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-s3-protocol",
+	Usage:   "S3 endpoint protocol (http or https; only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PROTOCOL", "object_storage.s3.protocol"),
+	Value:   "http",
+}
+
+var objectStorageS3CreateBucketFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "object-storage-s3-create-bucket",
+	Usage:   "Create bucket on startup if missing (only used when object-storage-type=s3)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_S3_CREATE_BUCKET", "object_storage.s3.create_bucket"),
+	Value:   false,
+}
+
+var objectStorageGCSBucketFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-gcs-bucket",
+	Usage:   "GCS bucket name (only used when object-storage-type=gcs)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_BUCKET", "object_storage.gcs.bucket"),
+}
+
+var objectStorageGCSProjectFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-gcs-project",
+	Usage:   "GCS project ID (optional; only used when object-storage-type=gcs)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_PROJECT", "object_storage.gcs.project"),
+}
+
+var objectStorageGCSCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "object-storage-gcs-creds-json",
+	Usage:   "GCS credentials JSON (raw or base64); empty uses ADC (only used when object-storage-type=gcs)",
+	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_CREDS_JSON", "object_storage.gcs.creds_json"),
+}
+
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "storage-spool-enabled",
 	Usage:   "Enable spooling of sessions to a filesystem-based spool before writing to the warehouse. This can improve performance by deferring the writes to the warehouse.", //nolint:lll // it's a description
@@ -383,6 +504,24 @@ func getServerFlags() []cli.Flag {
 			monitoringOTelInsecureFlag,
 			storageBoltDirectoryFlag,
 			storageQueueDirectoryFlag,
+			queueBackendFlag,
+			queueObjectPrefixFlag,
+			queueObjectStorageMinIntervalFlag,
+			queueObjectStorageMaxIntervalFlag,
+			queueObjectStorageIntervalExpFactorFlag,
+			queueObjectStorageMaxItemsToReadAtOnceFlag,
+			objectStorageTypeFlag,
+			objectStorageS3HostFlag,
+			objectStorageS3PortFlag,
+			objectStorageS3BucketFlag,
+			objectStorageS3AccessKeyFlag,
+			objectStorageS3SecretKeyFlag,
+			objectStorageS3RegionFlag,
+			objectStorageS3ProtocolFlag,
+			objectStorageS3CreateBucketFlag,
+			objectStorageGCSBucketFlag,
+			objectStorageGCSProjectFlag,
+			objectStorageGCSCredsJSONFlag,
 			storageSpoolEnabledFlag,
 			storageSpoolDirectoryFlag,
 			storageSpoolWriteChanBufferFlag,

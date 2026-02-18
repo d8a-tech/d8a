@@ -6,33 +6,19 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"path/filepath"
-	"syscall"
 	"time"
 
-	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
-	"github.com/d8a-tech/d8a/pkg/encoding"
-	"github.com/d8a-tech/d8a/pkg/hits"
-	"github.com/d8a-tech/d8a/pkg/monitoring"
-	"github.com/d8a-tech/d8a/pkg/pings"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
-	"github.com/d8a-tech/d8a/pkg/protosessions"
-	"github.com/d8a-tech/d8a/pkg/publishers"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/d8a-tech/d8a/pkg/sessions"
-	"github.com/d8a-tech/d8a/pkg/splitter"
-	"github.com/d8a-tech/d8a/pkg/storagepublisher"
 	"github.com/d8a-tech/d8a/pkg/telemetry"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
-	"go.etcd.io/bbolt"
 )
 
 func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
@@ -55,8 +41,44 @@ var currencyConverter currency.Converter = func() currency.Converter {
 	return converter
 }()
 
+func startTelemetry(itemName, telemetryURL string) {
+	if telemetryURL == "" {
+		return
+	}
+	telemetry.Start(
+		telemetry.WithURL(telemetryURL),
+		telemetry.WithEvent(
+			telemetry.OnStartup,
+			telemetry.SimpleEvent(
+				"app_started",
+				telemetry.ClientIDGeneratedOnStartup(),
+			).WithParam(
+				"app_version",
+				telemetry.Raw(version),
+			).WithParam(
+				"item_name",
+				telemetry.Raw(itemName),
+			),
+		),
+		telemetry.WithEvent(
+			telemetry.EveryXHours(24*time.Hour),
+			telemetry.SimpleEvent(
+				"app_running",
+				telemetry.ClientIDGeneratedOnStartup(),
+			).WithParam(
+				"app_version", telemetry.Raw(version),
+			).WithParam(
+				"params_exposure_time", telemetry.NumberOfSecsSinceStarted(),
+			).WithParam(
+				"item_name",
+				telemetry.Raw(itemName),
+			),
+		),
+	)
+}
+
 // Run starts the tracker-api server
-func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,lll // it's an entrypoint
+func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	app := &cli.Command{
 		Name:  "d8a",
 		Usage: "D8a.tech - GA4-compatible analytics platform",
@@ -141,6 +163,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				Usage: "Start D8A server. Full configuration reference: https://docs.d8a.tech/articles/config",
 				Flags: getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
+					if err := validateHAFlags("server", cmd); err != nil {
+						return err
+					}
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
 						ctx, cancel = context.WithCancel(context.Background())
@@ -151,193 +176,43 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
-					// Setup metrics
-					metricsSetup, err := monitoring.SetupMetrics(
-						ctx,
-						cmd.Bool(monitoringEnabledFlag.Name),
-						cmd.String(monitoringOTelEndpointFlag.Name),
-						cmd.Duration(monitoringOTelExportIntervalFlag.Name),
-						cmd.Bool(monitoringOTelInsecureFlag.Name),
-						"d8a",
-						"1.0.0",
-					)
+					bs, err := bootstrap(ctx, cancel, "server", cmd)
 					if err != nil {
-						return fmt.Errorf("failed to setup metrics: %w", err)
+						return err
 					}
-					defer func() { //nolint:contextcheck // shutdown needs fresh context
-						shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-						defer shutdownCancel()
-						if err := metricsSetup.Shutdown(shutdownCtx); err != nil {
-							logrus.Errorf("Error shutting down metrics: %v", err)
+					defer bs.cleanup(context.Background()) //nolint:contextcheck // shutdown needs fresh context
+
+					queue, err := buildQueue(ctx, cmd)
+					if err != nil {
+						return err
+					}
+					defer func() {
+						if closeErr := queue.Cleanup(); closeErr != nil {
+							logrus.Error("failed to cleanup queue:", closeErr)
 						}
 					}()
 
-					// Start telemetry
-					telemetryURL := cmd.String(telemetryURLFlag.Name)
-					if telemetryURL != "" {
-						telemetry.Start(
-							telemetry.WithURL(telemetryURL),
-							telemetry.WithEvent(
-								telemetry.OnStartup,
-								telemetry.SimpleEvent(
-									"app_started",
-									telemetry.ClientIDGeneratedOnStartup(),
-								).WithParam("app_version", telemetry.Raw(version)),
-							),
-							telemetry.WithEvent(
-								telemetry.EveryXHours(24*time.Hour),
-								telemetry.SimpleEvent(
-									"app_running",
-									telemetry.ClientIDGeneratedOnStartup(),
-								).WithParam(
-									"app_version", telemetry.Raw(version),
-								).WithParam(
-									"params_exposure_time", telemetry.NumberOfSecsSinceStarted(),
-								),
-							),
-						)
-					}
-
-					// Set up signal handling
-					sigChan := make(chan os.Signal, 1)
-					signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-					go func() {
-						<-sigChan
-						logrus.Info("Received shutdown signal, initiating graceful shutdown...")
-						cancel()
-					}()
-
-					fsPublisher, err := worker.NewFilesystemDirectoryPublisher(
-						cmd.String(storageQueueDirectoryFlag.Name),
-						worker.NewBinaryMessageFormat(),
-					)
+					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage)
 					if err != nil {
-						logrus.Fatalf("failed to create filesystem directory publisher: %v", err)
+						return err
 					}
-					pingingPublisher := publishers.NewPingingPublisher(
-						ctx,
-						fsPublisher,
-						// Ping interval should match the batch timeout to avoid pinging too often
-						cmd.Duration(receiverBatchTimeoutFlag.Name),
-						pings.NewProcessHitsPingTask(encoding.GzipJSONEncoder),
-					)
-					workerPublisher := worker.NewMonitoringPublisher(
-						pingingPublisher,
-					)
-					serverStorage := receiver.NewBatchingStorage(
-						storagepublisher.NewAdapter(encoding.GzipJSONEncoder, workerPublisher),
-						cmd.Int(receiverBatchSizeFlag.Name),
-						cmd.Duration(receiverBatchTimeoutFlag.Name),
-					)
-					boltDBPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt.db")
-					boltDB, err := bbolt.Open(boltDBPath, 0o600, nil)
-					if err != nil {
-						logrus.Fatalf("failed to open bolt db: %v", err)
-					}
+					defer runtime.Cleanup()
 
 					workerErrChan := make(chan error, 1)
 					go func() {
 						defer cancel()
-						workerConsumer, err := worker.NewFilesystemDirectoryConsumer(
-							ctx,
-							cmd.String(storageQueueDirectoryFlag.Name),
-							worker.NewBinaryMessageFormat(),
-						)
-						if err != nil {
-							logrus.Fatalf("failed to create worker consumer: %v", err)
-						}
-						boltKVPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt_kv.db")
-						kv, err := bolt.NewBoltKV(boltKVPath)
-						if err != nil {
-							logrus.Fatalf("failed to create bolt kv: %v", err)
-						}
-						whr := warehouseRegistry(ctx, cmd)
-						cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
-						layoutRegistry := schema.NewStaticLayoutRegistry(
-							map[string]schema.Layout{},
-							schema.NewEmbeddedSessionColumnsLayout(
-								getTableNames(cmd).events,
-								getTableNames(cmd).sessionsColumnPrefix,
-							),
-						)
-						splitterRegistry := splitter.NewFromPropertySettingsRegistry(propertySettings(cmd))
-
-						var batchingCleanup func()
-						var consumeErr error
-						defer func() {
-							if batchingCleanup != nil {
-								batchingCleanup()
-							}
-							workerErrChan <- consumeErr
-						}()
-						sessionWriter := sessions.NewSessionWriter(
-							ctx,
-							whr,
-							cr,
-							layoutRegistry,
-							splitterRegistry,
-						)
-						if cmd.Bool(storageSpoolEnabledFlag.Name) {
-							batchedWriter, cleanup, err := sessions.NewBackgroundBatchingWriter(
-								ctx,
-								sessionWriter,
-								sessions.WithSpoolDir(cmd.String(storageSpoolDirectoryFlag.Name)),
-								sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
-							)
-							if err != nil {
-								logrus.Panicf("failed to create session writer: %v", err)
-							}
-							sessionWriter = batchedWriter
-							batchingCleanup = cleanup
-						}
-						w := worker.NewWorker(
-							[]worker.TaskHandler{
-								worker.NewGenericTaskHandler(
-									hits.HitProcessingTaskName,
-									encoding.GzipJSONDecoder,
-									protosessions.Handler(
-										ctx,
-										protosessions.NewDeduplicatingBatchedIOBackend(func() protosessions.BatchedIOBackend {
-											b, err := bolt.NewBatchedProtosessionsIOBackend(
-												boltDB,
-												encoding.GzipJSONEncoder,
-												encoding.GzipJSONDecoder,
-											)
-											if err != nil {
-												logrus.Fatalf("failed to create bolt batched io backend: %v", err)
-											}
-											return b
-										}()),
-										protosessions.NewGenericKVTimingWheelBackend(
-											"default",
-											kv,
-										),
-										protosessions.NewShardingCloser(
-											10,
-											func(_ int) protosessions.Closer {
-												return sessions.NewDirectCloser(
-													sessionWriter,
-													5*time.Second,
-												)
-											},
-										),
-										serverStorage,
-										propertySettings(cmd),
-									)),
-							},
-							[]worker.Middleware{},
-						)
-
-						consumeErr = workerConsumer.Consume(func(task *worker.Task) error {
+						consumeErr := queue.Consumer.Consume(func(task *worker.Task) error {
 							// Check if context is done before processing task
 							select {
 							case <-ctx.Done():
 								logrus.Debug("Context cancelled, skipping task processing")
 								return nil
 							default:
-								return w.Process(task)
+								return runtime.Worker.Process(task)
 							}
 						})
+						workerErrChan <- consumeErr
 					}()
 
 					// Start server and handle its error
@@ -366,6 +241,102 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 
 					<-workerErrChan
 					return serverErr
+				},
+			},
+			{
+				Name:  "receiver",
+				Usage: "Start receiver-only mode (HTTP server; publishes to queue)",
+				Flags: getServerFlags(),
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					if err := validateHAFlags("receiver", cmd); err != nil {
+						return err
+					}
+					if ctx == nil {
+						ctx, cancel = context.WithCancel(context.Background())
+						defer cancel()
+					}
+
+					bs, err := bootstrap(ctx, cancel, "receiver", cmd)
+					if err != nil {
+						return err
+					}
+					defer bs.cleanup(context.Background()) //nolint:contextcheck // shutdown needs fresh context
+
+					queue, err := buildQueue(ctx, cmd)
+					if err != nil {
+						return err
+					}
+					defer func() {
+						if closeErr := queue.Cleanup(); closeErr != nil {
+							logrus.Error("failed to cleanup queue:", closeErr)
+						}
+					}()
+
+					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					server := receiver.NewServer(
+						serverStorage,
+						receiver.NewNoopRawLogStorage(),
+						receiver.HitValidatingRuleSet(
+							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
+							propertySettings(cmd),
+						),
+						func() []protocol.Protocol {
+							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+							if currentProtocol == nil {
+								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
+							}
+							return []protocol.Protocol{currentProtocol}
+						}(),
+						cmd.Int(serverPortFlag.Name),
+					)
+					return server.Run(ctx)
+				},
+			},
+			{
+				Name:  "worker",
+				Usage: "Start worker-only mode (consumes from queue; no HTTP server)",
+				Flags: getServerFlags(),
+				Action: func(_ context.Context, cmd *cli.Command) error {
+					if err := validateHAFlags("worker", cmd); err != nil {
+						return err
+					}
+					if ctx == nil {
+						ctx, cancel = context.WithCancel(context.Background())
+						defer cancel()
+					}
+
+					bs, err := bootstrap(ctx, cancel, "worker", cmd)
+					if err != nil {
+						return err
+					}
+					defer bs.cleanup(context.Background()) //nolint:contextcheck // shutdown needs fresh context
+
+					queue, err := buildQueue(ctx, cmd)
+					if err != nil {
+						return err
+					}
+					defer func() {
+						if closeErr := queue.Cleanup(); closeErr != nil {
+							logrus.Error("failed to cleanup queue:", closeErr)
+						}
+					}()
+
+					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage)
+					if err != nil {
+						return err
+					}
+					defer runtime.Cleanup()
+
+					return queue.Consumer.Consume(func(task *worker.Task) error {
+						select {
+						case <-ctx.Done():
+							logrus.Debug("Context cancelled, skipping task processing")
+							return nil
+						default:
+							return runtime.Worker.Process(task)
+						}
+					})
 				},
 			},
 			{

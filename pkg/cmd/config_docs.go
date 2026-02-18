@@ -120,10 +120,10 @@ func generateConfigDocs(flags []cli.Flag) (string, error) {
 	buf.WriteString("---\n\n")
 
 	for _, info := range flagInfos {
-		buf.WriteString(fmt.Sprintf("### `--%s`\n\n", info.Name))
+		fmt.Fprintf(&buf, "### `--%s`\n\n", info.Name)
 
 		if info.Description != "" {
-			buf.WriteString(fmt.Sprintf("%s\n\n", info.Description))
+			fmt.Fprintf(&buf, "%s\n\n", info.Description)
 		}
 
 		var details []string
@@ -139,7 +139,7 @@ func generateConfigDocs(flags []cli.Flag) (string, error) {
 		}
 
 		if info.Default != "" && info.Default != "false" && info.Default != "0" {
-			buf.WriteString(fmt.Sprintf("**Default:** `%s`\n\n", info.Default))
+			fmt.Fprintf(&buf, "**Default:** `%s`\n\n", info.Default)
 		}
 
 		buf.WriteString("---\n\n")

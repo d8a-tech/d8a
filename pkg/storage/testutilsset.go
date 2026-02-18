@@ -319,7 +319,8 @@ func SetTestSuite(t *testing.T, set Set) { //nolint:funlen,gocognit // it's a te
 			go func(id int) {
 				defer wg.Done()
 				for i := 0; i < numOperations; i++ {
-					value := []byte(string(rune(id*1000 + i)))
+					// #nosec G115 - values are bounded by test parameters
+					value := []byte(string(rune(int64(id)*1000 + int64(i))))
 					err := set.Add(key, value)
 					assert.NoError(t, err)
 				}
