@@ -124,11 +124,4 @@ The e2e tests start a local HTTP server and use Playwright to verify that GA4 re
 
 Open `test.html` in a browser to manually test different network interception methods. The page includes buttons to trigger various types of GA4 requests and displays logs of duplication activity.
 
-## Notes
-
-### sendBeacon Credential Limitation
-
-When `navigator.sendBeacon` is used for the original GA4 request and `convert_to_get` is set to `false`, duplicate requests will be sent using the original `sendBeacon` method, which does not support sending cookies or credentials. This means cookie-based features (such as server-side Google Tag Manager debug mode) will not work with beacon duplicates in this configuration.
-
-**Workaround:** Set `convert_to_get: true` for destinations that require cookies with beacon requests. This will convert beacon requests to fetch requests with credentials included, ensuring cookies are sent with the duplicate request.
 
