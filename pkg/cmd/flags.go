@@ -480,7 +480,7 @@ var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "filters-conditions",
 	Usage: "Array of filter conditions for traffic filtering. Each condition is a JSON-encoded string with fields: " + //nolint:lll // it's a description
 		"'name' (string identifier), 'type' (exclude or allow), 'test_mode' (boolean), 'expression' (filter expression). " +
-		"Example: {\"name\":\"internal_traffic\",\"type\":\"exclude\",\"test_mode\":false,\"expression\":\"ip_address == '10.0.0.1'\"}. " + //nolint:lll // it's a description
+		"Example: `{\"name\":\"internal_traffic\",\"type\":\"exclude\",\"test_mode\":false,\"expression\":\"ip_address == '10.0.0.1'\"}`. " + //nolint:lll // it's a description
 		"Can be set via CLI flag, environment variable (FILTERS_CONDITIONS), or YAML config (filters.conditions). " +
 		"Conditions from flag/env are appended to YAML conditions. " +
 		"See [Traffic filtering](./traffic-filtering.md) for details.",
