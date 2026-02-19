@@ -77,7 +77,11 @@ interface GA4DuplicatorOptions {
           const convertToGet = ctx.getConvertToGet(requestUrl);
 
           if (upperMethod === "GET") {
-            originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+            originalFetch(duplicateUrl, {
+              method: "GET",
+              keepalive: true,
+              credentials: "include",
+            }).catch((error) => {
               if (ctx.debug) console.error("gtm interceptor: error duplicating GET fetch:", error);
             });
           } else if (upperMethod === "POST") {
@@ -93,6 +97,7 @@ interface GA4DuplicatorOptions {
                     method: "POST",
                     body: dupBody,
                     keepalive: true,
+                    credentials: "include",
                   }).catch((error) => {
                     if (ctx.debug)
                       console.error(
@@ -110,22 +115,28 @@ interface GA4DuplicatorOptions {
                   if (line) {
                     const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                    originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
-                      (error) => {
-                        if (ctx.debug)
-                          console.error(
-                            "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
-                            error,
-                          );
-                      },
-                    );
+                    originalFetch(urlWithMergedLine, {
+                      method: "GET",
+                      keepalive: true,
+                      credentials: "include",
+                    }).catch((error) => {
+                      if (ctx.debug)
+                        console.error(
+                          "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                          error,
+                        );
+                    });
                     sentAny = true;
                   }
                 }
 
                 // If body is empty or all lines were empty, send one GET with just URL params
                 if (!sentAny) {
-                  originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                  originalFetch(duplicateUrl, {
+                    method: "GET",
+                    keepalive: true,
+                    credentials: "include",
+                  }).catch((error) => {
                     if (ctx.debug)
                       console.error(
                         "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
@@ -139,6 +150,7 @@ interface GA4DuplicatorOptions {
                   method: "POST",
                   body: dupBody,
                   keepalive: true,
+                  credentials: "include",
                 }).catch((error) => {
                   if (ctx.debug)
                     console.error("gtm interceptor: error duplicating POST fetch:", error);
@@ -181,7 +193,11 @@ interface GA4DuplicatorOptions {
             const convertToGet = ctx.getConvertToGet(this._requestUrl);
 
             if (method === "GET") {
-              fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+              fetch(duplicateUrl, {
+                method: "GET",
+                keepalive: true,
+                credentials: "include",
+              }).catch((error) => {
                 if (ctx.debug) console.error("gtm interceptor: error duplicating GET xhr:", error);
               });
             } else if (method === "POST") {
@@ -206,7 +222,11 @@ interface GA4DuplicatorOptions {
                   if (line) {
                     const mergedUrl = ctx.buildDuplicateUrl(this._requestUrl);
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                    fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                    fetch(urlWithMergedLine, {
+                      method: "GET",
+                      keepalive: true,
+                      credentials: "include",
+                    }).catch((error) => {
                       if (ctx.debug)
                         console.error(
                           "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
@@ -219,7 +239,11 @@ interface GA4DuplicatorOptions {
 
                 // If body is empty or all lines were empty, send one GET with just URL params
                 if (!sentAny) {
-                  fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                  fetch(duplicateUrl, {
+                    method: "GET",
+                    keepalive: true,
+                    credentials: "include",
+                  }).catch((error) => {
                     if (ctx.debug)
                       console.error(
                         "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
@@ -229,12 +253,15 @@ interface GA4DuplicatorOptions {
                 }
               } else {
                 // Original POST duplication
-                fetch(duplicateUrl, { method: "POST", body: body as any, keepalive: true }).catch(
-                  (error) => {
-                    if (ctx.debug)
-                      console.error("gtm interceptor: error duplicating POST xhr:", error);
-                  },
-                );
+                fetch(duplicateUrl, {
+                  method: "POST",
+                  body: body as any,
+                  keepalive: true,
+                  credentials: "include",
+                }).catch((error) => {
+                  if (ctx.debug)
+                    console.error("gtm interceptor: error duplicating POST xhr:", error);
+                });
               }
             }
           } catch (dupErr) {
@@ -283,7 +310,11 @@ interface GA4DuplicatorOptions {
                 if (line) {
                   const mergedUrl = ctx.buildDuplicateUrl(url as string);
                   const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                  fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                  fetch(urlWithMergedLine, {
+                    method: "GET",
+                    keepalive: true,
+                    credentials: "include",
+                  }).catch((error) => {
                     if (ctx.debug)
                       console.error(
                         "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
@@ -296,7 +327,11 @@ interface GA4DuplicatorOptions {
 
               // If body is empty or all lines were empty, send one GET with just URL params
               if (!sentAny) {
-                fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                fetch(duplicateUrl, {
+                  method: "GET",
+                  keepalive: true,
+                  credentials: "include",
+                }).catch((error) => {
                   if (ctx.debug)
                     console.error(
                       "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
@@ -332,12 +367,13 @@ interface GA4DuplicatorOptions {
         const duplicateIfGA4Url = (urlString: string) => {
           try {
             if (!ctx.isTargetUrl(urlString)) return;
-            fetch(ctx.buildDuplicateUrl(urlString), { method: "GET", keepalive: true }).catch(
-              (error) => {
-                if (ctx.debug)
-                  console.error("gtm interceptor: error duplicating script GET:", error);
-              },
-            );
+            fetch(ctx.buildDuplicateUrl(urlString), {
+              method: "GET",
+              keepalive: true,
+              credentials: "include",
+            }).catch((error) => {
+              if (ctx.debug) console.error("gtm interceptor: error duplicating script GET:", error);
+            });
           } catch {
             // Intentionally empty
           }

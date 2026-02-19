@@ -12,6 +12,23 @@ Supported interception methods:
 - navigator.sendBeacon calls
 - Script tag loads
 
+## Credentialed duplicate requests
+
+Duplicate requests sent via `fetch` include credentials (`credentials: "include"`). This allows
+cookie-based features such as server-side Google Tag Manager debug mode to work when the duplicate
+endpoint relies on cookies.
+
+Notes:
+- `navigator.sendBeacon` does not expose a credentials option; this behavior applies to duplicate
+  requests created via `fetch`.
+- For cross-origin duplicate endpoints, your server must support credentialed CORS:
+  - `Access-Control-Allow-Origin` must be an explicit origin (not `*`).
+  - `Access-Control-Allow-Credentials` must be `true`.
+- If credentialed CORS is not allowed by the endpoint, browsers can fail duplicate requests due to
+  CORS policy.
+- Only configure trusted destination endpoints you control, because credentialed requests may send
+  cookies scoped to that destination origin.
+
 ## Usage
 
 Include the built script in your HTML and initialize the duplicator:

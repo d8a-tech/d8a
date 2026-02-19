@@ -1,4 +1,4 @@
-/* ga4-duplicator - built 2026-02-16T07:54:31.276Z */
+/* ga4-duplicator - built 2026-02-19T22:31:19.302Z */
 "use strict";
 (() => {
   // src/version.ts
@@ -31,7 +31,11 @@
             const duplicateUrl = ctx.buildDuplicateUrl(requestUrl);
             const convertToGet = ctx.getConvertToGet(requestUrl);
             if (upperMethod === "GET") {
-              originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+              originalFetch(duplicateUrl, {
+                method: "GET",
+                keepalive: true,
+                credentials: "include"
+              }).catch((error) => {
                 if (ctx.debug) console.error("gtm interceptor: error duplicating GET fetch:", error);
               });
             } else if (upperMethod === "POST") {
@@ -44,7 +48,8 @@
                     originalFetch(duplicateUrl, {
                       method: "POST",
                       body: dupBody,
-                      keepalive: true
+                      keepalive: true,
+                      credentials: "include"
                     }).catch((error) => {
                       if (ctx.debug)
                         console.error(
@@ -61,20 +66,26 @@
                     if (line) {
                       const mergedUrl = ctx.buildDuplicateUrl(requestUrl);
                       const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                      originalFetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch(
-                        (error) => {
-                          if (ctx.debug)
-                            console.error(
-                              "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
-                              error
-                            );
-                        }
-                      );
+                      originalFetch(urlWithMergedLine, {
+                        method: "GET",
+                        keepalive: true,
+                        credentials: "include"
+                      }).catch((error) => {
+                        if (ctx.debug)
+                          console.error(
+                            "gtm interceptor: error duplicating GET fetch (from convert_to_get):",
+                            error
+                          );
+                      });
                       sentAny = true;
                     }
                   }
                   if (!sentAny) {
-                    originalFetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                    originalFetch(duplicateUrl, {
+                      method: "GET",
+                      keepalive: true,
+                      credentials: "include"
+                    }).catch((error) => {
                       if (ctx.debug)
                         console.error(
                           "gtm interceptor: error duplicating GET fetch (empty body convert_to_get):",
@@ -86,7 +97,8 @@
                   originalFetch(duplicateUrl, {
                     method: "POST",
                     body: dupBody,
-                    keepalive: true
+                    keepalive: true,
+                    credentials: "include"
                   }).catch((error) => {
                     if (ctx.debug)
                       console.error("gtm interceptor: error duplicating POST fetch:", error);
@@ -117,7 +129,11 @@
               const duplicateUrl = ctx.buildDuplicateUrl(this._requestUrl);
               const convertToGet = ctx.getConvertToGet(this._requestUrl);
               if (method === "GET") {
-                fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                fetch(duplicateUrl, {
+                  method: "GET",
+                  keepalive: true,
+                  credentials: "include"
+                }).catch((error) => {
                   if (ctx.debug) console.error("gtm interceptor: error duplicating GET xhr:", error);
                 });
               } else if (method === "POST") {
@@ -139,7 +155,11 @@
                     if (line) {
                       const mergedUrl = ctx.buildDuplicateUrl(this._requestUrl);
                       const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                      fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                      fetch(urlWithMergedLine, {
+                        method: "GET",
+                        keepalive: true,
+                        credentials: "include"
+                      }).catch((error) => {
                         if (ctx.debug)
                           console.error(
                             "gtm interceptor: error duplicating GET xhr (from convert_to_get):",
@@ -150,7 +170,11 @@
                     }
                   }
                   if (!sentAny) {
-                    fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                    fetch(duplicateUrl, {
+                      method: "GET",
+                      keepalive: true,
+                      credentials: "include"
+                    }).catch((error) => {
                       if (ctx.debug)
                         console.error(
                           "gtm interceptor: error duplicating GET xhr (empty body convert_to_get):",
@@ -159,12 +183,15 @@
                     });
                   }
                 } else {
-                  fetch(duplicateUrl, { method: "POST", body, keepalive: true }).catch(
-                    (error) => {
-                      if (ctx.debug)
-                        console.error("gtm interceptor: error duplicating POST xhr:", error);
-                    }
-                  );
+                  fetch(duplicateUrl, {
+                    method: "POST",
+                    body,
+                    keepalive: true,
+                    credentials: "include"
+                  }).catch((error) => {
+                    if (ctx.debug)
+                      console.error("gtm interceptor: error duplicating POST xhr:", error);
+                  });
                 }
               }
             } catch (dupErr) {
@@ -204,7 +231,11 @@
                   if (line) {
                     const mergedUrl = ctx.buildDuplicateUrl(url);
                     const urlWithMergedLine = mergeBodyLineWithUrl(mergedUrl, line);
-                    fetch(urlWithMergedLine, { method: "GET", keepalive: true }).catch((error) => {
+                    fetch(urlWithMergedLine, {
+                      method: "GET",
+                      keepalive: true,
+                      credentials: "include"
+                    }).catch((error) => {
                       if (ctx.debug)
                         console.error(
                           "gtm interceptor: error duplicating GET beacon (from convert_to_get):",
@@ -215,7 +246,11 @@
                   }
                 }
                 if (!sentAny) {
-                  fetch(duplicateUrl, { method: "GET", keepalive: true }).catch((error) => {
+                  fetch(duplicateUrl, {
+                    method: "GET",
+                    keepalive: true,
+                    credentials: "include"
+                  }).catch((error) => {
                     if (ctx.debug)
                       console.error(
                         "gtm interceptor: error duplicating GET beacon (empty body convert_to_get):",
@@ -248,12 +283,13 @@
           const duplicateIfGA4Url = (urlString) => {
             try {
               if (!ctx.isTargetUrl(urlString)) return;
-              fetch(ctx.buildDuplicateUrl(urlString), { method: "GET", keepalive: true }).catch(
-                (error) => {
-                  if (ctx.debug)
-                    console.error("gtm interceptor: error duplicating script GET:", error);
-                }
-              );
+              fetch(ctx.buildDuplicateUrl(urlString), {
+                method: "GET",
+                keepalive: true,
+                credentials: "include"
+              }).catch((error) => {
+                if (ctx.debug) console.error("gtm interceptor: error duplicating script GET:", error);
+              });
             } catch (e) {
             }
           };
