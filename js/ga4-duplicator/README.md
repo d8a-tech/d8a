@@ -19,8 +19,9 @@ cookie-based features such as server-side Google Tag Manager debug mode to work 
 endpoint relies on cookies.
 
 Notes:
-- `navigator.sendBeacon` does not expose a credentials option; this behavior applies to duplicate
-  requests created via `fetch`.
+- When the original request uses `navigator.sendBeacon` and `convert_to_get` is `false`, duplicate 
+  requests will also use `sendBeacon` (which cannot send credentials). Use `convert_to_get: true` 
+  to send beacon duplicates via `fetch` with credentials included.
 - For cross-origin duplicate endpoints, your server must support credentialed CORS:
   - `Access-Control-Allow-Origin` must be an explicit origin (not `*`).
   - `Access-Control-Allow-Credentials` must be `true`.
