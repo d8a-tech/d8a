@@ -12,6 +12,23 @@ Supported interception methods:
 - navigator.sendBeacon calls
 - Script tag loads
 
+## Duplicate requests and cookies
+
+Duplicated requests made with `fetch` also send cookies. This helps features like server-side
+Google Tag Manager debug mode work when your duplicate endpoint needs those cookies.
+
+Notes:
+- When the original request uses `navigator.sendBeacon` and `convert_to_get` is `false`, duplicate 
+  requests will also use `sendBeacon` (which cannot send cookies). Use `convert_to_get: true` 
+  to send beacon duplicates via `fetch` with cookies included.
+- For cross-origin duplicate endpoints, your server must support credentialed CORS:
+  - `Access-Control-Allow-Origin` must be an explicit origin (not `*`).
+  - `Access-Control-Allow-Credentials` must be `true`.
+- If credentialed CORS is not allowed by the endpoint, browsers can fail duplicate requests due to
+  CORS policy.
+- Only configure trusted destination endpoints you control, because credentialed requests may send
+  cookies scoped to that destination origin.
+
 ## Usage
 
 Include the built script in your HTML and initialize the duplicator:

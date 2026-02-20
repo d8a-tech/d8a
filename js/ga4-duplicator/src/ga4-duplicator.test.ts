@@ -122,6 +122,13 @@ describe("GA4 Duplicator Blackbox Tests", () => {
     }
   };
 
+  const verifyFetchCredentialsIncluded = (mockFn: any, callIndex: number = 0) => {
+    const calls = mockFn.mock.calls;
+    expect(calls.length).toBeGreaterThan(callIndex);
+    const config = calls[callIndex][1];
+    expect(config.credentials).toBe("include");
+  };
+
   describe("Fetch Interception", () => {
     it("should duplicate a GA4 fetch request", async () => {
       initDuplicator();
@@ -136,6 +143,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
       verifyDuplicateSent(fetchMock, 1);
       verifyD8tvParam(fetchMock, 1);
+      verifyFetchCredentialsIncluded(fetchMock, 1);
     });
 
     it("should attach richsstsse to duplicated request as a bare param", async () => {
@@ -290,6 +298,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
       verifyDuplicateSent(fetchMock, 0);
       verifyD8tvParam(fetchMock, 0);
+      verifyFetchCredentialsIncluded(fetchMock, 0);
     });
 
     it("should handle POST XHR with body", () => {
@@ -305,6 +314,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
       expect(config.method).toBe("POST");
       expect(config.body).toBe(body);
+      expect(config.credentials).toBe("include");
     });
 
     it("should NOT duplicate non-GA4 XHR request", () => {
@@ -407,6 +417,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
       verifyDuplicateSent(fetchMock, 0);
       verifyD8tvParam(fetchMock, 0);
+      verifyFetchCredentialsIncluded(fetchMock, 0);
     });
 
     it("should duplicate when script src is set via setAttribute", () => {
@@ -475,6 +486,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
       const duplicateCall = fetchMock.mock.calls[1];
       expect(duplicateCall[1].method).toBe("GET");
+      expect(duplicateCall[1].credentials).toBe("include");
       expect(duplicateCall[0]).toContain(TRACKING_URL);
       expect(duplicateCall[0]).toContain("en=page_view");
       expect(duplicateCall[0]).toContain("_et=3674");
@@ -537,6 +549,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       // 1 duplicate GET (original XHR is mocked)
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[0][1].credentials).toBe("include");
       expect(fetchMock.mock.calls[0][0]).toContain(TRACKING_URL);
       expect(fetchMock.mock.calls[0][0]).toContain("en=page_view");
     });
@@ -573,6 +586,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(sendBeaconMock).toHaveBeenCalledTimes(1);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(fetchMock.mock.calls[0][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[0][1].credentials).toBe("include");
       expect(fetchMock.mock.calls[0][0]).toContain("en=page_view");
     });
 
@@ -605,10 +619,12 @@ describe("GA4 Duplicator Blackbox Tests", () => {
 
       // First request: G-SPECIFIC (convert_to_get: true) -> GET
       expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][1].credentials).toBe("include");
       expect(fetchMock.mock.calls[1][0]).toContain(DEST1_URL);
 
       // Second request: G-OTHER (convert_to_get: false) -> POST
       expect(fetchMock.mock.calls[3][1].method).toBe("POST");
+      expect(fetchMock.mock.calls[3][1].credentials).toBe("include");
       expect(fetchMock.mock.calls[3][0]).toContain(DEFAULT_URL);
     });
 
@@ -659,6 +675,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(fetchMock.mock.calls[0][1].method).toBe("GET");
       expect(fetchMock.mock.calls[1][1].method).toBe("GET");
+      expect(fetchMock.mock.calls[1][1].credentials).toBe("include");
     });
 
     it("should keep POST method when convert_to_get is disabled (default)", async () => {
@@ -675,6 +692,7 @@ describe("GA4 Duplicator Blackbox Tests", () => {
       expect(fetchMock.mock.calls[0][1].method).toBe("POST");
       expect(fetchMock.mock.calls[1][1].method).toBe("POST");
       expect(fetchMock.mock.calls[1][1].body).toBe(body);
+      expect(fetchMock.mock.calls[1][1].credentials).toBe("include");
     });
 
     it("should handle empty lines in multi-line body when convert_to_get is enabled", async () => {
