@@ -42,18 +42,6 @@ func TestCustomFunctions(t *testing.T) {
 			want:     true,
 		},
 		{
-			name:     "contains matches",
-			function: contains,
-			args:     []any{"192.168.1.1", "168.1"},
-			want:     true,
-		},
-		{
-			name:     "contains no match",
-			function: contains,
-			args:     []any{"10.0.0.1", "168.1"},
-			want:     false,
-		},
-		{
 			name:     "matches regex matches",
 			function: matches,
 			args:     []any{"10.0.0.5", `^10\.0\.0\.[0-9]{1,3}$`},

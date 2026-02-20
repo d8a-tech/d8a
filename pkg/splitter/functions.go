@@ -62,22 +62,6 @@ func endsWith(params ...any) (any, error) {
 	return strings.HasSuffix(s, suffix), nil
 }
 
-// contains checks if a string contains a substring.
-func contains(params ...any) (any, error) {
-	if len(params) < 2 {
-		return false, nil
-	}
-	s, ok := params[0].(string)
-	if !ok {
-		return false, nil
-	}
-	substr, ok := params[1].(string)
-	if !ok {
-		return false, nil
-	}
-	return strings.Contains(s, substr), nil
-}
-
 // inCIDR checks if an IP address is within a CIDR range.
 func inCIDR(params ...any) (any, error) {
 	if len(params) < 2 {
@@ -143,7 +127,6 @@ func FunctionOptions() []expr.Option {
 	return []expr.Option{
 		expr.Function("starts_with", startsWith, new(func(string, string) bool)),
 		expr.Function("ends_with", endsWith, new(func(string, string) bool)),
-		expr.Function("contains", contains, new(func(string, string) bool)),
 		expr.Function("in_cidr", inCIDR, new(func(string, string) bool)),
 		expr.Function("matches", matches, new(func(string, string) bool)),
 	}
