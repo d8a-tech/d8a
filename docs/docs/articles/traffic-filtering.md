@@ -74,13 +74,6 @@ Returns `true` if `str` ends with `suffix`.
 expression: 'ends_with(ip_address, ".100")'
 ```
 
-#### `contains(str string, substring string) bool`
-Returns `true` if `str` contains `substring`.
-
-```yaml
-expression: 'contains(ip_address, "168.1")'
-```
-
 #### `matches(str string, pattern string) bool`
 Returns `true` if `str` matches the regular expression `pattern`.
 
@@ -97,13 +90,14 @@ Returns `true` if IP address `ip` is within CIDR range `cidr`.
 expression: 'in_cidr(ip_address, "10.0.0.0/8")'
 ```
 
-### Standard operators
+### Standard expr operators
 
 All standard expr-lang operators are available, including:
 - Comparison: `==`, `!=`, `<`, `>`, `<=`, `>=`
 - Logical: `&&` (and), `||` (or), `!` (not)
 - Arithmetic: `+`, `-`, `*`, `/`, `%`
 - Ternary: `condition ? true_value : false_value`
+- String: `contains` (e.g. `ip_address contains "168.1"`)
 
 See [expr language definition](https://expr-lang.org/docs/language-definition) for complete operator reference.
 
