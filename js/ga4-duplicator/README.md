@@ -12,16 +12,15 @@ Supported interception methods:
 - navigator.sendBeacon calls
 - Script tag loads
 
-## Credentialed duplicate requests
+## Duplicate requests and cookies
 
-Duplicate requests sent via `fetch` include credentials (`credentials: "include"`). This allows
-cookie-based features such as server-side Google Tag Manager debug mode to work when the duplicate
-endpoint relies on cookies.
+Duplicated requests made with `fetch` also send cookies. This helps features like server-side
+Google Tag Manager debug mode work when your duplicate endpoint needs those cookies.
 
 Notes:
 - When the original request uses `navigator.sendBeacon` and `convert_to_get` is `false`, duplicate 
-  requests will also use `sendBeacon` (which cannot send credentials). Use `convert_to_get: true` 
-  to send beacon duplicates via `fetch` with credentials included.
+  requests will also use `sendBeacon` (which cannot send cookies). Use `convert_to_get: true` 
+  to send beacon duplicates via `fetch` with cookies included.
 - For cross-origin duplicate endpoints, your server must support credentialed CORS:
   - `Access-Control-Allow-Origin` must be an explicit origin (not `*`).
   - `Access-Control-Allow-Credentials` must be `true`.
@@ -123,5 +122,4 @@ The e2e tests start a local HTTP server and use Playwright to verify that GA4 re
 ### Manual testing:
 
 Open `test.html` in a browser to manually test different network interception methods. The page includes buttons to trigger various types of GA4 requests and displays logs of duplication activity.
-
 
