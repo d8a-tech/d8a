@@ -25,14 +25,14 @@ filters:
     - name: "internal_traffic"
       type: exclude
       test_mode: false
-      expression: 'starts_with(ip_address, "192.168")'
+      expression: 'ip_address startsWith "192.168"'
 ```
 
 ### Inline flags (CLI/environment variables)
 
 ```bash
 export FILTERS_FIELDS="ip_address"
-export FILTERS_CONDITIONS='{"name":"internal_traffic","type":"exclude","test_mode":false,"expression":"starts_with(ip_address, \"192.168\")"}'
+export FILTERS_CONDITIONS='{"name":"internal_traffic","type":"exclude","test_mode":false,"expression":"ip_address startsWith \"192.168\""}'
 ```
 
 Or via CLI:
@@ -56,38 +56,15 @@ Filter expressions are evaluated using [expr-lang](https://expr-lang.org/), a fa
 
 ## API reference
 
-d8a provides the following built-in functions for filter expressions, in addition to standard expr-lang operators:
-
-### String functions
-
-#### `starts_with(str string, prefix string) bool`
-Returns `true` if `str` begins with `prefix`.
-
-```yaml
-expression: 'starts_with(ip_address, "192.168")'
-```
-
-#### `ends_with(str string, suffix string) bool`
-Returns `true` if `str` ends with `suffix`.
-
-```yaml
-expression: 'ends_with(ip_address, ".100")'
-```
-
-#### `matches(str string, pattern string) bool`
-Returns `true` if `str` matches the regular expression `pattern`.
-
-```yaml
-expression: 'matches(ip_address, "^10\\.0\\.0\\.(1[0-9]|2[0-5])$")'
-```
+d8a provides the following custom function for filter expressions. All standard expr-lang operators and string functions are also available — see [expr-lang string functions](https://expr-lang.org/docs/language-definition#string-functions) for the full reference.
 
 ### Network functions
 
-#### `in_cidr(ip string, cidr string) bool`
-Returns `true` if IP address `ip` is within CIDR range `cidr`.
+#### `inCidr(ip string, cidr string) bool`
+Returns `true` if IP address `ip` is within CIDR range `cidr`. Supports both IPv4 and IPv6.
 
 ```yaml
-expression: 'in_cidr(ip_address, "10.0.0.0/8")'
+expression: 'inCidr(ip_address, "10.0.0.0/8")'
 ```
 
 ### Standard expr operators
@@ -97,9 +74,18 @@ All standard expr-lang operators are available, including:
 - Logical: `&&` (and), `||` (or), `!` (not)
 - Arithmetic: `+`, `-`, `*`, `/`, `%`
 - Ternary: `condition ? true_value : false_value`
-- String: `contains` (e.g. `ip_address contains "168.1"`)
+- String: `contains`, `startsWith`, `endsWith`, `matches` (regex)
 
-See [expr language definition](https://expr-lang.org/docs/language-definition) for complete operator reference.
+Examples:
+
+```yaml
+expression: 'ip_address startsWith "192.168"'
+expression: 'hostname endsWith ".internal"'
+expression: 'ip_address matches "^10\\.0\\.0\\.[0-9]{1,3}$"'
+expression: 'user_agent contains "bot"'
+```
+
+See [expr-lang language definition](https://expr-lang.org/docs/language-definition) for complete syntax and function reference.
 
 ## Examples
 
@@ -108,7 +94,7 @@ See [expr language definition](https://expr-lang.org/docs/language-definition) f
 - name: "internal_traffic"
   type: exclude
   test_mode: false
-  expression: 'in_cidr(ip_address, "192.168.0.0/16") || in_cidr(ip_address, "10.0.0.0/8")'
+  expression: 'inCidr(ip_address, "192.168.0.0/16") || inCidr(ip_address, "10.0.0.0/8")'
 ```
 
 ### Test mode for office traffic
@@ -138,7 +124,7 @@ filters:
     - name: "internal_test_users"
       type: exclude
       test_mode: false
-      expression: 'starts_with(user_id, "test_") && in_cidr(ip_address, "10.0.0.0/8")'
+      expression: 'user_id startsWith "test_" && inCidr(ip_address, "10.0.0.0/8")'
 ```
 
 ## Related configuration

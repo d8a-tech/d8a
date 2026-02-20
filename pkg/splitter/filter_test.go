@@ -10,76 +10,149 @@ import (
 )
 
 func TestCustomFunctions(t *testing.T) {
-	// given
+	// Tests each expression capability via the full interpreter pipeline (NewFilter + Split),
+	// matching how they are used in production.
 	tests := []struct {
-		name     string
-		function func(...any) (any, error)
-		args     []any
-		want     bool
+		name       string
+		field      string
+		fieldValue string
+		expression string
+		wantMatch  bool // true means the exclude condition fires and the event is dropped
 	}{
+		// startsWith operator
 		{
-			name:     "starts_with matches",
-			function: startsWith,
-			args:     []any{"192.168.1.1", "192.168"},
-			want:     true,
+			name:       "startsWith matches",
+			field:      "ip_address",
+			fieldValue: "192.168.1.1",
+			expression: `ip_address startsWith "192.168"`,
+			wantMatch:  true,
 		},
 		{
-			name:     "starts_with no match",
-			function: startsWith,
-			args:     []any{"10.0.0.1", "192.168"},
-			want:     false,
+			name:       "startsWith no match",
+			field:      "ip_address",
+			fieldValue: "10.0.0.1",
+			expression: `ip_address startsWith "192.168"`,
+			wantMatch:  false,
+		},
+		// endsWith operator
+		{
+			name:       "endsWith no match",
+			field:      "hostname",
+			fieldValue: "device.example.com",
+			expression: `hostname endsWith ".100"`,
+			wantMatch:  false,
 		},
 		{
-			name:     "ends_with matches",
-			function: endsWith,
-			args:     []any{"device.example.com", ".100"},
-			want:     false,
+			name:       "endsWith matches",
+			field:      "hostname",
+			fieldValue: "192.168.1.100",
+			expression: `hostname endsWith ".100"`,
+			wantMatch:  true,
+		},
+		// matches operator (regex)
+		{
+			name:       "matches operator matches",
+			field:      "ip_address",
+			fieldValue: "10.0.0.5",
+			expression: `ip_address matches "^10\\.0\\.0\\.[0-9]{1,3}$"`,
+			wantMatch:  true,
 		},
 		{
-			name:     "ends_with matches with dot",
-			function: endsWith,
-			args:     []any{"192.168.1.100", ".100"},
-			want:     true,
+			name:       "matches operator no match",
+			field:      "ip_address",
+			fieldValue: "10.0.0.30",
+			expression: `ip_address matches "^10\\.0\\.0\\.(1[0-9]|2[0-5])$"`,
+			wantMatch:  false,
+		},
+		// inCidr – basic cases
+		{
+			name:       "inCidr matches IPv4",
+			field:      "ip_address",
+			fieldValue: "192.168.1.50",
+			expression: `inCidr(ip_address, "192.168.0.0/16")`,
+			wantMatch:  true,
 		},
 		{
-			name:     "matches regex matches",
-			function: matches,
-			args:     []any{"10.0.0.5", `^10\.0\.0\.[0-9]{1,3}$`},
-			want:     true,
+			name:       "inCidr no match IPv4",
+			field:      "ip_address",
+			fieldValue: "10.0.0.1",
+			expression: `inCidr(ip_address, "192.168.0.0/16")`,
+			wantMatch:  false,
 		},
 		{
-			name:     "matches regex no match",
-			function: matches,
-			args:     []any{"10.0.0.30", "^10\\.0\\.0\\.(1[0-9]|2[0-5])$"},
-			want:     false,
+			name:       "inCidr matches private",
+			field:      "ip_address",
+			fieldValue: "10.5.0.1",
+			expression: `inCidr(ip_address, "10.0.0.0/8")`,
+			wantMatch:  true,
+		},
+		// inCidr – edge cases
+		{
+			name:       "inCidr boundary IP in /10 CIDR",
+			field:      "ip_address",
+			fieldValue: "100.64.0.0",
+			expression: `inCidr(ip_address, "100.64.0.0/10")`,
+			wantMatch:  true,
 		},
 		{
-			name:     "in_cidr matches IPv4",
-			function: inCIDR,
-			args:     []any{"192.168.1.50", "192.168.0.0/16"},
-			want:     true,
+			name:       "inCidr last IP in /10 CIDR",
+			field:      "ip_address",
+			fieldValue: "100.127.255.255",
+			expression: `inCidr(ip_address, "100.64.0.0/10")`,
+			wantMatch:  true,
 		},
 		{
-			name:     "in_cidr no match IPv4",
-			function: inCIDR,
-			args:     []any{"10.0.0.1", "192.168.0.0/16"},
-			want:     false,
+			name:       "inCidr just outside /10 CIDR",
+			field:      "ip_address",
+			fieldValue: "100.128.0.0",
+			expression: `inCidr(ip_address, "100.64.0.0/10")`,
+			wantMatch:  false,
 		},
 		{
-			name:     "in_cidr matches private",
-			function: inCIDR,
-			args:     []any{"10.5.0.1", "10.0.0.0/8"},
-			want:     true,
+			name:       "inCidr IPv6 in CIDR",
+			field:      "ip_address",
+			fieldValue: "2001:db8::1",
+			expression: `inCidr(ip_address, "2001:db8::/32")`,
+			wantMatch:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// given
+			config := properties.FiltersConfig{
+				Fields: []string{tt.field},
+				Conditions: []properties.ConditionConfig{
+					{
+						Name:       "test_condition",
+						Type:       properties.FilterTypeExclude,
+						TestMode:   false,
+						Expression: tt.expression,
+					},
+				},
+			}
+			modifier, err := NewFilter(config)
+			require.NoError(t, err)
+
+			session := &schema.Session{
+				Events: []*schema.Event{
+					{Values: map[string]any{tt.field: tt.fieldValue}, Metadata: make(map[string]any)},
+				},
+			}
+
 			// when
-			result, err := tt.function(tt.args...)
+			sessions, err := modifier.Split(session)
+
 			// then
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want, result)
+			require.NoError(t, err)
+			if tt.wantMatch {
+				// exclude condition fired: event dropped, session empty
+				assert.Len(t, sessions, 0, "expected event to be excluded")
+			} else {
+				// exclude condition did not fire: event kept
+				assert.Len(t, sessions, 1, "expected event to be kept")
+				assert.Len(t, sessions[0].Events, 1)
+			}
 		})
 	}
 }
@@ -93,7 +166,7 @@ func TestFilterModifierExcludeActive(t *testing.T) {
 				Name:       "block_internal",
 				Type:       properties.FilterTypeExclude,
 				TestMode:   false,
-				Expression: `starts_with(ip_address, "192.168")`,
+				Expression: `ip_address startsWith "192.168"`,
 			},
 		},
 	}
@@ -126,7 +199,7 @@ func TestFilterModifierAllowActive(t *testing.T) {
 				Name:       "vpn_only",
 				Type:       properties.FilterTypeAllow,
 				TestMode:   false,
-				Expression: `in_cidr(ip_address, "100.64.0.0/10")`,
+				Expression: `inCidr(ip_address, "100.64.0.0/10")`,
 			},
 		},
 	}
@@ -197,7 +270,7 @@ func TestFilterModifierComplexExpression(t *testing.T) {
 				Name:       "internal_or_vpn",
 				Type:       properties.FilterTypeExclude,
 				TestMode:   false,
-				Expression: `starts_with(ip_address, "192.168") || in_cidr(ip_address, "10.0.0.0/8")`,
+				Expression: `ip_address startsWith "192.168" || inCidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
 	}
@@ -327,51 +400,6 @@ func TestFilterModifierMissingField(t *testing.T) {
 	assert.Len(t, sessions[0].Events, 2)
 }
 
-func TestFilterModifierCIDREdgeCases(t *testing.T) {
-	// given
-	tests := []struct {
-		name       string
-		ip         string
-		cidr       string
-		wantInside bool
-	}{
-		{
-			name:       "boundary IP in /10 CIDR",
-			ip:         "100.64.0.0",
-			cidr:       "100.64.0.0/10",
-			wantInside: true,
-		},
-		{
-			name:       "last IP in /10 CIDR",
-			ip:         "100.127.255.255",
-			cidr:       "100.64.0.0/10",
-			wantInside: true,
-		},
-		{
-			name:       "just outside /10 CIDR",
-			ip:         "100.128.0.0",
-			cidr:       "100.64.0.0/10",
-			wantInside: false,
-		},
-		{
-			name:       "IPv6 in CIDR",
-			ip:         "2001:db8::1",
-			cidr:       "2001:db8::/32",
-			wantInside: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// when
-			result, err := inCIDR(tt.ip, tt.cidr)
-			// then
-			assert.NoError(t, err)
-			assert.Equal(t, tt.wantInside, result)
-		})
-	}
-}
-
 func TestFilterModifierMultipleConditions(t *testing.T) {
 	// given
 	config := properties.FiltersConfig{
@@ -381,13 +409,13 @@ func TestFilterModifierMultipleConditions(t *testing.T) {
 				Name:       "exclude_internal",
 				Type:       properties.FilterTypeExclude,
 				TestMode:   false,
-				Expression: `starts_with(ip_address, "192.168")`,
+				Expression: `ip_address startsWith "192.168"`,
 			},
 			{
 				Name:       "exclude_private",
 				Type:       properties.FilterTypeExclude,
 				TestMode:   false,
-				Expression: `in_cidr(ip_address, "10.0.0.0/8")`,
+				Expression: `inCidr(ip_address, "10.0.0.0/8")`,
 			},
 		},
 	}
