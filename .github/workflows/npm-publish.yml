@@ -105,8 +105,8 @@ jobs:
 
       - name: Purge jsdelivr cache for ga4-duplicator
         run: |
-          curl -X POST https://purge.jsdelivr.net/npm/@d8a-tech/gd/dist/gd.min.js
+          curl -f https://purge.jsdelivr.net/npm/@d8a-tech/gd/dist/gd.min.js
 
       - name: Purge jsdelivr cache for web-tracker
         run: |
-          curl -X POST https://purge.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js
+          curl -f https://purge.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js
