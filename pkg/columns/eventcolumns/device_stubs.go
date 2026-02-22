@@ -2,7 +2,7 @@ package eventcolumns
 
 import "github.com/d8a-tech/d8a/pkg/columns"
 
-var deviceStubDescription = "Stub column, always returns null, since your device detection provider does not implement this column." // nolint:lll // it's a description
+var deviceStubDescription = "Stub column, always returns null, since your device detector provider does not implement this column." // nolint:lll // it's a description
 
 // DeviceCategoryStubColumn is the column for the device category of an event
 var DeviceCategoryStubColumn = columns.AlwaysNilEventColumn(

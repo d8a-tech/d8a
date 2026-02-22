@@ -197,7 +197,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 					columnset.DefaultColumnRegistry(
 						protocol,
 						psr,
-						columnset.WithDeviceDetectionColumns(eventcolumns.DeviceDetectionColumns()),
+						columnset.WithDeviceDetectionColumns(eventcolumns.DD2Columns()),
 					),
 				),
 			)

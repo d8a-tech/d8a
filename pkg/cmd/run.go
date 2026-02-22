@@ -110,12 +110,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				Flags: mergeFlags(
 					[]cli.Flag{
 						&cli.StringFlag{
-							Name:     "property-id",
-							Usage:    "Property ID to display columns for",
-							Sources:  cli.EnvVars("PROPERTY_ID"),
-							Required: true,
-						},
-						&cli.StringFlag{
 							Name:     "output",
 							Usage:    "Output format",
 							Aliases:  []string{"o"},
@@ -125,6 +119,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						},
 						protocolFlag,
 					},
+					getServerFlags(),
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					protocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
