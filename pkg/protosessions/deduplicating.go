@@ -24,13 +24,17 @@ func (d *deduplicatingBatchedIOBackend) GetIdentifierConflicts(
 		return nil
 	}
 
-	// Key: "identifierType:identifierValue"
 	seen := make(map[string]int) // key -> index in deduplicated slice
 	var deduplicated []*IdentifierConflictRequest
 	originalToDedup := make([]int, len(requests))
 
 	for i, req := range requests {
-		key := fmt.Sprintf("%s:%s", req.IdentifierType, req.ExtractIdentifier(req.Hit))
+		key := fmt.Sprintf(
+			"%s:%s:%s",
+			req.IdentifierType,
+			req.ExtractIdentifier(req.Hit),
+			req.Hit.AuthoritativeClientID,
+		)
 		if idx, exists := seen[key]; exists {
 			originalToDedup[i] = idx
 		} else {
