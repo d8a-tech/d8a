@@ -144,10 +144,8 @@ var DeviceWebBrowserVersionColumn = deviceColumn(
 	),
 )
 
-// DeviceDetectionColumns returns all heavy device detection columns using the dd2 device detection library.
-// These columns require the dd2 dependency to function properly. They extract device information from
-// the User-Agent header: device category, mobile brand, mobile model, OS, OS version, browser, browser version.
-func DeviceDetectionColumns() []schema.EventColumn {
+// DD2Columns returns all heavy device detection columns using the dd2 device detection library.
+func DD2Columns() []schema.EventColumn {
 	return []schema.EventColumn{
 		DeviceCategoryColumn,
 		DeviceMobileBrandNameColumn,

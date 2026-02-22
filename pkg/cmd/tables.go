@@ -71,7 +71,7 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 		deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
 		switch deviceProvider {
 		case "dd2":
-			opts = append(opts, columnset.WithDeviceDetectionColumns(eventcolumns.DeviceDetectionColumns()))
+			opts = append(opts, columnset.WithDeviceDetectionColumns(eventcolumns.DD2Columns()))
 		case "stub":
 			// Do nothing - use default stubs
 		default:
