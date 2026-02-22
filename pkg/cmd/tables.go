@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -44,9 +45,11 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 	crLock.Lock()
 	defer crLock.Unlock()
 	if cr == nil {
-		var geoColumns []schema.EventColumn
+		var opts []columnset.ColumnSetOption
+
+		// Add GeoIP columns if dbip is enabled
 		if cmd.Bool(dbipEnabled.Name) {
-			geoColumns = dbip.GeoColumns(
+			geoColumns := dbip.GeoColumns(
 				dbip.NewExtensionBasedOCIDownloader(
 					dbip.OCIRegistryCreds{
 						Repo:       "ghcr.io/d8a-tech",
@@ -61,11 +64,24 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 					TTL:        30 * time.Second,
 				},
 			)
+			opts = append(opts, columnset.WithGeoIPColumns(geoColumns))
 		}
+
+		// Add device detection columns based on provider flag
+		deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
+		switch deviceProvider {
+		case "dd2":
+			opts = append(opts, columnset.WithDeviceDetectionColumns(eventcolumns.DeviceDetectionColumns()))
+		case "stub":
+			// Do nothing - use default stubs
+		default:
+			logrus.Panicf("invalid device-detection-provider value: %s (must be 'dd2' or 'stub')", deviceProvider)
+		}
+
 		cr = columnset.DefaultColumnRegistry(
 			protocol,
-			geoColumns,
 			propertySettings(cmd),
+			opts...,
 		)
 	}
 	return cr

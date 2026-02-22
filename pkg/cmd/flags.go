@@ -93,6 +93,13 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   60 * time.Second,
 }
 
+var deviceDetectionProviderFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "device-detector-provider",
+	Usage:   "Device detector provider (dd2 or stub)",
+	Sources: defaultSourceChain("DEVICE_DETECTOR_PROVIDER", "device_detector.provider"),
+	Value:   "dd2",
+}
+
 var warehouseDriverFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "warehouse-driver",
 	Usage:   "Target warehouse driver (clickhouse, bigquery, console, or noop)",
@@ -527,6 +534,7 @@ func getServerFlags() []cli.Flag {
 			dbipEnabled,
 			dbipDestinationDirectory,
 			dbipDownloadTimeoutFlag,
+			deviceDetectionProviderFlag,
 			propertyIDFlag,
 			propertyNameFlag,
 			propertySettingsSplitByUserIDFlag,

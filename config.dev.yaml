@@ -2,6 +2,12 @@ warehouse:
   driver: console
   table: events_dev
 
+dbip:
+  enabled: false # Enable for production
+
+device_detector:
+  provider: stub # Change to `dd2` for production
+
 receiver:
   batch_timeout: 1s
 

@@ -8,30 +8,70 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocolschema"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/sirupsen/logrus"
 )
 
-func stubGeoIPColumns() []schema.EventColumn {
-	return []schema.EventColumn{
-		eventcolumns.GeoContinentStubColumn,
-		eventcolumns.GeoCountryStubColumn,
-		eventcolumns.GeoRegionStubColumn,
-		eventcolumns.GeoCityStubColumn,
-		eventcolumns.GeoSubContinentStubColumn,
-		eventcolumns.GeoMetroStubColumn,
+// columnSetConfig holds the configuration for column set initialization.
+type columnSetConfig struct {
+	geoColumns    []schema.EventColumn
+	deviceColumns []schema.EventColumn
+}
+
+// ColumnSetOption is a function that modifies columnSetConfig.
+type ColumnSetOption func(*columnSetConfig)
+
+// newDefaultColumnSetConfig returns a columnSetConfig initialized with stub implementations.
+func newDefaultColumnSetConfig() *columnSetConfig {
+	return &columnSetConfig{
+		geoColumns: []schema.EventColumn{
+			eventcolumns.GeoContinentStubColumn,
+			eventcolumns.GeoCountryStubColumn,
+			eventcolumns.GeoRegionStubColumn,
+			eventcolumns.GeoCityStubColumn,
+			eventcolumns.GeoSubContinentStubColumn,
+			eventcolumns.GeoMetroStubColumn,
+		},
+		deviceColumns: []schema.EventColumn{
+			eventcolumns.DeviceCategoryStubColumn,
+			eventcolumns.DeviceMobileBrandNameStubColumn,
+			eventcolumns.DeviceMobileModelNameStubColumn,
+			eventcolumns.DeviceOperatingSystemStubColumn,
+			eventcolumns.DeviceOperatingSystemVersionStubColumn,
+			eventcolumns.DeviceWebBrowserStubColumn,
+			eventcolumns.DeviceWebBrowserVersionStubColumn,
+		},
+	}
+}
+
+// WithGeoIPColumns returns a ColumnSetOption that sets the geo columns.
+func WithGeoIPColumns(cols []schema.EventColumn) ColumnSetOption {
+	return func(cfg *columnSetConfig) {
+		cfg.geoColumns = cols
+	}
+}
+
+// WithDeviceDetectionColumns returns a ColumnSetOption that sets the device detection columns.
+func WithDeviceDetectionColumns(cols []schema.EventColumn) ColumnSetOption {
+	return func(cfg *columnSetConfig) {
+		cfg.deviceColumns = cols
 	}
 }
 
 // DefaultColumnRegistry returns a default column registry for the tracker API.
 func DefaultColumnRegistry(
 	theProtocol protocol.Protocol,
-	geoColumns []schema.EventColumn,
 	psr properties.SettingsRegistry,
+	opts ...ColumnSetOption,
 ) schema.ColumnsRegistry {
-	if len(geoColumns) == 0 {
-		logrus.Info("No geo columns provided, using stub implementations")
-		geoColumns = stubGeoIPColumns()
+	cfg := newDefaultColumnSetConfig()
+	for _, opt := range opts {
+		opt(cfg)
 	}
+
+	// Merge geo and device columns into a single slice for the static registry
+	injectedColumns := make([]schema.EventColumn, 0, len(cfg.geoColumns)+len(cfg.deviceColumns))
+	injectedColumns = append(injectedColumns, cfg.geoColumns...)
+	injectedColumns = append(injectedColumns, cfg.deviceColumns...)
+
 	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
@@ -43,7 +83,7 @@ func DefaultColumnRegistry(
 		)),
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
-			schema.NewColumns([]schema.SessionColumn{}, geoColumns, []schema.SessionScopedEventColumn{}),
+			schema.NewColumns([]schema.SessionColumn{}, injectedColumns, []schema.SessionScopedEventColumn{}),
 		),
 	})
 }
@@ -73,14 +113,6 @@ func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
 		eventcolumns.ClickIDsWbraidColumn,
 		eventcolumns.ClickIDsFbclidColumn,
 		eventcolumns.ClickIDsMsclkidColumn,
-		// Device columns
-		eventcolumns.DeviceCategoryColumn,
-		eventcolumns.DeviceMobileBrandNameColumn,
-		eventcolumns.DeviceMobileModelNameColumn,
-		eventcolumns.DeviceOperatingSystemColumn,
-		eventcolumns.DeviceOperatingSystemVersionColumn,
-		eventcolumns.DeviceWebBrowserColumn,
-		eventcolumns.DeviceWebBrowserVersionColumn,
 	}
 }
 
