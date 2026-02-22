@@ -56,6 +56,9 @@ var SessionSourceColumn = columns.NthEventMatchingPredicateValueColumn(
 			Interface: columns.CoreInterfaces.EventPageLocation.ID,
 		},
 		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventPageReferrer.ID,
+		},
+		schema.DependsOnEntry{
 			Interface: columns.CoreInterfaces.EventUtmSource.ID,
 		},
 		schema.DependsOnEntry{
@@ -215,7 +218,12 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 	}
 
 	if !ignoreReferrer {
-		refRaw := event.BoundHit.MustParsedRequest().Headers.Get("Referer")
+		refRaw := ""
+		if v := event.Values[columns.CoreInterfaces.EventPageReferrer.Field.Name]; v != nil {
+			if s, ok := v.(string); ok {
+				refRaw = s
+			}
+		}
 		if refRaw != "" {
 			if parsed, err := url.Parse(refRaw); err == nil {
 				result.refRaw = refRaw

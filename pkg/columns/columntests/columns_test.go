@@ -507,7 +507,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_SearchEngine",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://google.com/search?q=keyword"),
+				EnsureQueryParam(0, "dr", "https://google.com/search?q=keyword"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -521,7 +521,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_GoogleWWW",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://www.google.com/search?q=keyword"),
+				EnsureQueryParam(0, "dr", "https://www.google.com/search?q=keyword"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -535,7 +535,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_IlseNL",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://www.ilse.nl/search?search_for=keyword"),
+				EnsureQueryParam(0, "dr", "https://www.ilse.nl/search?search_for=keyword"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -546,10 +546,52 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_Reddit",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "https://www.reddit.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("reddit"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Reddit",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "https://github.com/d8a-tech/d8a"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("github"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_LinkedIn",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "https://www.linkedin.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("linkedin"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_SearchEngine_RegexMatcher",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://google.gr/search?q=keyword"),
+				EnsureQueryParam(0, "dr", "https://google.gr/search?q=keyword"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -563,7 +605,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_NonGoogle",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://www.baidu.com/s?wd=keyword"),
+				EnsureQueryParam(0, "dr", "https://www.baidu.com/s?wd=keyword"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -577,7 +619,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_Facebook",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://facebook.com/post/123"),
+				EnsureQueryParam(0, "dr", "https://facebook.com/post/123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -591,7 +633,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_Twitter",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://twitter.com/user/status/123"),
+				EnsureQueryParam(0, "dr", "https://twitter.com/user/status/123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -605,7 +647,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_ChatGPT",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://chatgpt.com/chat"),
+				EnsureQueryParam(0, "dr", "https://chatgpt.com/chat"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -619,7 +661,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_Gemini",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://gemini.google.com/app"),
+				EnsureQueryParam(0, "dr", "https://gemini.google.com/app"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -633,7 +675,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_YouTube",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://youtube.com/watch?v=123"),
+				EnsureQueryParam(0, "dr", "https://youtube.com/watch?v=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -647,7 +689,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_MessyPlatformNamNormalized",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://videa.seznam.cz/foobar"),
+				EnsureQueryParam(0, "dr", "https://videa.seznam.cz/foobar"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -663,7 +705,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			caseConfigFuncs: []CaseConfigFunc{
 				// UTM tags always have precedence over other detections
 				EnsureQueryParam(0, "dl", "https://example.com/page?utm_source=foobar&utm_medium=bar&utm_term=keyword"),
-				EnsureHeader(0, "Referer", "https://youtube.com/watch?v=123"),
+				EnsureQueryParam(0, "dr", "https://youtube.com/watch?v=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -677,7 +719,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_Vimeo",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://vimeo.com/123456"),
+				EnsureQueryParam(0, "dr", "https://vimeo.com/123456"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -691,7 +733,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_Gmail",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://gmail.com"),
+				EnsureQueryParam(0, "dr", "https://gmail.com"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -705,7 +747,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			name: "SessionSourceMediumTerm_MailReferer",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
-				EnsureHeader(0, "Referer", "https://www.mail.example.com/path?query=value"),
+				EnsureQueryParam(0, "dr", "https://www.mail.example.com/path?query=value"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -720,7 +762,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
 				EnsureQueryParam(0, "dl", "https://www.example.com/page"),
-				EnsureHeader(0, "Referer", "https://www.other-site.com/blog/article?id=123"),
+				EnsureQueryParam(0, "dr", "https://www.other-site.com/blog/article?id=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -735,7 +777,7 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
 				EnsureQueryParam(0, "dl", "https://www.example.com/page"),
-				EnsureHeader(0, "Referer", "https://www.example.com/blog/article?id=123"),
+				EnsureQueryParam(0, "dr", "https://www.example.com/blog/article?id=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -760,11 +802,11 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
-			name: "SessionSourceMediumTerm_IgnoreReferrer_False_UsesRefererHeader",
+			name: "SessionSourceMediumTerm_IgnoreReferrer_False_UsesPageReferrer",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
 				EnsureQueryParam(0, "dl", "https://example.com/page"),
-				EnsureHeader(0, "Referer", "https://other-site.com/blog/article?id=123"),
+				EnsureQueryParam(0, "dr", "https://other-site.com/blog/article?id=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
@@ -775,12 +817,12 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
-			name: "SessionSourceMediumTerm_IgnoreReferrer_True_IgnoresRefererHeader",
+			name: "SessionSourceMediumTerm_IgnoreReferrer_True_IgnoresPageReferrer",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
 				EnsureQueryParam(0, "dl", "https://example.com/page"),
 				EnsureQueryParam(0, "ir", "1"),
-				EnsureHeader(0, "Referer", "https://other-site.com/blog/article?id=123"),
+				EnsureQueryParam(0, "dr", "https://other-site.com/blog/article?id=123"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
