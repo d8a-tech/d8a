@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
+	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
@@ -187,6 +189,18 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			if tc.param != "" {
 				cfg = append(cfg, EnsureQueryParam(0, tc.param, tc.value))
 			}
+			// Configure registry with heavy device detection columns
+			protocol := ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry())
+			psr := properties.NewTestSettingRegistry()
+			cfg = append(cfg,
+				SetColumnsRegistry(
+					columnset.DefaultColumnRegistry(
+						protocol,
+						psr,
+						columnset.WithDeviceDetectionColumns(eventcolumns.DeviceDetectionColumns()),
+					),
+				),
+			)
 			// given
 			ColumnTestCase(
 				t,
@@ -203,7 +217,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
+				protocol,
 				cfg...)
 		})
 	}

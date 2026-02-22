@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
+	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
@@ -60,6 +61,14 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			if tc.param != "" {
 				cfg = append(cfg, columntests.EnsureQueryParam(0, tc.param, tc.value))
 			}
+			// Configure registry with default columns (device_language is in protocol, not device detection)
+			protocol := NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry())
+			psr := properties.NewTestSettingRegistry()
+			cfg = append(cfg,
+				columntests.SetColumnsRegistry(
+					columnset.DefaultColumnRegistry(protocol, psr),
+				),
+			)
 			// given
 			columntests.ColumnTestCase(
 				t,
@@ -76,7 +85,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
+				protocol,
 				cfg...)
 		})
 	}

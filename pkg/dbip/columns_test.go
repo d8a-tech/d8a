@@ -33,24 +33,26 @@ func TestDBIPColumns(t *testing.T) {
 		columntests.SetColumnsRegistry(
 			columnset.DefaultColumnRegistry(
 				ga4.NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
-				GeoColumns(
-					NewOnlyOnceDownloader(
-						NewExtensionBasedOCIDownloader(
-							OCIRegistryCreds{
-								Repo:       "ghcr.io/d8a-tech",
-								IgnoreCert: false,
-							},
-							".mmdb",
-						),
-					),
-					"/tmp",
-					60*time.Second,
-					CacheConfig{
-						MaxEntries: 2137,
-						TTL:        30 * time.Second,
-					},
-				),
 				properties.NewTestSettingRegistry(),
+				columnset.WithGeoIPColumns(
+					GeoColumns(
+						NewOnlyOnceDownloader(
+							NewExtensionBasedOCIDownloader(
+								OCIRegistryCreds{
+									Repo:       "ghcr.io/d8a-tech",
+									IgnoreCert: false,
+								},
+								".mmdb",
+							),
+						),
+						"/tmp",
+						60*time.Second,
+						CacheConfig{
+							MaxEntries: 2137,
+							TTL:        30 * time.Second,
+						},
+					),
+				),
 			),
 		),
 	)
