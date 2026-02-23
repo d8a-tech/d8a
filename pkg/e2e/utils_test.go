@@ -653,47 +653,47 @@ func (b *testConfigBuilder) buildYAML() string {
 	if b.queueBackend == "objectstorage" {
 		content.WriteString("queue:\n")
 		fmt.Fprintf(&content, "  backend: %s\n", b.queueBackend)
-		if b.queueObjectPrefix != "" {
-			fmt.Fprintf(&content, "  object_prefix: %s\n", b.queueObjectPrefix)
-		}
-		if b.queueObjectStorageMinInterval > 0 {
-			fmt.Fprintf(&content, "  objectstorage_min_interval: %s\n", b.queueObjectStorageMinInterval)
-		}
-		if b.queueObjectStorageMaxInterval > 0 {
-			fmt.Fprintf(&content, "  objectstorage_max_interval: %s\n", b.queueObjectStorageMaxInterval)
-		}
-		if b.queueObjectStorageIntervalExpFactor > 0 {
-			fmt.Fprintf(&content, "  objectstorage_interval_exp_factor: %g\n", b.queueObjectStorageIntervalExpFactor)
-		}
-		if b.queueObjectStorageMaxItemsToReadAtOnce > 0 {
-			fmt.Fprintf(&content, "  objectstorage_max_items_to_read_at_once: %d\n", b.queueObjectStorageMaxItemsToReadAtOnce)
-		}
 		content.WriteString("\n")
 
-		// Object storage configuration
-		content.WriteString("object_storage:\n")
-		fmt.Fprintf(&content, "  type: %s\n", b.objectStorageType)
-		content.WriteString("  s3:\n")
+		// Object storage configuration (nested under queue)
+		content.WriteString("  object_storage:\n")
+		if b.queueObjectPrefix != "" {
+			fmt.Fprintf(&content, "    prefix: %s\n", b.queueObjectPrefix)
+		}
+		if b.queueObjectStorageMinInterval > 0 {
+			fmt.Fprintf(&content, "    min_interval: %s\n", b.queueObjectStorageMinInterval)
+		}
+		if b.queueObjectStorageMaxInterval > 0 {
+			fmt.Fprintf(&content, "    max_interval: %s\n", b.queueObjectStorageMaxInterval)
+		}
+		if b.queueObjectStorageIntervalExpFactor > 0 {
+			fmt.Fprintf(&content, "    interval_exp_factor: %g\n", b.queueObjectStorageIntervalExpFactor)
+		}
+		if b.queueObjectStorageMaxItemsToReadAtOnce > 0 {
+			fmt.Fprintf(&content, "    max_items_to_read_at_once: %d\n", b.queueObjectStorageMaxItemsToReadAtOnce)
+		}
+		fmt.Fprintf(&content, "    type: %s\n", b.objectStorageType)
+		content.WriteString("    s3:\n")
 		if b.objectStorageS3Host != "" {
-			fmt.Fprintf(&content, "    host: %s\n", b.objectStorageS3Host)
+			fmt.Fprintf(&content, "      host: %s\n", b.objectStorageS3Host)
 		}
 		if b.objectStorageS3Port != nil {
-			fmt.Fprintf(&content, "    port: %d\n", *b.objectStorageS3Port)
+			fmt.Fprintf(&content, "      port: %d\n", *b.objectStorageS3Port)
 		}
 		if b.objectStorageS3AccessKey != "" {
-			fmt.Fprintf(&content, "    access_key: %s\n", b.objectStorageS3AccessKey)
+			fmt.Fprintf(&content, "      access_key: %s\n", b.objectStorageS3AccessKey)
 		}
 		if b.objectStorageS3SecretKey != "" {
-			fmt.Fprintf(&content, "    secret_key: %s\n", b.objectStorageS3SecretKey)
+			fmt.Fprintf(&content, "      secret_key: %s\n", b.objectStorageS3SecretKey)
 		}
 		if b.objectStorageS3Bucket != "" {
-			fmt.Fprintf(&content, "    bucket: %s\n", b.objectStorageS3Bucket)
+			fmt.Fprintf(&content, "      bucket: %s\n", b.objectStorageS3Bucket)
 		}
 		if b.objectStorageS3CreateBucket != nil {
-			fmt.Fprintf(&content, "    create_bucket: %v\n", *b.objectStorageS3CreateBucket)
+			fmt.Fprintf(&content, "      create_bucket: %v\n", *b.objectStorageS3CreateBucket)
 		}
-		content.WriteString("    region: us-east-1\n")
-		content.WriteString("    protocol: http\n\n")
+		content.WriteString("      region: us-east-1\n")
+		content.WriteString("      protocol: http\n\n")
 	}
 
 	if b.port != nil {
@@ -817,7 +817,7 @@ func TestConfigBuilder(t *testing.T) {
 				t.Error("config should contain property field")
 			}
 
-			// For objectstorage tests, verify queue and object_storage sections
+			// For objectstorage tests, verify queue and nested object_storage sections
 			if tt.name == "objectstorage queue config" {
 				if !strings.Contains(configStr, "queue:") {
 					t.Error("objectstorage config should contain queue section")
@@ -825,17 +825,20 @@ func TestConfigBuilder(t *testing.T) {
 				if !strings.Contains(configStr, "backend: objectstorage") {
 					t.Error("queue section should specify objectstorage backend")
 				}
-				if !strings.Contains(configStr, "object_storage:") {
-					t.Error("objectstorage config should contain object_storage section")
+				if !strings.Contains(configStr, "  object_storage:") {
+					t.Error("objectstorage config should contain nested object_storage section under queue")
 				}
-				if !strings.Contains(configStr, "host: localhost") {
+				if !strings.Contains(configStr, "    prefix: d8a/queue") {
+					t.Error("object_storage section should contain prefix field")
+				}
+				if !strings.Contains(configStr, "      host: localhost") {
 					t.Error("object_storage.s3 section should contain host")
 				}
-				if !strings.Contains(configStr, "port: 9000") {
+				if !strings.Contains(configStr, "      port: 9000") {
 					t.Error("object_storage.s3 section should contain port")
 				}
-				if !strings.Contains(configStr, "objectstorage_min_interval: 10ms") {
-					t.Error("queue section should contain objectstorage_min_interval")
+				if !strings.Contains(configStr, "    min_interval: 10ms") {
+					t.Error("object_storage section should contain min_interval")
 				}
 			}
 
