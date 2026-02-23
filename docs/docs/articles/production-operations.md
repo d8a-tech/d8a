@@ -30,20 +30,20 @@ YAML (`config.yaml`):
 
 ```yaml
 queue:
-  backend: objectstorage
-  object_prefix: d8a/dev/queue
-
-object_storage:
-  type: s3
-  s3:
-    host: 127.0.0.1
-    port: 9000
-    protocol: http
-    bucket: d8a-queue
-    access_key: minioadmin
-    secret_key: minioadmin
-    region: us-east-1
-    create_bucket: true
+  backend: object_storage
+  
+  object_storage:
+    prefix: d8a/dev/queue
+    type: s3
+    s3:
+      host: 127.0.0.1
+      port: 9000
+      protocol: http
+      bucket: d8a-queue
+      access_key: minioadmin
+      secret_key: minioadmin
+      region: us-east-1
+      create_bucket: true
 ```
 
 Run receiver(s):
@@ -60,5 +60,5 @@ go run . worker --config config.yaml --storage-bolt-directory ./state
 
 Notes:
 
-- Use `queue.object_prefix` to namespace environments (prevents cross-talk within a shared bucket).
+- Use `queue.object_storage.prefix` to namespace environments (prevents cross-talk within a shared bucket).
 - The system is at-least-once: tasks can be replayed if the worker crashes after processing but before deletion.
