@@ -247,7 +247,6 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	format := cmd.String(warehouseFilesFormatFlag.Name)
 	spoolDir := cmd.String(warehouseFilesSpoolDirFlag.Name)
 	flushInterval := cmd.Duration(warehouseFilesFlushIntervalFlag.Name)
-	maxBufferSize := cmd.Int(warehouseFilesMaxBufferSizeFlag.Name)
 
 	// Validation
 	if spoolDir == "" {
@@ -301,11 +300,8 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
 	}
 
-	// Create flush trigger based on configuration
-	trigger := whFiles.NewDefaultFlushTrigger(maxBufferSize, flushInterval)
-
-	// Create spool (wraps uploader, writes CSV/Parquet directly to disk)
-	driver := whFiles.NewSpoolDriver(uploader, fmt, spoolDir, whFiles.WithFlushTrigger(trigger))
+	// Create spool driver with timer-based flush
+	driver := whFiles.NewSpoolDriver(uploader, fmt, spoolDir, flushInterval)
 
 	// Wrap with batching
 	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)

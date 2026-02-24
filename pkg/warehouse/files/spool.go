@@ -2,125 +2,126 @@ package files
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/sirupsen/logrus"
 )
 
-// FlushTrigger determines when buffered data should be flushed to disk.
-type FlushTrigger interface {
-	// ShouldFlush returns true if the buffer should be flushed based on
-	// the current row count and time since the buffer was created.
-	ShouldFlush(rowCount int, age time.Duration) bool
-}
-
 // SpoolOption is a functional option for configuring SpoolDriver.
 type SpoolOption func(*spoolDriver)
 
-// WithFlushTrigger sets the flush trigger for the spool driver.
-func WithFlushTrigger(trigger FlushTrigger) SpoolOption {
+// WithManualFlush disables automatic timer-based flushing.
+// Useful for testing or when you want to call Flush() manually.
+func WithManualFlush() SpoolOption {
 	return func(sd *spoolDriver) {
-		sd.flushTrigger = trigger
+		sd.flushInterval = 0
 	}
 }
 
-// tableBuffer holds in-memory state for a single table's data.
-type tableBuffer struct {
-	schema    *arrow.Schema
-	rows      []map[string]any
-	createdAt time.Time
-}
-
-// spoolDriver is a warehouse.Driver decorator that buffers writes to local files
-// before uploading them to a final destination.
+// spoolDriver is a warehouse.Driver that writes analytics data directly to disk
+// files and periodically uploads them to object storage.
 //
-// It maintains per-table buffers in memory, writes them to temporary files when
-// flush triggers fire, then uploads those files via the Uploader interface.
+// The driver maintains NO in-memory state - disk is the source of truth.
+// Each Write() call appends rows directly to disk files. A timer goroutine
+// periodically scans the spool directory and uploads CSV files.
 type spoolDriver struct {
-	uploader     Uploader
-	format       Format
-	spoolDir     string
-	flushTrigger FlushTrigger
-	buffers      map[string]*tableBuffer
+	uploader      Uploader
+	format        Format
+	spoolDir      string
+	flushInterval time.Duration
+	stopCh        chan struct{}  // signal to stop timer
+	wg            sync.WaitGroup // wait for timer goroutine
+	mu            sync.Mutex     //nolint:unused // used in Write and Flush (Tasks 5-6)
 }
 
-// NewSpoolDriver creates a new spool driver that buffers writes and uploads files.
+// NewSpoolDriver creates a new spool driver that writes rows directly to disk
+// and periodically uploads files.
 //
-// The driver maintains in-memory buffers per table and flushes them to local files
-// in spoolDir when the flush trigger condition is met. Files are then uploaded
-// via the provided Uploader.
+// The driver writes each Write() call synchronously to disk files without
+// in-memory buffering. A timer goroutine fires periodically to scan the spool
+// directory and upload CSV files. Files are uploaded via the provided Uploader.
 //
 // Parameters:
 //   - uploader: handles moving files to final destination (cloud/local)
 //   - format: serialization format (CSV, Parquet, etc.)
 //   - spoolDir: directory for temporary spool files (must exist)
-//   - opts: optional configuration (flush trigger, etc.)
-func NewSpoolDriver(uploader Uploader, format Format, spoolDir string, opts ...SpoolOption) *spoolDriver {
+//   - flushInterval: time between automatic flushes (0 = manual only)
+//   - opts: optional configuration
+func NewSpoolDriver(
+	uploader Uploader,
+	format Format,
+	spoolDir string,
+	flushInterval time.Duration,
+	opts ...SpoolOption,
+) *spoolDriver {
 	sd := &spoolDriver{
-		uploader:     uploader,
-		format:       format,
-		spoolDir:     spoolDir,
-		flushTrigger: nil, // Default: no auto-flush
-		buffers:      make(map[string]*tableBuffer),
+		uploader:      uploader,
+		format:        format,
+		spoolDir:      spoolDir,
+		flushInterval: flushInterval,
+		stopCh:        make(chan struct{}),
 	}
 
 	for _, opt := range opts {
 		opt(sd)
 	}
 
+	sd.startTimer()
+
 	return sd
 }
 
-// Write buffers rows for a table and flushes to disk when triggered.
+// startTimer starts the periodic flush timer (if interval > 0).
+func (sd *spoolDriver) startTimer() {
+	if sd.flushInterval == 0 {
+		return // manual flush mode
+	}
+
+	sd.wg.Add(1)
+	go func() {
+		defer sd.wg.Done()
+		logrus.WithField("interval", sd.flushInterval).Info("started flush timer")
+
+		ticker := time.NewTicker(sd.flushInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := sd.Flush(context.Background()); err != nil {
+					logrus.WithError(err).Error("automatic flush failed")
+				}
+			case <-sd.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+// Write appends rows to disk file immediately and creates metadata.
 //
-// Production flow (not yet implemented):
+// This method:
+//  1. Calculates CSV filename based on schema fingerprint and table name
+//  2. Opens CSV file in append mode (creates if missing)
+//  3. Writes rows using the configured Format
+//  4. Creates/updates metadata file with schema and table info
+//  5. Returns immediately (no buffering)
 //
-//  1. Schema change detection:
-//     - Check if we have a buffer for this table
-//     - If buffer exists and schema differs from incoming schema:
-//     * Flush existing buffer immediately (schema changed)
-//     * Remove old buffer from map
-//
-//  2. Buffer creation/management:
-//     - If no buffer exists for table:
-//     * Create new tableBuffer with schema, empty rows slice, current timestamp
-//     * Store in sd.buffers[table]
-//     - Append incoming rows to buffer.rows
-//
-//  3. Flush trigger check:
-//     - If flushTrigger is nil, skip auto-flush (manual flush only)
-//     - Otherwise calculate buffer age: time.Since(buffer.createdAt)
-//     - Call flushTrigger.ShouldFlush(len(buffer.rows), age)
-//     - If false, return early (no flush needed)
-//
-//  4. File naming and writing:
-//     - Generate filename: fmt.Sprintf("%s_%d.%s.tmp", table, time.Now().Unix(), sd.format.Extension())
-//     * Example: "events_1234567890.parquet.tmp"
-//     * The .tmp suffix prevents partial files from being processed
-//     - Full path: filepath.Join(sd.spoolDir, filename)
-//     - Create file: os.Create(fullPath)
-//     - Write buffer data: sd.format.Write(file, buffer.schema, buffer.rows)
-//     - Close file
-//
-//  5. Upload and cleanup:
-//     - Remove .tmp suffix: finalPath = strings.TrimSuffix(fullPath, ".tmp")
-//     - Atomically rename: os.Rename(fullPath, finalPath)
-//     * This makes the file visible for upload only after complete write
-//     - Upload file: sd.uploader.Upload(ctx, finalPath)
-//     - Delete local file after successful upload: os.Remove(finalPath)
-//     - Delete buffer from map: delete(sd.buffers, table)
+// All file operations are protected by a mutex to prevent concurrent writes
+// to the same file.
 //
 // Error handling:
-//   - File write errors: return immediately, preserve buffer for retry
-//   - Upload errors: return immediately, leave file on disk for manual recovery
-//   - Schema detection errors: flush existing buffer before returning error
+//   - File write errors: logged and returned, file left on disk for retry
+//   - Metadata write errors: logged and returned
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
+	// Placeholder - will be implemented in Task 5
 	logrus.WithFields(logrus.Fields{
 		"table":     table,
 		"row_count": len(rows),
 		"fields":    len(schema.Fields()),
-	}).Info("spool driver stub: would buffer and conditionally flush rows")
+	}).Info("spool driver stub: would write rows to disk")
 
 	return nil
 }
@@ -143,81 +144,32 @@ func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 	return []*arrow.Field{}, nil
 }
 
-// Flush forces all buffered data to be written and uploaded immediately.
-// This is useful for graceful shutdown or manual trigger points.
+// Flush scans the spool directory for CSV files and uploads them.
 //
-// Production implementation would:
-//   - Iterate through all buffers in sd.buffers
-//   - For each buffer, execute the flush flow from Write() steps 4-5
-//   - Collect and return any errors encountered
-//   - Clear sd.buffers map after successful flush
+// This method:
+//  1. Scans the spool directory for CSV files
+//  2. For each CSV file, uploads it via the Uploader
+//  3. Deletes the CSV and metadata files after successful upload
+//  4. Returns combined error if any uploads failed
+//
+// This is useful for graceful shutdown or manual trigger points.
 func (sd *spoolDriver) Flush(ctx context.Context) error {
-	tableCount := len(sd.buffers)
-	if tableCount == 0 {
-		return nil
-	}
-
-	logrus.WithField("table_count", tableCount).Info("spool driver stub: would flush all buffers")
+	// Placeholder - will be implemented in Task 6
+	logrus.Info("spool driver stub: would scan and upload CSV files")
 	return nil
 }
 
-// BufferStats returns current buffer statistics for observability.
-// Used for monitoring buffer sizes and ages.
-type BufferStats struct {
-	Table     string
-	RowCount  int
-	Age       time.Duration
-	FieldsLen int
-}
-
-// Stats returns current statistics for all buffered tables.
-// Useful for monitoring, debugging, and triggering manual flushes.
-func (sd *spoolDriver) Stats() []BufferStats {
-	stats := make([]BufferStats, 0, len(sd.buffers))
-	now := time.Now()
-
-	for table, buffer := range sd.buffers {
-		stats = append(stats, BufferStats{
-			Table:     table,
-			RowCount:  len(buffer.rows),
-			Age:       now.Sub(buffer.createdAt),
-			FieldsLen: len(buffer.schema.Fields()),
-		})
-	}
-
-	return stats
-}
-
-// defaultFlushTrigger is a simple trigger based on row count and time thresholds.
-type defaultFlushTrigger struct {
-	maxRows int
-	maxAge  time.Duration
-}
-
-// NewDefaultFlushTrigger creates a flush trigger that fires when either
-// row count or age threshold is exceeded.
-func NewDefaultFlushTrigger(maxRows int, maxAge time.Duration) FlushTrigger {
-	return &defaultFlushTrigger{
-		maxRows: maxRows,
-		maxAge:  maxAge,
-	}
-}
-
-// ShouldFlush implements FlushTrigger.
-func (t *defaultFlushTrigger) ShouldFlush(rowCount int, age time.Duration) bool {
-	return rowCount >= t.maxRows || age >= t.maxAge
-}
-
-// neverFlushTrigger is a trigger that never fires automatically.
-// Useful for manual flush control or testing.
-type neverFlushTrigger struct{}
-
-// NewNeverFlushTrigger creates a trigger that never fires automatically.
-func NewNeverFlushTrigger() FlushTrigger {
-	return &neverFlushTrigger{}
-}
-
-// ShouldFlush implements FlushTrigger.
-func (t *neverFlushTrigger) ShouldFlush(rowCount int, age time.Duration) bool {
-	return false
+// Close gracefully shuts down the driver.
+//
+// This method:
+//  1. Closes the stop channel to signal the timer goroutine to exit
+//  2. Waits for the timer goroutine to complete
+//  3. Performs a final Flush to upload remaining files
+//  4. Returns any errors from the final flush
+func (sd *spoolDriver) Close() error {
+	close(sd.stopCh)
+	sd.wg.Wait()
+	err := sd.Flush(context.Background())
+	logrus.Info("driver closed")
+	return err
 }
