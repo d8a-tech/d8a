@@ -49,19 +49,19 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 }
 
 func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
-	projectID := cmd.String(bigQueryProjectIDFlag.Name)
+	projectID := cmd.String(warehouseBigQueryProjectIDFlag.Name)
 	if projectID == "" {
-		logrus.Fatalf("bigquery-project-id must be set when warehouse-driver=bigquery")
+		logrus.Fatalf("warehouse-bigquery-project-id must be set when warehouse-driver=bigquery")
 	}
 
-	datasetName := cmd.String(bigQueryDatasetNameFlag.Name)
+	datasetName := cmd.String(warehouseBigQueryDatasetNameFlag.Name)
 	if datasetName == "" {
-		logrus.Fatalf("bigquery-dataset-name must be set when warehouse-driver=bigquery")
+		logrus.Fatalf("warehouse-bigquery-dataset-name must be set when warehouse-driver=bigquery")
 	}
 
-	credsJSON := strings.TrimSpace(cmd.String(bigQueryCredsJSONFlag.Name))
+	credsJSON := strings.TrimSpace(cmd.String(warehouseBigQueryCredsJSONFlag.Name))
 	if credsJSON == "" {
-		logrus.Fatalf("bigquery-creds-json must be set when warehouse-driver=bigquery")
+		logrus.Fatalf("warehouse-bigquery-creds-json must be set when warehouse-driver=bigquery")
 	}
 
 	// Support base64-encoded JSON for convenience
@@ -102,8 +102,8 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 			client,
 			datasetName,
 			writer,
-			whBigQuery.WithTableCreationTimeout(cmd.Duration(bigQueryTableCreationTimeoutFlag.Name)),
-			whBigQuery.WithQueryTimeout(cmd.Duration(bigQueryQueryTimeoutFlag.Name)),
+			whBigQuery.WithTableCreationTimeout(cmd.Duration(warehouseBigQueryTableCreationTimeoutFlag.Name)),
+			whBigQuery.WithQueryTimeout(cmd.Duration(warehouseBigQueryQueryTimeoutFlag.Name)),
 			partitionOpt,
 		),
 	)
@@ -112,12 +112,12 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 // createBigQueryPartitionOption creates a BigQuery partition option from command flags.
 // Returns nil if partition field is not set.
 func createBigQueryPartitionOption(cmd *cli.Command) whBigQuery.BigQueryTableDriverOption {
-	partitionField := strings.TrimSpace(cmd.String(bigQueryPartitionFieldFlag.Name))
+	partitionField := strings.TrimSpace(cmd.String(warehouseBigQueryPartitionFieldFlag.Name))
 	if partitionField == "" {
 		return nil
 	}
 
-	intervalRaw := strings.ToUpper(strings.TrimSpace(cmd.String(bigQueryPartitionIntervalFlag.Name)))
+	intervalRaw := strings.ToUpper(strings.TrimSpace(cmd.String(warehouseBigQueryPartitionIntervalFlag.Name)))
 	var interval whBigQuery.PartitionInterval
 	switch intervalRaw {
 	case string(whBigQuery.PartitionIntervalHour):
@@ -135,7 +135,7 @@ func createBigQueryPartitionOption(cmd *cli.Command) whBigQuery.BigQueryTableDri
 	return whBigQuery.WithPartitionBy(whBigQuery.PartitioningConfig{
 		Interval:       interval,
 		Field:          partitionField,
-		ExpirationDays: cmd.Int(bigQueryPartitionExpirationDaysFlag.Name),
+		ExpirationDays: cmd.Int(warehouseBigQueryPartitionExpirationDaysFlag.Name),
 	})
 }
 
@@ -144,8 +144,8 @@ func createBigQueryWriter(
 	client *bigquery.Client,
 	datasetName string,
 ) whBigQuery.Writer {
-	writerType := strings.ToLower(cmd.String(bigQueryWriterTypeFlag.Name))
-	queryTimeout := cmd.Duration(bigQueryQueryTimeoutFlag.Name)
+	writerType := strings.ToLower(cmd.String(warehouseBigQueryWriterTypeFlag.Name))
+	queryTimeout := cmd.Duration(warehouseBigQueryQueryTimeoutFlag.Name)
 
 	switch writerType {
 	case "streaming":
@@ -169,19 +169,19 @@ func createBigQueryWriter(
 }
 
 func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
-	host := cmd.String(clickhouseHostFlag.Name)
+	host := cmd.String(warehouseClickhouseHostFlag.Name)
 	if host == "" {
-		logrus.Fatalf("clickhouse-host must be set when warehouse-driver=clickhouse")
+		logrus.Fatalf("warehouse-clickhouse-host must be set when warehouse-driver=clickhouse")
 	}
 
-	port := cmd.String(clickhousePortFlag.Name)
+	port := cmd.String(warehouseClickhousePortFlag.Name)
 	if port == "" {
-		port = clickhousePortFlag.Value
+		port = warehouseClickhousePortFlag.Value
 	}
 
-	database := cmd.String(clickhouseDatabaseFlag.Name)
+	database := cmd.String(warehouseClickhouseDatabaseFlag.Name)
 	if database == "" {
-		logrus.Fatalf("clickhouse-database must be set when warehouse-driver=clickhouse")
+		logrus.Fatalf("warehouse-clickhouse-database must be set when warehouse-driver=clickhouse")
 	}
 
 	options := &clickhouse.Options{
@@ -190,8 +190,8 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		},
 		Auth: clickhouse.Auth{
 			Database: database,
-			Username: cmd.String(clickhouseUsernameFlag.Name),
-			Password: cmd.String(clickhousePasswordFlag.Name),
+			Username: cmd.String(warehouseClickhouseUsernameFlag.Name),
+			Password: cmd.String(warehouseClickhousePasswordFlag.Name),
 		},
 		Settings: clickhouse.Settings{
 			"max_execution_time": 60,
@@ -207,7 +207,7 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 
 	// Build ClickHouse driver options from flags
 	var opts []whClickhouse.Options
-	orderByStr := strings.TrimSpace(cmd.String(clickhouseOrderByFlag.Name))
+	orderByStr := strings.TrimSpace(cmd.String(warehouseClickhouseOrderByFlag.Name))
 	if orderByStr != "" {
 		orderByParts := strings.Split(orderByStr, ",")
 		orderBy := make([]string, 0, len(orderByParts))
@@ -222,7 +222,7 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		}
 	}
 
-	partitionByStr := strings.TrimSpace(cmd.String(clickhousePartitionByFlag.Name))
+	partitionByStr := strings.TrimSpace(cmd.String(warehouseClickhousePartitionByFlag.Name))
 	if partitionByStr != "" {
 		opts = append(opts, whClickhouse.WithPartitionBy(partitionByStr))
 	}
@@ -238,14 +238,14 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 }
 
 func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
-	format := cmd.String(filesFormatFlag.Name)
-	spoolDir := cmd.String(filesSpoolDirFlag.Name)
-	flushInterval := cmd.Duration(filesFlushIntervalFlag.Name)
-	maxBufferSize := cmd.Int(filesMaxBufferSizeFlag.Name)
+	format := cmd.String(warehouseFilesFormatFlag.Name)
+	spoolDir := cmd.String(warehouseFilesSpoolDirFlag.Name)
+	flushInterval := cmd.Duration(warehouseFilesFlushIntervalFlag.Name)
+	maxBufferSize := cmd.Int(warehouseFilesMaxBufferSizeFlag.Name)
 
 	// Validation
 	if spoolDir == "" {
-		logrus.Fatal("--files-spool-dir is required when using files warehouse")
+		logrus.Fatal("--warehouse-files-spool-dir is required when using files warehouse")
 	}
 
 	// Create format
