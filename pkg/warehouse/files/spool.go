@@ -2,6 +2,9 @@ package files
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -33,7 +36,7 @@ type spoolDriver struct {
 	flushInterval time.Duration
 	stopCh        chan struct{}  // signal to stop timer
 	wg            sync.WaitGroup // wait for timer goroutine
-	mu            sync.Mutex     //nolint:unused // used in Write and Flush (Tasks 5-6)
+	mu            sync.Mutex     // protects concurrent file operations
 }
 
 // NewSpoolDriver creates a new spool driver that writes rows directly to disk
@@ -116,12 +119,110 @@ func (sd *spoolDriver) startTimer() {
 //   - File write errors: logged and returned, file left on disk for retry
 //   - Metadata write errors: logged and returned
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	// Placeholder - will be implemented in Task 5
+	// Step 1: Calculate filename
+	fingerprint := SchemaFingerprint(schema)
+	csvFile := FilenameForWrite(table, fingerprint, sd.format)
+	metaFile := MetadataFilename(table, fingerprint)
+	csvPath := filepath.Join(sd.spoolDir, csvFile)
+	metaPath := filepath.Join(sd.spoolDir, metaFile)
+
+	// Step 2: Acquire lock
+	sd.mu.Lock()
+	defer sd.mu.Unlock()
+
+	// Step 3: Create/append to CSV file
+	// csvPath is constructed from controlled inputs (spoolDir, fingerprint, table), not user input
+	//nolint:gosec // G304: csvPath from controlled inputs
+	file, err := os.OpenFile(csvPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"table":       table,
+			"fingerprint": fingerprint,
+			"path":        csvPath,
+		}).Error("failed to open CSV file")
+		return fmt.Errorf("opening CSV file: %w", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			logrus.WithError(closeErr).Error("failed to close CSV file")
+		}
+	}()
+
+	if err := sd.format.Write(file, schema, rows); err != nil {
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"table":       table,
+			"fingerprint": fingerprint,
+			"row_count":   len(rows),
+		}).Error("failed to write rows to file")
+		return fmt.Errorf("writing rows to CSV file: %w", err)
+	}
+
 	logrus.WithFields(logrus.Fields{
-		"table":     table,
-		"row_count": len(rows),
-		"fields":    len(schema.Fields()),
-	}).Info("spool driver stub: would write rows to disk")
+		"table":       table,
+		"fingerprint": fingerprint,
+		"row_count":   len(rows),
+	}).Debug("wrote rows to file")
+
+	// Step 4: Write/update metadata file (if not exists)
+	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+		if err := sd.createMetadataFile(metaPath, table, fingerprint, schema); err != nil {
+			return err
+		}
+	}
+
+	// Step 5: Return
+	return nil
+}
+
+// createMetadataFile creates a metadata file atomically for a CSV file.
+func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, schema *arrow.Schema) error {
+	encodedSchema, err := SerializeSchema(schema)
+	if err != nil {
+		logrus.WithError(err).WithField("table", table).Error("failed to serialize schema")
+		return fmt.Errorf("serializing schema: %w", err)
+	}
+
+	meta := &Metadata{
+		Table:       table,
+		Fingerprint: fingerprint,
+		Schema:      encodedSchema,
+		CreatedAt:   time.Now().Format(time.RFC3339),
+	}
+
+	// Atomic write: write to temp file, then rename
+	tmpPath := metaPath + ".tmp"
+	tmpFile, err := os.Create(tmpPath) //nolint:gosec // tmpPath is constructed from controlled inputs
+	if err != nil {
+		logrus.WithError(err).WithField("path", tmpPath).Error("failed to create temp metadata file")
+		return fmt.Errorf("creating temp metadata file: %w", err)
+	}
+
+	if err := WriteMetadata(tmpFile, meta); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		logrus.WithError(err).WithField("table", table).Error("failed to write metadata")
+		return fmt.Errorf("writing metadata: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		logrus.WithError(err).WithField("path", tmpPath).Error("failed to close temp metadata file")
+		return fmt.Errorf("closing temp metadata file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, metaPath); err != nil {
+		_ = os.Remove(tmpPath)
+		logrus.WithError(err).WithFields(logrus.Fields{
+			"tmp":  tmpPath,
+			"meta": metaPath,
+		}).Error("failed to rename metadata file")
+		return fmt.Errorf("renaming metadata file: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"table":       table,
+		"fingerprint": fingerprint,
+	}).Debug("created metadata file")
 
 	return nil
 }
