@@ -32,13 +32,12 @@ sessions:
 
 warehouse:
   driver: clickhouse
-
-clickhouse:
-  host: clickhouse
-  port: "9000"
-  database: d8a
-  username: default
-  password: "verySecuredD8aDatabase"
+  clickhouse:
+    host: clickhouse
+    port: "9000"
+    database: d8a
+    username: default
+    password: "verySecuredD8aDatabase"
 
 protocol: ga4 # Set to 'd8a' when using the d8a web tracker and the /d/c endpoint
 EOF
@@ -63,9 +62,9 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
     environment:
-      - CLICKHOUSE_DB=d8a
-      - CLICKHOUSE_USER=default
-      - CLICKHOUSE_PASSWORD=verySecuredD8aDatabase
+      - WAREHOUSE_CLICKHOUSE_DB=d8a
+      - WAREHOUSE_CLICKHOUSE_USER=default
+      - WAREHOUSE_CLICKHOUSE_PASSWORD=verySecuredD8aDatabase
     networks:
       - d8a-network
 
