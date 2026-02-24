@@ -259,19 +259,41 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatalf("unsupported files format: %s", format)
 	}
 
-	// Create bucket
-	bucket, cleanup, err := createWarehouseBucket(ctx, cmd)
-	if err != nil {
-		logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
-	}
-	defer func() {
-		if cleanupErr := cleanup(); cleanupErr != nil {
-			logrus.WithError(cleanupErr).Error("failed to cleanup warehouse bucket")
-		}
-	}() // NOTE: In real impl, store cleanup in run.go
+	// Create uploader based on storage type
+	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
+	var uploader whFiles.Uploader
 
-	// Create uploader (wraps bucket)
-	uploader := whFiles.NewBlobUploader(bucket)
+	switch storageType {
+	case "s3", "gcs":
+		// Create bucket for cloud storage
+		bucket, cleanup, err := createWarehouseBucket(ctx, cmd)
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
+		}
+		defer func() {
+			if cleanupErr := cleanup(); cleanupErr != nil {
+				logrus.WithError(cleanupErr).Error("failed to cleanup warehouse bucket")
+			}
+		}() // NOTE: In real impl, store cleanup in run.go
+
+		uploader = whFiles.NewBlobUploader(bucket)
+
+	case "filesystem":
+		// Create filesystem uploader
+		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
+		if filesystemPath == "" {
+			logrus.Fatal("--warehouse-files-filesystem-path is required when warehouse-files-storage=filesystem")
+		}
+
+		var err error
+		uploader, err = whFiles.NewFilesystemUploader(filesystemPath)
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to create filesystem uploader")
+		}
+
+	default:
+		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
+	}
 
 	// Create flush trigger based on configuration
 	trigger := whFiles.NewDefaultFlushTrigger(maxBufferSize, flushInterval)
