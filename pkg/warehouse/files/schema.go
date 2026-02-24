@@ -2,11 +2,14 @@ package files
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/flight"
+	"github.com/apache/arrow-go/v18/arrow/memory"
 )
 
 // SchemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
@@ -73,4 +76,33 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 		return nil, fmt.Errorf("unmarshaling metadata: %w", err)
 	}
 	return &metadata, nil
+}
+
+// SerializeSchema serializes an Arrow schema to a base64-encoded string.
+// Uses Arrow IPC format for binary representation.
+func SerializeSchema(schema *arrow.Schema) (string, error) {
+	// Use flight.SerializeSchema to get bytes using Arrow IPC format
+	schemaBytes := flight.SerializeSchema(schema, memory.DefaultAllocator)
+
+	// Base64-encode the bytes
+	encoded := base64.StdEncoding.EncodeToString(schemaBytes)
+	return encoded, nil
+}
+
+// DeserializeSchema deserializes a base64-encoded Arrow schema string.
+// Reverse of SerializeSchema.
+func DeserializeSchema(encoded string) (*arrow.Schema, error) {
+	// Base64-decode the string
+	schemaBytes, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return nil, fmt.Errorf("base64 decoding schema: %w", err)
+	}
+
+	// Use flight.DeserializeSchema to parse the bytes
+	schema, err := flight.DeserializeSchema(schemaBytes, memory.DefaultAllocator)
+	if err != nil {
+		return nil, fmt.Errorf("deserializing schema: %w", err)
+	}
+
+	return schema, nil
 }
