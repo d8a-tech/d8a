@@ -316,13 +316,6 @@ var queueBackendFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   queueBackendFilesystem,
 }
 
-var queueObjectPrefixFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "queue-object-prefix",
-	Usage:   "Object storage prefix/namespace for queue objects (only used for objectstorage backend)",
-	Sources: defaultSourceChain("QUEUE_OBJECT_PREFIX", "queue.object_storage.prefix"),
-	Value:   "d8a/queue",
-}
-
 var queueObjectStorageMinIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "queue-objectstorage-min-interval",
 	Usage:   "Minimum polling interval for objectstorage queue consumer (only used for objectstorage backend)",
@@ -354,81 +347,41 @@ var queueObjectStorageMaxItemsToReadAtOnceFlag *cli.IntFlag = &cli.IntFlag{
 	Value: 1000,
 }
 
-var objectStorageTypeFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-type",
-	Usage:   "Object storage type (s3 or gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_TYPE", "queue.object_storage.type"),
-}
+// Queue object storage flags are generated via ObjectStorageFlagsSpec.Queue
+var queueObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Queue)
 
-var objectStorageS3HostFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-host",
-	Usage:   "S3/MinIO host (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_HOST", "queue.object_storage.s3.host"),
-}
+// Warehouse object storage flags are generated via ObjectStorageFlagsSpec.Warehouse
+var warehouseObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Warehouse)
 
-var objectStorageS3PortFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "object-storage-s3-port",
-	Usage:   "S3/MinIO port (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PORT", "queue.object_storage.s3.port"),
-	Value:   9000,
-}
+// Files warehouse flags
+var (
+	filesFormatFlag = &cli.StringFlag{
+		Name:    "files-format",
+		Usage:   "File format for warehouse output (csv or parquet)",
+		Value:   "csv",
+		Sources: defaultSourceChain("FILES_FORMAT", "warehouse.files.format"),
+	}
 
-var objectStorageS3BucketFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-bucket",
-	Usage:   "S3/MinIO bucket name (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_BUCKET", "queue.object_storage.s3.bucket"),
-}
+	filesSpoolDirFlag = &cli.StringFlag{
+		Name:    "files-spool-dir",
+		Usage:   "Local directory for spooling files before upload (required)",
+		Sources: defaultSourceChain("FILES_SPOOL_DIR", "warehouse.files.spool_dir"),
+	}
 
-var objectStorageS3AccessKeyFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-access-key",
-	Usage:   "S3/MinIO access key (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_ACCESS_KEY", "queue.object_storage.s3.access_key"),
-}
+	filesFlushIntervalFlag = &cli.DurationFlag{
+		Name:    "files-flush-interval",
+		Usage:   "Interval for flushing local spool files to object storage",
+		Value:   10 * time.Minute,
+		Sources: defaultSourceChain("FILES_FLUSH_INTERVAL", "warehouse.files.flush_interval"),
+	}
 
-var objectStorageS3SecretKeyFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-secret-key",
-	Usage:   "S3/MinIO secret key (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_SECRET_KEY", "queue.object_storage.s3.secret_key"),
-}
-
-var objectStorageS3RegionFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-region",
-	Usage:   "S3 region (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_REGION", "queue.object_storage.s3.region"),
-	Value:   "us-east-1",
-}
-
-var objectStorageS3ProtocolFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-protocol",
-	Usage:   "S3 endpoint protocol (http or https; only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PROTOCOL", "queue.object_storage.s3.protocol"),
-	Value:   "http",
-}
-
-var objectStorageS3CreateBucketFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "object-storage-s3-create-bucket",
-	Usage:   "Create bucket on startup if missing (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_CREATE_BUCKET", "queue.object_storage.s3.create_bucket"),
-	Value:   false,
-}
-
-var objectStorageGCSBucketFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-bucket",
-	Usage:   "GCS bucket name (only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_BUCKET", "queue.object_storage.gcs.bucket"),
-}
-
-var objectStorageGCSProjectFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-project",
-	Usage:   "GCS project ID (optional; only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_PROJECT", "queue.object_storage.gcs.project"),
-}
-
-var objectStorageGCSCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-creds-json",
-	Usage:   "GCS credentials JSON (raw or base64); empty uses ADC (only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_CREDS_JSON", "queue.object_storage.gcs.creds_json"),
-}
+	filesMaxBufferSizeFlag = &cli.IntFlag{
+		Name:    "files-max-buffer-size",
+		Usage:   "Maximum rows to buffer in a file before forcing flush",
+		Value:   10000,
+		Sources: defaultSourceChain("FILES_MAX_BUFFER_SIZE", "warehouse.files.max_buffer_size"),
+	}
+)
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "storage-spool-enabled",
@@ -519,6 +472,10 @@ var warehouseConfigFlags = []cli.Flag{
 	bigQueryPartitionFieldFlag,
 	bigQueryPartitionIntervalFlag,
 	bigQueryPartitionExpirationDaysFlag,
+	filesFormatFlag,
+	filesSpoolDirFlag,
+	filesFlushIntervalFlag,
+	filesMaxBufferSizeFlag,
 }
 
 func getServerFlags() []cli.Flag {
@@ -549,23 +506,10 @@ func getServerFlags() []cli.Flag {
 			storageBoltDirectoryFlag,
 			storageQueueDirectoryFlag,
 			queueBackendFlag,
-			queueObjectPrefixFlag,
 			queueObjectStorageMinIntervalFlag,
 			queueObjectStorageMaxIntervalFlag,
 			queueObjectStorageIntervalExpFactorFlag,
 			queueObjectStorageMaxItemsToReadAtOnceFlag,
-			objectStorageTypeFlag,
-			objectStorageS3HostFlag,
-			objectStorageS3PortFlag,
-			objectStorageS3BucketFlag,
-			objectStorageS3AccessKeyFlag,
-			objectStorageS3SecretKeyFlag,
-			objectStorageS3RegionFlag,
-			objectStorageS3ProtocolFlag,
-			objectStorageS3CreateBucketFlag,
-			objectStorageGCSBucketFlag,
-			objectStorageGCSProjectFlag,
-			objectStorageGCSCredsJSONFlag,
 			storageSpoolEnabledFlag,
 			storageSpoolDirectoryFlag,
 			storageSpoolWriteChanBufferFlag,
@@ -573,6 +517,8 @@ func getServerFlags() []cli.Flag {
 			filtersFieldsFlag,
 			filtersConditionsFlag,
 		},
+		queueObjectStorageCliFlags,
+		warehouseObjectStorageCliFlags,
 		warehouseConfigFlags,
 	)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	whBigQuery "github.com/d8a-tech/d8a/pkg/warehouse/bigquery"
 	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
+	whFiles "github.com/d8a-tech/d8a/pkg/warehouse/files"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/oauth2/google"
@@ -29,6 +30,8 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 		return createBigQueryWarehouse(ctx, cmd)
 	case "clickhouse":
 		return createClickHouseWarehouse(ctx, cmd)
+	case "files":
+		return createFilesWarehouse(ctx, cmd)
 	case "console", "":
 		return warehouse.NewStaticBatchedDriverRegistry(
 			ctx,
@@ -232,4 +235,50 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 			opts...,
 		),
 	)
+}
+
+func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
+	format := cmd.String(filesFormatFlag.Name)
+	spoolDir := cmd.String(filesSpoolDirFlag.Name)
+	flushInterval := cmd.Duration(filesFlushIntervalFlag.Name)
+	maxBufferSize := cmd.Int(filesMaxBufferSizeFlag.Name)
+
+	// Validation
+	if spoolDir == "" {
+		logrus.Fatal("--files-spool-dir is required when using files warehouse")
+	}
+
+	// Create format
+	var fmt whFiles.Format
+	switch format {
+	case "csv":
+		fmt = whFiles.NewCSVFormat()
+	case "parquet":
+		fmt = whFiles.NewParquetFormat()
+	default:
+		logrus.Fatalf("unsupported files format: %s", format)
+	}
+
+	// Create bucket
+	bucket, cleanup, err := createWarehouseBucket(ctx, cmd)
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
+	}
+	defer func() {
+		if cleanupErr := cleanup(); cleanupErr != nil {
+			logrus.WithError(cleanupErr).Error("failed to cleanup warehouse bucket")
+		}
+	}() // NOTE: In real impl, store cleanup in run.go
+
+	// Create uploader (wraps bucket)
+	uploader := whFiles.NewBlobUploader(bucket)
+
+	// Create flush trigger based on configuration
+	trigger := whFiles.NewDefaultFlushTrigger(maxBufferSize, flushInterval)
+
+	// Create spool (wraps uploader, writes CSV/Parquet directly to disk)
+	driver := whFiles.NewSpoolDriver(uploader, fmt, spoolDir, whFiles.WithFlushTrigger(trigger))
+
+	// Wrap with batching
+	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)
 }

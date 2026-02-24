@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/gcsblob"
@@ -22,27 +23,49 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-func createBucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
-	switch strings.ToLower(c.String(ObjectStorageFlagsSpec.Queue.Type.Name)) {
+// createWarehouseBucket initializes a Go CDK bucket for warehouse operations.
+// Supports S3 and GCS providers based on warehouse-object-storage-type flag.
+// Applies prefix using blob.PrefixedBucket if warehouse-object-storage-prefix is set.
+func createWarehouseBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, func() error, error) {
+	storageType := strings.ToLower(cmd.String(ObjectStorageFlagsSpec.Warehouse.Type.Name))
+	logrus.Infof("Creating warehouse bucket with provider: %s", storageType)
+
+	var bucket *blob.Bucket
+	var cleanup func() error
+	var err error
+
+	switch storageType {
 	case "s3":
-		return createS3Bucket(ctx, c)
+		bucket, cleanup, err = createWarehouseS3Bucket(ctx, cmd)
 	case "gcs":
-		return createGCSBucket(ctx, c)
+		bucket, cleanup, err = createWarehouseGCSBucket(ctx, cmd)
 	default:
-		return nil, nil, fmt.Errorf("unsupported object storage type: %s", c.String(ObjectStorageFlagsSpec.Queue.Type.Name))
+		return nil, nil, fmt.Errorf("unsupported warehouse object storage type: %s", storageType)
 	}
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Apply prefix if configured
+	prefix := strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Warehouse.Prefix.Name))
+	if prefix != "" {
+		bucket = blob.PrefixedBucket(bucket, prefix)
+	}
+
+	return bucket, cleanup, nil
 }
 
-func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
+func createWarehouseS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				c.String(ObjectStorageFlagsSpec.Queue.S3AccessKey.Name),
-				c.String(ObjectStorageFlagsSpec.Queue.S3SecretKey.Name),
+				c.String(ObjectStorageFlagsSpec.Warehouse.S3AccessKey.Name),
+				c.String(ObjectStorageFlagsSpec.Warehouse.S3SecretKey.Name),
 				"",
 			),
 		),
-		config.WithRegion(c.String(ObjectStorageFlagsSpec.Queue.S3Region.Name)),
+		config.WithRegion(c.String(ObjectStorageFlagsSpec.Warehouse.S3Region.Name)),
 	)
 
 	if err != nil {
@@ -54,20 +77,20 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 		o.BaseEndpoint = aws.String(
 			fmt.Sprintf(
 				"%s://%s:%d",
-				c.String(ObjectStorageFlagsSpec.Queue.S3Protocol.Name),
-				c.String(ObjectStorageFlagsSpec.Queue.S3Host.Name),
-				c.Int(ObjectStorageFlagsSpec.Queue.S3Port.Name),
+				c.String(ObjectStorageFlagsSpec.Warehouse.S3Protocol.Name),
+				c.String(ObjectStorageFlagsSpec.Warehouse.S3Host.Name),
+				c.Int(ObjectStorageFlagsSpec.Warehouse.S3Port.Name),
 			),
 		)
 		o.UsePathStyle = true
 	})
 
 	// Create bucket first
-	bucketName := c.String(ObjectStorageFlagsSpec.Queue.S3Bucket.Name)
+	bucketName := c.String(ObjectStorageFlagsSpec.Warehouse.S3Bucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", ObjectStorageFlagsSpec.Queue.S3Bucket.Name)
+		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", ObjectStorageFlagsSpec.Warehouse.S3Bucket.Name)
 	}
-	if c.Bool(ObjectStorageFlagsSpec.Queue.S3CreateBucket.Name) {
+	if c.Bool(ObjectStorageFlagsSpec.Warehouse.S3CreateBucket.Name) {
 		_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 			Bucket: &bucketName,
 		})
@@ -94,17 +117,17 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 	return bucket, bucket.Close, nil
 }
 
-// createGCSBucket initializes a Go CDK bucket backed by Google Cloud Storage.
+// createWarehouseGCSBucket initializes a Go CDK bucket backed by Google Cloud Storage.
 // Authentication order:
-// - If QUEUE_OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
+// - If WAREHOUSE_OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
 // - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
 // nolint:funlen // straightforward setup
-func createGCSBucket(
+func createWarehouseGCSBucket(
 	ctx context.Context, c *cli.Command,
 ) (*blob.Bucket, func() error, error) {
-	bucketName := c.String(ObjectStorageFlagsSpec.Queue.GCSBucket.Name)
+	bucketName := c.String(ObjectStorageFlagsSpec.Warehouse.GCSBucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", ObjectStorageFlagsSpec.Queue.GCSBucket.Name)
+		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", ObjectStorageFlagsSpec.Warehouse.GCSBucket.Name)
 	}
 
 	// Resolve credentials
@@ -112,7 +135,7 @@ func createGCSBucket(
 	var err error
 	var ts oauth2.TokenSource
 
-	credsJSON := strings.TrimSpace(c.String(ObjectStorageFlagsSpec.Queue.GCSCredsJSON.Name))
+	credsJSON := strings.TrimSpace(c.String(ObjectStorageFlagsSpec.Warehouse.GCSCredsJSON.Name))
 	if credsJSON != "" {
 		// Support base64-encoded JSON for convenience
 		raw := []byte(credsJSON)
