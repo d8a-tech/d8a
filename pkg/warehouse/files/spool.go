@@ -255,8 +255,87 @@ func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 //
 // This is useful for graceful shutdown or manual trigger points.
 func (sd *spoolDriver) Flush(ctx context.Context) error {
-	// Placeholder - will be implemented in Task 6
-	logrus.Info("spool driver stub: would scan and upload CSV files")
+	// Step 1: Scan spool directory for CSV files
+	csvFiles, err := FindCSVFiles(sd.spoolDir)
+	if err != nil {
+		logrus.WithError(err).Error("failed to scan spool directory")
+		return fmt.Errorf("scanning spool directory: %w", err)
+	}
+
+	logrus.WithField("file_count", len(csvFiles)).Info("starting flush")
+
+	if len(csvFiles) == 0 {
+		logrus.Debug("no files to upload")
+		return nil
+	}
+
+	// Step 2: Upload each CSV file
+	var errs []error
+	successCount := 0
+
+	for _, csvPath := range csvFiles {
+		// Generate metadata filename
+		metaPath := GetMetadataPathForCSV(csvPath)
+
+		// Check metadata exists
+		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+			logrus.WithFields(logrus.Fields{
+				"csv_path":  csvPath,
+				"meta_path": metaPath,
+			}).Warn("CSV file found without metadata, skipping")
+			continue
+		}
+
+		// Read metadata (for logging purposes)
+		meta, err := LoadMetadataFile(metaPath)
+		if err != nil {
+			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to read metadata, skipping file")
+			continue
+		}
+
+		// Upload CSV
+		if err := sd.uploader.Upload(ctx, csvPath); err != nil {
+			logrus.WithError(err).WithFields(logrus.Fields{
+				"csv_path":    csvPath,
+				"table":       meta.Table,
+				"fingerprint": meta.Fingerprint,
+			}).Error("failed to upload file")
+			errs = append(errs, fmt.Errorf("uploading %s: %w", csvPath, err))
+			continue
+		}
+
+		// CSV already deleted by uploader, now delete metadata
+		if err := DeleteMetadataFile(metaPath); err != nil {
+			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to delete metadata file after successful upload")
+			// Don't treat this as a failure - CSV was uploaded successfully
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"table":       meta.Table,
+			"fingerprint": meta.Fingerprint,
+		}).Info("uploaded file")
+		successCount++
+	}
+
+	// Step 3: Return results
+	logrus.WithFields(logrus.Fields{
+		"success_count": successCount,
+		"error_count":   len(errs),
+	}).Info("flush completed")
+
+	if len(errs) > 0 {
+		// Combine all errors
+		var combined error
+		for _, err := range errs {
+			if combined == nil {
+				combined = err
+			} else {
+				combined = fmt.Errorf("%w; %w", combined, err)
+			}
+		}
+		return combined
+	}
+
 	return nil
 }
 

@@ -2,11 +2,13 @@ package files
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
@@ -34,6 +36,10 @@ func (m *mockUploader) Upload(ctx context.Context, filePath string) error {
 	if m.uploadFunc != nil {
 		return m.uploadFunc(ctx, filePath)
 	}
+
+	// Default behavior: simulate successful upload by deleting the file
+	// (real uploaders delete the file after successful upload)
+	_ = os.Remove(filePath)
 	return nil
 }
 
@@ -293,4 +299,305 @@ func TestSpoolDriver_Write_ErrorHandling(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.expectErr)
 		})
 	}
+}
+
+// TestSpoolDriver_Flush_UploadsFiles tests that Flush uploads all CSV files
+func TestSpoolDriver_Flush_UploadsFiles(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+		{Name: "name", Type: arrow.BinaryTypes.String},
+	}, nil)
+
+	// Write rows for multiple tables
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1), "name": "Alice"},
+	})
+	require.NoError(t, err)
+
+	err = driver.Write(context.Background(), "events", schema, []map[string]any{
+		{"id": int64(2), "name": "Bob"},
+	})
+	require.NoError(t, err)
+
+	// when
+	err = driver.Flush(context.Background())
+
+	// then
+	require.NoError(t, err)
+
+	// Verify uploader called for each CSV file
+	assert.Equal(t, 2, len(uploader.calls), "Should upload 2 CSV files")
+
+	// Verify metadata files deleted after successful upload
+	fingerprint := SchemaFingerprint(schema)
+	metaFileUsers := MetadataFilename("users", fingerprint)
+	metaFileEvents := MetadataFilename("events", fingerprint)
+	metaPathUsers := filepath.Join(spoolDir, metaFileUsers)
+	metaPathEvents := filepath.Join(spoolDir, metaFileEvents)
+
+	assert.NoFileExists(t, metaPathUsers, "Metadata should be deleted after upload")
+	assert.NoFileExists(t, metaPathEvents, "Metadata should be deleted after upload")
+
+	// Verify CSV files deleted (by uploader)
+	csvFileUsers := FilenameForWrite("users", fingerprint, format)
+	csvFileEvents := FilenameForWrite("events", fingerprint, format)
+	csvPathUsers := filepath.Join(spoolDir, csvFileUsers)
+	csvPathEvents := filepath.Join(spoolDir, csvFileEvents)
+
+	assert.NoFileExists(t, csvPathUsers, "CSV should be deleted by uploader")
+	assert.NoFileExists(t, csvPathEvents, "CSV should be deleted by uploader")
+}
+
+// TestSpoolDriver_Flush_ErrorHandling tests Flush error handling
+func TestSpoolDriver_Flush_ErrorHandling(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	failedUploads := make(map[string]bool)
+	uploader := &mockUploader{
+		uploadFunc: func(ctx context.Context, filePath string) error {
+			// Fail uploads for files containing "fail"
+			if strings.Contains(filePath, "fail") {
+				failedUploads[filePath] = true
+				return fmt.Errorf("simulated upload error")
+			}
+			// Success - delete file to simulate uploader behavior
+			_ = os.Remove(filePath)
+			return nil
+		},
+	}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows for success and failure tables
+	err := driver.Write(context.Background(), "success", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	err = driver.Write(context.Background(), "fail", schema, []map[string]any{
+		{"id": int64(2)},
+	})
+	require.NoError(t, err)
+
+	// when
+	err = driver.Flush(context.Background())
+
+	// then
+	require.Error(t, err, "Should return error when some uploads fail")
+	assert.Contains(t, err.Error(), "simulated upload error")
+
+	// Verify successful files still processed
+	fingerprint := SchemaFingerprint(schema)
+	csvFileSuccess := FilenameForWrite("success", fingerprint, format)
+	csvPathSuccess := filepath.Join(spoolDir, csvFileSuccess)
+	assert.NoFileExists(t, csvPathSuccess, "Successful file should be deleted")
+
+	// Verify failed files remain on disk
+	csvFileFail := FilenameForWrite("fail", fingerprint, format)
+	csvPathFail := filepath.Join(spoolDir, csvFileFail)
+	assert.FileExists(t, csvPathFail, "Failed file should remain on disk")
+
+	// Verify metadata for failed file remains
+	metaFileFail := MetadataFilename("fail", fingerprint)
+	metaPathFail := filepath.Join(spoolDir, metaFileFail)
+	assert.FileExists(t, metaPathFail, "Failed file metadata should remain on disk")
+}
+
+// TestSpoolDriver_Flush_MissingMetadata tests Flush with CSV files that have no metadata
+func TestSpoolDriver_Flush_MissingMetadata(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows normally
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// Create orphan CSV file without metadata
+	orphanPath := filepath.Join(spoolDir, "orphan.csv")
+	err = os.WriteFile(orphanPath, []byte("id\n99"), 0o600)
+	require.NoError(t, err)
+
+	// when
+	err = driver.Flush(context.Background())
+
+	// then
+	require.NoError(t, err, "Should not fail when orphan CSV found")
+
+	// Verify uploader only called for file with metadata
+	assert.Equal(t, 1, len(uploader.calls), "Should only upload 1 file (with metadata)")
+
+	// Verify orphan file skipped (still exists)
+	assert.FileExists(t, orphanPath, "Orphan CSV should be skipped")
+}
+
+// TestSpoolDriver_Flush_EmptyDirectory tests Flush with no files
+func TestSpoolDriver_Flush_EmptyDirectory(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+
+	// when
+	err := driver.Flush(context.Background())
+
+	// then
+	require.NoError(t, err, "Should not fail on empty directory")
+	assert.Equal(t, 0, len(uploader.calls), "Should not call uploader")
+}
+
+// TestSpoolDriver_Timer_AutomaticFlush tests timer behavior
+func TestSpoolDriver_Timer_AutomaticFlush(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	// Create driver with short interval (100ms)
+	driver := NewSpoolDriver(uploader, format, spoolDir, 100*time.Millisecond)
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - wait for timer to fire
+	time.Sleep(200 * time.Millisecond)
+
+	// then
+	uploader.mu.Lock()
+	callCount := len(uploader.calls)
+	uploader.mu.Unlock()
+
+	assert.GreaterOrEqual(t, callCount, 1, "Timer should trigger at least one flush")
+
+	// Cleanup
+	err = driver.Close()
+	require.NoError(t, err)
+}
+
+// TestSpoolDriver_ManualFlushMode tests WithManualFlush option
+func TestSpoolDriver_ManualFlushMode(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - wait (no automatic flush should happen)
+	time.Sleep(100 * time.Millisecond)
+
+	// then
+	assert.Equal(t, 0, len(uploader.calls), "No automatic flush should occur")
+
+	// Manually flush
+	err = driver.Flush(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(uploader.calls), "Manual flush should work")
+}
+
+// TestSpoolDriver_Close_Lifecycle tests Close behavior
+func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	// Create driver with timer
+	driver := NewSpoolDriver(uploader, format, spoolDir, 1*time.Second)
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - close driver
+	err = driver.Close()
+
+	// then
+	require.NoError(t, err, "Close should succeed")
+
+	// Verify final flush called (uploader should have been called)
+	assert.Equal(t, 1, len(uploader.calls), "Close should trigger final flush")
+
+	// Verify files cleaned up
+	fingerprint := SchemaFingerprint(schema)
+	csvFile := FilenameForWrite("users", fingerprint, format)
+	csvPath := filepath.Join(spoolDir, csvFile)
+	assert.NoFileExists(t, csvPath, "Files should be uploaded and deleted on close")
+}
+
+// TestSpoolDriver_Close_StopsTimer tests that Close stops the timer goroutine
+func TestSpoolDriver_Close_StopsTimer(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	// Create driver with short interval
+	driver := NewSpoolDriver(uploader, format, spoolDir, 50*time.Millisecond)
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - close driver
+	err = driver.Close()
+	require.NoError(t, err)
+
+	uploader.mu.Lock()
+	callsAfterClose := len(uploader.calls)
+	uploader.mu.Unlock()
+
+	// Wait a bit to ensure timer doesn't fire again
+	time.Sleep(100 * time.Millisecond)
+
+	uploader.mu.Lock()
+	callsAfterWait := len(uploader.calls)
+	uploader.mu.Unlock()
+
+	// then - no new calls should happen after Close
+	assert.Equal(t, callsAfterClose, callsAfterWait, "Timer should not fire after Close")
 }
