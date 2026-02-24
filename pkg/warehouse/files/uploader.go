@@ -43,7 +43,7 @@ type filesystemUploader struct {
 // NewFilesystemUploader creates a new Uploader that moves files to a destination directory.
 // It creates the destination directory if it does not exist.
 func NewFilesystemUploader(destDir string) (Uploader, error) {
-	if err := os.MkdirAll(destDir, 0755); err != nil {
+	if err := os.MkdirAll(destDir, 0o750); err != nil {
 		return nil, fmt.Errorf("creating destination directory: %w", err)
 	}
 	return &filesystemUploader{destDir: destDir}, nil

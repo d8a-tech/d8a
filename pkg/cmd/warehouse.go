@@ -19,6 +19,12 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	storageTypeS3         = "s3"
+	storageTypeGCS        = "gcs"
+	storageTypeFilesystem = "filesystem"
+)
+
 func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	warehouseType := strings.ToLower(cmd.String(warehouseDriverFlag.Name))
 	if warehouseType == "" {
@@ -264,7 +270,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	var uploader whFiles.Uploader
 
 	switch storageType {
-	case "s3", "gcs":
+	case storageTypeS3, storageTypeGCS:
 		// Create bucket for cloud storage
 		bucket, cleanup, err := createWarehouseBucket(ctx, cmd)
 		if err != nil {
@@ -278,7 +284,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 
 		uploader = whFiles.NewBlobUploader(bucket)
 
-	case "filesystem":
+	case storageTypeFilesystem:
 		// Create filesystem uploader
 		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
 		if filesystemPath == "" {
