@@ -114,112 +114,115 @@ var warehouseTableFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "events",
 }
 
-var clickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-host",
+var warehouseClickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-host",
 	Usage:   "ClickHouse host. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "clickhouse.host"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "warehouse.clickhouse.host"),
 }
 
-var clickhousePortFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-port",
+var warehouseClickhousePortFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-port",
 	Usage:   "ClickHouse port. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "clickhouse.port"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "warehouse.clickhouse.port"),
 	Value:   "9000",
 }
 
-var clickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-database",
+var warehouseClickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-database",
 	Usage:   "ClickHouse database name. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "clickhouse.database"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "warehouse.clickhouse.database"),
 }
 
-var clickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-username",
+var warehouseClickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-username",
 	Usage:   "ClickHouse username. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "clickhouse.username"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "warehouse.clickhouse.username"),
 	Value:   "",
 }
 
-var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-password",
+var warehouseClickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-password",
 	Usage:   "ClickHouse password. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "warehouse.clickhouse.password"),
 	Value:   "",
 }
 
-var clickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-order-by",
+var warehouseClickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-order-by",
 	Usage:   "Comma-separated list of columns for ORDER BY clause (e.g., 'property_id,date_utc'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "clickhouse.order_by"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "warehouse.clickhouse.order_by"),
 	Value:   "property_id,date_utc,session_id",
 }
 
-var clickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-partition-by",
+var warehouseClickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-partition-by",
 	Usage:   "Expression for PARTITION BY clause (e.g., 'toYYYYMM(date_utc)'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PARTITION_BY", "clickhouse.partition_by"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PARTITION_BY", "warehouse.clickhouse.partition_by"),
 	Value:   "toYYYYMM(date_utc)",
 }
 
 // BigQuery flags
-var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-project-id",
+var warehouseBigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-project-id",
 	Usage:   "BigQuery GCP project ID. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_PROJECT_ID", "bigquery.project_id"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PROJECT_ID", "warehouse.bigquery.project_id"),
 }
 
-var bigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-dataset-name",
+var warehouseBigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-dataset-name",
 	Usage:   "BigQuery dataset name. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_DATASET_NAME", "bigquery.dataset_name"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_DATASET_NAME", "warehouse.bigquery.dataset_name"),
 }
 
-var bigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-creds-json",
+var warehouseBigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-creds-json",
 	Usage:   "BigQuery service account JSON (raw or base64). Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_CREDS_JSON", "bigquery.creds_json"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_CREDS_JSON", "warehouse.bigquery.creds_json"),
 }
 
-var bigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-writer-type",
+var warehouseBigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-writer-type",
 	Usage:   "BigQuery writer type (loadjob or streaming). Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_WRITER_TYPE", "bigquery.writer_type"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_WRITER_TYPE", "warehouse.bigquery.writer_type"),
 	Value:   "loadjob",
 }
 
-var bigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "bigquery-query-timeout",
+var warehouseBigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "warehouse-bigquery-query-timeout",
 	Usage:   "BigQuery query timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_QUERY_TIMEOUT", "bigquery.query_timeout"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_QUERY_TIMEOUT", "warehouse.bigquery.query_timeout"),
 	Value:   30 * time.Second,
 }
 
-var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "bigquery-table-creation-timeout",
+var warehouseBigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "warehouse-bigquery-table-creation-timeout",
 	Usage:   "BigQuery table creation timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_TABLE_CREATION_TIMEOUT", "bigquery.table_creation_timeout"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_TABLE_CREATION_TIMEOUT", "warehouse.bigquery.table_creation_timeout"),
 	Value:   10 * time.Second,
 }
 
-var bigQueryPartitionFieldFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-partition-field",
+var warehouseBigQueryPartitionFieldFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-partition-field",
 	Usage:   "BigQuery partition field (top-level TIMESTAMP or DATE). By default uses date_utc column.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_FIELD", "bigquery.partition_field"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PARTITION_FIELD", "warehouse.bigquery.partition_field"),
 	Value:   "date_utc",
 }
 
-var bigQueryPartitionIntervalFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-partition-interval",
+var warehouseBigQueryPartitionIntervalFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-partition-interval",
 	Usage:   "BigQuery partition interval (HOUR, DAY, MONTH, YEAR). By default uses DAY interval.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_INTERVAL", "bigquery.partition_interval"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PARTITION_INTERVAL", "warehouse.bigquery.partition_interval"),
 	Value:   "DAY",
 }
 
-var bigQueryPartitionExpirationDaysFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "bigquery-partition-expiration-days",
-	Usage:   "BigQuery partition expiration in days. 0 means partitions do not expire. By default uses no expiration.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_EXPIRATION_DAYS", "bigquery.partition_expiration_days"),
-	Value:   0,
+var warehouseBigQueryPartitionExpirationDaysFlag *cli.IntFlag = &cli.IntFlag{
+	Name:  "warehouse-bigquery-partition-expiration-days",
+	Usage: "BigQuery partition expiration in days. 0 means partitions do not expire. By default uses no expiration.", //nolint:lll // it's a description
+	Sources: defaultSourceChain(
+		"WAREHOUSE_BIGQUERY_PARTITION_EXPIRATION_DAYS",
+		"warehouse.bigquery.partition_expiration_days",
+	),
+	Value: 0,
 }
 
 var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
@@ -355,31 +358,31 @@ var warehouseObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Warehous
 
 // Files warehouse flags
 var (
-	filesFormatFlag = &cli.StringFlag{
-		Name:    "files-format",
+	warehouseFilesFormatFlag = &cli.StringFlag{
+		Name:    "warehouse-files-format",
 		Usage:   "File format for warehouse output (csv or parquet)",
 		Value:   "csv",
-		Sources: defaultSourceChain("FILES_FORMAT", "warehouse.files.format"),
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
 	}
 
-	filesSpoolDirFlag = &cli.StringFlag{
-		Name:    "files-spool-dir",
+	warehouseFilesSpoolDirFlag = &cli.StringFlag{
+		Name:    "warehouse-files-spool-dir",
 		Usage:   "Local directory for spooling files before upload (required)",
-		Sources: defaultSourceChain("FILES_SPOOL_DIR", "warehouse.files.spool_dir"),
+		Sources: defaultSourceChain("WAREHOUSE_FILES_SPOOL_DIR", "warehouse.files.spool_dir"),
 	}
 
-	filesFlushIntervalFlag = &cli.DurationFlag{
-		Name:    "files-flush-interval",
+	warehouseFilesFlushIntervalFlag = &cli.DurationFlag{
+		Name:    "warehouse-files-flush-interval",
 		Usage:   "Interval for flushing local spool files to object storage",
 		Value:   10 * time.Minute,
-		Sources: defaultSourceChain("FILES_FLUSH_INTERVAL", "warehouse.files.flush_interval"),
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FLUSH_INTERVAL", "warehouse.files.flush_interval"),
 	}
 
-	filesMaxBufferSizeFlag = &cli.IntFlag{
-		Name:    "files-max-buffer-size",
+	warehouseFilesMaxBufferSizeFlag = &cli.IntFlag{
+		Name:    "warehouse-files-max-buffer-size",
 		Usage:   "Maximum rows to buffer in a file before forcing flush",
 		Value:   10000,
-		Sources: defaultSourceChain("FILES_MAX_BUFFER_SIZE", "warehouse.files.max_buffer_size"),
+		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_BUFFER_SIZE", "warehouse.files.max_buffer_size"),
 	}
 )
 
@@ -456,26 +459,26 @@ var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 var warehouseConfigFlags = []cli.Flag{
 	warehouseDriverFlag,
 	warehouseTableFlag,
-	clickhouseHostFlag,
-	clickhousePortFlag,
-	clickhouseDatabaseFlag,
-	clickhouseUsernameFlag,
-	clickhousePasswordFlag,
-	clickhouseOrderByFlag,
-	clickhousePartitionByFlag,
-	bigQueryProjectIDFlag,
-	bigQueryDatasetNameFlag,
-	bigQueryCredsJSONFlag,
-	bigQueryWriterTypeFlag,
-	bigQueryQueryTimeoutFlag,
-	bigQueryTableCreationTimeoutFlag,
-	bigQueryPartitionFieldFlag,
-	bigQueryPartitionIntervalFlag,
-	bigQueryPartitionExpirationDaysFlag,
-	filesFormatFlag,
-	filesSpoolDirFlag,
-	filesFlushIntervalFlag,
-	filesMaxBufferSizeFlag,
+	warehouseClickhouseHostFlag,
+	warehouseClickhousePortFlag,
+	warehouseClickhouseDatabaseFlag,
+	warehouseClickhouseUsernameFlag,
+	warehouseClickhousePasswordFlag,
+	warehouseClickhouseOrderByFlag,
+	warehouseClickhousePartitionByFlag,
+	warehouseBigQueryProjectIDFlag,
+	warehouseBigQueryDatasetNameFlag,
+	warehouseBigQueryCredsJSONFlag,
+	warehouseBigQueryWriterTypeFlag,
+	warehouseBigQueryQueryTimeoutFlag,
+	warehouseBigQueryTableCreationTimeoutFlag,
+	warehouseBigQueryPartitionFieldFlag,
+	warehouseBigQueryPartitionIntervalFlag,
+	warehouseBigQueryPartitionExpirationDaysFlag,
+	warehouseFilesFormatFlag,
+	warehouseFilesSpoolDirFlag,
+	warehouseFilesFlushIntervalFlag,
+	warehouseFilesMaxBufferSizeFlag,
 }
 
 func getServerFlags() []cli.Flag {

@@ -133,7 +133,7 @@ Go to the [BigQuery console](https://console.cloud.google.com/bigquery) and chec
 #### Option B: On-premises installation
 
 :::info Tip
-Full configuration reference is available [here](/articles/config#--bigquery-creds-json).
+Full configuration reference is available [here](/articles/config#--warehouse-bigquery-creds-json).
 :::
 
 Open your `config.yaml` file and add the BigQuery configuration:
@@ -141,15 +141,15 @@ Open your `config.yaml` file and add the BigQuery configuration:
 ```yaml
 warehouse:
   driver: bigquery
-bigquery:
-  project_id: your-gcp-project-id
-  dataset_name: your-dataset-name
-  # Paste the contents of the downloaded JSON file here
-  creds_json: |
-    {
-      "type": "service_account",
-      ...
-    }
+  bigquery:
+    project_id: your-gcp-project-id
+    dataset_name: your-dataset-name
+    # Paste the contents of the downloaded JSON file here
+    creds_json: |
+      {
+        "type": "service_account",
+        ...
+      }
 ```
 
 :::info Tip

@@ -239,7 +239,7 @@ func createRealBigQueryDriver(t *testing.T) *testDriverConfig {
 	t.Helper()
 
 	projectID := os.Getenv("WAREHOUSE_BIGQUERY_PROJECT_ID")
-	datasetName := os.Getenv("BIGQUERY_DATASET_NAME")
+	datasetName := os.Getenv("WAREHOUSE_BIGQUERY_DATASET_NAME")
 
 	// Check if required environment variables are present
 	if projectID == "" {
