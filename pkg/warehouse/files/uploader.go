@@ -31,7 +31,45 @@ func NewBlobUploader(bucket *blob.Bucket) Uploader {
 
 // Upload implements Uploader.
 func (u *blobUploader) Upload(ctx context.Context, filePath string) error {
-	logrus.Infof("blob uploader stub: would upload file to bucket")
+	// Extract filename using base name
+	filename := filepath.Base(filePath)
+
+	// Read file contents
+	data, err := os.ReadFile(filePath) //nolint:gosec // filePath is intentionally provided by caller
+	if err != nil {
+		logrus.WithError(err).WithField("file", filename).Error("failed to read file for upload")
+		return fmt.Errorf("reading file for upload: %w", err)
+	}
+
+	// Get file info for size logging
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		logrus.WithError(err).WithField("file", filename).Error("failed to stat file")
+		return fmt.Errorf("getting file info: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"file": filename,
+		"size": fileInfo.Size(),
+	}).Info("uploading file to blob storage")
+
+	// Upload to bucket
+	if err := u.bucket.WriteAll(ctx, filename, data, nil); err != nil {
+		logrus.WithError(err).WithField("file", filename).Error("failed to upload file")
+		return fmt.Errorf("uploading file to blob storage: %w", err)
+	}
+
+	// Delete local file after successful upload
+	if err := os.Remove(filePath); err != nil {
+		logrus.WithError(err).WithField("file", filename).Warn("uploaded but failed to delete local file")
+		return fmt.Errorf("deleting local file after upload: %w", err)
+	}
+
+	logrus.WithFields(logrus.Fields{
+		"file": filename,
+		"size": fileInfo.Size(),
+	}).Info("uploaded and deleted file")
+
 	return nil
 }
 
