@@ -2,6 +2,9 @@ package files
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 	"gocloud.dev/blob"
@@ -38,13 +41,21 @@ type filesystemUploader struct {
 }
 
 // NewFilesystemUploader creates a new Uploader that moves files to a destination directory.
-// Production implementation would use os.Rename to move the file.
-func NewFilesystemUploader(destDir string) Uploader {
-	return &filesystemUploader{destDir: destDir}
+// It creates the destination directory if it does not exist.
+func NewFilesystemUploader(destDir string) (Uploader, error) {
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return nil, fmt.Errorf("creating destination directory: %w", err)
+	}
+	return &filesystemUploader{destDir: destDir}, nil
 }
 
 // Upload implements Uploader.
 func (u *filesystemUploader) Upload(ctx context.Context, filePath string) error {
-	logrus.Infof("filesystem uploader stub: would move file to destination directory %s", u.destDir)
+	filename := filepath.Base(filePath)
+	destPath := filepath.Join(u.destDir, filename)
+	if err := os.Rename(filePath, destPath); err != nil {
+		return fmt.Errorf("moving file to filesystem destination: %w", err)
+	}
+	logrus.Infof("moved file to filesystem destination")
 	return nil
 }

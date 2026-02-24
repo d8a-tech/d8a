@@ -2,39 +2,6 @@ warehouse:
   driver: console
   table: events_dev
 
-  # Files warehouse configuration example (when driver: files)
-  # Writes CSV or Parquet files to object storage (S3 or GCS)
-  # Single encoding pass: rows → CSV/Parquet on local disk → upload to bucket
-  # Either object_storage OR destination_dir must be configured (not both required)
-  # files:
-  #   format: csv  # Options: csv, parquet
-  #   spool_dir: ./tmp/spool  # Required: local buffer directory before upload
-  #   flush_interval: 10m  # How often to flush buffered files to object storage
-  #   max_buffer_size: 10000  # Maximum rows per file before forcing flush
-
-  # # Object storage for warehouse output (S3 example)
-  # object_storage:
-  #   type: s3  # Options: s3, gcs
-  #   prefix: d8a/warehouse  # Optional: object key prefix for all warehouse files
-  #   s3:
-  #     host: localhost
-  #     port: 9000
-  #     bucket: d8a-warehouse
-  #     access_key: minioadmin
-  #     secret_key: minioadmin
-  #     region: us-east-1
-  #     protocol: http
-  #     create_bucket: true
-
-  # # Object storage for warehouse output (GCS example - alternative to S3)
-  # object_storage:
-  #   type: gcs  # Options: s3, gcs
-  #   prefix: d8a/warehouse
-  #   gcs:
-  #     bucket: d8a-warehouse
-  #     project: my-gcp-project
-  #     creds_json: '{"type": "service_account", ...}'
-
 dbip:
   enabled: false # Enable for production
 
