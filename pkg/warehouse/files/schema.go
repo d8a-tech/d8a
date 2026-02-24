@@ -1,34 +1,76 @@
 package files
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"fmt"
-	"time"
+	"io"
 
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
-// SchemaFingerprint returns an 8-character fingerprint for the schema.
-// Uses Arrow's built-in Fingerprint() method, truncated to 8 chars.
+// SchemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
+// Uses Arrow's built-in Fingerprint() method, computes SHA256 hash, and takes first 16 hex characters.
+// Example: "a3b5c7f9e1d4b2a6"
 func SchemaFingerprint(schema *arrow.Schema) string {
-	fp := schema.Fingerprint()
-	if len(fp) > 8 {
-		return fp[:8]
+	arrowFp := schema.Fingerprint()
+	hash := sha256.Sum256([]byte(arrowFp))
+	hexStr := fmt.Sprintf("%x", hash)
+	if len(hexStr) > 16 {
+		return hexStr[:16]
 	}
-	return fp
+	return hexStr
 }
 
 // FilenameForWrite generates a filename for writing data with the given parameters.
-// Format: {fingerprint}_{table}_{timestamp}.{ext}
-// Example: a3b5c7f9_events_2026-02-23T14-00-00Z.csv
+// Format: {fingerprint}_{table}.{ext}
+// Example: a3b5c7f9e1d4b2a6_events.csv
 //
-// The timestamp is formatted in ISO 8601 with hyphens replacing colons
-// for filesystem compatibility.
-func FilenameForWrite(table, fingerprint string, timestamp time.Time, format Format) string {
-	// Format timestamp as ISO 8601 with hyphens replacing colons
-	// e.g., 2026-02-23T14-00-00Z instead of 2026-02-23T14:00:00Z
-	// The format "2006-01-02T15-04-05" produces the desired timestamp format with hyphens
-	timestampStr := timestamp.UTC().Format("2006-01-02T15-04-05Z")
-
+// Multiple Write() calls for the same table+schema will append to the same file.
+func FilenameForWrite(table, fingerprint string, format Format) string {
 	ext := format.Extension()
-	return fmt.Sprintf("%s_%s_%s.%s", fingerprint, table, timestampStr, ext)
+	return fmt.Sprintf("%s_%s.%s", fingerprint, table, ext)
+}
+
+// MetadataFilename generates a metadata filename for a CSV file.
+// Format: {fingerprint}_{table}.meta.json
+// Example: a3b5c7f9e1d4b2a6_events.meta.json
+func MetadataFilename(table, fingerprint string) string {
+	return fmt.Sprintf("%s_%s.meta.json", fingerprint, table)
+}
+
+// Metadata represents schema information persisted to disk.
+// Stored as JSON in .meta.json files alongside CSV data.
+type Metadata struct {
+	Table       string `json:"table"`
+	Fingerprint string `json:"fingerprint"`
+	Schema      string `json:"schema"`     // base64-encoded Arrow IPC schema
+	CreatedAt   string `json:"created_at"` // RFC3339 timestamp
+}
+
+// WriteMetadata writes metadata to the provided writer as JSON.
+// The metadata describes the Arrow schema and table information for a CSV file.
+func WriteMetadata(w io.Writer, metadata *Metadata) error {
+	data, err := json.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("marshaling metadata: %w", err)
+	}
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("writing metadata: %w", err)
+	}
+	return nil
+}
+
+// ReadMetadata reads metadata from the provided reader.
+// The metadata describes the Arrow schema and table information for a CSV file.
+func ReadMetadata(r io.Reader) (*Metadata, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading metadata: %w", err)
+	}
+	var metadata Metadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return nil, fmt.Errorf("unmarshaling metadata: %w", err)
+	}
+	return &metadata, nil
 }
