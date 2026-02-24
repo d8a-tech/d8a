@@ -384,6 +384,18 @@ var (
 		Value:   10000,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_BUFFER_SIZE", "warehouse.files.max_buffer_size"),
 	}
+
+	warehouseFilesStorageFlag = &cli.StringFlag{
+		Name:    "warehouse-files-storage",
+		Usage:   "Storage destination for warehouse files (s3, gcs, or filesystem)",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_STORAGE", "warehouse.files.storage"),
+	}
+
+	warehouseFilesFilesystemPathFlag = &cli.StringFlag{
+		Name:    "warehouse-files-filesystem-path",
+		Usage:   "Destination directory for filesystem storage (required when warehouse-files-storage=filesystem)",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FILESYSTEM_PATH", "warehouse.files.filesystem_path"),
+	}
 )
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
@@ -479,6 +491,8 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesSpoolDirFlag,
 	warehouseFilesFlushIntervalFlag,
 	warehouseFilesMaxBufferSizeFlag,
+	warehouseFilesStorageFlag,
+	warehouseFilesFilesystemPathFlag,
 }
 
 func getServerFlags() []cli.Flag {
