@@ -15,23 +15,21 @@ import GA4DuplicatorSnippetGenerator from "@site/src/components/GA4DuplicatorSni
 
 This guide covers methods for intercepting Google Analytics 4 (GA4) events. Choose the method that best fits your needs.
 
-**Methods 1 and 2** are for **web tracking** (client-side GTM), while **Method 3** is for **server-side tracking** (server-side GTM).
+**Methods 1 and 2** are for **web tracking with client-side GTM**, **Method 3** is for **web tracking with direct `gtag` (no GTM)**, and **Method 4** is for **server-side tracking** (server-side GTM).
 
 ---
 
-## Method 1: Duplicate GA4 requests (recommended)
+## Method 1: Duplicate GA4 requests in GTM (recommended)
 
 This method keeps your existing GA4 setup intact while duplicating events to a custom endpoint. Your data will continue flowing to Google Analytics as normal.
 
 ### Steps:
 
 1. **Open Google Tag Manager**
-
    - Navigate to your GTM container
    - Go to the **Tags** section
 
 2. **Create a Custom HTML Tag**
-
    - Click **New** to create a new tag
    - Choose **Custom HTML** as the tag type
    - Name it: `D8A GA4 Duplicator`
@@ -72,12 +70,10 @@ server_container_url: trackingURL,
 </div>
 
 4. **Save the tag**
-
    - Save your **D8A GA4 Duplicator** tag so it is available when you configure the Google Tag in the next step
    - Note: You do not need to add a trigger to this tag
 
 5. **Fire the duplicator before the Google Tag**
-
    - Open your **Google Tag** (your GA4 configuration tag)
    - Expand **Advanced Settings** → **Tag Sequencing**
    - Under **Fire a tag before _Google Tag Name_ fires**, select your **D8A GA4 Duplicator** tag
@@ -90,19 +86,17 @@ You can now [test your web tracking setup](#testing-your-web-tracking-setup).
 
 ---
 
-## Method 2: Redirect all GA4 requests
+## Method 2: Redirect all GA4 requests in GTM
 
 ⚠️ **Warning:** This method will stop sending data to your GA4 property. Use only if you want to completely redirect tracking to your d8a instance.
 
 ### Steps:
 
 1. **Open Google Tag Manager**
-
    - Navigate to your GTM container
    - Go to the **Tags** section
 
 2. **Modify Your Google Tag**
-
    - Find your existing **Google Tag** (GA4 Configuration tag)
    - Edit the tag configuration
 
@@ -113,31 +107,74 @@ You can now [test your web tracking setup](#testing-your-web-tracking-setup).
      Google automatically appends `/g/collect` to this value, so do not include `/g/collect` in `server_container_url`.
      :::
 
+---
+
+## Method 3: Duplicate GA4 requests with `gtag` directly
+
+This method duplicates requests at the Google Tag (`gtag`) level by adding `service_container_url` as an additional destination.
+
+:::note
+This method assumes `gtag` is already installed directly in your HTML (without web GTM).
+:::
+
+### Steps:
+
+1. **Confirm your direct `gtag` setup**
+   - Verify the standard Google tag snippet is already present in your page (for example, in `<head>`)
+
+2. **Keep your existing GA4 config call**
+   - Leave your primary `gtag('config', 'G-XXXXXXX')` call unchanged
+
+3. **Add a second config call with `service_container_url`**
+   - Add another `gtag('config', ...)` call for the same Google tag ID
+   - Set `service_container_url` to your d8a endpoint URL, for example: `https://global.t.d8a.tech/13370000-1984-0042-0069-c0ffee123456/g/collect`
+   - Example:
+
+```html
+<script
+  async
+  src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"
+></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+
+  // Existing GA4 destination
+  gtag("config", "G-XXXXXXX");
+
+  // Additional destination for duplicated traffic
+  gtag("config", "<property_id>", {
+    service_container_url: "https://global.t.d8a.tech/<property_id>/g/collect",
+  });
+</script>
+```
+
 ## Testing your web tracking setup
 
 1. **Open Browser DevTools**
-
    - Go to Network tab
    - Filter by "collect" or your endpoint domain
 
 2. **Trigger Test Events**
-
    - Navigate pages, click buttons, submit forms
    - Watch for outgoing requests
 
 3. **Verify Data Flow**
-
    - Method 1: Check both GA4 and your endpoint receive data
    - Method 2: Check only your endpoint receives data
+   - Method 3: Check GA4 traffic is duplicated to your `service_container_url` endpoint
 
-4. **Use GTM Preview Mode**
+4. **Optional: Use GTM Preview Mode (Methods 1 and 2 only)**
    - Enable Preview mode in GTM
    - Verify tags fire in the correct sequence
    - Check for any errors in the console
 
 ---
 
-## Method 3: Duplicate requests in Google Tag Manager server-side
+## Method 4: Duplicate requests in Google Tag Manager server-side
 
 This method duplicates GA4 requests at the server-side container level, which is useful for server-side tracking implementations.
 
@@ -148,7 +185,6 @@ This method assumes you already have a working GA4 client configured in your Goo
 ### Steps:
 
 1. **Create a User-Agent Variable**
-
    - Go to **Variables** in your server-side GTM container
    - Click **New** to create a new variable
    - Choose **Request Header** as the variable type
@@ -157,7 +193,6 @@ This method assumes you already have a working GA4 client configured in your Goo
    - Save the variable
 
 2. **Create an X-Forwarded-For Variable**
-
    - Create another new variable
    - Choose **Request Header** as the variable type
    - Set the **Variable Name** to: `X-Forwarded-For`
@@ -165,13 +200,11 @@ This method assumes you already have a working GA4 client configured in your Goo
    - Save the variable
 
 3. **Add the JSON HTTP Request Tag Template**
-
    - Go to **Templates** in your server-side GTM container
    - Click **Search Gallery**
    - Search for and add the **JSON HTTP request** tag template from the community gallery
 
 4. **Create a New Tag**
-
    - Go to **Tags** and click **New**
    - Choose the **JSON HTTP request** tag template you just added
    - Configure the tag:
@@ -191,7 +224,6 @@ This method assumes you already have a working GA4 client configured in your Goo
        - **Value**: `{{X-Forwarded-For}}`
 
 5. **Configure the Trigger**
-
    - In the **Triggering** section, select the same trigger that you use for your GA4 traffic. This ensures the tag fires whenever GA4 events are processed
 
 6. **Save and Publish**
@@ -201,3 +233,9 @@ This method assumes you already have a working GA4 client configured in your Goo
 ## Testing your server-side tracking setup
 
 To test your server-side setup, use the debug mode in Google Tag Manager server-side. This enables you to verify that requests are duplicated correctly to your d8a endpoint. The final URL and d8a server response will be available in the Console tab.
+
+---
+
+## Prefer a native tracker instead?
+
+If you do not want to intercept existing GA4 tracking and prefer a setup that is independent from Google, use our dedicated gtag-compatible web tracker: [Web tracker](/articles/sources/web-tracker/).
