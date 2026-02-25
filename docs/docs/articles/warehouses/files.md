@@ -27,7 +27,8 @@ warehouse:
   files:
     format: csv
     storage: filesystem      # filesystem, s3, or gcs
-    filesystem_path: /data/warehouse
+    filesystem:
+      path: /data/warehouse
 ```
 
 ## Storage destinations
@@ -41,7 +42,8 @@ warehouse:
   driver: files
   files:
     storage: filesystem
-    filesystem_path: /data/warehouse
+    filesystem:
+      path: /data/warehouse
 ```
 
 ### S3 / MinIO

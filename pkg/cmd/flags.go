@@ -375,7 +375,7 @@ var (
 	warehouseFilesFilesystemPathFlag = &cli.StringFlag{
 		Name:    "warehouse-files-filesystem-path",
 		Usage:   "Destination directory for filesystem storage (required when warehouse-files-storage=filesystem)",
-		Sources: defaultSourceChain("WAREHOUSE_FILES_FILESYSTEM_PATH", "warehouse.files.filesystem_path"),
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FILESYSTEM_PATH", "warehouse.files.filesystem.path"),
 	}
 
 	warehouseFilesMaxSegmentSizeFlag = &cli.Int64Flag{
