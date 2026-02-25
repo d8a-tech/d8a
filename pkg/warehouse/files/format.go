@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -54,23 +55,17 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 	writer := csv.NewWriter(w)
 	defer writer.Flush()
 
-	// Check if we need to write header (only for empty files)
-	// For files opened with O_APPEND, the position will be at end, but we need to check size
+	// Write header only for empty files
+	// For os.File: check size via Stat()
+	// For other writers (e.g., bytes.Buffer in tests): assume empty and write header
 	shouldWriteHeader := true
-	if seeker, ok := w.(io.Seeker); ok {
-		// Get current position, seek to end to get size, then restore position
-		currentPos, err := seeker.Seek(0, io.SeekCurrent)
-		if err == nil {
-			size, err := seeker.Seek(0, io.SeekEnd)
-			if err == nil && size > 0 {
-				shouldWriteHeader = false
-			}
-			// Restore original position (best effort)
-			_, _ = seeker.Seek(currentPos, io.SeekStart)
+	if file, ok := w.(*os.File); ok {
+		info, err := file.Stat()
+		if err == nil && info.Size() > 0 {
+			shouldWriteHeader = false
 		}
 	}
 
-	// Write header row if needed
 	if shouldWriteHeader {
 		header := make([]string, len(schema.Fields()))
 		for i, field := range schema.Fields() {

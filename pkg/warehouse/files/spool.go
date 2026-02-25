@@ -106,8 +106,19 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
 
+	// Check if file exists to determine open flags
+	_, statErr := os.Stat(csvPath)
+	fileExists := !os.IsNotExist(statErr)
+
+	var openFlags int
+	if fileExists {
+		openFlags = os.O_APPEND | os.O_WRONLY
+	} else {
+		openFlags = os.O_CREATE | os.O_WRONLY
+	}
+
 	//nolint:gosec // G304: csvPath from controlled inputs
-	file, err := os.OpenFile(csvPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(csvPath, openFlags, 0o600)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"table":       table,
