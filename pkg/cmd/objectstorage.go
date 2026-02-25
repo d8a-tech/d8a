@@ -34,15 +34,24 @@ func createBucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() err
 }
 
 func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
+	return createS3BucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
+}
+
+// createS3BucketWithFlags creates an S3 bucket using the provided flag set.
+func createS3BucketWithFlags(
+	ctx context.Context,
+	c *cli.Command,
+	flags *ObjectStorageFlagSet,
+) (*blob.Bucket, func() error, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				c.String(ObjectStorageFlagsSpec.Queue.S3AccessKey.Name),
-				c.String(ObjectStorageFlagsSpec.Queue.S3SecretKey.Name),
+				c.String(flags.S3AccessKey.Name),
+				c.String(flags.S3SecretKey.Name),
 				"",
 			),
 		),
-		config.WithRegion(c.String(ObjectStorageFlagsSpec.Queue.S3Region.Name)),
+		config.WithRegion(c.String(flags.S3Region.Name)),
 	)
 
 	if err != nil {
@@ -54,20 +63,20 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 		o.BaseEndpoint = aws.String(
 			fmt.Sprintf(
 				"%s://%s:%d",
-				c.String(ObjectStorageFlagsSpec.Queue.S3Protocol.Name),
-				c.String(ObjectStorageFlagsSpec.Queue.S3Host.Name),
-				c.Int(ObjectStorageFlagsSpec.Queue.S3Port.Name),
+				c.String(flags.S3Protocol.Name),
+				c.String(flags.S3Host.Name),
+				c.Int(flags.S3Port.Name),
 			),
 		)
 		o.UsePathStyle = true
 	})
 
 	// Create bucket first
-	bucketName := c.String(ObjectStorageFlagsSpec.Queue.S3Bucket.Name)
+	bucketName := c.String(flags.S3Bucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", ObjectStorageFlagsSpec.Queue.S3Bucket.Name)
+		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", flags.S3Bucket.Name)
 	}
-	if c.Bool(ObjectStorageFlagsSpec.Queue.S3CreateBucket.Name) {
+	if c.Bool(flags.S3CreateBucket.Name) {
 		_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 			Bucket: &bucketName,
 		})
@@ -102,9 +111,22 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 func createGCSBucket(
 	ctx context.Context, c *cli.Command,
 ) (*blob.Bucket, func() error, error) {
-	bucketName := c.String(ObjectStorageFlagsSpec.Queue.GCSBucket.Name)
+	return createGCSBucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
+}
+
+// createGCSBucketWithFlags initializes a Go CDK bucket backed by Google Cloud Storage using the provided flag set.
+// Authentication order:
+// - If GCS_CREDS_JSON is set (raw or base64), use it.
+// - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
+// nolint:funlen // straightforward setup
+func createGCSBucketWithFlags(
+	ctx context.Context,
+	c *cli.Command,
+	flags *ObjectStorageFlagSet,
+) (*blob.Bucket, func() error, error) {
+	bucketName := c.String(flags.GCSBucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", ObjectStorageFlagsSpec.Queue.GCSBucket.Name)
+		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", flags.GCSBucket.Name)
 	}
 
 	// Resolve credentials
@@ -112,7 +134,7 @@ func createGCSBucket(
 	var err error
 	var ts oauth2.TokenSource
 
-	credsJSON := strings.TrimSpace(c.String(ObjectStorageFlagsSpec.Queue.GCSCredsJSON.Name))
+	credsJSON := strings.TrimSpace(c.String(flags.GCSCredsJSON.Name))
 	if credsJSON != "" {
 		// Support base64-encoded JSON for convenience
 		raw := []byte(credsJSON)
