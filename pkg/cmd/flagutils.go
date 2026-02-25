@@ -51,13 +51,7 @@ type ObjectStorageFlags struct {
 
 // createObjectStorageFlagSet creates a complete flag set for object storage
 // nolint:funlen // struct initialization for 13 flags
-func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix string) ObjectStorageFlagSet {
-	// Set default prefix based on the context (queue vs warehouse)
-	var defaultPrefix string
-	if envPrefix == "QUEUE_OBJECT_STORAGE" {
-		defaultPrefix = "d8a/queue"
-	}
-
+func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPrefix string) ObjectStorageFlagSet {
 	return ObjectStorageFlagSet{
 		Type: FlagSpec{
 			Name:       flagPrefix + "-type",
@@ -251,15 +245,18 @@ func specToCliFlag(spec *FlagSpec) cli.Flag {
 }
 
 // ObjectStorageFlagsSpec holds global flag specifications for queue and warehouse
+// Different default prefixes: queue uses "d8a/queue", warehouse uses "" (no default)
 var ObjectStorageFlagsSpec = ObjectStorageFlags{
 	Queue: createObjectStorageFlagSet(
 		"QUEUE_OBJECT_STORAGE",
 		"queue-object-storage",
 		"queue.object_storage",
+		"d8a/queue",
 	),
 	Warehouse: createObjectStorageFlagSet(
 		"WAREHOUSE_OBJECT_STORAGE",
 		"warehouse-object-storage",
 		"warehouse.object_storage",
+		"",
 	),
 }
