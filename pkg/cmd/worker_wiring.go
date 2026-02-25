@@ -88,7 +88,7 @@ func buildWorkerRuntime(
 		batchedWriter, c, err := sessions.NewBackgroundBatchingWriter(
 			ctx,
 			sessionWriter,
-			sessions.WithSpoolDir(cmd.String(storageSpoolDirectoryFlag.Name)),
+			sessions.WithSpoolDir(filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse/generic")),
 			sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
 		)
 		if err != nil {
