@@ -21,7 +21,7 @@ func TestSchemaFingerprint_Returns16CharHash(t *testing.T) {
 	)
 
 	// when: fingerprinting the schema
-	fp := SchemaFingerprint(schema)
+	fp := schemaFingerprint(schema)
 
 	// then: result is exactly 16 hex characters (lowercase)
 	assert.Equal(t, 16, len(fp))
@@ -42,8 +42,8 @@ func TestSchemaFingerprint_ConsistentForSameSchema(t *testing.T) {
 	)
 
 	// when: fingerprinting twice
-	fp1 := SchemaFingerprint(schema)
-	fp2 := SchemaFingerprint(schema)
+	fp1 := schemaFingerprint(schema)
+	fp2 := schemaFingerprint(schema)
 
 	// then: fingerprints are identical
 	assert.Equal(t, fp1, fp2)
@@ -66,8 +66,8 @@ func TestSchemaFingerprint_DifferentForDifferentSchemas(t *testing.T) {
 	)
 
 	// when: fingerprinting both
-	fp1 := SchemaFingerprint(schema1)
-	fp2 := SchemaFingerprint(schema2)
+	fp1 := schemaFingerprint(schema1)
+	fp2 := schemaFingerprint(schema2)
 
 	// then: fingerprints differ
 	assert.NotEqual(t, fp1, fp2)
@@ -103,7 +103,7 @@ func TestEscapeTableName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, EscapeTableName(tt.input))
+			assert.Equal(t, tt.expected, escapeTableName(tt.input))
 		})
 	}
 }
@@ -114,28 +114,28 @@ func TestStreamPaths(t *testing.T) {
 	fingerprint := "abc123"
 	segmentID := "seg-1"
 
-	assert.Equal(t, ActivePath(spoolDir, tableEsc, fingerprint), ActivePath(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, SealedDir(spoolDir, tableEsc, fingerprint), SealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, UploadingDir(spoolDir, tableEsc, fingerprint), UploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, FailedDir(spoolDir, tableEsc, fingerprint), FailedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, activePath(spoolDir, tableEsc, fingerprint), activePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, sealedDir(spoolDir, tableEsc, fingerprint), sealedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, uploadingDir(spoolDir, tableEsc, fingerprint), uploadingDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, failedDir(spoolDir, tableEsc, fingerprint), failedDir(spoolDir, tableEsc, fingerprint))
 
-	streamDir := StreamDir(spoolDir, tableEsc, fingerprint)
+	streamDir := streamDir(spoolDir, tableEsc, fingerprint)
 	assert.Equal(t, filepath.Join(spoolDir, "streams", tableEsc, fingerprint), streamDir)
 
-	assert.Equal(t, filepath.Join(streamDir, "active.csv"), ActivePath(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "sealed"), SealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "uploading"), UploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "failed"), FailedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "active.csv"), activePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "sealed"), sealedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "uploading"), uploadingDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "failed"), failedDir(spoolDir, tableEsc, fingerprint))
 
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	assert.Equal(t, filepath.Join(streamDir, "sealed", "seg-1.csv"), sealedPath)
 
-	failCountPath := FailCountPath(streamDir, segmentID)
+	failCountPath := failCountPath(streamDir, segmentID)
 	assert.Equal(t, filepath.Join(streamDir, "seg-1.failcount"), failCountPath)
 }
 
 func TestSegmentRemoteKey(t *testing.T) {
 	sealTime := time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC)
-	key := SegmentRemoteKey("events", "abc123", "seg-1", sealTime)
+	key := segmentRemoteKey("events", "abc123", "seg-1", "csv", sealTime)
 	assert.Equal(t, "table=events/schema=abc123/dt=2026/02/25/seg-1.csv", key)
 }

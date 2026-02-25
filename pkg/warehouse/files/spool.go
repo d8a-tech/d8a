@@ -19,8 +19,8 @@ import (
 // SpoolOption is a functional option for configuring SpoolDriver.
 type SpoolOption func(*spoolDriver)
 
-// WithManualCycle disables automatic timer-based flush cycles.
-func WithManualCycle() SpoolOption {
+// withManualCycle disables automatic timer-based flush cycles (test-only).
+func withManualCycle() SpoolOption {
 	return func(sd *spoolDriver) {
 		sd.sealCheckInterval = 0
 	}
@@ -71,6 +71,7 @@ type spoolDriver struct {
 	ctx               context.Context
 	uploader          Uploader
 	format            Format
+	ext               string // file extension without leading dot, derived from format
 	spoolDir          string
 	maxSegmentSize    int64
 	maxSegmentAge     time.Duration
@@ -103,6 +104,7 @@ func NewSpoolDriver(
 		ctx:               ctx,
 		uploader:          uploader,
 		format:            format,
+		ext:               format.Extension(),
 		spoolDir:          spoolDir,
 		maxSegmentSize:    1 << 30,   // 1 GiB
 		maxSegmentAge:     time.Hour, // 1 hour
@@ -162,15 +164,15 @@ func (sd *spoolDriver) startTimer() {
 // Write appends rows to disk file immediately.
 // All file operations are mutex-protected to prevent concurrent writes.
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName(table)
-	csvPath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName(table)
+	csvPath := activePath(sd.spoolDir, tableEsc, fingerprint)
 	key := streamKey(tableEsc, fingerprint)
 
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
 
-	if err := EnsureStreamDirs(sd.spoolDir, tableEsc, fingerprint); err != nil {
+	if err := ensureStreamDirs(sd.spoolDir, tableEsc, fingerprint); err != nil {
 		return fmt.Errorf("ensuring stream directories: %w", err)
 	}
 
@@ -236,7 +238,7 @@ func streamKey(tableEsc, fingerprint string) string {
 }
 
 func (sd *spoolDriver) recoverUploading(tableEsc, fingerprint string) error {
-	uploadingDir := UploadingDir(sd.spoolDir, tableEsc, fingerprint)
+	uploadingDir := uploadingDir(sd.spoolDir, tableEsc, fingerprint)
 	entries, err := os.ReadDir(uploadingDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -245,18 +247,19 @@ func (sd *spoolDriver) recoverUploading(tableEsc, fingerprint string) error {
 		return fmt.Errorf("reading uploading dir %s: %w", uploadingDir, err)
 	}
 
-	sealedDir := SealedDir(sd.spoolDir, tableEsc, fingerprint)
+	sealedDir := sealedDir(sd.spoolDir, tableEsc, fingerprint)
+	dotExt := "." + sd.ext
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 
 		name := entry.Name()
-		if filepath.Ext(name) != ".csv" {
+		if filepath.Ext(name) != dotExt {
 			continue
 		}
 
-		segmentID := name[:len(name)-len(".csv")]
+		segmentID := name[:len(name)-len(dotExt)]
 		uploadingPath := filepath.Join(uploadingDir, name)
 		sealedPath := filepath.Join(sealedDir, name)
 		if err := os.Rename(uploadingPath, sealedPath); err != nil {
@@ -412,8 +415,8 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 				continue
 			}
 			fp := fpEntry.Name()
-			sealedDir := SealedDir(sd.spoolDir, tableEsc, fp)
-			segments, err := findSealedSegments(sealedDir)
+			sealedDir := sealedDir(sd.spoolDir, tableEsc, fp)
+			segments, err := findSealedSegments(sealedDir, sd.ext)
 			if err != nil {
 				return nil, fmt.Errorf("finding sealed segments in %s: %w", sealedDir, err)
 			}
@@ -426,7 +429,7 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 				sealTime, ok := parseSealTimeFromSegmentID(segmentID)
 				if !ok {
 					// Legacy bare-UUID segment: use file modtime for stable dt= partitioning.
-					segPath := SegmentPath(sealedDir, segmentID)
+					segPath := segmentPath(sealedDir, segmentID, sd.ext)
 					info, statErr := os.Stat(segPath)
 					if statErr == nil {
 						sealTime = info.ModTime().UTC()
@@ -447,11 +450,11 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 }
 
 func (sd *spoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) error {
-	streamDir := StreamDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	sealedDir := SealedDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	uploadingDir := UploadingDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	sealedPath := SegmentPath(sealedDir, seg.segmentID)
-	uploadingPath := SegmentPath(uploadingDir, seg.segmentID)
+	streamDir := streamDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	sealedDir := sealedDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	uploadingDir := uploadingDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	sealedPath := segmentPath(sealedDir, seg.segmentID, sd.ext)
+	uploadingPath := segmentPath(uploadingDir, seg.segmentID, sd.ext)
 
 	// Move sealed -> uploading under lock
 	sd.mu.Lock()
@@ -466,7 +469,7 @@ func (sd *spoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) err
 	sd.mu.Unlock()
 
 	// Upload outside lock
-	remoteKey := SegmentRemoteKey(seg.tableEsc, seg.fp, seg.segmentID, seg.sealTime)
+	remoteKey := segmentRemoteKey(seg.tableEsc, seg.fp, seg.segmentID, sd.ext, seg.sealTime)
 	uploadErr := sd.uploader.Upload(ctx, uploadingPath, remoteKey)
 
 	if uploadErr == nil {
@@ -520,7 +523,7 @@ func (sd *spoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) err
 }
 
 func readFailCount(streamDir, segmentID string) int {
-	path := FailCountPath(streamDir, segmentID)
+	path := failCountPath(streamDir, segmentID)
 	data, err := os.ReadFile(path) //nolint:gosec // path is controlled
 	if err != nil {
 		return 0
@@ -533,7 +536,7 @@ func readFailCount(streamDir, segmentID string) int {
 }
 
 func writeFailCount(streamDir, segmentID string, n int) error {
-	path := FailCountPath(streamDir, segmentID)
+	path := failCountPath(streamDir, segmentID)
 	tmpPath := path + ".tmp"
 	content := []byte(strconv.Itoa(n))
 	if err := os.WriteFile(tmpPath, content, 0o600); err != nil {
@@ -547,19 +550,19 @@ func writeFailCount(streamDir, segmentID string, n int) error {
 }
 
 func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
-	sealedDir := SealedDir(sd.spoolDir, tableEsc, fp)
-	failedDir := FailedDir(sd.spoolDir, tableEsc, fp)
-	streamDir := StreamDir(sd.spoolDir, tableEsc, fp)
+	sealedDir := sealedDir(sd.spoolDir, tableEsc, fp)
+	failedDir := failedDir(sd.spoolDir, tableEsc, fp)
+	streamDir := streamDir(sd.spoolDir, tableEsc, fp)
 
-	sealedPath := SegmentPath(sealedDir, segmentID)
-	failedPath := SegmentPath(failedDir, segmentID)
+	sealedPath := segmentPath(sealedDir, segmentID, sd.ext)
+	failedPath := segmentPath(failedDir, segmentID, sd.ext)
 
 	if err := os.Rename(sealedPath, failedPath); err != nil {
 		return fmt.Errorf("moving segment to failed: %w", err)
 	}
 
 	// Remove failcount file
-	failCountPath := FailCountPath(streamDir, segmentID)
+	failCountPath := failCountPath(streamDir, segmentID)
 	if err := os.Remove(failCountPath); err != nil && !os.IsNotExist(err) {
 		logrus.WithError(err).WithField("segment_id", segmentID).Warn("failed to remove failcount file")
 	}
@@ -572,9 +575,9 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 	sealTime = time.Now().UTC()
 	segmentID = segmentIDFromSealTime(sealTime)
 
-	activePath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
-	sealedDir := SealedDir(sd.spoolDir, tableEsc, fingerprint)
-	sealedPath := SegmentPath(sealedDir, segmentID)
+	activePath := activePath(sd.spoolDir, tableEsc, fingerprint)
+	sealedDir := sealedDir(sd.spoolDir, tableEsc, fingerprint)
+	sealedPath := segmentPath(sealedDir, segmentID, sd.ext)
 	if err := os.Rename(activePath, sealedPath); err != nil {
 		return "", time.Time{}, fmt.Errorf("sealing active segment: %w", err)
 	}
@@ -631,7 +634,7 @@ func (sd *spoolDriver) recoverStreams() error {
 				return fmt.Errorf("recovering uploading segments for %s: %w", streamDir, err)
 			}
 
-			activePath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
+			activePath := activePath(sd.spoolDir, tableEsc, fingerprint)
 			activeInfo, err := os.Stat(activePath)
 			if err != nil {
 				if os.IsNotExist(err) {

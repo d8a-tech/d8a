@@ -75,7 +75,7 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -94,9 +94,9 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify CSV file created
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
-	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	csvPath := activePath(spoolDir, tableEsc, fingerprint)
 	assert.FileExists(t, csvPath)
 	assert.Contains(t, csvPath, filepath.Join("streams", tableEsc, fingerprint))
 
@@ -114,7 +114,7 @@ func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -128,11 +128,11 @@ func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
 	// then
 	require.NoError(t, err)
 
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
-	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	activePath := activePath(spoolDir, tableEsc, fingerprint)
 	assert.FileExists(t, activePath)
-	assert.DirExists(t, StreamDir(spoolDir, tableEsc, fingerprint))
+	assert.DirExists(t, streamDir(spoolDir, tableEsc, fingerprint))
 }
 
 func TestSpoolDriver_Write_TracksStreamState(t *testing.T) {
@@ -140,7 +140,7 @@ func TestSpoolDriver_Write_TracksStreamState(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -155,8 +155,8 @@ func TestSpoolDriver_Write_TracksStreamState(t *testing.T) {
 	// then
 	require.NoError(t, err)
 
-	fingerprint := SchemaFingerprint(schema)
-	key := streamKey(EscapeTableName("users"), fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	key := streamKey(escapeTableName("users"), fingerprint)
 
 	driver.mu.Lock()
 	state := driver.streams[key]
@@ -172,7 +172,7 @@ func TestSpoolDriver_SealStream(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -181,8 +181,8 @@ func TestSpoolDriver_SealStream(t *testing.T) {
 	rows := []map[string]any{{"id": int64(1)}}
 	require.NoError(t, driver.Write(context.Background(), "users", schema, rows))
 
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
 
 	// when
 	driver.mu.Lock()
@@ -191,9 +191,9 @@ func TestSpoolDriver_SealStream(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint)
 	assert.NoFileExists(t, activePath)
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	assert.FileExists(t, sealedPath)
 }
 
@@ -202,15 +202,15 @@ func TestSpoolDriver_RecoverUploading(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	streamTable := "users"
 	fingerprint := testFingerprint
-	tableEsc := EscapeTableName(streamTable)
-	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+	tableEsc := escapeTableName(streamTable)
+	require.NoError(t, ensureStreamDirs(spoolDir, tableEsc, fingerprint))
 
 	segmentID := "seg1"
-	uploadingPath := SegmentPath(UploadingDir(spoolDir, tableEsc, fingerprint), segmentID)
+	uploadingPath := segmentPath(uploadingDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	require.NoError(t, os.WriteFile(uploadingPath, []byte("id\n1"), 0o600))
 
 	// when
@@ -218,7 +218,7 @@ func TestSpoolDriver_RecoverUploading(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	assert.FileExists(t, sealedPath)
 	assert.NoFileExists(t, uploadingPath)
 }
@@ -228,13 +228,13 @@ func TestSpoolDriver_RecoverStreams_UsesModTime(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
-	tableEsc := EscapeTableName("users")
+	tableEsc := escapeTableName("users")
 	fingerprint := testFingerprint
-	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+	require.NoError(t, ensureStreamDirs(spoolDir, tableEsc, fingerprint))
 
-	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint)
 	content := []byte("id\n1")
 	require.NoError(t, os.WriteFile(activePath, content, 0o600))
 
@@ -261,16 +261,16 @@ func TestSpoolDriver_DiscoverAllSealed_UsesFilenameTimestamp(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
-	tableEsc := EscapeTableName("users")
+	tableEsc := escapeTableName("users")
 	fingerprint := testFingerprint
-	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+	require.NoError(t, ensureStreamDirs(spoolDir, tableEsc, fingerprint))
 
 	// Place a timestamp-prefixed sealed segment directly on disk.
 	knownSealTime := time.Date(2024, 2, 25, 10, 0, 0, 0, time.UTC)
 	segmentID := segmentIDFromSealTime(knownSealTime)
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	require.NoError(t, os.WriteFile(sealedPath, []byte("id\n1"), 0o600))
 
 	// when
@@ -294,15 +294,15 @@ func TestSpoolDriver_DiscoverAllSealed_LegacySegmentUsesModTime(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
-	tableEsc := EscapeTableName("users")
+	tableEsc := escapeTableName("users")
 	fingerprint := testFingerprint
-	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+	require.NoError(t, ensureStreamDirs(spoolDir, tableEsc, fingerprint))
 
 	// Legacy bare-UUID segment (no timestamp prefix).
 	legacyID := "550e8400-e29b-41d4-a716-446655440000"
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), legacyID)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), legacyID, "csv")
 	require.NoError(t, os.WriteFile(sealedPath, []byte("id\n1"), 0o600))
 
 	knownModTime := time.Date(2023, 11, 14, 8, 0, 0, 0, time.UTC)
@@ -350,7 +350,7 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -368,8 +368,8 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	err1 := driver.Write(context.Background(), "events", schema, batch1)
 	require.NoError(t, err1)
 
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("events")
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("events")
 
 	driver.mu.Lock()
 	segmentID, _, sealErr := driver.sealStream(tableEsc, fingerprint)
@@ -381,8 +381,8 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	// then
 	require.NoError(t, err2)
 
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
-	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
+	activePath := activePath(spoolDir, tableEsc, fingerprint)
 
 	sealedFile, err := os.Open(sealedPath)
 	require.NoError(t, err)
@@ -416,7 +416,7 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schemaA := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -440,13 +440,13 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 	require.NoError(t, err2)
 
 	// Verify two CSV files created (different fingerprints)
-	fingerprintA := SchemaFingerprint(schemaA)
-	fingerprintB := SchemaFingerprint(schemaB)
+	fingerprintA := schemaFingerprint(schemaA)
+	fingerprintB := schemaFingerprint(schemaB)
 	assert.NotEqual(t, fingerprintA, fingerprintB, "Different schemas should have different fingerprints")
 
-	tableEsc := EscapeTableName("data")
-	csvPathA := ActivePath(spoolDir, tableEsc, fingerprintA)
-	csvPathB := ActivePath(spoolDir, tableEsc, fingerprintB)
+	tableEsc := escapeTableName("data")
+	csvPathA := activePath(spoolDir, tableEsc, fingerprintA)
+	csvPathB := activePath(spoolDir, tableEsc, fingerprintB)
 
 	assert.FileExists(t, csvPathA)
 	assert.FileExists(t, csvPathB)
@@ -469,7 +469,7 @@ func TestSpoolDriver_Write_ConcurrentWrites(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -495,9 +495,9 @@ func TestSpoolDriver_Write_ConcurrentWrites(t *testing.T) {
 	wg.Wait()
 
 	// then
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("concurrent")
-	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("concurrent")
+	csvPath := activePath(spoolDir, tableEsc, fingerprint)
 
 	csvData, err := os.ReadFile(csvPath)
 	require.NoError(t, err)
@@ -532,7 +532,7 @@ func TestSpoolDriver_Write_ErrorHandling(t *testing.T) {
 			// given
 			uploader := &mockUploader{}
 			format := NewCSVFormat()
-			driver := NewSpoolDriver(context.Background(), uploader, format, tt.spoolDir, WithManualCycle())
+			driver := NewSpoolDriver(context.Background(), uploader, format, tt.spoolDir, withManualCycle())
 
 			schema := arrow.NewSchema([]arrow.Field{
 				{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -556,7 +556,7 @@ func TestSpoolDriver_RunFlushCycle_UploadsFiles(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -599,7 +599,7 @@ func TestSpoolDriver_RunFlushCycle_ErrorHandling(t *testing.T) {
 		},
 	}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -625,7 +625,7 @@ func TestSpoolDriver_RunFlushCycle_EmptyDirectory(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 
 	// when
 	err := driver.runFlushCycle(context.Background(), false)
@@ -665,8 +665,8 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	assert.Equal(t, 1, len(uploader.calls), "Close should upload active segment")
 
 	// Verify active file is gone (sealed and uploaded)
-	fingerprint := SchemaFingerprint(schema)
-	csvPath := ActivePath(spoolDir, EscapeTableName("users"), fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	csvPath := activePath(spoolDir, escapeTableName("users"), fingerprint)
 	assert.NoFileExists(t, csvPath, "Active file should be sealed and uploaded")
 }
 
@@ -677,7 +677,7 @@ func TestSpoolDriver_SizeTrigger(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 		WithMaxSegmentSize(50)) // Very small size threshold
 
 	schema := arrow.NewSchema([]arrow.Field{
@@ -712,7 +712,7 @@ func TestSpoolDriver_AgeTrigger(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 		WithMaxSegmentAge(1*time.Hour))
 
 	schema := arrow.NewSchema([]arrow.Field{
@@ -725,8 +725,8 @@ func TestSpoolDriver_AgeTrigger(t *testing.T) {
 	require.NoError(t, err)
 
 	// Manually set createdAt to simulate old segment
-	fingerprint := SchemaFingerprint(schema)
-	key := streamKey(EscapeTableName("users"), fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	key := streamKey(escapeTableName("users"), fingerprint)
 	driver.mu.Lock()
 	driver.streams[key].createdAt = time.Now().Add(-2 * time.Hour)
 	driver.mu.Unlock()
@@ -751,7 +751,7 @@ func TestSpoolDriver_NoTrigger(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 		WithMaxSegmentSize(1<<30),    // 1 GiB - very large
 		WithMaxSegmentAge(time.Hour)) // 1 hour - not reached
 
@@ -777,8 +777,8 @@ func TestSpoolDriver_NoTrigger(t *testing.T) {
 	assert.Equal(t, 0, callCount, "Should NOT upload when no trigger fires")
 
 	// Verify active file still exists
-	fingerprint := SchemaFingerprint(schema)
-	activePath := ActivePath(spoolDir, EscapeTableName("users"), fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	activePath := activePath(spoolDir, escapeTableName("users"), fingerprint)
 	assert.FileExists(t, activePath, "Active file should still exist")
 }
 
@@ -789,7 +789,7 @@ func TestSpoolDriver_ForceAll_OnClose(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 		WithMaxSegmentSize(1<<30),    // Large threshold
 		WithMaxSegmentAge(time.Hour)) // Long age
 
@@ -827,7 +827,7 @@ func TestSpoolDriver_FailureCounter(t *testing.T) {
 	}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle())
+		withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -838,11 +838,11 @@ func TestSpoolDriver_FailureCounter(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
-	streamDir := StreamDir(spoolDir, tableEsc, fingerprint)
-	sealedDir := SealedDir(spoolDir, tableEsc, fingerprint)
-	failedDir := FailedDir(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	streamDir := streamDir(spoolDir, tableEsc, fingerprint)
+	sealedDir := sealedDir(spoolDir, tableEsc, fingerprint)
+	failedDir := failedDir(spoolDir, tableEsc, fingerprint)
 
 	// when - first failure
 	_ = driver.runFlushCycle(context.Background(), true)
@@ -871,14 +871,14 @@ func TestSpoolDriver_FailureCounter(t *testing.T) {
 	_ = driver.runFlushCycle(context.Background(), false)
 
 	// then - verify segment moved to failed/
-	failedPath := SegmentPath(failedDir, segmentID)
+	failedPath := segmentPath(failedDir, segmentID, "csv")
 	assert.FileExists(t, failedPath, "Segment should be quarantined after 3 failures")
 
-	sealedPath := SegmentPath(sealedDir, segmentID)
+	sealedPath := segmentPath(sealedDir, segmentID, "csv")
 	assert.NoFileExists(t, sealedPath, "Segment should NOT be in sealed after quarantine")
 
 	// Failcount file should be removed
-	failCountPath := FailCountPath(streamDir, segmentID)
+	failCountPath := failCountPath(streamDir, segmentID)
 	assert.NoFileExists(t, failCountPath, "Failcount file should be removed after quarantine")
 }
 
@@ -895,7 +895,7 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 	}
 	format := NewCSVFormat()
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle())
+		withManualCycle())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -985,7 +985,7 @@ func TestSpoolDriver_Close_Idempotent(t *testing.T) {
 	format := NewCSVFormat()
 
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 	)
 
 	// when - call Close twice
@@ -1003,15 +1003,15 @@ func TestSpoolDriver_Rotation_SealedFileImmutable(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 	t.Cleanup(func() { _ = driver.Close() })
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
 	}, nil)
 
-	tableEsc := EscapeTableName("users")
-	fp := SchemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	fp := schemaFingerprint(schema)
 
 	// Write batch1
 	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
@@ -1030,8 +1030,8 @@ func TestSpoolDriver_Rotation_SealedFileImmutable(t *testing.T) {
 	}))
 
 	// then
-	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fp), segID1)
-	activePath := ActivePath(spoolDir, tableEsc, fp)
+	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fp), segID1, "csv")
+	activePath := activePath(spoolDir, tableEsc, fp)
 
 	assert.FileExists(t, sealedPath)
 	assert.FileExists(t, activePath)
@@ -1061,15 +1061,15 @@ func TestSpoolDriver_Immutability_TwoSealsDistinctKeys(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 	t.Cleanup(func() { _ = driver.Close() })
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
 	}, nil)
 
-	tableEsc := EscapeTableName("users")
-	fp := SchemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	fp := schemaFingerprint(schema)
 
 	// Write row1, seal
 	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
@@ -1113,7 +1113,7 @@ func TestSpoolDriver_Quarantine_StopsRetrying(t *testing.T) {
 		},
 	}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 	t.Cleanup(func() { _ = driver.Close() })
 
 	schema := arrow.NewSchema([]arrow.Field{
@@ -1124,9 +1124,9 @@ func TestSpoolDriver_Quarantine_StopsRetrying(t *testing.T) {
 		{"id": int64(1)},
 	}))
 
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
-	failedDir := FailedDir(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("users")
+	failedDir := failedDir(spoolDir, tableEsc, fingerprint)
 
 	// when - run 3 times to reach quarantine
 	_ = driver.runFlushCycle(context.Background(), true)
@@ -1169,7 +1169,7 @@ func TestCSVTimestamp_RFC3339Nano(t *testing.T) {
 		},
 	}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, withManualCycle())
 	t.Cleanup(func() { _ = driver.Close() })
 
 	schema := arrow.NewSchema([]arrow.Field{
@@ -1223,7 +1223,7 @@ func TestSpoolDriver_Concurrency_WritesDuringTickSeal(t *testing.T) {
 	ctx := context.Background()
 
 	driver := NewSpoolDriver(ctx, uploader, format, spoolDir,
-		WithManualCycle(),
+		withManualCycle(),
 		WithMaxSegmentSize(1), // tiny so every flush cycle seals
 	)
 
@@ -1295,9 +1295,9 @@ func TestSpoolDriver_Concurrency_WritesDuringTickSeal(t *testing.T) {
 		"Total data rows should equal numWriters * rowsPerWriter")
 
 	// Verify no .csv files remain in the sealed dir
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("events")
-	sealedDir := SealedDir(spoolDir, tableEsc, fingerprint)
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName("events")
+	sealedDir := sealedDir(spoolDir, tableEsc, fingerprint)
 	entries, err := os.ReadDir(sealedDir)
 	if err != nil && !os.IsNotExist(err) {
 		require.NoError(t, err)

@@ -11,8 +11,8 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
-// SchemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
-func SchemaFingerprint(schema *arrow.Schema) string {
+// schemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
+func schemaFingerprint(schema *arrow.Schema) string {
 	arrowFp := schema.Fingerprint()
 	hash := sha256.Sum256([]byte(arrowFp))
 	hexStr := fmt.Sprintf("%x", hash)
@@ -22,8 +22,8 @@ func SchemaFingerprint(schema *arrow.Schema) string {
 	return hexStr
 }
 
-// EscapeTableName replaces unsafe characters with underscores.
-func EscapeTableName(table string) string {
+// escapeTableName replaces unsafe characters with underscores.
+func escapeTableName(table string) string {
 	if table == "" {
 		return table
 	}
@@ -48,54 +48,54 @@ func EscapeTableName(table string) string {
 	return builder.String()
 }
 
-// StreamDir returns the stream directory for a table+schema fingerprint.
-func StreamDir(spoolDir, tableEsc, fingerprint string) string {
+// streamDir returns the stream directory for a table+schema fingerprint.
+func streamDir(spoolDir, tableEsc, fingerprint string) string {
 	return filepath.Join(spoolDir, "streams", tableEsc, fingerprint)
 }
 
-// ActivePath returns the active segment path for a stream.
-func ActivePath(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.csv")
+// activePath returns the active segment path for a stream.
+func activePath(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "active.csv")
 }
 
-// SealedDir returns the sealed segments directory for a stream.
-func SealedDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "sealed")
+// sealedDir returns the sealed segments directory for a stream.
+func sealedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "sealed")
 }
 
-// UploadingDir returns the uploading segments directory for a stream.
-func UploadingDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "uploading")
+// uploadingDir returns the uploading segments directory for a stream.
+func uploadingDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "uploading")
 }
 
-// FailedDir returns the failed segments directory for a stream.
-func FailedDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "failed")
+// failedDir returns the failed segments directory for a stream.
+func failedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "failed")
 }
 
-// SegmentPath returns the path for a segment ID within a directory.
-func SegmentPath(dir, segmentID string) string {
-	return filepath.Join(dir, fmt.Sprintf("%s.csv", segmentID))
+// segmentPath returns the path for a segment ID within a directory.
+func segmentPath(dir, segmentID, ext string) string {
+	return filepath.Join(dir, fmt.Sprintf("%s.%s", segmentID, ext))
 }
 
-// FailCountPath returns the path for a segment fail counter within the stream directory.
-func FailCountPath(streamDir, segmentID string) string {
+// failCountPath returns the path for a segment fail counter within the stream directory.
+func failCountPath(streamDir, segmentID string) string {
 	return filepath.Join(streamDir, fmt.Sprintf("%s.failcount", segmentID))
 }
 
-// SegmentRemoteKey returns the remote object key for a segment.
-func SegmentRemoteKey(tableEsc, fingerprint, segmentID string, sealTime time.Time) string {
+// segmentRemoteKey returns the remote object key for a segment.
+func segmentRemoteKey(tableEsc, fingerprint, segmentID, ext string, sealTime time.Time) string {
 	date := sealTime.UTC().Format("2006/01/02")
-	return fmt.Sprintf("table=%s/schema=%s/dt=%s/%s.csv", tableEsc, fingerprint, date, segmentID)
+	return fmt.Sprintf("table=%s/schema=%s/dt=%s/%s.%s", tableEsc, fingerprint, date, segmentID, ext)
 }
 
-// EnsureStreamDirs creates the directory structure for a stream.
-func EnsureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
+// ensureStreamDirs creates the directory structure for a stream.
+func ensureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
 	paths := []string{
-		StreamDir(spoolDir, tableEsc, fingerprint),
-		SealedDir(spoolDir, tableEsc, fingerprint),
-		UploadingDir(spoolDir, tableEsc, fingerprint),
-		FailedDir(spoolDir, tableEsc, fingerprint),
+		streamDir(spoolDir, tableEsc, fingerprint),
+		sealedDir(spoolDir, tableEsc, fingerprint),
+		uploadingDir(spoolDir, tableEsc, fingerprint),
+		failedDir(spoolDir, tableEsc, fingerprint),
 	}
 
 	for _, path := range paths {
@@ -107,7 +107,7 @@ func EnsureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
 	return nil
 }
 
-func findSealedSegments(sealedDir string) ([]string, error) {
+func findSealedSegments(sealedDir, ext string) ([]string, error) {
 	entries, err := os.ReadDir(sealedDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -116,16 +116,17 @@ func findSealedSegments(sealedDir string) ([]string, error) {
 		return nil, fmt.Errorf("reading sealed dir %s: %w", sealedDir, err)
 	}
 
+	dotExt := "." + ext
 	segments := make([]string, 0)
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
 		}
 		name := entry.Name()
-		if filepath.Ext(name) != ".csv" {
+		if filepath.Ext(name) != dotExt {
 			continue
 		}
-		segments = append(segments, strings.TrimSuffix(name, ".csv"))
+		segments = append(segments, strings.TrimSuffix(name, dotExt))
 	}
 
 	return segments, nil

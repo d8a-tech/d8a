@@ -3,7 +3,6 @@ package files
 import (
 	"encoding/csv"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,39 +11,17 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 )
 
-// Format defines how data is serialized to/from files.
+// Format defines how data is serialized to files.
 type Format interface {
 	Extension() string
 	Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error
-	Read(r io.Reader) (*arrow.Schema, []map[string]any, error)
 }
 
-// FormatOption configures a Format implementation.
-type FormatOption func(config *formatConfig)
-
-// formatConfig holds configuration for format implementations.
-type formatConfig struct {
-	compression string
-}
-
-// WithCompression configures compression for the format.
-func WithCompression(compressionType string) FormatOption {
-	return func(config *formatConfig) {
-		config.compression = compressionType
-	}
-}
-
-type csvFormat struct {
-	formatConfig
-}
+type csvFormat struct{}
 
 // NewCSVFormat creates a new CSV format implementation.
-func NewCSVFormat(opts ...FormatOption) Format {
-	cfg := formatConfig{}
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-	return &csvFormat{formatConfig: cfg}
+func NewCSVFormat() Format {
+	return &csvFormat{}
 }
 
 func (f *csvFormat) Extension() string {
@@ -133,8 +110,4 @@ func valueToString(val any, fieldType arrow.DataType) (string, error) {
 		return "", fmt.Errorf("JSON encoding complex value: %w", err)
 	}
 	return string(jsonBytes), nil
-}
-
-func (f *csvFormat) Read(r io.Reader) (*arrow.Schema, []map[string]any, error) {
-	return nil, nil, errors.New("CSV format not implemented")
 }
