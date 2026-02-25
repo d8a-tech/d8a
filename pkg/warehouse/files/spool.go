@@ -87,6 +87,8 @@ func (sd *spoolDriver) startTimer() {
 				if err := sd.Flush(sd.ctx); err != nil {
 					logrus.WithError(err).Error("automatic flush failed")
 				}
+			case <-sd.ctx.Done():
+				return
 			case <-sd.stopCh:
 				return
 			}

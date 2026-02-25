@@ -22,16 +22,6 @@ func TestNewCSVFormat_AcceptsOptions(t *testing.T) {
 	assert.Equal(t, "csv", format.Extension())
 }
 
-// TestNewParquetFormat_AcceptsOptions verifies parquet format constructor accepts options.
-func TestNewParquetFormat_AcceptsOptions(t *testing.T) {
-	// given: format with compression option
-	format := NewParquetFormat(WithCompression("snappy"))
-
-	// then: format is created without error
-	assert.NotNil(t, format)
-	assert.Equal(t, "parquet", format.Extension())
-}
-
 // TestCSVFormat_Write_WithVariousTypes verifies CSV writer handles different Arrow types.
 func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 	tests := []struct {

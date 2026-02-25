@@ -138,29 +138,3 @@ func valueToString(val any, fieldType arrow.DataType) (string, error) {
 func (f *csvFormat) Read(r io.Reader) (*arrow.Schema, []map[string]any, error) {
 	return nil, nil, errors.New("CSV format not implemented")
 }
-
-type parquetFormat struct {
-	formatConfig
-}
-
-// NewParquetFormat creates a new Parquet format implementation.
-// Accepts optional configuration via FormatOption functions.
-func NewParquetFormat(opts ...FormatOption) Format {
-	cfg := formatConfig{}
-	for _, opt := range opts {
-		opt(&cfg)
-	}
-	return &parquetFormat{formatConfig: cfg}
-}
-
-func (f *parquetFormat) Extension() string {
-	return "parquet"
-}
-
-func (f *parquetFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error {
-	return errors.New("parquet format not implemented")
-}
-
-func (f *parquetFormat) Read(r io.Reader) (*arrow.Schema, []map[string]any, error) {
-	return nil, nil, errors.New("parquet format not implemented")
-}
