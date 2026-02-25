@@ -39,7 +39,7 @@ func (m *manualTicker) tick() {
 
 // withManualTicker returns a SpoolOption that injects a manualTicker factory.
 func withManualTicker(mt *manualTicker) SpoolOption {
-	return func(sd *spoolDriver) {
+	return func(sd *SpoolDriver) {
 		sd.newTicker = func(d time.Duration) ticker { return mt }
 	}
 }

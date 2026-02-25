@@ -17,32 +17,32 @@ import (
 )
 
 // SpoolOption is a functional option for configuring SpoolDriver.
-type SpoolOption func(*spoolDriver)
+type SpoolOption func(*SpoolDriver)
 
 // withManualCycle disables automatic timer-based flush cycles (test-only).
 func withManualCycle() SpoolOption {
-	return func(sd *spoolDriver) {
+	return func(sd *SpoolDriver) {
 		sd.sealCheckInterval = 0
 	}
 }
 
 // WithMaxSegmentSize sets the maximum segment size in bytes before sealing.
 func WithMaxSegmentSize(n int64) SpoolOption {
-	return func(sd *spoolDriver) {
+	return func(sd *SpoolDriver) {
 		sd.maxSegmentSize = n
 	}
 }
 
 // WithMaxSegmentAge sets the maximum segment age before sealing.
 func WithMaxSegmentAge(d time.Duration) SpoolOption {
-	return func(sd *spoolDriver) {
+	return func(sd *SpoolDriver) {
 		sd.maxSegmentAge = d
 	}
 }
 
 // WithSealCheckInterval sets how often to evaluate sealing triggers.
 func WithSealCheckInterval(d time.Duration) SpoolOption {
-	return func(sd *spoolDriver) {
+	return func(sd *SpoolDriver) {
 		sd.sealCheckInterval = d
 	}
 }
@@ -61,13 +61,13 @@ type realTicker struct {
 func (r *realTicker) C() <-chan time.Time { return r.t.C }
 func (r *realTicker) Stop()               { r.t.Stop() }
 
-// spoolDriver is a warehouse.Driver that writes analytics data directly to disk
+// SpoolDriver is a warehouse.Driver that writes analytics data directly to disk
 // files and periodically uploads them to object storage.
 //
 // Disk is the source of truth for persisted data. An in-memory streams map
 // maintains per-stream state (createdAt, activeSizeBytes) used to evaluate
 // sealing triggers.
-type spoolDriver struct {
+type SpoolDriver struct {
 	ctx               context.Context
 	uploader          Uploader
 	format            Format
@@ -84,7 +84,7 @@ type spoolDriver struct {
 	newTicker         func(time.Duration) ticker
 }
 
-var _ warehouse.Driver = (*spoolDriver)(nil)
+var _ warehouse.Driver = (*SpoolDriver)(nil)
 
 type streamState struct {
 	createdAt       time.Time
@@ -99,8 +99,8 @@ func NewSpoolDriver(
 	format Format,
 	spoolDir string,
 	opts ...SpoolOption,
-) *spoolDriver {
-	sd := &spoolDriver{
+) *SpoolDriver {
+	sd := &SpoolDriver{
 		ctx:               ctx,
 		uploader:          uploader,
 		format:            format,
@@ -133,7 +133,7 @@ func NewSpoolDriver(
 }
 
 // startTimer starts the periodic flush cycle timer (if interval > 0).
-func (sd *spoolDriver) startTimer() {
+func (sd *SpoolDriver) startTimer() {
 	if sd.sealCheckInterval == 0 {
 		return
 	}
@@ -163,7 +163,7 @@ func (sd *spoolDriver) startTimer() {
 
 // Write appends rows to disk file immediately.
 // All file operations are mutex-protected to prevent concurrent writes.
-func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
+func (sd *SpoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName(table)
 	filePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
@@ -209,12 +209,12 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 			"fingerprint": fingerprint,
 			"row_count":   len(rows),
 		}).Error("failed to write rows to file")
-		return fmt.Errorf("writing rows to CSV file: %w", err)
+		return fmt.Errorf("writing rows to file: %w", err)
 	}
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("statting active CSV file: %w", err)
+		return fmt.Errorf("statting active file: %w", err)
 	}
 
 	state, exists := sd.streams[key]
@@ -237,7 +237,7 @@ func streamKey(tableEsc, fingerprint string) string {
 	return fmt.Sprintf("%s/%s", tableEsc, fingerprint)
 }
 
-func (sd *spoolDriver) recoverUploading(tableEsc, fingerprint string) error {
+func (sd *SpoolDriver) recoverUploading(tableEsc, fingerprint string) error {
 	uploadingDir := uploadingDir(sd.spoolDir, tableEsc, fingerprint)
 	entries, err := os.ReadDir(uploadingDir)
 	if err != nil {
@@ -303,17 +303,17 @@ func cleanTempFiles(dir string) error {
 }
 
 // CreateTable is a no-op for spool drivers.
-func (sd *spoolDriver) CreateTable(table string, schema *arrow.Schema) error {
+func (sd *SpoolDriver) CreateTable(table string, schema *arrow.Schema) error {
 	return nil
 }
 
 // AddColumn is a no-op for spool drivers.
-func (sd *spoolDriver) AddColumn(table string, field *arrow.Field) error {
+func (sd *SpoolDriver) AddColumn(table string, field *arrow.Field) error {
 	return nil
 }
 
 // MissingColumns always returns an empty slice for spool drivers.
-func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
+func (sd *SpoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
 	return []*arrow.Field{}, nil
 }
 
@@ -325,7 +325,7 @@ type sealedSegment struct {
 }
 
 // runFlushCycle evaluates triggers, seals segments, and uploads sealed segments.
-func (sd *spoolDriver) runFlushCycle(ctx context.Context, forceAll bool) error {
+func (sd *SpoolDriver) runFlushCycle(ctx context.Context, forceAll bool) error {
 	justSealed, err := sd.evaluateAndSeal(forceAll)
 	if err != nil {
 		return err
@@ -350,7 +350,7 @@ func (sd *spoolDriver) runFlushCycle(ctx context.Context, forceAll bool) error {
 }
 
 // evaluateAndSeal checks all active streams for seal triggers and seals those that match.
-func (sd *spoolDriver) evaluateAndSeal(forceAll bool) ([]sealedSegment, error) {
+func (sd *SpoolDriver) evaluateAndSeal(forceAll bool) ([]sealedSegment, error) {
 	var toSeal []sealedSegment
 
 	sd.mu.Lock()
@@ -385,7 +385,7 @@ func (sd *spoolDriver) evaluateAndSeal(forceAll bool) ([]sealedSegment, error) {
 }
 
 // discoverAllSealed merges justSealed with any crash-recovered segments on disk.
-func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSegment, error) {
+func (sd *SpoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSegment, error) {
 	toUpload := make([]sealedSegment, 0, len(justSealed))
 	sealedSet := make(map[string]struct{})
 	for _, s := range justSealed {
@@ -449,7 +449,7 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 	return toUpload, nil
 }
 
-func (sd *spoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) error {
+func (sd *SpoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) error {
 	streamDir := streamDir(sd.spoolDir, seg.tableEsc, seg.fp)
 	sealedDir := sealedDir(sd.spoolDir, seg.tableEsc, seg.fp)
 	uploadingDir := uploadingDir(sd.spoolDir, seg.tableEsc, seg.fp)
@@ -549,7 +549,7 @@ func writeFailCount(streamDir, segmentID string, n int) error {
 	return nil
 }
 
-func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
+func (sd *SpoolDriver) quarantine(tableEsc, fp, segmentID string) error {
 	sealedDir := sealedDir(sd.spoolDir, tableEsc, fp)
 	failedDir := failedDir(sd.spoolDir, tableEsc, fp)
 	streamDir := streamDir(sd.spoolDir, tableEsc, fp)
@@ -571,7 +571,7 @@ func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
 }
 
 // sealStream must be called with sd.mu held.
-func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID string, sealTime time.Time, err error) {
+func (sd *SpoolDriver) sealStream(tableEsc, fingerprint string) (segmentID string, sealTime time.Time, err error) {
 	sealTime = time.Now().UTC()
 	segmentID = segmentIDFromSealTime(sealTime)
 
@@ -588,7 +588,7 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 }
 
 // Close gracefully shuts down the driver.
-func (sd *spoolDriver) Close() error {
+func (sd *SpoolDriver) Close() error {
 	sd.stopOnce.Do(func() { close(sd.stopCh) })
 	sd.wg.Wait()
 	err := sd.runFlushCycle(context.Background(), true)
@@ -596,7 +596,7 @@ func (sd *spoolDriver) Close() error {
 	return err
 }
 
-func (sd *spoolDriver) recoverStreams() error {
+func (sd *SpoolDriver) recoverStreams() error {
 	streamsRoot := filepath.Join(sd.spoolDir, "streams")
 	entries, err := os.ReadDir(streamsRoot)
 	if err != nil {
