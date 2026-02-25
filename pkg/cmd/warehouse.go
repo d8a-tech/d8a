@@ -77,7 +77,6 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		raw = decoded
 	}
 
-	// Build credentials from JSON
 	googleCreds, credErr := google.CredentialsFromJSONWithType(
 		ctx,
 		raw,
@@ -88,7 +87,6 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		logrus.Fatalf("failed to parse BigQuery credentials JSON: %v", credErr)
 	}
 
-	// Create BigQuery client
 	client, err := bigquery.NewClient(
 		ctx,
 		projectID,
@@ -98,7 +96,6 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		logrus.Fatalf("failed to create BigQuery client: %v", err)
 	}
 
-	// Create writer based on type
 	writer := createBigQueryWriter(cmd, client, datasetName)
 
 	partitionOpt := createBigQueryPartitionOption(cmd)
@@ -116,8 +113,6 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 	)
 }
 
-// createBigQueryPartitionOption creates a BigQuery partition option from command flags.
-// Returns nil if partition field is not set.
 func createBigQueryPartitionOption(cmd *cli.Command) whBigQuery.BigQueryTableDriverOption {
 	partitionField := strings.TrimSpace(cmd.String(warehouseBigQueryPartitionFieldFlag.Name))
 	if partitionField == "" {
@@ -212,7 +207,6 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		MaxCompressionBuffer: 10240,
 	}
 
-	// Build ClickHouse driver options from flags
 	var opts []whClickhouse.Options
 	orderByStr := strings.TrimSpace(cmd.String(warehouseClickhouseOrderByFlag.Name))
 	if orderByStr != "" {
@@ -248,15 +242,13 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	format := cmd.String(warehouseFilesFormatFlag.Name)
 	flushInterval := cmd.Duration(warehouseFilesFlushIntervalFlag.Name)
 
-	// Check if spool is enabled
 	if !cmd.Bool(storageSpoolEnabledFlag.Name) {
 		logrus.Fatal("files warehouse requires spool to be enabled (--storage-spool-enabled)")
 	}
 
 	baseSpoolDir := cmd.String(storageSpoolDirectoryFlag.Name)
-	spoolDir := filepath.Join(baseSpoolDir, "warehouse/files")
+	spoolDir := filepath.Join(baseSpoolDir, "warehouse", "files")
 
-	// Create format
 	var fmt whFiles.Format
 	switch format {
 	case "csv":
@@ -265,13 +257,11 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatalf("unsupported files format: %s", format)
 	}
 
-	// Create uploader based on storage type
 	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
 	var uploader whFiles.Uploader
 
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
-		// Create bucket for cloud storage
 		bucket, cleanup, err := createWarehouseCDKBucket(ctx, cmd)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
@@ -285,7 +275,6 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		uploader = whFiles.NewBlobUploader(bucket)
 
 	case storageTypeFilesystem:
-		// Create filesystem uploader
 		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
 		if filesystemPath == "" {
 			logrus.Fatal("--warehouse-files-filesystem-path is required when warehouse-files-storage=filesystem")
@@ -301,9 +290,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
 	}
 
-	// Create spool driver with timer-based flush
 	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir, flushInterval)
 
-	// Wrap with batching
 	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)
 }

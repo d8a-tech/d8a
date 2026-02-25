@@ -78,7 +78,6 @@ func startTelemetry(itemName, telemetryURL string) {
 	)
 }
 
-// Run starts the tracker-api server
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	app := &cli.Command{
 		Name:  "d8a",

@@ -17,7 +17,6 @@ type tables struct {
 	sessionsColumnPrefix string
 }
 
-// getTableNames returns the table names for the current property.
 func getTableNames(cmd *cli.Command) tables {
 	table := cmd.String(warehouseTableFlag.Name)
 	if table == "" {
@@ -47,7 +46,6 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 	if cr == nil {
 		var opts []columnset.ColumnSetOption
 
-		// Add GeoIP columns if dbip is enabled
 		if cmd.Bool(dbipEnabled.Name) {
 			geoColumns := dbip.GeoColumns(
 				dbip.NewExtensionBasedOCIDownloader(
@@ -67,7 +65,6 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 			opts = append(opts, columnset.WithGeoIPColumns(geoColumns))
 		}
 
-		// Add device detection columns based on provider flag
 		deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
 		switch deviceProvider {
 		case "dd2":

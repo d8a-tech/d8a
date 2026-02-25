@@ -6,15 +6,14 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var configFile string // Change from *string to string, and remove the func()
+var configFile string
 
-// Add a config flag that sets the configFile variable
 var configFlag = &cli.StringFlag{
 	Name:        "config",
 	Aliases:     []string{"c"},
 	Value:       "config.yaml",
 	Usage:       "Load configuration from `FILE`",
-	Destination: &configFile, // This is the key part!
+	Destination: &configFile,
 }
 
 func defaultSourceChain(envVar, yamlPath string) cli.ValueSourceChain {

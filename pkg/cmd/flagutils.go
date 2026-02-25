@@ -6,7 +6,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// FlagType represents the type of a flag
 type FlagType string
 
 const (
@@ -16,7 +15,6 @@ const (
 	FlagTypeDuration FlagType = "duration"
 )
 
-// FlagSpec holds a flag definition with accessible references
 type FlagSpec struct {
 	Name         string
 	Usage        string
@@ -26,7 +24,6 @@ type FlagSpec struct {
 	DefaultValue any
 }
 
-// ObjectStorageFlagSet holds all object storage flag specs
 type ObjectStorageFlagSet struct {
 	Type           FlagSpec
 	Prefix         FlagSpec
@@ -43,13 +40,11 @@ type ObjectStorageFlagSet struct {
 	GCSCredsJSON   FlagSpec
 }
 
-// ObjectStorageFlags holds Queue and Warehouse flag sets
 type ObjectStorageFlags struct {
 	Queue     ObjectStorageFlagSet
 	Warehouse ObjectStorageFlagSet
 }
 
-// createObjectStorageFlagSet creates a complete flag set for object storage
 // nolint:funlen // struct initialization for 13 flags
 func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPrefix string) ObjectStorageFlagSet {
 	return ObjectStorageFlagSet{
@@ -152,7 +147,6 @@ func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPref
 	}
 }
 
-// ToCliFlags converts an ObjectStorageFlagSet to urfave/cli flags
 func ToCliFlags(specs *ObjectStorageFlagSet) []cli.Flag {
 	allSpecs := []FlagSpec{
 		specs.Type,
@@ -177,7 +171,6 @@ func ToCliFlags(specs *ObjectStorageFlagSet) []cli.Flag {
 	return flags
 }
 
-// specToCliFlag converts a single FlagSpec to the appropriate cli.Flag type
 func specToCliFlag(spec *FlagSpec) cli.Flag {
 	sources := defaultSourceChain(spec.EnvVar, spec.ConfigPath)
 
@@ -244,7 +237,6 @@ func specToCliFlag(spec *FlagSpec) cli.Flag {
 	}
 }
 
-// ObjectStorageFlagsSpec holds global flag specifications for queue and warehouse
 // Different default prefixes: queue uses "d8a/queue", warehouse uses "" (no default)
 var ObjectStorageFlagsSpec = ObjectStorageFlags{
 	Queue: createObjectStorageFlagSet(

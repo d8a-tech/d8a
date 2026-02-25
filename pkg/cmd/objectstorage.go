@@ -37,7 +37,6 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 	return createS3BucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
 }
 
-// createS3BucketWithFlags creates an S3 bucket using the provided flag set.
 func createS3BucketWithFlags(
 	ctx context.Context,
 	c *cli.Command,
@@ -58,7 +57,6 @@ func createS3BucketWithFlags(
 		return nil, nil, fmt.Errorf("load aws config: %w", err)
 	}
 
-	// Create S3 client with MinIO endpoint
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(
 			fmt.Sprintf(
@@ -71,7 +69,6 @@ func createS3BucketWithFlags(
 		o.UsePathStyle = true
 	})
 
-	// Create bucket first
 	bucketName := c.String(flags.S3Bucket.Name)
 	if bucketName == "" {
 		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", flags.S3Bucket.Name)
@@ -95,7 +92,6 @@ func createS3BucketWithFlags(
 		}
 	}
 
-	// Create bucket using Go CDK
 	bucket, err := s3blob.OpenBucketV2(ctx, s3Client, bucketName, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open s3 bucket: %w", err)
@@ -103,7 +99,6 @@ func createS3BucketWithFlags(
 	return bucket, bucket.Close, nil
 }
 
-// createGCSBucket initializes a Go CDK bucket backed by Google Cloud Storage.
 // Authentication order:
 // - If QUEUE_OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
 // - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
@@ -114,7 +109,6 @@ func createGCSBucket(
 	return createGCSBucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
 }
 
-// createGCSBucketWithFlags initializes a Go CDK bucket backed by Google Cloud Storage using the provided flag set.
 // Authentication order:
 // - If GCS_CREDS_JSON is set (raw or base64), use it.
 // - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
@@ -129,7 +123,6 @@ func createGCSBucketWithFlags(
 		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", flags.GCSBucket.Name)
 	}
 
-	// Resolve credentials
 	var httpClient *gcp.HTTPClient
 	var err error
 	var ts oauth2.TokenSource
@@ -141,7 +134,6 @@ func createGCSBucketWithFlags(
 		if decoded, decErr := base64.StdEncoding.DecodeString(credsJSON); decErr == nil {
 			raw = decoded
 		}
-		// Build token source from JSON
 		googleCreds, credErr := google.CredentialsFromJSONWithType(
 			ctx,
 			raw,
@@ -170,7 +162,6 @@ func createGCSBucketWithFlags(
 	}
 
 	// No bucket creation logic for GCS; bucket must already exist
-	// Open Go CDK bucket
 	bkt, err := gcsblob.OpenBucket(ctx, httpClient, bucketName, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open gcs bucket: %w", err)

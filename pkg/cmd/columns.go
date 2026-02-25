@@ -10,11 +10,9 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// arrowTypeToUserFriendly converts Arrow type names to user-friendly type names
 func arrowTypeToUserFriendly(arrowTypeName string) string {
 	result := arrowTypeName
 
-	// Replace Arrow types with user-friendly equivalents
 	replacements := map[string]string{
 		"utf8":                  "String",
 		"int64":                 "Numeric (Int64)",
@@ -161,12 +159,10 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	var buf bytes.Buffer
 	writer := csv.NewWriter(&buf)
 
-	// Write header
 	if err := writer.Write([]string{"name", "display_name", "scope", "type", "description", "interface_id"}); err != nil {
 		return "", fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
-	// Write event columns
 	for _, col := range columns.Event {
 		docs := col.Docs()
 		typeName := ""
@@ -180,7 +176,6 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		}
 	}
 
-	// Write session-scoped event columns
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
 		typeName := ""
@@ -195,7 +190,6 @@ func (f *csvColumnsFormatter) Format(columns schema.Columns) (string, error) {
 		}
 	}
 
-	// Write session columns
 	for _, col := range columns.Session {
 		docs := col.Docs()
 		typeName := ""
@@ -228,11 +222,9 @@ type markdownColumnsFormatter struct {
 func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error) {
 	var buf bytes.Buffer
 
-	// Write table header
 	buf.WriteString("| Name | Display Name | Scope | Type | Description |\n")
 	buf.WriteString("|------|--------------|-------|------|-------------|\n")
 
-	// Write event columns
 	for _, col := range columns.Event {
 		docs := col.Docs()
 		typeName := ""
@@ -253,7 +245,6 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 			escapeMarkdownCell(description)))
 	}
 
-	// Write session-scoped event columns
 	for _, col := range columns.SessionScopedEvent {
 		docs := col.Docs()
 		typeName := ""
@@ -274,7 +265,6 @@ func (f *markdownColumnsFormatter) Format(columns schema.Columns) (string, error
 			escapeMarkdownCell(description)))
 	}
 
-	// Write session columns
 	for _, col := range columns.Session {
 		docs := col.Docs()
 		typeName := ""
