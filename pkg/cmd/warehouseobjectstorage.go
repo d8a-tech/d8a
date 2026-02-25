@@ -10,10 +10,10 @@ import (
 	"gocloud.dev/blob"
 )
 
-// createWarehouseBucket initializes a Go CDK bucket for warehouse operations.
+// createWarehouseCDKBucket initializes a Go CDK bucket for warehouse operations.
 // Supports S3 and GCS providers based on warehouse-object-storage-type flag.
 // Applies prefix using blob.PrefixedBucket if warehouse-object-storage-prefix is set.
-func createWarehouseBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, func() error, error) {
+func createWarehouseCDKBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, func() error, error) {
 	storageType := strings.ToLower(cmd.String(ObjectStorageFlagsSpec.Warehouse.Type.Name))
 	logrus.Infof("Creating warehouse bucket with provider: %s", storageType)
 

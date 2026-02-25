@@ -49,7 +49,7 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -107,7 +107,7 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -158,7 +158,7 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schemaA := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -220,7 +220,7 @@ func TestSpoolDriver_Write_ConcurrentWrites(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -283,7 +283,7 @@ func TestSpoolDriver_Write_ErrorHandling(t *testing.T) {
 			// given
 			uploader := &mockUploader{}
 			format := NewCSVFormat()
-			driver := NewSpoolDriver(uploader, format, tt.spoolDir, 0, WithManualFlush())
+			driver := NewSpoolDriver(context.Background(), uploader, format, tt.spoolDir, 0, WithManualFlush())
 
 			schema := arrow.NewSchema([]arrow.Field{
 				{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -307,7 +307,7 @@ func TestSpoolDriver_Flush_UploadsFiles(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -372,7 +372,7 @@ func TestSpoolDriver_Flush_ErrorHandling(t *testing.T) {
 		},
 	}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -419,7 +419,7 @@ func TestSpoolDriver_Flush_MissingMetadata(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -455,7 +455,7 @@ func TestSpoolDriver_Flush_EmptyDirectory(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	// when
 	err := driver.Flush(context.Background())
@@ -472,7 +472,7 @@ func TestSpoolDriver_Timer_AutomaticFlush(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	// Create driver with short interval (100ms)
-	driver := NewSpoolDriver(uploader, format, spoolDir, 100*time.Millisecond)
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 100*time.Millisecond)
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -505,7 +505,7 @@ func TestSpoolDriver_ManualFlushMode(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	driver := NewSpoolDriver(uploader, format, spoolDir, 0, WithManualFlush())
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -536,7 +536,7 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	// Create driver with timer
-	driver := NewSpoolDriver(uploader, format, spoolDir, 1*time.Second)
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 1*time.Second)
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -571,7 +571,7 @@ func TestSpoolDriver_Close_StopsTimer(t *testing.T) {
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
 	// Create driver with short interval
-	driver := NewSpoolDriver(uploader, format, spoolDir, 50*time.Millisecond)
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 50*time.Millisecond)
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},

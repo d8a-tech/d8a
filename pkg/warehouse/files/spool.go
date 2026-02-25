@@ -30,6 +30,7 @@ func WithManualFlush() SpoolOption {
 // Each Write() call appends rows directly to disk files. A timer goroutine
 // periodically scans the spool directory and uploads CSV files.
 type spoolDriver struct {
+	ctx           context.Context
 	uploader      Uploader
 	format        Format
 	spoolDir      string
@@ -47,12 +48,14 @@ type spoolDriver struct {
 // directory and upload CSV files. Files are uploaded via the provided Uploader.
 //
 // Parameters:
+//   - ctx: context for graceful shutdown and timeouts
 //   - uploader: handles moving files to final destination (cloud/local)
 //   - format: serialization format (CSV, Parquet, etc.)
 //   - spoolDir: directory for temporary spool files (must exist)
 //   - flushInterval: time between automatic flushes (0 = manual only)
 //   - opts: optional configuration
 func NewSpoolDriver(
+	ctx context.Context,
 	uploader Uploader,
 	format Format,
 	spoolDir string,
@@ -60,6 +63,7 @@ func NewSpoolDriver(
 	opts ...SpoolOption,
 ) *spoolDriver {
 	sd := &spoolDriver{
+		ctx:           ctx,
 		uploader:      uploader,
 		format:        format,
 		spoolDir:      spoolDir,
@@ -87,15 +91,13 @@ func (sd *spoolDriver) startTimer() {
 		defer sd.wg.Done()
 		logrus.WithField("interval", sd.flushInterval).Info("started flush timer")
 
-		//nolint:contextcheck // long-lived goroutine should use context.Background()
-		ctx := context.Background()
 		ticker := time.NewTicker(sd.flushInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				if err := sd.Flush(ctx); err != nil {
+				if err := sd.Flush(sd.ctx); err != nil {
 					logrus.WithError(err).Error("automatic flush failed")
 				}
 			case <-sd.stopCh:

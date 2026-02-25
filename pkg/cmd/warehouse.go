@@ -272,7 +272,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
 		// Create bucket for cloud storage
-		bucket, cleanup, err := createWarehouseBucket(ctx, cmd)
+		bucket, cleanup, err := createWarehouseCDKBucket(ctx, cmd)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
 		}
@@ -302,8 +302,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	}
 
 	// Create spool driver with timer-based flush
-	//nolint:contextcheck // long-lived driver spawns goroutine with context.Background(), not request context
-	driver := whFiles.NewSpoolDriver(uploader, fmt, spoolDir, flushInterval)
+	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir, flushInterval)
 
 	// Wrap with batching
 	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)
