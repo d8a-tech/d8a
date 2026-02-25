@@ -16,8 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const spoolTestFingerprint = "abc123"
-
 // TestSpoolDriverImplementsDriver verifies that spoolDriver implements warehouse.Driver
 func TestSpoolDriverImplementsDriver(t *testing.T) {
 	var _ warehouse.Driver = (*spoolDriver)(nil)
@@ -199,7 +197,7 @@ func TestSpoolDriver_RecoverUploading(t *testing.T) {
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	streamTable := "users"
-	fingerprint := spoolTestFingerprint
+	fingerprint := testFingerprint
 	tableEsc := EscapeTableName(streamTable)
 	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
 
@@ -225,7 +223,7 @@ func TestSpoolDriver_RecoverStreams_WithMeta(t *testing.T) {
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
 
 	tableEsc := EscapeTableName("users")
-	fingerprint := spoolTestFingerprint
+	fingerprint := testFingerprint
 	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
 
 	activePath := ActivePath(spoolDir, tableEsc, fingerprint)

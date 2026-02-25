@@ -167,39 +167,48 @@ func TestDeleteMetadataFile_NonexistentFile_NoError(t *testing.T) {
 }
 
 func TestFindSealedSegments(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	sealedDir := filepath.Join(spoolDir, "sealed")
+	tests := []struct {
+		name     string
+		setup    func(t *testing.T, dir string)
+		expected []string
+	}{
+		{
+			name: "empty dir",
+			setup: func(t *testing.T, dir string) {
+				require.NoError(t, os.MkdirAll(dir, 0o750))
+			},
+			expected: []string{},
+		},
+		{
+			name: "non-existent dir",
+			setup: func(t *testing.T, dir string) {
+				// do nothing
+			},
+			expected: []string{},
+		},
+		{
+			name: "dir with segments and other files",
+			setup: func(t *testing.T, dir string) {
+				require.NoError(t, os.MkdirAll(dir, 0o750))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "seg1.csv"), []byte("id\n1"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "seg2.csv"), []byte("id\n2"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("ignore"), 0o600))
+			},
+			expected: []string{"seg1", "seg2"},
+		},
+	}
 
-	// when
-	segments, err := findSealedSegments(sealedDir)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), "sealed")
+			tt.setup(t, dir)
 
-	// then
-	assert.NoError(t, err)
-	assert.Empty(t, segments)
+			segments, err := findSealedSegments(dir)
 
-	// given
-	missingDir := filepath.Join(spoolDir, "missing")
-
-	// when
-	segments, err = findSealedSegments(missingDir)
-
-	// then
-	assert.NoError(t, err)
-	assert.Empty(t, segments)
-
-	// given
-	require.NoError(t, os.MkdirAll(sealedDir, 0o750))
-	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "seg1.csv"), []byte("id\n1"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "seg2.csv"), []byte("id\n2"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "other.txt"), []byte("ignore"), 0o600))
-
-	// when
-	segments, err = findSealedSegments(sealedDir)
-
-	// then
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"seg1", "seg2"}, segments)
+			assert.NoError(t, err)
+			assert.ElementsMatch(t, tt.expected, segments)
+		})
+	}
 }
 
 const testFingerprint = "abc123"
