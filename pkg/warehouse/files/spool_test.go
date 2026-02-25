@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testFingerprint = "abc123"
+
 // manualTicker is a test-only ticker whose ticks are driven programmatically.
 type manualTicker struct {
 	ch chan time.Time

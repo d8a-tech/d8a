@@ -2,17 +2,13 @@ package files
 
 import (
 	"crypto/sha256"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/apache/arrow-go/v18/arrow/flight"
-	"github.com/apache/arrow-go/v18/arrow/memory"
 )
 
 // SchemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
@@ -93,59 +89,44 @@ func SegmentRemoteKey(tableEsc, fingerprint, segmentID string, sealTime time.Tim
 	return fmt.Sprintf("table=%s/schema=%s/dt=%s/%s.csv", tableEsc, fingerprint, date, segmentID)
 }
 
-// Metadata represents schema information persisted to disk.
-type Metadata struct {
-	Table       string `json:"table"`
-	Fingerprint string `json:"fingerprint"`
-	Schema      string `json:"schema"`              // base64-encoded Arrow IPC schema
-	CreatedAt   string `json:"created_at"`          // RFC3339 timestamp
-	SealedAt    string `json:"sealed_at,omitempty"` // RFC3339 timestamp when sealed
-}
+// EnsureStreamDirs creates the directory structure for a stream.
+func EnsureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
+	paths := []string{
+		StreamDir(spoolDir, tableEsc, fingerprint),
+		SealedDir(spoolDir, tableEsc, fingerprint),
+		UploadingDir(spoolDir, tableEsc, fingerprint),
+		FailedDir(spoolDir, tableEsc, fingerprint),
+	}
 
-// WriteMetadata writes metadata to the provided writer as JSON.
-func WriteMetadata(w io.Writer, metadata *Metadata) error {
-	data, err := json.Marshal(metadata)
-	if err != nil {
-		return fmt.Errorf("marshaling metadata: %w", err)
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0o750); err != nil {
+			return fmt.Errorf("creating stream dir %s: %w", path, err)
+		}
 	}
-	if _, err := w.Write(data); err != nil {
-		return fmt.Errorf("writing metadata: %w", err)
-	}
+
 	return nil
 }
 
-// ReadMetadata reads metadata from the provided reader.
-func ReadMetadata(r io.Reader) (*Metadata, error) {
-	data, err := io.ReadAll(r)
+func findSealedSegments(sealedDir string) ([]string, error) {
+	entries, err := os.ReadDir(sealedDir)
 	if err != nil {
-		return nil, fmt.Errorf("reading metadata: %w", err)
-	}
-	var metadata Metadata
-	if err := json.Unmarshal(data, &metadata); err != nil {
-		return nil, fmt.Errorf("unmarshaling metadata: %w", err)
-	}
-	return &metadata, nil
-}
-
-// SerializeSchema serializes an Arrow schema to a base64-encoded string.
-func SerializeSchema(schema *arrow.Schema) (string, error) {
-	schemaBytes := flight.SerializeSchema(schema, memory.DefaultAllocator)
-
-	encoded := base64.StdEncoding.EncodeToString(schemaBytes)
-	return encoded, nil
-}
-
-// DeserializeSchema deserializes a base64-encoded Arrow schema string.
-func DeserializeSchema(encoded string) (*arrow.Schema, error) {
-	schemaBytes, err := base64.StdEncoding.DecodeString(encoded)
-	if err != nil {
-		return nil, fmt.Errorf("base64 decoding schema: %w", err)
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("reading sealed dir %s: %w", sealedDir, err)
 	}
 
-	schema, err := flight.DeserializeSchema(schemaBytes, memory.DefaultAllocator)
-	if err != nil {
-		return nil, fmt.Errorf("deserializing schema: %w", err)
+	segments := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if filepath.Ext(name) != ".csv" {
+			continue
+		}
+		segments = append(segments, strings.TrimSuffix(name, ".csv"))
 	}
 
-	return schema, nil
+	return segments, nil
 }
