@@ -97,8 +97,9 @@ func SegmentRemoteKey(tableEsc, fingerprint, segmentID string, sealTime time.Tim
 type Metadata struct {
 	Table       string `json:"table"`
 	Fingerprint string `json:"fingerprint"`
-	Schema      string `json:"schema"`     // base64-encoded Arrow IPC schema
-	CreatedAt   string `json:"created_at"` // RFC3339 timestamp
+	Schema      string `json:"schema"`              // base64-encoded Arrow IPC schema
+	CreatedAt   string `json:"created_at"`          // RFC3339 timestamp
+	SealedAt    string `json:"sealed_at,omitempty"` // RFC3339 timestamp when sealed
 }
 
 // WriteMetadata writes metadata to the provided writer as JSON.

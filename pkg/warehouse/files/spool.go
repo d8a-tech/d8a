@@ -450,11 +450,20 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 				if _, ok := sealedSet[key]; ok {
 					continue // already in toUpload from justSealed
 				}
+				sealTime := time.Now().UTC()
+				metaPath := filepath.Join(sealedDir, segmentID+".meta.json")
+				meta, err := LoadMetadataFile(metaPath)
+				if err == nil && meta.SealedAt != "" {
+					parsed, err := time.Parse(time.RFC3339, meta.SealedAt)
+					if err == nil {
+						sealTime = parsed
+					}
+				}
 				toUpload = append(toUpload, sealedSegment{
 					tableEsc:  tableEsc,
 					fp:        fp,
 					segmentID: segmentID,
-					sealTime:  time.Now().UTC(),
+					sealTime:  sealTime,
 				})
 			}
 		}
@@ -613,6 +622,24 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 				"fingerprint": fingerprint,
 				"segment_id":  segmentID,
 			}).Warn("failed to move metadata file during seal")
+		} else {
+			meta, err := LoadMetadataFile(sealedMetaPath)
+			if err != nil {
+				logrus.WithError(err).WithFields(logrus.Fields{
+					"table":       tableEsc,
+					"fingerprint": fingerprint,
+					"segment_id":  segmentID,
+				}).Warn("failed to load sealed metadata to write sealed_at")
+			} else {
+				meta.SealedAt = sealTime.Format(time.RFC3339)
+				if err := SaveMetadataFile(sealedMetaPath, meta); err != nil {
+					logrus.WithError(err).WithFields(logrus.Fields{
+						"table":       tableEsc,
+						"fingerprint": fingerprint,
+						"segment_id":  segmentID,
+					}).Warn("failed to write sealed_at into sealed metadata")
+				}
+			}
 		}
 	} else if !os.IsNotExist(err) {
 		logrus.WithError(err).WithFields(logrus.Fields{

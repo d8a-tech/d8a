@@ -365,13 +365,6 @@ var (
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
 	}
 
-	warehouseFilesFlushIntervalFlag = &cli.DurationFlag{
-		Name:    "warehouse-files-flush-interval",
-		Usage:   "Interval for flushing local spool files to object storage",
-		Value:   10 * time.Minute,
-		Sources: defaultSourceChain("WAREHOUSE_FILES_FLUSH_INTERVAL", "warehouse.files.flush_interval"),
-	}
-
 	warehouseFilesStorageFlag = &cli.StringFlag{
 		Name:    "warehouse-files-storage",
 		Usage:   "Storage destination for warehouse files (s3, gcs, or filesystem)",
@@ -496,7 +489,6 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseBigQueryPartitionIntervalFlag,
 	warehouseBigQueryPartitionExpirationDaysFlag,
 	warehouseFilesFormatFlag,
-	warehouseFilesFlushIntervalFlag,
 	warehouseFilesStorageFlag,
 	warehouseFilesFilesystemPathFlag,
 	warehouseFilesMaxSegmentSizeFlag,

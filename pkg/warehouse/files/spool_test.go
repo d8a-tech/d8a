@@ -290,6 +290,46 @@ func TestSpoolDriver_RecoverStreams_WithoutMeta(t *testing.T) {
 	assert.Equal(t, info.Size(), state.activeSizeBytes)
 }
 
+func TestSpoolDriver_DiscoverAllSealed_UsesSealedAt(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	}))
+
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("users")
+
+	// when
+	driver.mu.Lock()
+	segmentID, sealTime, err := driver.sealStream(tableEsc, fingerprint)
+	driver.mu.Unlock()
+	require.NoError(t, err)
+
+	segments, err := driver.discoverAllSealed(nil)
+	require.NoError(t, err)
+
+	var recovered sealedSegment
+	for _, seg := range segments {
+		if seg.segmentID == segmentID {
+			recovered = seg
+			break
+		}
+	}
+
+	// then
+	require.NotEmpty(t, recovered.segmentID)
+	assert.WithinDuration(t, sealTime, recovered.sealTime, time.Second)
+}
+
 func TestSpoolDriver_CleanTempFiles(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
