@@ -67,7 +67,7 @@ func (m *mockUploader) Upload(ctx context.Context, localPath, remoteKey string) 
 	return nil
 }
 
-// TestSpoolDriver_Write_CreatesFiles tests that Write creates CSV and metadata files
+// TestSpoolDriver_Write_CreatesFiles tests that Write creates a CSV file with the expected content.
 func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
@@ -98,10 +98,6 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	assert.FileExists(t, csvPath)
 	assert.Contains(t, csvPath, filepath.Join("streams", tableEsc, fingerprint))
 
-	// Verify metadata file created
-	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
-	assert.FileExists(t, metaPath)
-
 	// Verify CSV contents
 	csvData, err := os.ReadFile(csvPath)
 	require.NoError(t, err)
@@ -109,20 +105,6 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	assert.Contains(t, csvContent, "id,name")
 	assert.Contains(t, csvContent, "1,Alice")
 	assert.Contains(t, csvContent, "2,Bob")
-
-	// Verify metadata contents
-	metaFile2, err := os.Open(metaPath)
-	require.NoError(t, err)
-	defer func() {
-		_ = metaFile2.Close()
-	}()
-
-	meta, err := ReadMetadata(metaFile2)
-	require.NoError(t, err)
-	assert.Equal(t, "users", meta.Table)
-	assert.Equal(t, fingerprint, meta.Fingerprint)
-	assert.NotEmpty(t, meta.Schema)
-	assert.NotEmpty(t, meta.CreatedAt)
 }
 
 func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
@@ -239,7 +221,7 @@ func TestSpoolDriver_RecoverUploading(t *testing.T) {
 	assert.NoFileExists(t, uploadingPath)
 }
 
-func TestSpoolDriver_RecoverStreams_WithMeta(t *testing.T) {
+func TestSpoolDriver_RecoverStreams_UsesModTime(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
@@ -254,15 +236,9 @@ func TestSpoolDriver_RecoverStreams_WithMeta(t *testing.T) {
 	content := []byte("id\n1")
 	require.NoError(t, os.WriteFile(activePath, content, 0o600))
 
-	createdAt := time.Now().UTC().Add(-time.Minute)
-	meta := &Metadata{
-		Table:       "users",
-		Fingerprint: fingerprint,
-		Schema:      "schema",
-		CreatedAt:   createdAt.Format(time.RFC3339),
-	}
-	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
-	require.NoError(t, SaveMetadataFile(metaPath, meta))
+	// Set a known modtime so the assertion is deterministic.
+	knownTime := time.Date(2025, 6, 1, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, os.Chtimes(activePath, knownTime, knownTime))
 
 	driver.streams = make(map[string]*streamState)
 
@@ -274,11 +250,11 @@ func TestSpoolDriver_RecoverStreams_WithMeta(t *testing.T) {
 	key := streamKey(tableEsc, fingerprint)
 	state := driver.streams[key]
 	require.NotNil(t, state)
-	assert.WithinDuration(t, createdAt, state.createdAt, time.Second)
+	assert.WithinDuration(t, knownTime, state.createdAt, time.Second)
 	assert.Equal(t, int64(len(content)), state.activeSizeBytes)
 }
 
-func TestSpoolDriver_RecoverStreams_WithoutMeta(t *testing.T) {
+func TestSpoolDriver_DiscoverAllSealed_UsesFilenameTimestamp(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
@@ -286,57 +262,20 @@ func TestSpoolDriver_RecoverStreams_WithoutMeta(t *testing.T) {
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
 
 	tableEsc := EscapeTableName("users")
-	fingerprint := "abc123"
+	fingerprint := testFingerprint
 	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
 
-	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
-	content := []byte("id\n1")
-	require.NoError(t, os.WriteFile(activePath, content, 0o600))
-
-	info, err := os.Stat(activePath)
-	require.NoError(t, err)
-
-	driver.streams = make(map[string]*streamState)
+	// Place a timestamp-prefixed sealed segment directly on disk.
+	knownSealTime := time.Date(2024, 2, 25, 10, 0, 0, 0, time.UTC)
+	segmentID := segmentIDFromSealTime(knownSealTime)
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	require.NoError(t, os.WriteFile(sealedPath, []byte("id\n1"), 0o600))
 
 	// when
-	err = driver.recoverStreams()
-
-	// then
-	require.NoError(t, err)
-	key := streamKey(tableEsc, fingerprint)
-	state := driver.streams[key]
-	require.NotNil(t, state)
-	assert.WithinDuration(t, info.ModTime(), state.createdAt, time.Second)
-	assert.Equal(t, info.Size(), state.activeSizeBytes)
-}
-
-func TestSpoolDriver_DiscoverAllSealed_UsesSealedAt(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	uploader := &mockUploader{}
-	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
-
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-	}, nil)
-
-	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
-		{"id": int64(1)},
-	}))
-
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("users")
-
-	// when
-	driver.mu.Lock()
-	segmentID, sealTime, err := driver.sealStream(tableEsc, fingerprint)
-	driver.mu.Unlock()
-	require.NoError(t, err)
-
 	segments, err := driver.discoverAllSealed(nil)
 	require.NoError(t, err)
 
+	// then
 	var recovered sealedSegment
 	for _, seg := range segments {
 		if seg.segmentID == segmentID {
@@ -344,10 +283,43 @@ func TestSpoolDriver_DiscoverAllSealed_UsesSealedAt(t *testing.T) {
 			break
 		}
 	}
+	require.NotEmpty(t, recovered.segmentID)
+	assert.WithinDuration(t, knownSealTime, recovered.sealTime, time.Second)
+}
+
+func TestSpoolDriver_DiscoverAllSealed_LegacySegmentUsesModTime(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+
+	tableEsc := EscapeTableName("users")
+	fingerprint := testFingerprint
+	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+
+	// Legacy bare-UUID segment (no timestamp prefix).
+	legacyID := "550e8400-e29b-41d4-a716-446655440000"
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), legacyID)
+	require.NoError(t, os.WriteFile(sealedPath, []byte("id\n1"), 0o600))
+
+	knownModTime := time.Date(2023, 11, 14, 8, 0, 0, 0, time.UTC)
+	require.NoError(t, os.Chtimes(sealedPath, knownModTime, knownModTime))
+
+	// when
+	segments, err := driver.discoverAllSealed(nil)
+	require.NoError(t, err)
 
 	// then
+	var recovered sealedSegment
+	for _, seg := range segments {
+		if seg.segmentID == legacyID {
+			recovered = seg
+			break
+		}
+	}
 	require.NotEmpty(t, recovered.segmentID)
-	assert.WithinDuration(t, sealTime, recovered.sealTime, time.Second)
+	assert.WithinDuration(t, knownModTime, recovered.sealTime, time.Second)
 }
 
 func TestSpoolDriver_CleanTempFiles(t *testing.T) {
@@ -476,13 +448,6 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 
 	assert.FileExists(t, csvPathA)
 	assert.FileExists(t, csvPathB)
-
-	// Verify two metadata files
-	metaPathA := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprintA), "active.meta.json")
-	metaPathB := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprintB), "active.meta.json")
-
-	assert.FileExists(t, metaPathA)
-	assert.FileExists(t, metaPathB)
 
 	// Verify each file contains only its schema's data
 	csvDataA, err := os.ReadFile(csvPathA)
@@ -944,8 +909,8 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	// then - verify remote key format
-	// Pattern: table=<tableEsc>/schema=<fp>/dt=<YYYY>/<MM>/<DD>/<segmentId>.csv
-	pattern := `^table=my_table/schema=[a-f0-9]+/dt=\d{4}/\d{2}/\d{2}/[a-f0-9\-]+\.csv$`
+	// Pattern: table=<tableEsc>/schema=<fp>/dt=<YYYY>/<MM>/<DD>/<unixSeconds>_<uuid>.csv
+	pattern := `^table=my_table/schema=[a-f0-9]+/dt=\d{4}/\d{2}/\d{2}/\d+_[a-f0-9\-]+\.csv$`
 	matched, err := regexp.MatchString(pattern, capturedRemoteKey)
 	require.NoError(t, err)
 	assert.True(t, matched, "Remote key should match pattern, got: %s", capturedRemoteKey)

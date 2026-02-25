@@ -13,7 +13,6 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
-	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -160,13 +159,12 @@ func (sd *spoolDriver) startTimer() {
 	}()
 }
 
-// Write appends rows to disk file immediately and creates metadata.
+// Write appends rows to disk file immediately.
 // All file operations are mutex-protected to prevent concurrent writes.
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	fingerprint := SchemaFingerprint(schema)
 	tableEsc := EscapeTableName(table)
 	csvPath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
-	metaPath := filepath.Join(StreamDir(sd.spoolDir, tableEsc, fingerprint), "active.meta.json")
 	key := streamKey(tableEsc, fingerprint)
 
 	sd.mu.Lock()
@@ -230,44 +228,6 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 		"row_count":   len(rows),
 	}).Debug("wrote rows to file")
 
-	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
-		if err := sd.createMetadataFile(metaPath, table, fingerprint, schema); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// createMetadataFile creates the active.meta.json sidecar for a stream.
-// Delegates to SaveMetadataFile for atomic tmp+rename write.
-func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, schema *arrow.Schema) error {
-	encodedSchema, err := SerializeSchema(schema)
-	if err != nil {
-		logrus.WithError(err).WithField("table", table).Error("failed to serialize schema")
-		return fmt.Errorf("serializing schema: %w", err)
-	}
-
-	meta := &Metadata{
-		Table:       table,
-		Fingerprint: fingerprint,
-		Schema:      encodedSchema,
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-	}
-
-	if err := SaveMetadataFile(metaPath, meta); err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"table":       table,
-			"fingerprint": fingerprint,
-		}).Error("failed to create metadata file")
-		return fmt.Errorf("creating metadata file: %w", err)
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"table":       table,
-		"fingerprint": fingerprint,
-	}).Debug("created metadata file")
-
 	return nil
 }
 
@@ -301,16 +261,6 @@ func (sd *spoolDriver) recoverUploading(tableEsc, fingerprint string) error {
 		sealedPath := filepath.Join(sealedDir, name)
 		if err := os.Rename(uploadingPath, sealedPath); err != nil {
 			return fmt.Errorf("moving uploading segment %s: %w", uploadingPath, err)
-		}
-
-		uploadingMeta := filepath.Join(uploadingDir, fmt.Sprintf("%s.meta.json", segmentID))
-		sealedMeta := filepath.Join(sealedDir, fmt.Sprintf("%s.meta.json", segmentID))
-		if _, err := os.Stat(uploadingMeta); err == nil {
-			if err := os.Rename(uploadingMeta, sealedMeta); err != nil {
-				return fmt.Errorf("moving uploading metadata %s: %w", uploadingMeta, err)
-			}
-		} else if !os.IsNotExist(err) {
-			return fmt.Errorf("statting uploading metadata %s: %w", uploadingMeta, err)
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -473,13 +423,15 @@ func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSe
 				if _, ok := sealedSet[key]; ok {
 					continue // already in toUpload from justSealed
 				}
-				sealTime := time.Now().UTC()
-				metaPath := filepath.Join(sealedDir, segmentID+".meta.json")
-				meta, err := LoadMetadataFile(metaPath)
-				if err == nil && meta.SealedAt != "" {
-					parsed, err := time.Parse(time.RFC3339, meta.SealedAt)
-					if err == nil {
-						sealTime = parsed
+				sealTime, ok := parseSealTimeFromSegmentID(segmentID)
+				if !ok {
+					// Legacy bare-UUID segment: use file modtime for stable dt= partitioning.
+					segPath := SegmentPath(sealedDir, segmentID)
+					info, statErr := os.Stat(segPath)
+					if statErr == nil {
+						sealTime = info.ModTime().UTC()
+					} else {
+						sealTime = time.Now().UTC()
 					}
 				}
 				toUpload = append(toUpload, sealedSegment{
@@ -606,15 +558,6 @@ func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
 		return fmt.Errorf("moving segment to failed: %w", err)
 	}
 
-	// Move metadata if present
-	sealedMeta := filepath.Join(sealedDir, segmentID+".meta.json")
-	failedMeta := filepath.Join(failedDir, segmentID+".meta.json")
-	if _, err := os.Stat(sealedMeta); err == nil {
-		if err := os.Rename(sealedMeta, failedMeta); err != nil {
-			logrus.WithError(err).WithField("segment_id", segmentID).Warn("failed to move metadata to failed dir")
-		}
-	}
-
 	// Remove failcount file
 	failCountPath := FailCountPath(streamDir, segmentID)
 	if err := os.Remove(failCountPath); err != nil && !os.IsNotExist(err) {
@@ -626,50 +569,14 @@ func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
 
 // sealStream must be called with sd.mu held.
 func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID string, sealTime time.Time, err error) {
-	segmentID = uuid.NewString()
 	sealTime = time.Now().UTC()
+	segmentID = segmentIDFromSealTime(sealTime)
 
 	activePath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
 	sealedDir := SealedDir(sd.spoolDir, tableEsc, fingerprint)
 	sealedPath := SegmentPath(sealedDir, segmentID)
 	if err := os.Rename(activePath, sealedPath); err != nil {
 		return "", time.Time{}, fmt.Errorf("sealing active segment: %w", err)
-	}
-
-	activeMetaPath := filepath.Join(StreamDir(sd.spoolDir, tableEsc, fingerprint), "active.meta.json")
-	sealedMetaPath := filepath.Join(sealedDir, fmt.Sprintf("%s.meta.json", segmentID))
-	if _, err := os.Stat(activeMetaPath); err == nil {
-		if err := os.Rename(activeMetaPath, sealedMetaPath); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"table":       tableEsc,
-				"fingerprint": fingerprint,
-				"segment_id":  segmentID,
-			}).Warn("failed to move metadata file during seal")
-		} else {
-			meta, err := LoadMetadataFile(sealedMetaPath)
-			if err != nil {
-				logrus.WithError(err).WithFields(logrus.Fields{
-					"table":       tableEsc,
-					"fingerprint": fingerprint,
-					"segment_id":  segmentID,
-				}).Warn("failed to load sealed metadata to write sealed_at")
-			} else {
-				meta.SealedAt = sealTime.Format(time.RFC3339)
-				if err := SaveMetadataFile(sealedMetaPath, meta); err != nil {
-					logrus.WithError(err).WithFields(logrus.Fields{
-						"table":       tableEsc,
-						"fingerprint": fingerprint,
-						"segment_id":  segmentID,
-					}).Warn("failed to write sealed_at into sealed metadata")
-				}
-			}
-		}
-	} else if !os.IsNotExist(err) {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"table":       tableEsc,
-			"fingerprint": fingerprint,
-			"segment_id":  segmentID,
-		}).Warn("failed to stat metadata file during seal")
 	}
 
 	delete(sd.streams, streamKey(tableEsc, fingerprint))
@@ -733,26 +640,9 @@ func (sd *spoolDriver) recoverStreams() error {
 				return fmt.Errorf("statting active CSV %s: %w", activePath, err)
 			}
 
-			metaPath := filepath.Join(streamDir, "active.meta.json")
-			var createdAt time.Time
-			if _, err := os.Stat(metaPath); err == nil {
-				meta, err := LoadMetadataFile(metaPath)
-				if err != nil {
-					return fmt.Errorf("loading metadata %s: %w", metaPath, err)
-				}
-				createdAt, err = time.Parse(time.RFC3339, meta.CreatedAt)
-				if err != nil {
-					return fmt.Errorf("parsing metadata created_at: %w", err)
-				}
-			} else if !os.IsNotExist(err) {
-				return fmt.Errorf("statting metadata file %s: %w", metaPath, err)
-			} else {
-				createdAt = activeInfo.ModTime()
-			}
-
 			key := streamKey(tableEsc, fingerprint)
 			sd.streams[key] = &streamState{
-				createdAt:       createdAt,
+				createdAt:       activeInfo.ModTime().UTC(),
 				activeSizeBytes: activeInfo.Size(),
 			}
 		}
