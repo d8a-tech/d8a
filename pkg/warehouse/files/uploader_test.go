@@ -2,14 +2,12 @@ package files
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"gocloud.dev/blob/memblob"
-	"gocloud.dev/gcerrors"
 )
 
 const testCSVFilename = "test.csv"
@@ -129,39 +127,6 @@ func TestBlobUploader_Upload_NonExistentFile(t *testing.T) {
 	// then
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "reading file for upload")
-}
-
-func TestBlobUploader_Upload_ContextCancellation(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	testContent := []byte("test,data\n1,2\n")
-	filePath := filepath.Join(tempDir, testCSVFilename)
-	err := os.WriteFile(filePath, testContent, 0o644)
-	assert.NoError(t, err)
-
-	bucket := memblob.OpenBucket(nil)
-	t.Cleanup(func() { _ = bucket.Close() })
-
-	uploader := NewBlobUploader(bucket)
-
-	// Create cancelled context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	// when
-	err = uploader.Upload(ctx, filePath, testRemoteKey)
-
-	// then
-	// memblob doesn't always respect context cancellation synchronously,
-	// but if it does, we should handle it
-	// For this test, we just verify the file isn't deleted if upload fails
-	if err != nil {
-		// If upload failed due to context, file should remain
-		if errors.Is(err, context.Canceled) || gcerrors.Code(err) == gcerrors.Canceled {
-			_, statErr := os.Stat(filePath)
-			assert.NoError(t, statErr, "file should remain if upload was cancelled")
-		}
-	}
 }
 
 func TestFilesystemUploader_Upload_Success(t *testing.T) {

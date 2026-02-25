@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -10,17 +11,8 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-// TestNewCSVFormat_AcceptsOptions verifies format constructor accepts options.
-func TestNewCSVFormat_AcceptsOptions(t *testing.T) {
-	// given: format with compression option
-	format := NewCSVFormat(WithCompression("gzip"))
-
-	// then: format is created without error
-	assert.NotNil(t, format)
-	assert.Equal(t, "csv", format.Extension())
-}
 
 // TestCSVFormat_Write_WithVariousTypes verifies CSV writer handles different Arrow types.
 func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
@@ -30,6 +22,7 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 		rows           []map[string]any
 		expectedHeader string
 		expectedRows   []string
+		useCSVReader   bool
 	}{
 		{
 			name: "scalar types",
@@ -51,6 +44,7 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 				"1,Alice,95.5,true",
 				"2,Bob,87.3,false",
 			},
+			useCSVReader: false,
 		},
 		{
 			name: "timestamp type",
@@ -62,14 +56,15 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 				nil,
 			),
 			rows: []map[string]any{
-				{"event_time": time.Date(2026, 2, 24, 14, 30, 0, 0, time.UTC), "event": "click"},
+				{"event_time": time.Date(2026, 2, 24, 14, 30, 45, 123456789, time.UTC), "event": "click"},
 				{"event_time": time.Date(2026, 2, 24, 14, 31, 0, 0, time.UTC), "event": "view"},
 			},
 			expectedHeader: "event_time,event",
 			expectedRows: []string{
-				"2026-02-24T14:30:00Z,click",
+				"2026-02-24T14:30:45.123456789Z,click",
 				"2026-02-24T14:31:00Z,view",
 			},
+			useCSVReader: true,
 		},
 		{
 			name: "null values",
@@ -89,6 +84,7 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 				"1,Alice",
 				"2,",
 			},
+			useCSVReader: false,
 		},
 		{
 			name: "complex types JSON encoded",
@@ -111,6 +107,7 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 			expectedRows: []string{
 				`1,"[""important"",""urgent""]","{""source"":""web"",""version"":""1.0""}"`,
 			},
+			useCSVReader: false,
 		},
 	}
 
@@ -125,6 +122,19 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 
 			// then: no error and correct output
 			assert.NoError(t, err)
+
+			if tt.useCSVReader {
+				reader := csv.NewReader(&buf)
+				records, err := reader.ReadAll()
+				assert.NoError(t, err)
+				assert.Equal(t, len(tt.rows)+1, len(records), "should have header + data rows")
+				assert.Equal(t, strings.Split(tt.expectedHeader, ","), records[0], "header should match")
+
+				for i, expectedRow := range tt.expectedRows {
+					assert.Equal(t, strings.Split(expectedRow, ","), records[i+1], "row %d should match", i)
+				}
+				return
+			}
 
 			lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 			assert.Equal(t, len(tt.rows)+1, len(lines), "should have header + data rows")
@@ -342,7 +352,7 @@ func TestValueToString_Timestamp(t *testing.T) {
 
 	// then: RFC3339 format used
 	assert.NoError(t, err)
-	assert.Equal(t, "2026-02-24T14:30:45Z", result)
+	assert.Equal(t, "2026-02-24T14:30:45.123456789Z", result)
 }
 
 // TestValueToString_ComplexTypes verifies JSON encoding for complex types.
@@ -350,22 +360,34 @@ func TestValueToString_ComplexTypes(t *testing.T) {
 	tests := []struct {
 		name     string
 		value    any
-		expected string
+		assertFn func(t *testing.T, result string)
 	}{
 		{
-			name:     "string slice",
-			value:    []string{"a", "b", "c"},
-			expected: `["a","b","c"]`,
+			name:  "string slice",
+			value: []string{"a", "b", "c"},
+			assertFn: func(t *testing.T, result string) {
+				assert.Equal(t, `["a","b","c"]`, result)
+			},
 		},
 		{
-			name:     "map",
-			value:    map[string]string{"key": "value"},
-			expected: `{"key":"value"}`,
+			name:  "map",
+			value: map[string]string{"key": "value"},
+			assertFn: func(t *testing.T, result string) {
+				var decoded map[string]any
+				require.NoError(t, json.Unmarshal([]byte(result), &decoded))
+				assert.Equal(t, "value", decoded["key"])
+			},
 		},
 		{
-			name:     "nested structure",
-			value:    map[string]any{"items": []int{1, 2, 3}},
-			expected: `{"items":[1,2,3]}`,
+			name:  "nested structure",
+			value: map[string]any{"items": []int{1, 2, 3}},
+			assertFn: func(t *testing.T, result string) {
+				var decoded map[string]any
+				require.NoError(t, json.Unmarshal([]byte(result), &decoded))
+				items, ok := decoded["items"].([]any)
+				require.True(t, ok)
+				assert.Equal(t, []any{float64(1), float64(2), float64(3)}, items)
+			},
 		},
 	}
 
@@ -376,63 +398,7 @@ func TestValueToString_ComplexTypes(t *testing.T) {
 
 			// then: JSON encoded
 			assert.NoError(t, err)
-			assert.Equal(t, tt.expected, result)
+			tt.assertFn(t, result)
 		})
 	}
-}
-
-// TestCSVFormat_Write_Integration verifies full write cycle with real CSV parsing.
-func TestCSVFormat_Write_Integration(t *testing.T) {
-	// given: schema and rows
-	schema := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-			{Name: "name", Type: arrow.BinaryTypes.String},
-			{Name: "score", Type: arrow.PrimitiveTypes.Float64},
-			{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_us},
-		},
-		nil,
-	)
-
-	rows := []map[string]any{
-		{
-			"id":        int64(1),
-			"name":      "Alice",
-			"score":     95.5,
-			"timestamp": time.Date(2026, 2, 24, 14, 30, 0, 0, time.UTC),
-		},
-		{
-			"id":        int64(2),
-			"name":      "Bob",
-			"score":     87.3,
-			"timestamp": time.Date(2026, 2, 24, 14, 31, 0, 0, time.UTC),
-		},
-	}
-
-	// when: writing to CSV
-	format := NewCSVFormat()
-	var buf bytes.Buffer
-	err := format.Write(&buf, schema, rows)
-	assert.NoError(t, err)
-
-	// then: output is valid CSV that can be parsed
-	reader := csv.NewReader(&buf)
-	records, err := reader.ReadAll()
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(records), "should have header + 2 rows")
-
-	// Verify header
-	assert.Equal(t, []string{"id", "name", "score", "timestamp"}, records[0])
-
-	// Verify first row
-	assert.Equal(t, "1", records[1][0])
-	assert.Equal(t, "Alice", records[1][1])
-	assert.Equal(t, "95.5", records[1][2])
-	assert.Equal(t, "2026-02-24T14:30:00Z", records[1][3])
-
-	// Verify second row
-	assert.Equal(t, "2", records[2][0])
-	assert.Equal(t, "Bob", records[2][1])
-	assert.Equal(t, "87.3", records[2][2])
-	assert.Equal(t, "2026-02-24T14:31:00Z", records[2][3])
 }

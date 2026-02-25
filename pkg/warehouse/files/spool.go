@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -66,6 +67,8 @@ type spoolDriver struct {
 	mu                sync.Mutex     // protects concurrent file operations
 	streams           map[string]*streamState
 }
+
+var _ warehouse.Driver = (*spoolDriver)(nil)
 
 type streamState struct {
 	createdAt       time.Time

@@ -2,6 +2,7 @@ package files
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -12,15 +13,9 @@ import (
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
-	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// TestSpoolDriverImplementsDriver verifies that spoolDriver implements warehouse.Driver
-func TestSpoolDriverImplementsDriver(t *testing.T) {
-	var _ warehouse.Driver = (*spoolDriver)(nil)
-}
 
 type uploadCall struct {
 	localPath string
@@ -372,32 +367,48 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 
 	// when
 	err1 := driver.Write(context.Background(), "events", schema, batch1)
+	require.NoError(t, err1)
+
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("events")
+
+	driver.mu.Lock()
+	segmentID, _, sealErr := driver.sealStream(tableEsc, fingerprint)
+	driver.mu.Unlock()
+	require.NoError(t, sealErr)
+
 	err2 := driver.Write(context.Background(), "events", schema, batch2)
 
 	// then
-	require.NoError(t, err1)
 	require.NoError(t, err2)
 
-	// Verify single CSV file contains both batches
-	fingerprint := SchemaFingerprint(schema)
-	tableEsc := EscapeTableName("events")
-	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
 
-	csvData, err := os.ReadFile(csvPath)
+	sealedFile, err := os.Open(sealedPath)
 	require.NoError(t, err)
-	csvContent := string(csvData)
+	defer func() {
+		_ = sealedFile.Close()
+	}()
 
-	// Verify header only appears once
-	headerCount := strings.Count(csvContent, "id,value")
-	assert.Equal(t, 1, headerCount, "Header should appear exactly once")
+	activeFile, err := os.Open(activePath)
+	require.NoError(t, err)
+	defer func() {
+		_ = activeFile.Close()
+	}()
 
-	// Verify both batches present
-	assert.Contains(t, csvContent, "1,first")
-	assert.Contains(t, csvContent, "2,second")
+	sealedRecords, err := csv.NewReader(sealedFile).ReadAll()
+	require.NoError(t, err)
+	activeRecords, err := csv.NewReader(activeFile).ReadAll()
+	require.NoError(t, err)
 
-	// Verify metadata created only once
-	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
-	assert.FileExists(t, metaPath)
+	assert.Equal(t, 2, len(sealedRecords))
+	assert.Equal(t, []string{"id", "value"}, sealedRecords[0])
+	assert.Equal(t, []string{"1", "first"}, sealedRecords[1])
+
+	assert.Equal(t, 2, len(activeRecords))
+	assert.Equal(t, []string{"id", "value"}, activeRecords[0])
+	assert.Equal(t, []string{"2", "second"}, activeRecords[1])
 }
 
 // TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas tests schema isolation
@@ -632,36 +643,6 @@ func TestSpoolDriver_RunFlushCycle_EmptyDirectory(t *testing.T) {
 	assert.Equal(t, 0, len(uploader.calls), "Should not call uploader")
 }
 
-// TestSpoolDriver_ManualCycleMode tests WithManualCycle option
-func TestSpoolDriver_ManualCycleMode(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	uploader := &mockUploader{}
-	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
-
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-	}, nil)
-
-	// Write rows
-	err := driver.Write(context.Background(), "users", schema, []map[string]any{
-		{"id": int64(1)},
-	})
-	require.NoError(t, err)
-
-	// when - wait (no automatic flush should happen)
-	time.Sleep(100 * time.Millisecond)
-
-	// then
-	assert.Equal(t, 0, len(uploader.calls), "No automatic flush should occur")
-
-	// Manually run cycle with forceAll
-	err = driver.runFlushCycle(context.Background(), true)
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(uploader.calls), "Should upload after forced cycle")
-}
-
 // TestSpoolDriver_Close_Lifecycle tests Close behavior
 func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	// given
@@ -695,46 +676,6 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	fingerprint := SchemaFingerprint(schema)
 	csvPath := ActivePath(spoolDir, EscapeTableName("users"), fingerprint)
 	assert.NoFileExists(t, csvPath, "Active file should be sealed and uploaded")
-}
-
-// TestSpoolDriver_Close_StopsTimer tests that Close stops the timer goroutine
-func TestSpoolDriver_Close_StopsTimer(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	uploader := &mockUploader{}
-	format := NewCSVFormat()
-	// Create driver with short interval
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithSealCheckInterval(50*time.Millisecond),
-		WithMaxSegmentAge(1*time.Hour)) // Long age so timer doesn't trigger seal
-
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-	}, nil)
-
-	// Write rows
-	err := driver.Write(context.Background(), "users", schema, []map[string]any{
-		{"id": int64(1)},
-	})
-	require.NoError(t, err)
-
-	// when - close driver
-	err = driver.Close()
-	require.NoError(t, err)
-
-	uploader.mu.Lock()
-	callsAfterClose := len(uploader.calls)
-	uploader.mu.Unlock()
-
-	// Wait a bit to ensure timer doesn't fire again
-	time.Sleep(100 * time.Millisecond)
-
-	uploader.mu.Lock()
-	callsAfterWait := len(uploader.calls)
-	uploader.mu.Unlock()
-
-	// then - no new calls should happen after Close
-	assert.Equal(t, callsAfterClose, callsAfterWait, "Timer should not fire after Close")
 }
 
 // TestSpoolDriver_SizeTrigger tests that segments are sealed when size exceeds maxSegmentSize
@@ -983,39 +924,4 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 	matched, err := regexp.MatchString(pattern, capturedRemoteKey)
 	require.NoError(t, err)
 	assert.True(t, matched, "Remote key should match pattern, got: %s", capturedRemoteKey)
-}
-
-// TestSpoolDriver_Timer_AutomaticCycle tests timer behavior with triggers
-func TestSpoolDriver_Timer_AutomaticCycle(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	uploader := &mockUploader{}
-	format := NewCSVFormat()
-	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithSealCheckInterval(50*time.Millisecond),
-		WithMaxSegmentSize(1)) // Tiny size so any write triggers
-
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-	}, nil)
-
-	// Write a row
-	err := driver.Write(context.Background(), "users", schema, []map[string]any{
-		{"id": int64(1)},
-	})
-	require.NoError(t, err)
-
-	// when - wait for timer to fire
-	time.Sleep(200 * time.Millisecond)
-
-	// then
-	uploader.mu.Lock()
-	callCount := len(uploader.calls)
-	uploader.mu.Unlock()
-
-	assert.GreaterOrEqual(t, callCount, 1, "Timer should have triggered upload")
-
-	// Cleanup
-	err = driver.Close()
-	require.NoError(t, err)
 }

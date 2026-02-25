@@ -42,29 +42,15 @@ func TestSaveMetadataFile_CreatesFile(t *testing.T) {
 	err := SaveMetadataFile(metaPath, meta)
 
 	// then
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.FileExists(t, metaPath)
-}
+	assert.NoFileExists(t, metaPath+".tmp")
 
-func TestSaveMetadataFile_AtomicWrite(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	metaPath := filepath.Join(spoolDir, "active.meta.json")
-	meta := &Metadata{
-		Table:       "events",
-		Fingerprint: "a3b5c7f9e1d4b2a6",
-		Schema:      "base64-schema",
-		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
-	}
-
-	// when
-	err := SaveMetadataFile(metaPath, meta)
-
-	// then
-	assert.NoError(t, err)
-	_, err = os.Stat(metaPath + ".tmp")
-	assert.Error(t, err)
-	assert.True(t, os.IsNotExist(err))
+	loaded, err := LoadMetadataFile(metaPath)
+	require.NoError(t, err)
+	assert.NotEmpty(t, loaded.Table)
+	assert.NotEmpty(t, loaded.Fingerprint)
+	assert.NotEmpty(t, loaded.CreatedAt)
 }
 
 func TestSaveMetadataFile_InvalidDirectory(t *testing.T) {
@@ -105,6 +91,33 @@ func TestLoadMetadataFile_Success(t *testing.T) {
 	assert.Equal(t, meta.Table, loaded.Table)
 	assert.Equal(t, meta.Fingerprint, loaded.Fingerprint)
 	assert.Equal(t, meta.Schema, loaded.Schema)
+}
+
+func TestMetadata_RoundTrip(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	metaPath := filepath.Join(spoolDir, "active.meta.json")
+	meta := &Metadata{
+		Table:       "events",
+		Fingerprint: "a3b5c7f9e1d4b2a6",
+		Schema:      "base64-schema",
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339Nano),
+		SealedAt:    time.Now().UTC().Add(5 * time.Minute).Format(time.RFC3339Nano),
+	}
+
+	// when
+	err := SaveMetadataFile(metaPath, meta)
+	require.NoError(t, err)
+
+	loaded, err := LoadMetadataFile(metaPath)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, meta.Table, loaded.Table)
+	assert.Equal(t, meta.Fingerprint, loaded.Fingerprint)
+	assert.Equal(t, meta.Schema, loaded.Schema)
+	assert.Equal(t, meta.CreatedAt, loaded.CreatedAt)
+	assert.Equal(t, meta.SealedAt, loaded.SealedAt)
 }
 
 func TestLoadMetadataFile_NonexistentFile(t *testing.T) {
