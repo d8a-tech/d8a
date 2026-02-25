@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -954,7 +955,20 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 func TestSpoolDriver_Timer_Deterministic(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
-	uploader := &mockUploader{}
+	var capturedCSV []byte
+	var capturedMu sync.Mutex
+	uploader := &mockUploader{
+		uploadFunc: func(ctx context.Context, localPath, remoteKey string) error {
+			data, err := os.ReadFile(localPath) //nolint:gosec // test code
+			if err != nil {
+				return err
+			}
+			capturedMu.Lock()
+			capturedCSV = data
+			capturedMu.Unlock()
+			return nil
+		},
+	}
 	format := NewCSVFormat()
 	mt := newManualTicker()
 
@@ -970,7 +984,7 @@ func TestSpoolDriver_Timer_Deterministic(t *testing.T) {
 	}, nil)
 
 	require.NoError(t, driver.Write(context.Background(), "test", schema, []map[string]any{
-		{"id": int64(1)},
+		{"id": int64(42)},
 	}))
 
 	// when
@@ -982,6 +996,18 @@ func TestSpoolDriver_Timer_Deterministic(t *testing.T) {
 		defer uploader.mu.Unlock()
 		return len(uploader.calls) == 1
 	}, 1*time.Second, 5*time.Millisecond, "Expected exactly 1 upload call")
+
+	// Verify file contents
+	capturedMu.Lock()
+	csvData := capturedCSV
+	capturedMu.Unlock()
+	require.NotEmpty(t, csvData)
+	reader := csv.NewReader(strings.NewReader(string(csvData)))
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records, 2) // header + 1 data row
+	assert.Equal(t, "id", records[0][0])
+	assert.Equal(t, "42", records[1][0])
 }
 
 // TestSpoolDriver_Close_Idempotent tests that Close is safe to call multiple times.
@@ -995,16 +1021,12 @@ func TestSpoolDriver_Close_Idempotent(t *testing.T) {
 		WithManualCycle(),
 	)
 
-	// when
+	// when - call Close twice
 	err1 := driver.Close()
+	err2 := driver.Close()
 
-	// then
+	// then - neither panics and both return nil
 	require.NoError(t, err1)
-
-	// when
-	err2 := driver.runFlushCycle(context.Background(), false)
-
-	// then
 	require.NoError(t, err2)
 }
 
@@ -1205,4 +1227,116 @@ func TestCSVTimestamp_RFC3339Nano(t *testing.T) {
 
 	assert.Equal(t, "ts", records[0][0])
 	assert.Equal(t, "2026-02-24T14:30:45.123456789Z", records[1][0])
+}
+
+// TestSpoolDriver_Concurrency_WritesDuringTickSeal tests concurrent writes during flush cycles.
+func TestSpoolDriver_Concurrency_WritesDuringTickSeal(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+
+	type capturedFile struct {
+		data []byte
+	}
+	var capturedFiles []capturedFile
+	var capturedMu sync.Mutex
+
+	uploader := &mockUploader{
+		uploadFunc: func(ctx context.Context, localPath, remoteKey string) error {
+			data, err := os.ReadFile(localPath) //nolint:gosec // test code
+			if err != nil {
+				return err
+			}
+			capturedMu.Lock()
+			capturedFiles = append(capturedFiles, capturedFile{data: data})
+			capturedMu.Unlock()
+			return nil
+		},
+	}
+	format := NewCSVFormat()
+	ctx := context.Background()
+
+	driver := NewSpoolDriver(ctx, uploader, format, spoolDir,
+		WithManualCycle(),
+		WithMaxSegmentSize(1), // tiny so every flush cycle seals
+	)
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	const numWriters = 5
+	const rowsPerWriter = 20
+
+	var writersWg sync.WaitGroup
+	writersDone := make(chan struct{})
+
+	// when - start writer goroutines
+	for i := 0; i < numWriters; i++ {
+		writersWg.Add(1)
+		go func(writerID int) {
+			defer writersWg.Done()
+			for j := 0; j < rowsPerWriter; j++ {
+				err := driver.Write(ctx, "events", schema, []map[string]any{
+					{"id": int64(writerID*rowsPerWriter + j)},
+				})
+				assert.NoError(t, err)
+			}
+		}(i)
+	}
+
+	// Start flusher goroutine
+	var flusherWg sync.WaitGroup
+	flusherWg.Add(1)
+	go func() {
+		defer flusherWg.Done()
+		for {
+			select {
+			case <-writersDone:
+				return
+			default:
+				_ = driver.runFlushCycle(ctx, false)
+				runtime.Gosched()
+			}
+		}
+	}()
+
+	// Wait for writers to finish
+	writersWg.Wait()
+	close(writersDone)
+	flusherWg.Wait()
+
+	// Drain remainder
+	require.NoError(t, driver.runFlushCycle(ctx, true))
+
+	// then - count total data rows across all captured files
+	capturedMu.Lock()
+	files := capturedFiles
+	capturedMu.Unlock()
+
+	totalDataRows := 0
+	for _, f := range files {
+		reader := csv.NewReader(strings.NewReader(string(f.data)))
+		records, err := reader.ReadAll()
+		require.NoError(t, err)
+		// Each file has 1 header row + N data rows
+		if len(records) > 1 {
+			totalDataRows += len(records) - 1
+		}
+	}
+
+	assert.Equal(t, numWriters*rowsPerWriter, totalDataRows,
+		"Total data rows should equal numWriters * rowsPerWriter")
+
+	// Verify no .csv files remain in the sealed dir
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("events")
+	sealedDir := SealedDir(spoolDir, tableEsc, fingerprint)
+	entries, err := os.ReadDir(sealedDir)
+	if err != nil && !os.IsNotExist(err) {
+		require.NoError(t, err)
+	}
+	for _, entry := range entries {
+		assert.False(t, strings.HasSuffix(entry.Name(), ".csv"),
+			"No .csv files should remain in sealed dir, found: %s", entry.Name())
+	}
 }

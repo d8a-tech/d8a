@@ -77,6 +77,7 @@ type spoolDriver struct {
 	maxSegmentAge     time.Duration
 	sealCheckInterval time.Duration
 	stopCh            chan struct{}  // signal to stop timer
+	stopOnce          sync.Once      // ensures stopCh is closed only once
 	wg                sync.WaitGroup // wait for timer goroutine
 	mu                sync.Mutex     // protects concurrent file operations
 	streams           map[string]*streamState
@@ -678,7 +679,7 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 
 // Close gracefully shuts down the driver.
 func (sd *spoolDriver) Close() error {
-	close(sd.stopCh)
+	sd.stopOnce.Do(func() { close(sd.stopCh) })
 	sd.wg.Wait()
 	err := sd.runFlushCycle(context.Background(), true)
 	logrus.Info("driver closed")
