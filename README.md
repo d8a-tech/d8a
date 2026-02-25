@@ -16,7 +16,7 @@ Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, 
 - **Works alongside GA4** - Can run in parallel with GA4 for a smooth transition or as a reliable backup
 - **Dedicated web tracker (beta)** - A drop-in replacement for `gtag.js` with a matching API for an easy switch to d8a tracking
 - **Full session scope support** - Sessions are calculated on the backend for accuracy and flexibility - no reliance on client-side hacks
-- **BigQuery & ClickHouse support** - Export and analyze your data in Google BigQuery or ClickHouse for advanced analytics. Scales to billions of events with no upper limit
+- **BigQuery, ClickHouse & Object Storage / Files support** - Export and analyze your data in Google BigQuery or ClickHouse for advanced analytics, or write CSV files directly to S3/MinIO, GCS, or local filesystem. Scales to billions of events with no upper limit
 
 ## Core Use Cases
 

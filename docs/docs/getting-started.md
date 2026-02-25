@@ -122,4 +122,5 @@ After completing all the steps:
 
 - Verify that events are being received by your d8a instance in the warehouse of your choice
 - For BigQuery, you can copy the official [Looker Studio dashboard](https://lookerstudio.google.com/u/0/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9)
+- For the files warehouse driver, review the [files warehouse driver guide](/articles/warehouses/files) for upload destination options (S3/MinIO, GCS, or local filesystem)
 - Review the [database schema](/articles/database-schema) to understand the data structure

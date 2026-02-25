@@ -389,7 +389,7 @@ flowchart LR
     A[Session Rows<br/>Arrow Schema] --> B[Warehouse Driver<br/>Type Mapping]
     B --> C[Schema Management<br/>CreateTable/AddColumn]
     B --> D[Data Writing<br/>Batch Insert]
-    C --> E[BigQuery/ClickHouse<br/>Native Types]
+    C --> E[BigQuery/ClickHouse/Files<br/>Native Types]
     D --> E
 ```
 
@@ -440,7 +440,7 @@ type FieldTypeMapper[WHT SpecificWarehouseType] interface {
 }
 ```
 
-Each warehouse implementation (BigQuery, ClickHouse) provides its own type mapper that handles:
+Each relevant warehouse driver implementation (BigQuery, ClickHouse) provides its own type mapper that handles:
 - Primitive types (integers, floats, strings, booleans)
 - Complex types (timestamps, dates, arrays, structs)
 - Nullability handling
@@ -462,13 +462,15 @@ The `FindMissingColumns` function provides common logic for comparing schemas, h
 
 ### 6.4 Implementations
 
-Currently, two warehouse implementations are provided:
+Currently, three warehouse driver implementations are provided:
 
 - **BigQuery** (`pkg/warehouse/bigquery`) - Uses the BigQuery Go client library. Supports time partitioning configuration and handles BigQuery-specific features like nested/repeated fields. Uses streaming inserts for data writes.
 
 - **ClickHouse** (`pkg/warehouse/clickhouse`) - Uses the ClickHouse Go driver. Generates SQL DDL statements using a `QueryMapper` implementation. Uses batch inserts for efficient data loading. Supports ClickHouse-specific types and table engines.
 
-Both implementations handle:
+- **Files** (`pkg/warehouse/files`) - Writes session rows as CSV files to a local spool directory, then uploads sealed segments to S3/MinIO, GCS, or a local filesystem destination. `CreateTable` and `AddColumn` are no-ops; schema evolution is handled by the consumer of the files.
+
+All implementations handle:
 - Connection management and timeouts
 - Error handling with warehouse-specific error types
 - Schema caching for performance
