@@ -42,7 +42,7 @@ func EscapeTableName(table string) string {
 			builder.WriteRune(ch)
 		case ch >= '0' && ch <= '9':
 			builder.WriteRune(ch)
-		case ch == '-' || ch == '_' || ch == '.':
+		case ch == '-' || ch == '_':
 			builder.WriteRune(ch)
 		default:
 			builder.WriteRune('_')

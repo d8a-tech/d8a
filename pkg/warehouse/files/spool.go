@@ -162,8 +162,8 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 	return nil
 }
 
-// createMetadataFile creates a metadata file atomically for a CSV file.
-// Atomic write (tmp + rename) prevents flush timer from reading incomplete metadata.
+// createMetadataFile creates the active.meta.json sidecar for a stream.
+// Delegates to SaveMetadataFile for atomic tmp+rename write.
 func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, schema *arrow.Schema) error {
 	encodedSchema, err := SerializeSchema(schema)
 	if err != nil {
@@ -175,36 +175,15 @@ func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, s
 		Table:       table,
 		Fingerprint: fingerprint,
 		Schema:      encodedSchema,
-		CreatedAt:   time.Now().Format(time.RFC3339),
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
 	}
 
-	tmpPath := metaPath + ".tmp"
-	tmpFile, err := os.Create(tmpPath) //nolint:gosec // tmpPath is constructed from controlled inputs
-	if err != nil {
-		logrus.WithError(err).WithField("path", tmpPath).Error("failed to create temp metadata file")
-		return fmt.Errorf("creating temp metadata file: %w", err)
-	}
-
-	if err := WriteMetadata(tmpFile, meta); err != nil {
-		_ = tmpFile.Close()
-		_ = os.Remove(tmpPath)
-		logrus.WithError(err).WithField("table", table).Error("failed to write metadata")
-		return fmt.Errorf("writing metadata: %w", err)
-	}
-
-	if err := tmpFile.Close(); err != nil {
-		_ = os.Remove(tmpPath)
-		logrus.WithError(err).WithField("path", tmpPath).Error("failed to close temp metadata file")
-		return fmt.Errorf("closing temp metadata file: %w", err)
-	}
-
-	if err := os.Rename(tmpPath, metaPath); err != nil {
-		_ = os.Remove(tmpPath)
+	if err := SaveMetadataFile(metaPath, meta); err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
-			"tmp":  tmpPath,
-			"meta": metaPath,
-		}).Error("failed to rename metadata file")
-		return fmt.Errorf("renaming metadata file: %w", err)
+			"table":       table,
+			"fingerprint": fingerprint,
+		}).Error("failed to create metadata file")
+		return fmt.Errorf("creating metadata file: %w", err)
 	}
 
 	logrus.WithFields(logrus.Fields{

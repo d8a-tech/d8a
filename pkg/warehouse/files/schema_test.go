@@ -93,7 +93,7 @@ func TestEscapeTableName(t *testing.T) {
 		{
 			name:     "path traversal",
 			input:    "../../etc/passwd",
-			expected: ".._.._etc_passwd",
+			expected: "______etc_passwd",
 		},
 		{
 			name:     "empty string",
