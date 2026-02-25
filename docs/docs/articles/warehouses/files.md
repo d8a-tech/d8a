@@ -51,8 +51,6 @@ warehouse:
   driver: files
   files:
     storage: s3
-
-  object_storage:
     s3:
       host: s3.amazonaws.com
       bucket: my-bucket
@@ -69,8 +67,6 @@ warehouse:
   driver: files
   files:
     storage: gcs
-
-  object_storage:
     gcs:
       bucket: my-gcs-bucket
       creds_json: |

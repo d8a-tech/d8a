@@ -246,9 +246,9 @@ var objectStorageFlagsSpec = objectStorageFlags{
 		"d8a/queue",
 	),
 	Warehouse: createObjectStorageFlagSet(
-		"WAREHOUSE_OBJECT_STORAGE",
-		"warehouse-object-storage",
-		"warehouse.object_storage",
+		"WAREHOUSE_FILES",
+		"warehouse-files",
+		"warehouse.files",
 		"",
 	),
 }

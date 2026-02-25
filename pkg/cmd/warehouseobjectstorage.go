@@ -44,7 +44,7 @@ func createWarehouseS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket,
 }
 
 // Authentication order:
-// - If WAREHOUSE_OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
+// - If WAREHOUSE_FILES_GCS_CREDS_JSON is set (raw or base64), use it.
 // - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
 // nolint:funlen // straightforward setup
 func createWarehouseGCSBucket(
