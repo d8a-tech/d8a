@@ -16,6 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const spoolTestFingerprint = "abc123"
+
 // TestSpoolDriverImplementsDriver verifies that spoolDriver implements warehouse.Driver
 func TestSpoolDriverImplementsDriver(t *testing.T) {
 	var _ warehouse.Driver = (*spoolDriver)(nil)
@@ -72,6 +74,7 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	tableEsc := EscapeTableName("users")
 	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
 	assert.FileExists(t, csvPath)
+	assert.Contains(t, csvPath, filepath.Join("streams", tableEsc, fingerprint))
 
 	// Verify metadata file created
 	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
@@ -98,6 +101,211 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	assert.Equal(t, fingerprint, meta.Fingerprint)
 	assert.NotEmpty(t, meta.Schema)
 	assert.NotEmpty(t, meta.CreatedAt)
+}
+
+func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	rows := []map[string]any{{"id": int64(1)}}
+
+	// when
+	err := driver.Write(context.Background(), "users", schema, rows)
+
+	// then
+	require.NoError(t, err)
+
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("users")
+	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	assert.FileExists(t, activePath)
+	assert.DirExists(t, StreamDir(spoolDir, tableEsc, fingerprint))
+}
+
+func TestSpoolDriver_Write_TracksStreamState(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	rows := []map[string]any{{"id": int64(1)}}
+	start := time.Now()
+
+	// when
+	err := driver.Write(context.Background(), "users", schema, rows)
+
+	// then
+	require.NoError(t, err)
+
+	fingerprint := SchemaFingerprint(schema)
+	key := streamKey(EscapeTableName("users"), fingerprint)
+
+	driver.mu.Lock()
+	state := driver.streams[key]
+	driver.mu.Unlock()
+
+	require.NotNil(t, state)
+	assert.Greater(t, state.activeSizeBytes, int64(0))
+	assert.False(t, state.createdAt.Before(start))
+}
+
+func TestSpoolDriver_SealStream(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	rows := []map[string]any{{"id": int64(1)}}
+	require.NoError(t, driver.Write(context.Background(), "users", schema, rows))
+
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("users")
+
+	// when
+	driver.mu.Lock()
+	segmentID, _, err := driver.sealStream(tableEsc, fingerprint)
+	driver.mu.Unlock()
+
+	// then
+	require.NoError(t, err)
+	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	assert.NoFileExists(t, activePath)
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	assert.FileExists(t, sealedPath)
+}
+
+func TestSpoolDriver_RecoverUploading(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	streamTable := "users"
+	fingerprint := spoolTestFingerprint
+	tableEsc := EscapeTableName(streamTable)
+	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+
+	segmentID := "seg1"
+	uploadingPath := SegmentPath(UploadingDir(spoolDir, tableEsc, fingerprint), segmentID)
+	require.NoError(t, os.WriteFile(uploadingPath, []byte("id\n1"), 0o600))
+
+	// when
+	err := driver.recoverUploading(tableEsc, fingerprint)
+
+	// then
+	require.NoError(t, err)
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	assert.FileExists(t, sealedPath)
+	assert.NoFileExists(t, uploadingPath)
+}
+
+func TestSpoolDriver_RecoverStreams_WithMeta(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	tableEsc := EscapeTableName("users")
+	fingerprint := spoolTestFingerprint
+	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+
+	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	content := []byte("id\n1")
+	require.NoError(t, os.WriteFile(activePath, content, 0o600))
+
+	createdAt := time.Now().UTC().Add(-time.Minute)
+	meta := &Metadata{
+		Table:       "users",
+		Fingerprint: fingerprint,
+		Schema:      "schema",
+		CreatedAt:   createdAt.Format(time.RFC3339),
+	}
+	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
+	require.NoError(t, SaveMetadataFile(metaPath, meta))
+
+	driver.streams = make(map[string]*streamState)
+
+	// when
+	err := driver.recoverStreams()
+
+	// then
+	require.NoError(t, err)
+	key := streamKey(tableEsc, fingerprint)
+	state := driver.streams[key]
+	require.NotNil(t, state)
+	assert.WithinDuration(t, createdAt, state.createdAt, time.Second)
+	assert.Equal(t, int64(len(content)), state.activeSizeBytes)
+}
+
+func TestSpoolDriver_RecoverStreams_WithoutMeta(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, 0, WithManualFlush())
+
+	tableEsc := EscapeTableName("users")
+	fingerprint := "abc123"
+	require.NoError(t, EnsureStreamDirs(spoolDir, tableEsc, fingerprint))
+
+	activePath := ActivePath(spoolDir, tableEsc, fingerprint)
+	content := []byte("id\n1")
+	require.NoError(t, os.WriteFile(activePath, content, 0o600))
+
+	info, err := os.Stat(activePath)
+	require.NoError(t, err)
+
+	driver.streams = make(map[string]*streamState)
+
+	// when
+	err = driver.recoverStreams()
+
+	// then
+	require.NoError(t, err)
+	key := streamKey(tableEsc, fingerprint)
+	state := driver.streams[key]
+	require.NotNil(t, state)
+	assert.WithinDuration(t, info.ModTime(), state.createdAt, time.Second)
+	assert.Equal(t, info.Size(), state.activeSizeBytes)
+}
+
+func TestSpoolDriver_CleanTempFiles(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	streamDir := filepath.Join(spoolDir, "streams", "users", "abc123")
+	require.NoError(t, os.MkdirAll(streamDir, 0o750))
+
+	tmp1 := filepath.Join(streamDir, "one.tmp")
+	tmp2 := filepath.Join(streamDir, "two.tmp")
+	require.NoError(t, os.WriteFile(tmp1, []byte("tmp"), 0o600))
+	require.NoError(t, os.WriteFile(tmp2, []byte("tmp"), 0o600))
+
+	// when
+	err := cleanTempFiles(streamDir)
+
+	// then
+	require.NoError(t, err)
+	assert.NoFileExists(t, tmp1)
+	assert.NoFileExists(t, tmp2)
 }
 
 // TestSpoolDriver_Write_AppendsToExistingFile tests that multiple Write calls append

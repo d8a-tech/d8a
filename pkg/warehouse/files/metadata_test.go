@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnsureStreamDirs(t *testing.T) {
 	// given
 	spoolDir := t.TempDir()
 	tableEsc := "events"
-	fingerprint := "abc123"
+	fingerprint := testFingerprint
 
 	// when
 	err := EnsureStreamDirs(spoolDir, tableEsc, fingerprint)
@@ -164,3 +165,41 @@ func TestDeleteMetadataFile_NonexistentFile_NoError(t *testing.T) {
 	// then
 	assert.NoError(t, err)
 }
+
+func TestFindSealedSegments(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	sealedDir := filepath.Join(spoolDir, "sealed")
+
+	// when
+	segments, err := findSealedSegments(sealedDir)
+
+	// then
+	assert.NoError(t, err)
+	assert.Empty(t, segments)
+
+	// given
+	missingDir := filepath.Join(spoolDir, "missing")
+
+	// when
+	segments, err = findSealedSegments(missingDir)
+
+	// then
+	assert.NoError(t, err)
+	assert.Empty(t, segments)
+
+	// given
+	require.NoError(t, os.MkdirAll(sealedDir, 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "seg1.csv"), []byte("id\n1"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "seg2.csv"), []byte("id\n2"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(sealedDir, "other.txt"), []byte("ignore"), 0o600))
+
+	// when
+	segments, err = findSealedSegments(sealedDir)
+
+	// then
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"seg1", "seg2"}, segments)
+}
+
+const testFingerprint = "abc123"

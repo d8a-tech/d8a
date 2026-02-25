@@ -3,6 +3,8 @@ package files
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 )
@@ -86,4 +88,28 @@ func DeleteMetadataFile(metaPath string) error {
 	}
 	logrus.WithField("path", metaPath).Debug("deleted metadata file")
 	return nil
+}
+
+func findSealedSegments(sealedDir string) ([]string, error) {
+	entries, err := os.ReadDir(sealedDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("reading sealed dir %s: %w", sealedDir, err)
+	}
+
+	segments := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if filepath.Ext(name) != ".csv" {
+			continue
+		}
+		segments = append(segments, strings.TrimSuffix(name, ".csv"))
+	}
+
+	return segments, nil
 }
