@@ -93,20 +93,20 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 	// then
 	require.NoError(t, err)
 
-	// Verify CSV file created
+	// Verify active file created
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName("users")
-	csvPath := activePath(spoolDir, tableEsc, fingerprint)
-	assert.FileExists(t, csvPath)
-	assert.Contains(t, csvPath, filepath.Join("streams", tableEsc, fingerprint))
+	filePath := activePath(spoolDir, tableEsc, fingerprint, "csv")
+	assert.FileExists(t, filePath)
+	assert.Contains(t, filePath, filepath.Join("streams", tableEsc, fingerprint))
 
-	// Verify CSV contents
-	csvData, err := os.ReadFile(csvPath)
+	// Verify file contents
+	fileData, err := os.ReadFile(filePath)
 	require.NoError(t, err)
-	csvContent := string(csvData)
-	assert.Contains(t, csvContent, "id,name")
-	assert.Contains(t, csvContent, "1,Alice")
-	assert.Contains(t, csvContent, "2,Bob")
+	fileContent := string(fileData)
+	assert.Contains(t, fileContent, "id,name")
+	assert.Contains(t, fileContent, "1,Alice")
+	assert.Contains(t, fileContent, "2,Bob")
 }
 
 func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
@@ -130,7 +130,7 @@ func TestSpoolDriver_Write_UsesNewLayout(t *testing.T) {
 
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName("users")
-	activePath := activePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint, "csv")
 	assert.FileExists(t, activePath)
 	assert.DirExists(t, streamDir(spoolDir, tableEsc, fingerprint))
 }
@@ -191,7 +191,7 @@ func TestSpoolDriver_SealStream(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	activePath := activePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint, "csv")
 	assert.NoFileExists(t, activePath)
 	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
 	assert.FileExists(t, sealedPath)
@@ -234,7 +234,7 @@ func TestSpoolDriver_RecoverStreams_UsesModTime(t *testing.T) {
 	fingerprint := testFingerprint
 	require.NoError(t, ensureStreamDirs(spoolDir, tableEsc, fingerprint))
 
-	activePath := activePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint, "csv")
 	content := []byte("id\n1")
 	require.NoError(t, os.WriteFile(activePath, content, 0o600))
 
@@ -382,7 +382,7 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	require.NoError(t, err2)
 
 	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
-	activePath := activePath(spoolDir, tableEsc, fingerprint)
+	activePath := activePath(spoolDir, tableEsc, fingerprint, "csv")
 
 	sealedFile, err := os.Open(sealedPath)
 	require.NoError(t, err)
@@ -445,22 +445,22 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 	assert.NotEqual(t, fingerprintA, fingerprintB, "Different schemas should have different fingerprints")
 
 	tableEsc := escapeTableName("data")
-	csvPathA := activePath(spoolDir, tableEsc, fingerprintA)
-	csvPathB := activePath(spoolDir, tableEsc, fingerprintB)
+	filePathA := activePath(spoolDir, tableEsc, fingerprintA, "csv")
+	filePathB := activePath(spoolDir, tableEsc, fingerprintB, "csv")
 
-	assert.FileExists(t, csvPathA)
-	assert.FileExists(t, csvPathB)
+	assert.FileExists(t, filePathA)
+	assert.FileExists(t, filePathB)
 
 	// Verify each file contains only its schema's data
-	csvDataA, err := os.ReadFile(csvPathA)
+	fileDataA, err := os.ReadFile(filePathA)
 	require.NoError(t, err)
-	assert.Contains(t, string(csvDataA), "field_a")
-	assert.NotContains(t, string(csvDataA), "field_b")
+	assert.Contains(t, string(fileDataA), "field_a")
+	assert.NotContains(t, string(fileDataA), "field_b")
 
-	csvDataB, err := os.ReadFile(csvPathB)
+	fileDataB, err := os.ReadFile(filePathB)
 	require.NoError(t, err)
-	assert.Contains(t, string(csvDataB), "field_b")
-	assert.NotContains(t, string(csvDataB), "field_a")
+	assert.Contains(t, string(fileDataB), "field_b")
+	assert.NotContains(t, string(fileDataB), "field_a")
 }
 
 // TestSpoolDriver_Write_ConcurrentWrites tests mutex protection for concurrent writes
@@ -497,18 +497,18 @@ func TestSpoolDriver_Write_ConcurrentWrites(t *testing.T) {
 	// then
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName("concurrent")
-	csvPath := activePath(spoolDir, tableEsc, fingerprint)
+	csvPath := activePath(spoolDir, tableEsc, fingerprint, "csv")
 
 	csvData, err := os.ReadFile(csvPath)
 	require.NoError(t, err)
-	csvContent := string(csvData)
+	fileContent := string(csvData)
 
 	// Verify header appears exactly once
-	headerCount := strings.Count(csvContent, "id\n")
+	headerCount := strings.Count(fileContent, "id\n")
 	assert.Equal(t, 1, headerCount, "Header should appear exactly once")
 
 	// Verify total row count (header + data rows)
-	lines := strings.Split(strings.TrimSpace(csvContent), "\n")
+	lines := strings.Split(strings.TrimSpace(fileContent), "\n")
 	expectedRows := 1 + (numGoroutines * rowsPerGoroutine) // header + data rows
 	assert.Equal(t, expectedRows, len(lines), "All rows should be written")
 }
@@ -666,7 +666,7 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 
 	// Verify active file is gone (sealed and uploaded)
 	fingerprint := schemaFingerprint(schema)
-	csvPath := activePath(spoolDir, escapeTableName("users"), fingerprint)
+	csvPath := activePath(spoolDir, escapeTableName("users"), fingerprint, "csv")
 	assert.NoFileExists(t, csvPath, "Active file should be sealed and uploaded")
 }
 
@@ -778,7 +778,7 @@ func TestSpoolDriver_NoTrigger(t *testing.T) {
 
 	// Verify active file still exists
 	fingerprint := schemaFingerprint(schema)
-	activePath := activePath(spoolDir, escapeTableName("users"), fingerprint)
+	activePath := activePath(spoolDir, escapeTableName("users"), fingerprint, "csv")
 	assert.FileExists(t, activePath, "Active file should still exist")
 }
 
@@ -1031,7 +1031,7 @@ func TestSpoolDriver_Rotation_SealedFileImmutable(t *testing.T) {
 
 	// then
 	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fp), segID1, "csv")
-	activePath := activePath(spoolDir, tableEsc, fp)
+	activePath := activePath(spoolDir, tableEsc, fp, "csv")
 
 	assert.FileExists(t, sealedPath)
 	assert.FileExists(t, activePath)

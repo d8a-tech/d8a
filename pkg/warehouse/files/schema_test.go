@@ -114,7 +114,7 @@ func TestStreamPaths(t *testing.T) {
 	fingerprint := "abc123"
 	segmentID := "seg-1"
 
-	assert.Equal(t, activePath(spoolDir, tableEsc, fingerprint), activePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, activePath(spoolDir, tableEsc, fingerprint, "csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
 	assert.Equal(t, sealedDir(spoolDir, tableEsc, fingerprint), sealedDir(spoolDir, tableEsc, fingerprint))
 	assert.Equal(t, uploadingDir(spoolDir, tableEsc, fingerprint), uploadingDir(spoolDir, tableEsc, fingerprint))
 	assert.Equal(t, failedDir(spoolDir, tableEsc, fingerprint), failedDir(spoolDir, tableEsc, fingerprint))
@@ -122,7 +122,7 @@ func TestStreamPaths(t *testing.T) {
 	streamDir := streamDir(spoolDir, tableEsc, fingerprint)
 	assert.Equal(t, filepath.Join(spoolDir, "streams", tableEsc, fingerprint), streamDir)
 
-	assert.Equal(t, filepath.Join(streamDir, "active.csv"), activePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "active.csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
 	assert.Equal(t, filepath.Join(streamDir, "sealed"), sealedDir(spoolDir, tableEsc, fingerprint))
 	assert.Equal(t, filepath.Join(streamDir, "uploading"), uploadingDir(spoolDir, tableEsc, fingerprint))
 	assert.Equal(t, filepath.Join(streamDir, "failed"), failedDir(spoolDir, tableEsc, fingerprint))

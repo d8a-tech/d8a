@@ -166,7 +166,7 @@ func (sd *spoolDriver) startTimer() {
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName(table)
-	csvPath := activePath(sd.spoolDir, tableEsc, fingerprint)
+	filePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
 	key := streamKey(tableEsc, fingerprint)
 
 	sd.mu.Lock()
@@ -177,7 +177,7 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 	}
 
 	// Check if file exists to determine open flags
-	_, statErr := os.Stat(csvPath)
+	_, statErr := os.Stat(filePath)
 	fileExists := !os.IsNotExist(statErr)
 
 	var openFlags int
@@ -187,19 +187,19 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 		openFlags = os.O_CREATE | os.O_WRONLY
 	}
 
-	//nolint:gosec // G304: csvPath from controlled inputs
-	file, err := os.OpenFile(csvPath, openFlags, 0o600)
+	//nolint:gosec // G304: filePath from controlled inputs
+	file, err := os.OpenFile(filePath, openFlags, 0o600)
 	if err != nil {
 		logrus.WithError(err).WithFields(logrus.Fields{
 			"table":       table,
 			"fingerprint": fingerprint,
-			"path":        csvPath,
-		}).Error("failed to open CSV file")
-		return fmt.Errorf("opening CSV file: %w", err)
+			"path":        filePath,
+		}).Error("failed to open active file")
+		return fmt.Errorf("opening active file: %w", err)
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
-			logrus.WithError(closeErr).Error("failed to close CSV file")
+			logrus.WithError(closeErr).Error("failed to close active file")
 		}
 	}()
 
@@ -575,7 +575,7 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 	sealTime = time.Now().UTC()
 	segmentID = segmentIDFromSealTime(sealTime)
 
-	activePath := activePath(sd.spoolDir, tableEsc, fingerprint)
+	activePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
 	sealedDir := sealedDir(sd.spoolDir, tableEsc, fingerprint)
 	sealedPath := segmentPath(sealedDir, segmentID, sd.ext)
 	if err := os.Rename(activePath, sealedPath); err != nil {
@@ -634,13 +634,13 @@ func (sd *spoolDriver) recoverStreams() error {
 				return fmt.Errorf("recovering uploading segments for %s: %w", streamDir, err)
 			}
 
-			activePath := activePath(sd.spoolDir, tableEsc, fingerprint)
+			activePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
 			activeInfo, err := os.Stat(activePath)
 			if err != nil {
 				if os.IsNotExist(err) {
 					continue
 				}
-				return fmt.Errorf("statting active CSV %s: %w", activePath, err)
+				return fmt.Errorf("statting active file %s: %w", activePath, err)
 			}
 
 			key := streamKey(tableEsc, fingerprint)

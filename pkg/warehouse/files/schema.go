@@ -54,8 +54,8 @@ func streamDir(spoolDir, tableEsc, fingerprint string) string {
 }
 
 // activePath returns the active segment path for a stream.
-func activePath(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "active.csv")
+func activePath(spoolDir, tableEsc, fingerprint, ext string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "active."+ext)
 }
 
 // sealedDir returns the sealed segments directory for a stream.
