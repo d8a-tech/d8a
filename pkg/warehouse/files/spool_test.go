@@ -17,6 +17,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// manualTicker is a test-only ticker whose ticks are driven programmatically.
+type manualTicker struct {
+	ch chan time.Time
+}
+
+func newManualTicker() *manualTicker {
+	return &manualTicker{ch: make(chan time.Time, 1)}
+}
+
+func (m *manualTicker) C() <-chan time.Time { return m.ch }
+func (m *manualTicker) Stop()               {}
+
+// tick sends one tick, blocking until consumed or test times out.
+func (m *manualTicker) tick() {
+	m.ch <- time.Now()
+}
+
+// withManualTicker returns a SpoolOption that injects a manualTicker factory.
+func withManualTicker(mt *manualTicker) SpoolOption {
+	return func(sd *spoolDriver) {
+		sd.newTicker = func(d time.Duration) ticker { return mt }
+	}
+}
+
 type uploadCall struct {
 	localPath string
 	remoteKey string
@@ -924,4 +948,261 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 	matched, err := regexp.MatchString(pattern, capturedRemoteKey)
 	require.NoError(t, err)
 	assert.True(t, matched, "Remote key should match pattern, got: %s", capturedRemoteKey)
+}
+
+// TestSpoolDriver_Timer_Deterministic tests timer-based flush using deterministic ticker injection.
+func TestSpoolDriver_Timer_Deterministic(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	mt := newManualTicker()
+
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
+		WithMaxSegmentSize(1), // tiny so every cycle seals
+		WithSealCheckInterval(time.Hour),
+		withManualTicker(mt),
+	)
+	t.Cleanup(func() { _ = driver.Close() })
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	require.NoError(t, driver.Write(context.Background(), "test", schema, []map[string]any{
+		{"id": int64(1)},
+	}))
+
+	// when
+	mt.tick()
+
+	// then
+	require.Eventually(t, func() bool {
+		uploader.mu.Lock()
+		defer uploader.mu.Unlock()
+		return len(uploader.calls) == 1
+	}, 1*time.Second, 5*time.Millisecond, "Expected exactly 1 upload call")
+}
+
+// TestSpoolDriver_Close_Idempotent tests that Close is safe to call multiple times.
+func TestSpoolDriver_Close_Idempotent(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
+		WithManualCycle(),
+	)
+
+	// when
+	err1 := driver.Close()
+
+	// then
+	require.NoError(t, err1)
+
+	// when
+	err2 := driver.runFlushCycle(context.Background(), false)
+
+	// then
+	require.NoError(t, err2)
+}
+
+// TestSpoolDriver_Rotation_SealedFileImmutable tests that sealing creates an immutable file.
+func TestSpoolDriver_Rotation_SealedFileImmutable(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	t.Cleanup(func() { _ = driver.Close() })
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	tableEsc := EscapeTableName("users")
+	fp := SchemaFingerprint(schema)
+
+	// Write batch1
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	}))
+
+	// Seal manually
+	driver.mu.Lock()
+	segID1, _, err := driver.sealStream(tableEsc, fp)
+	driver.mu.Unlock()
+	require.NoError(t, err)
+
+	// Write batch2
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(2)},
+	}))
+
+	// then
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fp), segID1)
+	activePath := ActivePath(spoolDir, tableEsc, fp)
+
+	assert.FileExists(t, sealedPath)
+	assert.FileExists(t, activePath)
+	assert.NotEqual(t, sealedPath, activePath)
+
+	// Read sealed CSV
+	sealedData, err := os.ReadFile(sealedPath)
+	require.NoError(t, err)
+	sealedContent := string(sealedData)
+	assert.Contains(t, sealedContent, "id")
+	assert.Contains(t, sealedContent, "1")
+	assert.NotContains(t, sealedContent, "2")
+
+	// Read active CSV
+	activeData, err := os.ReadFile(activePath)
+	require.NoError(t, err)
+	activeContent := string(activeData)
+	assert.Contains(t, activeContent, "id")
+	assert.Contains(t, activeContent, "2")
+	assert.NotContains(t, activeContent, "\n1,")
+	assert.NotContains(t, activeContent, "\n1\n")
+}
+
+// TestSpoolDriver_Immutability_TwoSealsDistinctKeys tests that two seals produce distinct segment IDs.
+func TestSpoolDriver_Immutability_TwoSealsDistinctKeys(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	t.Cleanup(func() { _ = driver.Close() })
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	tableEsc := EscapeTableName("users")
+	fp := SchemaFingerprint(schema)
+
+	// Write row1, seal
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	}))
+	driver.mu.Lock()
+	segID1, _, err := driver.sealStream(tableEsc, fp)
+	driver.mu.Unlock()
+	require.NoError(t, err)
+
+	// Write row2, seal
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(2)},
+	}))
+	driver.mu.Lock()
+	segID2, _, err := driver.sealStream(tableEsc, fp)
+	driver.mu.Unlock()
+	require.NoError(t, err)
+
+	// then
+	assert.NotEqual(t, segID1, segID2)
+
+	// Upload both sealed segments
+	require.NoError(t, driver.runFlushCycle(context.Background(), false))
+
+	uploader.mu.Lock()
+	calls := uploader.calls
+	uploader.mu.Unlock()
+
+	require.Len(t, calls, 2)
+	assert.NotEqual(t, calls[0].remoteKey, calls[1].remoteKey)
+}
+
+// TestSpoolDriver_Quarantine_StopsRetrying tests that quarantined segments are not retried.
+func TestSpoolDriver_Quarantine_StopsRetrying(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{
+		uploadFunc: func(ctx context.Context, localPath, remoteKey string) error {
+			return fmt.Errorf("persistent upload error")
+		},
+	}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	t.Cleanup(func() { _ = driver.Close() })
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	require.NoError(t, driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	}))
+
+	fingerprint := SchemaFingerprint(schema)
+	tableEsc := EscapeTableName("users")
+	failedDir := FailedDir(spoolDir, tableEsc, fingerprint)
+
+	// when - run 3 times to reach quarantine
+	_ = driver.runFlushCycle(context.Background(), true)
+	_ = driver.runFlushCycle(context.Background(), false)
+	_ = driver.runFlushCycle(context.Background(), false)
+
+	// then - segment should be in failed/
+	entries, err := os.ReadDir(failedDir)
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(entries), 1)
+
+	uploader.mu.Lock()
+	callsAfter3 := len(uploader.calls)
+	uploader.mu.Unlock()
+	assert.Equal(t, 3, callsAfter3)
+
+	// when - run a 4th time
+	_ = driver.runFlushCycle(context.Background(), false)
+
+	// then - uploader was NOT called a 4th time
+	uploader.mu.Lock()
+	callsAfter4 := len(uploader.calls)
+	uploader.mu.Unlock()
+	assert.Equal(t, 3, callsAfter4)
+}
+
+// TestCSVTimestamp_RFC3339Nano tests that timestamps are written with nanosecond precision.
+func TestCSVTimestamp_RFC3339Nano(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	var capturedContent []byte
+	uploader := &mockUploader{
+		uploadFunc: func(ctx context.Context, localPath, remoteKey string) error {
+			data, err := os.ReadFile(localPath) //nolint:gosec // test code
+			if err != nil {
+				return err
+			}
+			capturedContent = data
+			return nil
+		},
+	}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir, WithManualCycle())
+	t.Cleanup(func() { _ = driver.Close() })
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "ts", Type: arrow.FixedWidthTypes.Timestamp_ns},
+	}, nil)
+
+	ts := time.Date(2026, 2, 24, 14, 30, 45, 123456789, time.UTC)
+	require.NoError(t, driver.Write(context.Background(), "events", schema, []map[string]any{
+		{"ts": ts},
+	}))
+
+	// when
+	require.NoError(t, driver.runFlushCycle(context.Background(), true))
+
+	// then
+	require.NotEmpty(t, capturedContent)
+
+	reader := csv.NewReader(strings.NewReader(string(capturedContent)))
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+	require.Len(t, records, 2) // header + 1 row
+
+	assert.Equal(t, "ts", records[0][0])
+	assert.Equal(t, "2026-02-24T14:30:45.123456789Z", records[1][0])
 }

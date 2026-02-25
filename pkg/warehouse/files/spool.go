@@ -48,6 +48,20 @@ func WithSealCheckInterval(d time.Duration) SpoolOption {
 	}
 }
 
+// ticker abstracts time.Ticker to allow deterministic testing.
+type ticker interface {
+	C() <-chan time.Time
+	Stop()
+}
+
+// realTicker wraps *time.Ticker to implement ticker.
+type realTicker struct {
+	t *time.Ticker
+}
+
+func (r *realTicker) C() <-chan time.Time { return r.t.C }
+func (r *realTicker) Stop()               { r.t.Stop() }
+
 // spoolDriver is a warehouse.Driver that writes analytics data directly to disk
 // files and periodically uploads them to object storage.
 //
@@ -66,6 +80,7 @@ type spoolDriver struct {
 	wg                sync.WaitGroup // wait for timer goroutine
 	mu                sync.Mutex     // protects concurrent file operations
 	streams           map[string]*streamState
+	newTicker         func(time.Duration) ticker
 }
 
 var _ warehouse.Driver = (*spoolDriver)(nil)
@@ -96,6 +111,10 @@ func NewSpoolDriver(
 		streams:           make(map[string]*streamState),
 	}
 
+	sd.newTicker = func(d time.Duration) ticker {
+		return &realTicker{time.NewTicker(d)}
+	}
+
 	for _, opt := range opts {
 		opt(sd)
 	}
@@ -122,12 +141,12 @@ func (sd *spoolDriver) startTimer() {
 		defer sd.wg.Done()
 		logrus.WithField("interval", sd.sealCheckInterval).Info("started flush cycle timer")
 
-		ticker := time.NewTicker(sd.sealCheckInterval)
-		defer ticker.Stop()
+		tk := sd.newTicker(sd.sealCheckInterval)
+		defer tk.Stop()
 
 		for {
 			select {
-			case <-ticker.C:
+			case <-tk.C():
 				if err := sd.runFlushCycle(sd.ctx, false); err != nil {
 					logrus.WithError(err).Error("automatic flush cycle failed")
 				}

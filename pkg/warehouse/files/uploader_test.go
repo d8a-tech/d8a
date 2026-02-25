@@ -4,9 +4,11 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gocloud.dev/blob/memblob"
 )
 
@@ -173,4 +175,41 @@ func TestFilesystemUploader_Upload_NonExistentFile(t *testing.T) {
 
 	// then
 	assert.Error(t, err)
+}
+
+func TestFilesystemUploader_Upload_CrossDevice_CopyFallback(t *testing.T) {
+	// given
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	testContent := []byte("cross-device test data")
+	srcPath := filepath.Join(srcDir, "test.csv")
+	require.NoError(t, os.WriteFile(srcPath, testContent, 0o644))
+
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	// Override renameFn to simulate EXDEV
+	fsUp, ok := uploader.(*filesystemUploader)
+	require.True(t, ok)
+	fsUp.renameFn = func(src, dst string) error {
+		return &os.LinkError{Op: "rename", Old: src, New: dst, Err: syscall.EXDEV}
+	}
+
+	// when
+	err = uploader.Upload(context.Background(), srcPath, testRemoteKey)
+
+	// then
+	require.NoError(t, err)
+
+	// Destination file should exist with correct content
+	destPath := filepath.Join(destDir, filepath.Base(testRemoteKey))
+	data, err := os.ReadFile(destPath)
+	require.NoError(t, err)
+	assert.Equal(t, testContent, data)
+
+	// Source file should be deleted
+	_, err = os.Stat(srcPath)
+	require.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
 }

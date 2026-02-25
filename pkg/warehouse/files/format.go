@@ -123,7 +123,7 @@ func valueToString(val any, fieldType arrow.DataType) (string, error) {
 	case float32, float64:
 		return fmt.Sprintf("%v", v), nil
 	case time.Time:
-		return v.Format(time.RFC3339), nil
+		return v.Format(time.RFC3339Nano), nil
 	}
 
 	// Handle complex types by JSON-encoding
