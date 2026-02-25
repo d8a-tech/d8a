@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"compress/gzip"
 	"os"
 	"path/filepath"
 	"time"
@@ -397,6 +398,20 @@ var (
 		Value:   15 * time.Second,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_SEAL_CHECK_INTERVAL", "warehouse.files.seal_check_interval"),
 	}
+
+	warehouseFilesCompressionFlag = &cli.StringFlag{
+		Name:    "warehouse-files-compression",
+		Usage:   "Compression algorithm for warehouse files (gzip, or empty for none)",
+		Value:   "",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION", "warehouse.files.compression"),
+	}
+
+	warehouseFilesCompressionLevelFlag = &cli.IntFlag{
+		Name:    "warehouse-files-compression-level",
+		Usage:   "Compression level for warehouse files (-1 = default, 1 = fastest, 9 = best compression)",
+		Value:   gzip.DefaultCompression,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION_LEVEL", "warehouse.files.compression_level"),
+	}
 )
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
@@ -494,6 +509,8 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesMaxSegmentSizeFlag,
 	warehouseFilesMaxSegmentAgeFlag,
 	warehouseFilesSealCheckIntervalFlag,
+	warehouseFilesCompressionFlag,
+	warehouseFilesCompressionLevelFlag,
 }
 
 func getServerFlags() []cli.Flag {
