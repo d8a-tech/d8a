@@ -13,8 +13,6 @@ import (
 )
 
 // SchemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
-// Uses Arrow's built-in Fingerprint() method, computes SHA256 hash, and takes first 16 hex characters.
-// Example: "a3b5c7f9e1d4b2a6"
 func SchemaFingerprint(schema *arrow.Schema) string {
 	arrowFp := schema.Fingerprint()
 	hash := sha256.Sum256([]byte(arrowFp))
@@ -27,7 +25,6 @@ func SchemaFingerprint(schema *arrow.Schema) string {
 
 // FilenameForWrite generates a filename for writing data with the given parameters.
 // Format: {fingerprint}_{table}.{ext}
-// Example: a3b5c7f9e1d4b2a6_events.csv
 //
 // Multiple Write() calls for the same table+schema will append to the same file.
 func FilenameForWrite(table, fingerprint string, format Format) string {
@@ -37,7 +34,6 @@ func FilenameForWrite(table, fingerprint string, format Format) string {
 
 // MetadataFilename generates a metadata filename for a CSV file.
 // Format: {fingerprint}_{table}.meta.json
-// Example: a3b5c7f9e1d4b2a6_events.meta.json
 func MetadataFilename(table, fingerprint string) string {
 	return fmt.Sprintf("%s_%s.meta.json", fingerprint, table)
 }
@@ -52,7 +48,6 @@ type Metadata struct {
 }
 
 // WriteMetadata writes metadata to the provided writer as JSON.
-// The metadata describes the Arrow schema and table information for a CSV file.
 func WriteMetadata(w io.Writer, metadata *Metadata) error {
 	data, err := json.Marshal(metadata)
 	if err != nil {
@@ -65,7 +60,6 @@ func WriteMetadata(w io.Writer, metadata *Metadata) error {
 }
 
 // ReadMetadata reads metadata from the provided reader.
-// The metadata describes the Arrow schema and table information for a CSV file.
 func ReadMetadata(r io.Reader) (*Metadata, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
@@ -79,7 +73,6 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 }
 
 // SerializeSchema serializes an Arrow schema to a base64-encoded string.
-// Uses Arrow IPC format for binary representation.
 func SerializeSchema(schema *arrow.Schema) (string, error) {
 	// Use flight.SerializeSchema to get bytes using Arrow IPC format
 	schemaBytes := flight.SerializeSchema(schema, memory.DefaultAllocator)
@@ -90,7 +83,6 @@ func SerializeSchema(schema *arrow.Schema) (string, error) {
 }
 
 // DeserializeSchema deserializes a base64-encoded Arrow schema string.
-// Reverse of SerializeSchema.
 func DeserializeSchema(encoded string) (*arrow.Schema, error) {
 	// Base64-decode the string
 	schemaBytes, err := base64.StdEncoding.DecodeString(encoded)

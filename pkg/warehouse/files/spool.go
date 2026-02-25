@@ -40,20 +40,7 @@ type spoolDriver struct {
 	mu            sync.Mutex     // protects concurrent file operations
 }
 
-// NewSpoolDriver creates a new spool driver that writes rows directly to disk
-// and periodically uploads files.
-//
-// The driver writes each Write() call synchronously to disk files without
-// in-memory buffering. A timer goroutine fires periodically to scan the spool
-// directory and upload CSV files. Files are uploaded via the provided Uploader.
-//
-// Parameters:
-//   - ctx: context for graceful shutdown and timeouts
-//   - uploader: handles moving files to final destination (cloud/local)
-//   - format: serialization format (CSV, Parquet, etc.)
-//   - spoolDir: directory for temporary spool files (must exist)
-//   - flushInterval: time between automatic flushes (0 = manual only)
-//   - opts: optional configuration
+// NewSpoolDriver creates a new spool driver that writes rows directly to disk.
 func NewSpoolDriver(
 	ctx context.Context,
 	uploader Uploader,
@@ -108,20 +95,6 @@ func (sd *spoolDriver) startTimer() {
 }
 
 // Write appends rows to disk file immediately and creates metadata.
-//
-// This method:
-//  1. Calculates CSV filename based on schema fingerprint and table name
-//  2. Opens CSV file in append mode (creates if missing)
-//  3. Writes rows using the configured Format
-//  4. Creates/updates metadata file with schema and table info
-//  5. Returns immediately (no buffering)
-//
-// All file operations are protected by a mutex to prevent concurrent writes
-// to the same file.
-//
-// Error handling:
-//   - File write errors: logged and returned, file left on disk for retry
-//   - Metadata write errors: logged and returned
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	// Step 1: Calculate filename
 	fingerprint := SchemaFingerprint(schema)
@@ -232,32 +205,21 @@ func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, s
 }
 
 // CreateTable is a no-op for spool drivers.
-// Schema management is handled by the underlying destination system.
 func (sd *spoolDriver) CreateTable(table string, schema *arrow.Schema) error {
 	return nil
 }
 
 // AddColumn is a no-op for spool drivers.
-// Schema evolution is handled by the underlying destination system.
 func (sd *spoolDriver) AddColumn(table string, field *arrow.Field) error {
 	return nil
 }
 
 // MissingColumns always returns an empty slice for spool drivers.
-// Schema validation is deferred to the destination system.
 func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
 	return []*arrow.Field{}, nil
 }
 
 // Flush scans the spool directory for CSV files and uploads them.
-//
-// This method:
-//  1. Scans the spool directory for CSV files
-//  2. For each CSV file, uploads it via the Uploader
-//  3. Deletes the CSV and metadata files after successful upload
-//  4. Returns combined error if any uploads failed
-//
-// This is useful for graceful shutdown or manual trigger points.
 func (sd *spoolDriver) Flush(ctx context.Context) error {
 	// Step 1: Scan spool directory for CSV files
 	csvFiles, err := FindCSVFiles(sd.spoolDir)
@@ -344,12 +306,6 @@ func (sd *spoolDriver) Flush(ctx context.Context) error {
 }
 
 // Close gracefully shuts down the driver.
-//
-// This method:
-//  1. Closes the stop channel to signal the timer goroutine to exit
-//  2. Waits for the timer goroutine to complete
-//  3. Performs a final Flush to upload remaining files
-//  4. Returns any errors from the final flush
 func (sd *spoolDriver) Close() error {
 	close(sd.stopCh)
 	sd.wg.Wait()

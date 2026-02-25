@@ -10,8 +10,7 @@ import (
 )
 
 // SaveMetadataFile writes metadata to a file atomically using a temporary file.
-// The metadata file contains table name, fingerprint, schema, and creation timestamp.
-// File is written atomically: write to .tmp file, then rename to final location.
+// Atomic write (tmp + rename) prevents flush timer from reading incomplete metadata.
 func SaveMetadataFile(spoolDir, table, fingerprint, schemaB64 string) (string, error) {
 	metadata := &Metadata{
 		Table:       table,
@@ -57,7 +56,6 @@ func SaveMetadataFile(spoolDir, table, fingerprint, schemaB64 string) (string, e
 }
 
 // LoadMetadataFile reads metadata from a file.
-// Returns the parsed metadata and any error encountered.
 func LoadMetadataFile(metaPath string) (*Metadata, error) {
 	file, err := os.Open(metaPath) //nolint:gosec // metaPath is controlled, not user input
 	if err != nil {
@@ -78,7 +76,6 @@ func LoadMetadataFile(metaPath string) (*Metadata, error) {
 }
 
 // DeleteMetadataFile removes a metadata file from disk.
-// Used after successful CSV upload to clean up local files.
 func DeleteMetadataFile(metaPath string) error {
 	if err := os.Remove(metaPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("deleting metadata file: %w", err)
@@ -88,7 +85,6 @@ func DeleteMetadataFile(metaPath string) error {
 }
 
 // FindCSVFiles finds all CSV files in the spool directory.
-// Returns a list of full paths to CSV files (not metadata files).
 func FindCSVFiles(spoolDir string) ([]string, error) {
 	entries, err := os.ReadDir(spoolDir)
 	if err != nil {
@@ -109,7 +105,6 @@ func FindCSVFiles(spoolDir string) ([]string, error) {
 }
 
 // GetMetadataPathForCSV returns the metadata file path for a given CSV file.
-// For example: "events.csv" -> "events.meta.json" (in same directory)
 func GetMetadataPathForCSV(csvPath string) string {
 	dir := filepath.Dir(csvPath)
 	base := filepath.Base(csvPath)

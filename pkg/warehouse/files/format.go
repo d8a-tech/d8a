@@ -32,7 +32,6 @@ type formatConfig struct {
 }
 
 // WithCompression configures compression for the format.
-// Compression is not yet implemented but the API is designed to support it.
 func WithCompression(compressionType string) FormatOption {
 	return func(config *formatConfig) {
 		config.compression = compressionType
@@ -44,7 +43,6 @@ type csvFormat struct {
 }
 
 // NewCSVFormat creates a new CSV format implementation.
-// Accepts optional configuration via FormatOption functions.
 func NewCSVFormat(opts ...FormatOption) Format {
 	cfg := formatConfig{}
 	for _, opt := range opts {
@@ -62,22 +60,18 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 	defer writer.Flush()
 
 	// Check if we need to write header (only for empty files)
-	// For files opened with O_APPEND, the position will be at end, but we need to check size
 	shouldWriteHeader := true
 	if seeker, ok := w.(io.Seeker); ok {
-		// Get current position, seek to end to get size, then restore position
 		currentPos, err := seeker.Seek(0, io.SeekCurrent)
 		if err == nil {
 			size, err := seeker.Seek(0, io.SeekEnd)
 			if err == nil && size > 0 {
 				shouldWriteHeader = false
 			}
-			// Restore original position (best effort)
 			_, _ = seeker.Seek(currentPos, io.SeekStart)
 		}
 	}
 
-	// Write header row if needed
 	if shouldWriteHeader {
 		header := make([]string, len(schema.Fields()))
 		for i, field := range schema.Fields() {
@@ -114,12 +108,10 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 
 // valueToString converts an arbitrary value to a string for CSV output.
 func valueToString(val any, fieldType arrow.DataType) (string, error) {
-	// Handle nil
 	if val == nil {
 		return "", nil
 	}
 
-	// Handle primitives
 	switch v := val.(type) {
 	case string:
 		return v, nil
@@ -139,7 +131,6 @@ func valueToString(val any, fieldType arrow.DataType) (string, error) {
 	}
 
 	// Handle complex types by JSON-encoding
-	// This includes lists, structs, maps, and other nested types
 	jsonBytes, err := json.Marshal(val)
 	if err != nil {
 		return "", fmt.Errorf("JSON encoding complex value: %w", err)
