@@ -13,6 +13,7 @@ import (
 )
 
 const testCSVFilename = "test.csv"
+const testRemoteKey = "table=events/schema=abc123/dt=2026/02/25/seg-id.csv"
 
 func TestBlobUploader_Upload_Success(t *testing.T) {
 	// given
@@ -28,13 +29,13 @@ func TestBlobUploader_Upload_Success(t *testing.T) {
 	uploader := NewBlobUploader(bucket)
 
 	// when
-	err = uploader.Upload(context.Background(), filePath)
+	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
 
 	// then
 	assert.NoError(t, err)
 
 	// Verify data was written to bucket
-	storedData, err := bucket.ReadAll(context.Background(), testCSVFilename)
+	storedData, err := bucket.ReadAll(context.Background(), testRemoteKey)
 	assert.NoError(t, err)
 	assert.Equal(t, testContent, storedData)
 
@@ -62,7 +63,7 @@ func TestBlobUploader_Upload_UploadError(t *testing.T) {
 	uploader := NewBlobUploader(bucket)
 
 	// when
-	err = uploader.Upload(context.Background(), filePath)
+	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
 
 	// then
 	assert.Error(t, err)
@@ -99,14 +100,14 @@ func TestBlobUploader_Upload_DeleteErrorAfterUpload(t *testing.T) {
 	uploader := NewBlobUploader(bucket)
 
 	// when
-	err = uploader.Upload(context.Background(), filePath)
+	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
 
 	// then
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "deleting local file")
 
 	// Verify data was written to bucket
-	storedData, err := bucket.ReadAll(context.Background(), testCSVFilename)
+	storedData, err := bucket.ReadAll(context.Background(), testRemoteKey)
 	assert.NoError(t, err)
 	assert.Equal(t, testContent, storedData)
 
@@ -123,7 +124,7 @@ func TestBlobUploader_Upload_NonExistentFile(t *testing.T) {
 	uploader := NewBlobUploader(bucket)
 
 	// when
-	err := uploader.Upload(context.Background(), "/nonexistent/file/path.csv")
+	err := uploader.Upload(context.Background(), "/nonexistent/file/path.csv", testRemoteKey)
 
 	// then
 	assert.Error(t, err)
@@ -148,7 +149,7 @@ func TestBlobUploader_Upload_ContextCancellation(t *testing.T) {
 	cancel()
 
 	// when
-	err = uploader.Upload(ctx, filePath)
+	err = uploader.Upload(ctx, filePath, testRemoteKey)
 
 	// then
 	// memblob doesn't always respect context cancellation synchronously,
@@ -180,7 +181,7 @@ func TestFilesystemUploader_Upload_Success(t *testing.T) {
 	assert.NotNil(t, uploader)
 
 	// when
-	err = uploader.Upload(context.Background(), srcFilePath)
+	err = uploader.Upload(context.Background(), srcFilePath, testRemoteKey)
 
 	// then
 	assert.NoError(t, err)
@@ -189,7 +190,7 @@ func TestFilesystemUploader_Upload_Success(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, os.IsNotExist(err))
 	// Verify the file exists at destination
-	destFilePath := filepath.Join(destDir, testFilename)
+	destFilePath := filepath.Join(destDir, filepath.Base(testRemoteKey))
 	data, err := os.ReadFile(destFilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, testContent, data)
@@ -203,7 +204,7 @@ func TestFilesystemUploader_Upload_NonExistentFile(t *testing.T) {
 	assert.NoError(t, err)
 
 	// when
-	err = uploader.Upload(context.Background(), "/nonexistent/file/path.txt")
+	err = uploader.Upload(context.Background(), "/nonexistent/file/path.txt", testRemoteKey)
 
 	// then
 	assert.Error(t, err)

@@ -12,7 +12,7 @@ import (
 
 // Uploader handles uploading files to a destination.
 type Uploader interface {
-	Upload(ctx context.Context, filePath string) error
+	Upload(ctx context.Context, localPath, remoteKey string) error
 }
 
 // blobUploader implements Uploader for cloud blob storage.
@@ -25,16 +25,16 @@ func NewBlobUploader(bucket *blob.Bucket) Uploader {
 	return &blobUploader{bucket: bucket}
 }
 
-func (u *blobUploader) Upload(ctx context.Context, filePath string) error {
-	filename := filepath.Base(filePath)
+func (u *blobUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
+	filename := filepath.Base(localPath)
 
-	data, err := os.ReadFile(filePath) //nolint:gosec // filePath is intentionally provided by caller
+	data, err := os.ReadFile(localPath) //nolint:gosec // localPath is intentionally provided by caller
 	if err != nil {
 		logrus.WithError(err).WithField("file", filename).Error("failed to read file for upload")
 		return fmt.Errorf("reading file for upload: %w", err)
 	}
 
-	fileInfo, err := os.Stat(filePath)
+	fileInfo, err := os.Stat(localPath)
 	if err != nil {
 		logrus.WithError(err).WithField("file", filename).Error("failed to stat file")
 		return fmt.Errorf("getting file info: %w", err)
@@ -45,12 +45,12 @@ func (u *blobUploader) Upload(ctx context.Context, filePath string) error {
 		"size": fileInfo.Size(),
 	}).Info("uploading file to blob storage")
 
-	if err := u.bucket.WriteAll(ctx, filename, data, nil); err != nil {
+	if err := u.bucket.WriteAll(ctx, remoteKey, data, nil); err != nil {
 		logrus.WithError(err).WithField("file", filename).Error("failed to upload file")
 		return fmt.Errorf("uploading file to blob storage: %w", err)
 	}
 
-	if err := os.Remove(filePath); err != nil {
+	if err := os.Remove(localPath); err != nil {
 		logrus.WithError(err).WithField("file", filename).Warn("uploaded but failed to delete local file")
 		return fmt.Errorf("deleting local file after upload: %w", err)
 	}
@@ -76,10 +76,10 @@ func NewFilesystemUploader(destDir string) (Uploader, error) {
 	return &filesystemUploader{destDir: destDir}, nil
 }
 
-func (u *filesystemUploader) Upload(ctx context.Context, filePath string) error {
-	filename := filepath.Base(filePath)
+func (u *filesystemUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
+	filename := filepath.Base(remoteKey)
 	destPath := filepath.Join(u.destDir, filename)
-	if err := os.Rename(filePath, destPath); err != nil {
+	if err := os.Rename(localPath, destPath); err != nil {
 		return fmt.Errorf("moving file to filesystem destination: %w", err)
 	}
 	logrus.Infof("moved file to filesystem destination")

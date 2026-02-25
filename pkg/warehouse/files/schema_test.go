@@ -2,7 +2,9 @@ package files
 
 import (
 	"bytes"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/stretchr/testify/assert"
@@ -72,69 +74,71 @@ func TestSchemaFingerprint_DifferentForDifferentSchemas(t *testing.T) {
 	assert.NotEqual(t, fp1, fp2)
 }
 
-// TestFilenameForWrite_GeneratesCorrectFilename verifies filename format.
-func TestFilenameForWrite_GeneratesCorrectFilename(t *testing.T) {
+func TestEscapeTableName(t *testing.T) {
 	tests := []struct {
-		name             string
-		table            string
-		fingerprint      string
-		format           Format
-		expectedFilename string
+		name     string
+		input    string
+		expected string
 	}{
 		{
-			name:             "csv format",
-			table:            "events",
-			fingerprint:      "a3b5c7f9e1d4b2a6",
-			format:           NewCSVFormat(),
-			expectedFilename: "a3b5c7f9e1d4b2a6_events.csv",
+			name:     "safe characters",
+			input:    "events_2026-02-25",
+			expected: "events_2026-02-25",
 		},
 		{
-			name:             "table with underscores",
-			table:            "user_events",
-			fingerprint:      "1234567890abcdef",
-			format:           NewCSVFormat(),
-			expectedFilename: "1234567890abcdef_user_events.csv",
+			name:     "unsafe characters",
+			input:    "events$#%",
+			expected: "events___",
+		},
+		{
+			name:     "path traversal",
+			input:    "../../etc/passwd",
+			expected: ".._.._etc_passwd",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// when: generating filename
-			filename := FilenameForWrite(tt.table, tt.fingerprint, tt.format)
-
-			// then: filename matches expected format
-			assert.Equal(t, tt.expectedFilename, filename)
+			assert.Equal(t, tt.expected, EscapeTableName(tt.input))
 		})
 	}
 }
 
-// TestFilenameForWrite_NoTimestamp verifies no timestamp in filename.
-func TestFilenameForWrite_NoTimestamp(t *testing.T) {
-	// given
-	table := "events"
-	fingerprint := "abc123def456"
-	format := NewCSVFormat()
+func TestStreamPaths(t *testing.T) {
+	spoolDir := "/spool"
+	tableEsc := "events"
+	fingerprint := "abc123"
+	segmentID := "seg-1"
 
-	// when: generating filename twice
-	filename1 := FilenameForWrite(table, fingerprint, format)
-	filename2 := FilenameForWrite(table, fingerprint, format)
+	assert.Equal(t, ActivePath(spoolDir, tableEsc, fingerprint), ActivePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, SealedDir(spoolDir, tableEsc, fingerprint), SealedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, UploadingDir(spoolDir, tableEsc, fingerprint), UploadingDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, FailedDir(spoolDir, tableEsc, fingerprint), FailedDir(spoolDir, tableEsc, fingerprint))
 
-	// then: filenames are identical (no timestamp)
-	assert.Equal(t, filename1, filename2)
-	assert.NotContains(t, filename1, "Z") // No Z suffix from timestamps
+	streamDir := StreamDir(spoolDir, tableEsc, fingerprint)
+	assert.Equal(t, filepath.Join(spoolDir, "streams", tableEsc, fingerprint), streamDir)
+
+	assert.Equal(t, filepath.Join(streamDir, "active.csv"), ActivePath(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "sealed"), SealedDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "uploading"), UploadingDir(spoolDir, tableEsc, fingerprint))
+	assert.Equal(t, filepath.Join(streamDir, "failed"), FailedDir(spoolDir, tableEsc, fingerprint))
+
+	sealedPath := SegmentPath(SealedDir(spoolDir, tableEsc, fingerprint), segmentID)
+	assert.Equal(t, filepath.Join(streamDir, "sealed", "seg-1.csv"), sealedPath)
+
+	failCountPath := FailCountPath(streamDir, segmentID)
+	assert.Equal(t, filepath.Join(streamDir, "seg-1.failcount"), failCountPath)
 }
 
-// TestMetadataFilename_GeneratesCorrectPath verifies metadata filename format.
-func TestMetadataFilename_GeneratesCorrectPath(t *testing.T) {
-	// given
-	table := "events"
-	fingerprint := "a3b5c7f9e1d4b2a6"
-
-	// when: generating metadata filename
-	metaFilename := MetadataFilename(table, fingerprint)
-
-	// then: format is {fingerprint}_{table}.meta.json
-	assert.Equal(t, "a3b5c7f9e1d4b2a6_events.meta.json", metaFilename)
+func TestSegmentRemoteKey(t *testing.T) {
+	sealTime := time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC)
+	key := SegmentRemoteKey("events", "abc123", "seg-1", sealTime)
+	assert.Equal(t, "table=events/schema=abc123/dt=2026/02/25/seg-1.csv", key)
 }
 
 // TestMetadataStruct_CorrectJSONTags verifies Metadata struct JSON marshaling.
@@ -428,8 +432,14 @@ func TestSerializeDeserializeWithMetadataFile(t *testing.T) {
 	fingerprint := SchemaFingerprint(originalSchema)
 	table := "users"
 
-	metaPath, err := SaveMetadataFile(spoolDir, table, fingerprint, serializedSchema)
-	assert.NoError(t, err)
+	metaPath := filepath.Join(spoolDir, "active.meta.json")
+	meta := &Metadata{
+		Table:       table,
+		Fingerprint: fingerprint,
+		Schema:      serializedSchema,
+		CreatedAt:   time.Now().UTC().Format(time.RFC3339),
+	}
+	assert.NoError(t, SaveMetadataFile(metaPath, meta))
 
 	// and loading metadata file back
 	metadata, err := LoadMetadataFile(metaPath)

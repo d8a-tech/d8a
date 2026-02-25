@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/apache/arrow-go/v18/arrow/flight"
@@ -23,16 +26,71 @@ func SchemaFingerprint(schema *arrow.Schema) string {
 	return hexStr
 }
 
-// FilenameForWrite generates a filename for writing data with the given parameters.
-// Multiple Write() calls for the same table+schema will append to the same file.
-func FilenameForWrite(table, fingerprint string, format Format) string {
-	ext := format.Extension()
-	return fmt.Sprintf("%s_%s.%s", fingerprint, table, ext)
+// EscapeTableName replaces unsafe characters with underscores.
+func EscapeTableName(table string) string {
+	if table == "" {
+		return table
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(table))
+	for _, ch := range table {
+		switch {
+		case ch >= 'a' && ch <= 'z':
+			builder.WriteRune(ch)
+		case ch >= 'A' && ch <= 'Z':
+			builder.WriteRune(ch)
+		case ch >= '0' && ch <= '9':
+			builder.WriteRune(ch)
+		case ch == '-' || ch == '_' || ch == '.':
+			builder.WriteRune(ch)
+		default:
+			builder.WriteRune('_')
+		}
+	}
+
+	return builder.String()
 }
 
-// MetadataFilename generates a metadata filename for a CSV file.
-func MetadataFilename(table, fingerprint string) string {
-	return fmt.Sprintf("%s_%s.meta.json", fingerprint, table)
+// StreamDir returns the stream directory for a table+schema fingerprint.
+func StreamDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(spoolDir, "streams", tableEsc, fingerprint)
+}
+
+// ActivePath returns the active segment path for a stream.
+func ActivePath(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.csv")
+}
+
+// SealedDir returns the sealed segments directory for a stream.
+func SealedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "sealed")
+}
+
+// UploadingDir returns the uploading segments directory for a stream.
+func UploadingDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "uploading")
+}
+
+// FailedDir returns the failed segments directory for a stream.
+func FailedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "failed")
+}
+
+// SegmentPath returns the path for a segment ID within a directory.
+func SegmentPath(dir, segmentID string) string {
+	return filepath.Join(dir, fmt.Sprintf("%s.csv", segmentID))
+}
+
+// FailCountPath returns the path for a segment fail counter within the stream directory.
+func FailCountPath(streamDir, segmentID string) string {
+	return filepath.Join(streamDir, fmt.Sprintf("%s.failcount", segmentID))
+}
+
+// SegmentRemoteKey returns the remote object key for a segment.
+func SegmentRemoteKey(tableEsc, fingerprint, segmentID string, sealTime time.Time) string {
+	date := sealTime.UTC().Format("2006/01/02")
+	return fmt.Sprintf("table=%s/schema=%s/dt=%s/%s.csv", tableEsc, fingerprint, date, segmentID)
 }
 
 // Metadata represents schema information persisted to disk.

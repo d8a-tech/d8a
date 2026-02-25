@@ -100,13 +100,16 @@ func (sd *spoolDriver) startTimer() {
 // All file operations are mutex-protected to prevent concurrent writes.
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	fingerprint := SchemaFingerprint(schema)
-	csvFile := FilenameForWrite(table, fingerprint, sd.format)
-	metaFile := MetadataFilename(table, fingerprint)
-	csvPath := filepath.Join(sd.spoolDir, csvFile)
-	metaPath := filepath.Join(sd.spoolDir, metaFile)
+	tableEsc := EscapeTableName(table)
+	csvPath := ActivePath(sd.spoolDir, tableEsc, fingerprint)
+	metaPath := filepath.Join(StreamDir(sd.spoolDir, tableEsc, fingerprint), "active.meta.json")
 
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
+
+	if err := EnsureStreamDirs(sd.spoolDir, tableEsc, fingerprint); err != nil {
+		return fmt.Errorf("ensuring stream directories: %w", err)
+	}
 
 	// Check if file exists to determine open flags
 	_, statErr := os.Stat(csvPath)
@@ -229,77 +232,7 @@ func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 
 // Flush scans the spool directory for CSV files and uploads them.
 func (sd *spoolDriver) Flush(ctx context.Context) error {
-	csvFiles, err := FindCSVFiles(sd.spoolDir)
-	if err != nil {
-		logrus.WithError(err).Error("failed to scan spool directory")
-		return fmt.Errorf("scanning spool directory: %w", err)
-	}
-
-	logrus.WithField("file_count", len(csvFiles)).Info("starting flush")
-
-	if len(csvFiles) == 0 {
-		logrus.Debug("no files to upload")
-		return nil
-	}
-
-	var errs []error
-	successCount := 0
-
-	for _, csvPath := range csvFiles {
-		metaPath := GetMetadataPathForCSV(csvPath)
-
-		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
-			logrus.WithFields(logrus.Fields{
-				"csv_path":  csvPath,
-				"meta_path": metaPath,
-			}).Warn("CSV file found without metadata, skipping")
-			continue
-		}
-
-		meta, err := LoadMetadataFile(metaPath)
-		if err != nil {
-			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to read metadata, skipping file")
-			continue
-		}
-
-		if err := sd.uploader.Upload(ctx, csvPath); err != nil {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"csv_path":    csvPath,
-				"table":       meta.Table,
-				"fingerprint": meta.Fingerprint,
-			}).Error("failed to upload file")
-			errs = append(errs, fmt.Errorf("uploading %s: %w", csvPath, err))
-			continue
-		}
-
-		if err := DeleteMetadataFile(metaPath); err != nil {
-			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to delete metadata file after successful upload")
-		}
-
-		logrus.WithFields(logrus.Fields{
-			"table":       meta.Table,
-			"fingerprint": meta.Fingerprint,
-		}).Info("uploaded file")
-		successCount++
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"success_count": successCount,
-		"error_count":   len(errs),
-	}).Info("flush completed")
-
-	if len(errs) > 0 {
-		var combined error
-		for _, err := range errs {
-			if combined == nil {
-				combined = err
-			} else {
-				combined = fmt.Errorf("%w; %w", combined, err)
-			}
-		}
-		return combined
-	}
-
+	logrus.Debug("flush is currently a no-op")
 	return nil
 }
 

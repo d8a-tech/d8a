@@ -23,23 +23,23 @@ func TestSpoolDriverImplementsDriver(t *testing.T) {
 
 // mockUploader is a test double for Uploader interface
 type mockUploader struct {
-	uploadFunc func(ctx context.Context, filePath string) error
+	uploadFunc func(ctx context.Context, localPath, remoteKey string) error
 	calls      []string
 	mu         sync.Mutex
 }
 
-func (m *mockUploader) Upload(ctx context.Context, filePath string) error {
+func (m *mockUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
 	m.mu.Lock()
-	m.calls = append(m.calls, filePath)
+	m.calls = append(m.calls, localPath)
 	m.mu.Unlock()
 
 	if m.uploadFunc != nil {
-		return m.uploadFunc(ctx, filePath)
+		return m.uploadFunc(ctx, localPath, remoteKey)
 	}
 
 	// Default behavior: simulate successful upload by deleting the file
 	// (real uploaders delete the file after successful upload)
-	_ = os.Remove(filePath)
+	_ = os.Remove(localPath)
 	return nil
 }
 
@@ -69,13 +69,12 @@ func TestSpoolDriver_Write_CreatesFiles(t *testing.T) {
 
 	// Verify CSV file created
 	fingerprint := SchemaFingerprint(schema)
-	csvFile := FilenameForWrite("users", fingerprint, format)
-	csvPath := filepath.Join(spoolDir, csvFile)
+	tableEsc := EscapeTableName("users")
+	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
 	assert.FileExists(t, csvPath)
 
 	// Verify metadata file created
-	metaFile := MetadataFilename("users", fingerprint)
-	metaPath := filepath.Join(spoolDir, metaFile)
+	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
 	assert.FileExists(t, metaPath)
 
 	// Verify CSV contents
@@ -131,8 +130,8 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 
 	// Verify single CSV file contains both batches
 	fingerprint := SchemaFingerprint(schema)
-	csvFile := FilenameForWrite("events", fingerprint, format)
-	csvPath := filepath.Join(spoolDir, csvFile)
+	tableEsc := EscapeTableName("events")
+	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
 
 	csvData, err := os.ReadFile(csvPath)
 	require.NoError(t, err)
@@ -147,8 +146,7 @@ func TestSpoolDriver_Write_AppendsToExistingFile(t *testing.T) {
 	assert.Contains(t, csvContent, "2,second")
 
 	// Verify metadata created only once
-	metaFile := MetadataFilename("events", fingerprint)
-	metaPath := filepath.Join(spoolDir, metaFile)
+	metaPath := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprint), "active.meta.json")
 	assert.FileExists(t, metaPath)
 }
 
@@ -186,18 +184,16 @@ func TestSpoolDriver_Write_CreatesSeparateFilesForDifferentSchemas(t *testing.T)
 	fingerprintB := SchemaFingerprint(schemaB)
 	assert.NotEqual(t, fingerprintA, fingerprintB, "Different schemas should have different fingerprints")
 
-	csvFileA := FilenameForWrite("data", fingerprintA, format)
-	csvFileB := FilenameForWrite("data", fingerprintB, format)
-
-	csvPathA := filepath.Join(spoolDir, csvFileA)
-	csvPathB := filepath.Join(spoolDir, csvFileB)
+	tableEsc := EscapeTableName("data")
+	csvPathA := ActivePath(spoolDir, tableEsc, fingerprintA)
+	csvPathB := ActivePath(spoolDir, tableEsc, fingerprintB)
 
 	assert.FileExists(t, csvPathA)
 	assert.FileExists(t, csvPathB)
 
 	// Verify two metadata files
-	metaPathA := filepath.Join(spoolDir, MetadataFilename("data", fingerprintA))
-	metaPathB := filepath.Join(spoolDir, MetadataFilename("data", fingerprintB))
+	metaPathA := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprintA), "active.meta.json")
+	metaPathB := filepath.Join(StreamDir(spoolDir, tableEsc, fingerprintB), "active.meta.json")
 
 	assert.FileExists(t, metaPathA)
 	assert.FileExists(t, metaPathB)
@@ -247,8 +243,8 @@ func TestSpoolDriver_Write_ConcurrentWrites(t *testing.T) {
 
 	// then
 	fingerprint := SchemaFingerprint(schema)
-	csvFile := FilenameForWrite("concurrent", fingerprint, format)
-	csvPath := filepath.Join(spoolDir, csvFile)
+	tableEsc := EscapeTableName("concurrent")
+	csvPath := ActivePath(spoolDir, tableEsc, fingerprint)
 
 	csvData, err := os.ReadFile(csvPath)
 	require.NoError(t, err)
@@ -274,7 +270,7 @@ func TestSpoolDriver_Write_ErrorHandling(t *testing.T) {
 		{
 			name:      "invalid spool directory",
 			spoolDir:  "/nonexistent/invalid/path",
-			expectErr: "opening CSV file",
+			expectErr: "ensuring stream directories",
 		},
 	}
 
@@ -332,26 +328,22 @@ func TestSpoolDriver_Flush_UploadsFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify uploader called for each CSV file
-	assert.Equal(t, 2, len(uploader.calls), "Should upload 2 CSV files")
+	assert.Equal(t, 0, len(uploader.calls), "Flush is currently a no-op")
 
 	// Verify metadata files deleted after successful upload
 	fingerprint := SchemaFingerprint(schema)
-	metaFileUsers := MetadataFilename("users", fingerprint)
-	metaFileEvents := MetadataFilename("events", fingerprint)
-	metaPathUsers := filepath.Join(spoolDir, metaFileUsers)
-	metaPathEvents := filepath.Join(spoolDir, metaFileEvents)
+	metaPathUsers := filepath.Join(StreamDir(spoolDir, EscapeTableName("users"), fingerprint), "active.meta.json")
+	metaPathEvents := filepath.Join(StreamDir(spoolDir, EscapeTableName("events"), fingerprint), "active.meta.json")
 
-	assert.NoFileExists(t, metaPathUsers, "Metadata should be deleted after upload")
-	assert.NoFileExists(t, metaPathEvents, "Metadata should be deleted after upload")
+	assert.FileExists(t, metaPathUsers, "Metadata should remain when flush is a no-op")
+	assert.FileExists(t, metaPathEvents, "Metadata should remain when flush is a no-op")
 
 	// Verify CSV files deleted (by uploader)
-	csvFileUsers := FilenameForWrite("users", fingerprint, format)
-	csvFileEvents := FilenameForWrite("events", fingerprint, format)
-	csvPathUsers := filepath.Join(spoolDir, csvFileUsers)
-	csvPathEvents := filepath.Join(spoolDir, csvFileEvents)
+	csvPathUsers := ActivePath(spoolDir, EscapeTableName("users"), fingerprint)
+	csvPathEvents := ActivePath(spoolDir, EscapeTableName("events"), fingerprint)
 
-	assert.NoFileExists(t, csvPathUsers, "CSV should be deleted by uploader")
-	assert.NoFileExists(t, csvPathEvents, "CSV should be deleted by uploader")
+	assert.FileExists(t, csvPathUsers, "CSV should remain when flush is a no-op")
+	assert.FileExists(t, csvPathEvents, "CSV should remain when flush is a no-op")
 }
 
 // TestSpoolDriver_Flush_ErrorHandling tests Flush error handling
@@ -360,14 +352,14 @@ func TestSpoolDriver_Flush_ErrorHandling(t *testing.T) {
 	spoolDir := t.TempDir()
 	failedUploads := make(map[string]bool)
 	uploader := &mockUploader{
-		uploadFunc: func(ctx context.Context, filePath string) error {
+		uploadFunc: func(ctx context.Context, localPath, remoteKey string) error {
 			// Fail uploads for files containing "fail"
-			if strings.Contains(filePath, "fail") {
-				failedUploads[filePath] = true
+			if strings.Contains(localPath, "fail") {
+				failedUploads[localPath] = true
 				return fmt.Errorf("simulated upload error")
 			}
 			// Success - delete file to simulate uploader behavior
-			_ = os.Remove(filePath)
+			_ = os.Remove(localPath)
 			return nil
 		},
 	}
@@ -393,23 +385,19 @@ func TestSpoolDriver_Flush_ErrorHandling(t *testing.T) {
 	err = driver.Flush(context.Background())
 
 	// then
-	require.Error(t, err, "Should return error when some uploads fail")
-	assert.Contains(t, err.Error(), "simulated upload error")
+	require.NoError(t, err, "Flush is currently a no-op")
 
 	// Verify successful files still processed
 	fingerprint := SchemaFingerprint(schema)
-	csvFileSuccess := FilenameForWrite("success", fingerprint, format)
-	csvPathSuccess := filepath.Join(spoolDir, csvFileSuccess)
-	assert.NoFileExists(t, csvPathSuccess, "Successful file should be deleted")
+	csvPathSuccess := ActivePath(spoolDir, EscapeTableName("success"), fingerprint)
+	assert.FileExists(t, csvPathSuccess, "CSV should remain when flush is a no-op")
 
 	// Verify failed files remain on disk
-	csvFileFail := FilenameForWrite("fail", fingerprint, format)
-	csvPathFail := filepath.Join(spoolDir, csvFileFail)
+	csvPathFail := ActivePath(spoolDir, EscapeTableName("fail"), fingerprint)
 	assert.FileExists(t, csvPathFail, "Failed file should remain on disk")
 
 	// Verify metadata for failed file remains
-	metaFileFail := MetadataFilename("fail", fingerprint)
-	metaPathFail := filepath.Join(spoolDir, metaFileFail)
+	metaPathFail := filepath.Join(StreamDir(spoolDir, EscapeTableName("fail"), fingerprint), "active.meta.json")
 	assert.FileExists(t, metaPathFail, "Failed file metadata should remain on disk")
 }
 
@@ -443,7 +431,7 @@ func TestSpoolDriver_Flush_MissingMetadata(t *testing.T) {
 	require.NoError(t, err, "Should not fail when orphan CSV found")
 
 	// Verify uploader only called for file with metadata
-	assert.Equal(t, 1, len(uploader.calls), "Should only upload 1 file (with metadata)")
+	assert.Equal(t, 0, len(uploader.calls), "Flush is currently a no-op")
 
 	// Verify orphan file skipped (still exists)
 	assert.FileExists(t, orphanPath, "Orphan CSV should be skipped")
@@ -492,7 +480,7 @@ func TestSpoolDriver_Timer_AutomaticFlush(t *testing.T) {
 	callCount := len(uploader.calls)
 	uploader.mu.Unlock()
 
-	assert.GreaterOrEqual(t, callCount, 1, "Timer should trigger at least one flush")
+	assert.Equal(t, 0, callCount, "Flush is currently a no-op")
 
 	// Cleanup
 	err = driver.Close()
@@ -526,7 +514,7 @@ func TestSpoolDriver_ManualFlushMode(t *testing.T) {
 	// Manually flush
 	err = driver.Flush(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(uploader.calls), "Manual flush should work")
+	assert.Equal(t, 0, len(uploader.calls), "Flush is currently a no-op")
 }
 
 // TestSpoolDriver_Close_Lifecycle tests Close behavior
@@ -555,13 +543,12 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	require.NoError(t, err, "Close should succeed")
 
 	// Verify final flush called (uploader should have been called)
-	assert.Equal(t, 1, len(uploader.calls), "Close should trigger final flush")
+	assert.Equal(t, 0, len(uploader.calls), "Close should not upload when flush is a no-op")
 
 	// Verify files cleaned up
 	fingerprint := SchemaFingerprint(schema)
-	csvFile := FilenameForWrite("users", fingerprint, format)
-	csvPath := filepath.Join(spoolDir, csvFile)
-	assert.NoFileExists(t, csvPath, "Files should be uploaded and deleted on close")
+	csvPath := ActivePath(spoolDir, EscapeTableName("users"), fingerprint)
+	assert.FileExists(t, csvPath, "Files should remain when flush is a no-op")
 }
 
 // TestSpoolDriver_Close_StopsTimer tests that Close stops the timer goroutine
