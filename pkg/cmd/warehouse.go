@@ -249,12 +249,16 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	spoolDir := filepath.Join(baseSpoolDir, "warehouse", "files")
 
 	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
+	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
+	if compression == "" && level != -1 {
+		logrus.Fatal("--warehouse-files-compression-level requires --warehouse-files-compression to be set")
+	}
+
 	var csvOpts []whFiles.CSVFormatOption
 	switch compression {
 	case "":
 		// no compression
 	case "gzip":
-		level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
 		csvOpts = append(csvOpts, whFiles.WithCompression(whFiles.Gzip(level)))
 	default:
 		logrus.Fatalf("unsupported files compression: %s", compression)

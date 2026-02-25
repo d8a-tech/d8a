@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"compress/gzip"
 	"os"
 	"path/filepath"
 	"time"
@@ -409,7 +408,7 @@ var (
 	warehouseFilesCompressionLevelFlag = &cli.IntFlag{
 		Name:    "warehouse-files-compression-level",
 		Usage:   "Compression level for warehouse files (-1 = default, 1 = fastest, 9 = best compression)",
-		Value:   gzip.DefaultCompression,
+		Value:   -1,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION_LEVEL", "warehouse.files.compression_level"),
 	}
 )
