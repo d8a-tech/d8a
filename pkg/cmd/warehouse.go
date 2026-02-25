@@ -250,9 +250,6 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 
 	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
 	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
-	if compression == "" && level != -1 {
-		logrus.Fatal("--warehouse-files-compression-level requires --warehouse-files-compression to be set")
-	}
 
 	var csvOpts []whFiles.CSVFormatOption
 	switch compression {
