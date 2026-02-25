@@ -24,8 +24,6 @@ func SchemaFingerprint(schema *arrow.Schema) string {
 }
 
 // FilenameForWrite generates a filename for writing data with the given parameters.
-// Format: {fingerprint}_{table}.{ext}
-//
 // Multiple Write() calls for the same table+schema will append to the same file.
 func FilenameForWrite(table, fingerprint string, format Format) string {
 	ext := format.Extension()
@@ -33,13 +31,11 @@ func FilenameForWrite(table, fingerprint string, format Format) string {
 }
 
 // MetadataFilename generates a metadata filename for a CSV file.
-// Format: {fingerprint}_{table}.meta.json
 func MetadataFilename(table, fingerprint string) string {
 	return fmt.Sprintf("%s_%s.meta.json", fingerprint, table)
 }
 
 // Metadata represents schema information persisted to disk.
-// Stored as JSON in .meta.json files alongside CSV data.
 type Metadata struct {
 	Table       string `json:"table"`
 	Fingerprint string `json:"fingerprint"`
@@ -74,23 +70,19 @@ func ReadMetadata(r io.Reader) (*Metadata, error) {
 
 // SerializeSchema serializes an Arrow schema to a base64-encoded string.
 func SerializeSchema(schema *arrow.Schema) (string, error) {
-	// Use flight.SerializeSchema to get bytes using Arrow IPC format
 	schemaBytes := flight.SerializeSchema(schema, memory.DefaultAllocator)
 
-	// Base64-encode the bytes
 	encoded := base64.StdEncoding.EncodeToString(schemaBytes)
 	return encoded, nil
 }
 
 // DeserializeSchema deserializes a base64-encoded Arrow schema string.
 func DeserializeSchema(encoded string) (*arrow.Schema, error) {
-	// Base64-decode the string
 	schemaBytes, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return nil, fmt.Errorf("base64 decoding schema: %w", err)
 	}
 
-	// Use flight.DeserializeSchema to parse the bytes
 	schema, err := flight.DeserializeSchema(schemaBytes, memory.DefaultAllocator)
 	if err != nil {
 		return nil, fmt.Errorf("deserializing schema: %w", err)

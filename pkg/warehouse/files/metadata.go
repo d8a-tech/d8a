@@ -108,7 +108,6 @@ func FindCSVFiles(spoolDir string) ([]string, error) {
 func GetMetadataPathForCSV(csvPath string) string {
 	dir := filepath.Dir(csvPath)
 	base := filepath.Base(csvPath)
-	// Replace .csv extension with .meta.json
 	metaName := base[:len(base)-4] + ".meta.json"
 	return filepath.Join(dir, metaName)
 }

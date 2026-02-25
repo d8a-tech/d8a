@@ -16,7 +16,6 @@ import (
 type SpoolOption func(*spoolDriver)
 
 // WithManualFlush disables automatic timer-based flushing.
-// Useful for testing or when you want to call Flush() manually.
 func WithManualFlush() SpoolOption {
 	return func(sd *spoolDriver) {
 		sd.flushInterval = 0
@@ -26,9 +25,9 @@ func WithManualFlush() SpoolOption {
 // spoolDriver is a warehouse.Driver that writes analytics data directly to disk
 // files and periodically uploads them to object storage.
 //
-// The driver maintains NO in-memory state - disk is the source of truth.
-// Each Write() call appends rows directly to disk files. A timer goroutine
-// periodically scans the spool directory and uploads CSV files.
+// Disk is the source of truth - no in-memory state is maintained.
+// Each Write() appends rows directly to disk; a timer goroutine periodically
+// scans the spool directory and uploads files.
 type spoolDriver struct {
 	ctx           context.Context
 	uploader      Uploader
@@ -40,7 +39,8 @@ type spoolDriver struct {
 	mu            sync.Mutex     // protects concurrent file operations
 }
 
-// NewSpoolDriver creates a new spool driver that writes rows directly to disk.
+// NewSpoolDriver creates a new spool driver that writes rows directly to disk
+// and periodically uploads files.
 func NewSpoolDriver(
 	ctx context.Context,
 	uploader Uploader,
@@ -70,7 +70,7 @@ func NewSpoolDriver(
 // startTimer starts the periodic flush timer (if interval > 0).
 func (sd *spoolDriver) startTimer() {
 	if sd.flushInterval == 0 {
-		return // manual flush mode
+		return
 	}
 
 	sd.wg.Add(1)
@@ -95,20 +95,17 @@ func (sd *spoolDriver) startTimer() {
 }
 
 // Write appends rows to disk file immediately and creates metadata.
+// All file operations are mutex-protected to prevent concurrent writes.
 func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	// Step 1: Calculate filename
 	fingerprint := SchemaFingerprint(schema)
 	csvFile := FilenameForWrite(table, fingerprint, sd.format)
 	metaFile := MetadataFilename(table, fingerprint)
 	csvPath := filepath.Join(sd.spoolDir, csvFile)
 	metaPath := filepath.Join(sd.spoolDir, metaFile)
 
-	// Step 2: Acquire lock
 	sd.mu.Lock()
 	defer sd.mu.Unlock()
 
-	// Step 3: Create/append to CSV file
-	// csvPath is constructed from controlled inputs (spoolDir, fingerprint, table), not user input
 	//nolint:gosec // G304: csvPath from controlled inputs
 	file, err := os.OpenFile(csvPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -140,18 +137,17 @@ func (sd *spoolDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 		"row_count":   len(rows),
 	}).Debug("wrote rows to file")
 
-	// Step 4: Write/update metadata file (if not exists)
 	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
 		if err := sd.createMetadataFile(metaPath, table, fingerprint, schema); err != nil {
 			return err
 		}
 	}
 
-	// Step 5: Return
 	return nil
 }
 
 // createMetadataFile creates a metadata file atomically for a CSV file.
+// Atomic write (tmp + rename) prevents flush timer from reading incomplete metadata.
 func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, schema *arrow.Schema) error {
 	encodedSchema, err := SerializeSchema(schema)
 	if err != nil {
@@ -166,7 +162,6 @@ func (sd *spoolDriver) createMetadataFile(metaPath, table, fingerprint string, s
 		CreatedAt:   time.Now().Format(time.RFC3339),
 	}
 
-	// Atomic write: write to temp file, then rename
 	tmpPath := metaPath + ".tmp"
 	tmpFile, err := os.Create(tmpPath) //nolint:gosec // tmpPath is constructed from controlled inputs
 	if err != nil {
@@ -221,7 +216,6 @@ func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 
 // Flush scans the spool directory for CSV files and uploads them.
 func (sd *spoolDriver) Flush(ctx context.Context) error {
-	// Step 1: Scan spool directory for CSV files
 	csvFiles, err := FindCSVFiles(sd.spoolDir)
 	if err != nil {
 		logrus.WithError(err).Error("failed to scan spool directory")
@@ -235,15 +229,12 @@ func (sd *spoolDriver) Flush(ctx context.Context) error {
 		return nil
 	}
 
-	// Step 2: Upload each CSV file
 	var errs []error
 	successCount := 0
 
 	for _, csvPath := range csvFiles {
-		// Generate metadata filename
 		metaPath := GetMetadataPathForCSV(csvPath)
 
-		// Check metadata exists
 		if _, err := os.Stat(metaPath); os.IsNotExist(err) {
 			logrus.WithFields(logrus.Fields{
 				"csv_path":  csvPath,
@@ -252,14 +243,12 @@ func (sd *spoolDriver) Flush(ctx context.Context) error {
 			continue
 		}
 
-		// Read metadata (for logging purposes)
 		meta, err := LoadMetadataFile(metaPath)
 		if err != nil {
 			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to read metadata, skipping file")
 			continue
 		}
 
-		// Upload CSV
 		if err := sd.uploader.Upload(ctx, csvPath); err != nil {
 			logrus.WithError(err).WithFields(logrus.Fields{
 				"csv_path":    csvPath,
@@ -270,10 +259,8 @@ func (sd *spoolDriver) Flush(ctx context.Context) error {
 			continue
 		}
 
-		// CSV already deleted by uploader, now delete metadata
 		if err := DeleteMetadataFile(metaPath); err != nil {
 			logrus.WithError(err).WithField("meta_path", metaPath).Warn("failed to delete metadata file after successful upload")
-			// Don't treat this as a failure - CSV was uploaded successfully
 		}
 
 		logrus.WithFields(logrus.Fields{
@@ -283,14 +270,12 @@ func (sd *spoolDriver) Flush(ctx context.Context) error {
 		successCount++
 	}
 
-	// Step 3: Return results
 	logrus.WithFields(logrus.Fields{
 		"success_count": successCount,
 		"error_count":   len(errs),
 	}).Info("flush completed")
 
 	if len(errs) > 0 {
-		// Combine all errors
 		var combined error
 		for _, err := range errs {
 			if combined == nil {

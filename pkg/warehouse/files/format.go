@@ -13,13 +13,8 @@ import (
 
 // Format defines how data is serialized to/from files.
 type Format interface {
-	// Extension returns the file extension (e.g., "csv", "parquet").
 	Extension() string
-
-	// Write serializes rows to the writer using the provided schema.
 	Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error
-
-	// Read deserializes rows from the reader, returning schema and data.
 	Read(r io.Reader) (*arrow.Schema, []map[string]any, error)
 }
 
@@ -60,18 +55,22 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 	defer writer.Flush()
 
 	// Check if we need to write header (only for empty files)
+	// For files opened with O_APPEND, the position will be at end, but we need to check size
 	shouldWriteHeader := true
 	if seeker, ok := w.(io.Seeker); ok {
+		// Get current position, seek to end to get size, then restore position
 		currentPos, err := seeker.Seek(0, io.SeekCurrent)
 		if err == nil {
 			size, err := seeker.Seek(0, io.SeekEnd)
 			if err == nil && size > 0 {
 				shouldWriteHeader = false
 			}
+			// Restore original position (best effort)
 			_, _ = seeker.Seek(currentPos, io.SeekStart)
 		}
 	}
 
+	// Write header row if needed
 	if shouldWriteHeader {
 		header := make([]string, len(schema.Fields()))
 		for i, field := range schema.Fields() {
@@ -108,10 +107,12 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 
 // valueToString converts an arbitrary value to a string for CSV output.
 func valueToString(val any, fieldType arrow.DataType) (string, error) {
+	// Handle nil
 	if val == nil {
 		return "", nil
 	}
 
+	// Handle primitives
 	switch v := val.(type) {
 	case string:
 		return v, nil
@@ -131,6 +132,7 @@ func valueToString(val any, fieldType arrow.DataType) (string, error) {
 	}
 
 	// Handle complex types by JSON-encoding
+	// This includes lists, structs, maps, and other nested types
 	jsonBytes, err := json.Marshal(val)
 	if err != nil {
 		return "", fmt.Errorf("JSON encoding complex value: %w", err)
