@@ -258,8 +258,6 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	switch format {
 	case "csv":
 		fmt = whFiles.NewCSVFormat()
-	case "parquet":
-		fmt = whFiles.NewParquetFormat()
 	default:
 		logrus.Fatalf("unsupported files format: %s", format)
 	}

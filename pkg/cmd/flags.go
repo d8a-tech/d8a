@@ -360,7 +360,7 @@ var warehouseObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Warehous
 var (
 	warehouseFilesFormatFlag = &cli.StringFlag{
 		Name:    "warehouse-files-format",
-		Usage:   "File format for warehouse output (csv or parquet)",
+		Usage:   "File format for warehouse output (csv)",
 		Value:   "csv",
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
 	}
@@ -376,13 +376,6 @@ var (
 		Usage:   "Interval for flushing local spool files to object storage",
 		Value:   10 * time.Minute,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FLUSH_INTERVAL", "warehouse.files.flush_interval"),
-	}
-
-	warehouseFilesMaxBufferSizeFlag = &cli.IntFlag{
-		Name:    "warehouse-files-max-buffer-size",
-		Usage:   "Maximum rows to buffer in a file before forcing flush",
-		Value:   10000,
-		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_BUFFER_SIZE", "warehouse.files.max_buffer_size"),
 	}
 
 	warehouseFilesStorageFlag = &cli.StringFlag{
@@ -490,7 +483,6 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesFormatFlag,
 	warehouseFilesSpoolDirFlag,
 	warehouseFilesFlushIntervalFlag,
-	warehouseFilesMaxBufferSizeFlag,
 	warehouseFilesStorageFlag,
 	warehouseFilesFilesystemPathFlag,
 }
