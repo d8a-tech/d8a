@@ -1,6 +1,7 @@
 package files
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -17,21 +18,42 @@ type Format interface {
 	Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error
 }
 
-type csvFormat struct{}
+type csvFormat struct {
+	compressionLevel *int
+}
+
+// CSVFormatOption configures the CSV format behavior.
+type CSVFormatOption func(*csvFormat)
+
+// WithCompression is a pass-through to keep configuration options grouped.
+func WithCompression(opt CSVFormatOption) CSVFormatOption {
+	return opt
+}
+
+// Gzip enables gzip compression with the provided level.
+func Gzip(level int) CSVFormatOption {
+	return func(f *csvFormat) {
+		f.compressionLevel = &level
+	}
+}
 
 // NewCSVFormat creates a new CSV format implementation.
-func NewCSVFormat() Format {
-	return &csvFormat{}
+func NewCSVFormat(opts ...CSVFormatOption) Format {
+	format := &csvFormat{}
+	for _, opt := range opts {
+		opt(format)
+	}
+	return format
 }
 
 func (f *csvFormat) Extension() string {
+	if f.compressionLevel != nil {
+		return "csv.gz"
+	}
 	return "csv"
 }
 
 func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error {
-	writer := csv.NewWriter(w)
-	defer writer.Flush()
-
 	// Write header only for empty files
 	// For os.File: check size via Stat()
 	// For other writers (e.g., bytes.Buffer in tests): assume empty and write header
@@ -41,6 +63,19 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 		if err == nil && info.Size() > 0 {
 			shouldWriteHeader = false
 		}
+	}
+
+	var writer *csv.Writer
+	var gz *gzip.Writer
+	if f.compressionLevel == nil {
+		writer = csv.NewWriter(w)
+	} else {
+		var err error
+		gz, err = gzip.NewWriterLevel(w, *f.compressionLevel)
+		if err != nil {
+			return fmt.Errorf("creating gzip writer: %w", err)
+		}
+		writer = csv.NewWriter(gz)
 	}
 
 	if shouldWriteHeader {
@@ -72,6 +107,11 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 	writer.Flush()
 	if err := writer.Error(); err != nil {
 		return fmt.Errorf("flushing CSV writer: %w", err)
+	}
+	if gz != nil {
+		if err := gz.Close(); err != nil {
+			return fmt.Errorf("closing gzip writer: %w", err)
+		}
 	}
 
 	return nil

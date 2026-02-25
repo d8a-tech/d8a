@@ -2,8 +2,10 @@ package files
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -401,4 +403,116 @@ func TestValueToString_ComplexTypes(t *testing.T) {
 			tt.assertFn(t, result)
 		})
 	}
+}
+
+// TestCSVFormat_Gzip_Extension verifies the extension changes with gzip compression.
+func TestCSVFormat_Gzip_Extension(t *testing.T) {
+	// given / when / then
+	assert.Equal(t, "csv", NewCSVFormat().Extension(), "no compression → csv")
+	assert.Equal(t, "csv.gz", NewCSVFormat(WithCompression(Gzip(gzip.DefaultCompression))).Extension(), "gzip → csv.gz")
+}
+
+// TestCSVFormat_Gzip_Write_RoundTrip verifies gzip-compressed CSV can be read back.
+func TestCSVFormat_Gzip_Write_RoundTrip(t *testing.T) {
+	// given
+	schema := arrow.NewSchema(
+		[]arrow.Field{
+			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+			{Name: "name", Type: arrow.BinaryTypes.String},
+		},
+		nil,
+	)
+	rows := []map[string]any{
+		{"id": int64(1), "name": "Alice"},
+		{"id": int64(2), "name": "Bob"},
+	}
+	format := NewCSVFormat(WithCompression(Gzip(gzip.DefaultCompression)))
+
+	// when
+	var buf bytes.Buffer
+	err := format.Write(&buf, schema, rows)
+	require.NoError(t, err)
+
+	// then: decompress and parse
+	gr, err := gzip.NewReader(&buf)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, gr.Close())
+	}()
+
+	reader := csv.NewReader(gr)
+	records, err := reader.ReadAll()
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"id", "name"}, records[0], "header row")
+	assert.Equal(t, []string{"1", "Alice"}, records[1])
+	assert.Equal(t, []string{"2", "Bob"}, records[2])
+}
+
+// TestCSVFormat_Gzip_AppendBehavior verifies multi-stream gzip append: header written once.
+func TestCSVFormat_Gzip_AppendBehavior(t *testing.T) {
+	// given
+	schema := arrow.NewSchema(
+		[]arrow.Field{
+			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+			{Name: "name", Type: arrow.BinaryTypes.String},
+		},
+		nil,
+	)
+	batch1 := []map[string]any{
+		{"id": int64(1), "name": "Alice"},
+		{"id": int64(2), "name": "Bob"},
+	}
+	batch2 := []map[string]any{
+		{"id": int64(3), "name": "Charlie"},
+		{"id": int64(4), "name": "Diana"},
+	}
+	format := NewCSVFormat(WithCompression(Gzip(gzip.BestSpeed)))
+	tmpDir := t.TempDir()
+	filePath := tmpDir + "/test.csv.gz"
+
+	// when: write first batch to new file
+	file1, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	require.NoError(t, err)
+	require.NoError(t, format.Write(file1, schema, batch1))
+	require.NoError(t, file1.Close())
+
+	// when: append second batch
+	file2, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0o644)
+	require.NoError(t, err)
+	require.NoError(t, format.Write(file2, schema, batch2))
+	require.NoError(t, file2.Close())
+
+	// then: read all gzip members and collect all CSV records
+	rawFile, err := os.Open(filePath)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, rawFile.Close())
+	}()
+
+	var allRecords [][]string
+	gr, err := gzip.NewReader(rawFile)
+	require.NoError(t, err)
+	defer func() {
+		assert.NoError(t, gr.Close())
+	}()
+	for {
+		csvData, readErr := io.ReadAll(gr)
+		require.NoError(t, readErr)
+		r := csv.NewReader(bytes.NewReader(csvData))
+		recs, parseErr := r.ReadAll()
+		require.NoError(t, parseErr)
+		allRecords = append(allRecords, recs...)
+		if err = gr.Reset(rawFile); err != nil {
+			break // no more gzip members
+		}
+	}
+
+	// then: exactly one header row and all 4 data rows
+	assert.Equal(t, 5, len(allRecords), "1 header + 4 data rows")
+	assert.Equal(t, []string{"id", "name"}, allRecords[0], "header")
+	assert.Equal(t, []string{"1", "Alice"}, allRecords[1])
+	assert.Equal(t, []string{"2", "Bob"}, allRecords[2])
+	assert.Equal(t, []string{"3", "Charlie"}, allRecords[3])
+	assert.Equal(t, []string{"4", "Diana"}, allRecords[4])
 }

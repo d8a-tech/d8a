@@ -1,12 +1,14 @@
 package files
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestSchemaFingerprint_Returns16CharHash verifies SHA256-based fingerprint generation.
@@ -138,4 +140,21 @@ func TestSegmentRemoteKey(t *testing.T) {
 	sealTime := time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC)
 	key := segmentRemoteKey("events", "abc123", "seg-1", "csv", sealTime)
 	assert.Equal(t, "table=events/schema=abc123/dt=2026/02/25/seg-1.csv", key)
+}
+
+// TestFindSealedSegments_CompoundExtension verifies csv.gz files are matched correctly.
+func TestFindSealedSegments_CompoundExtension(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	// create test files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg1.csv.gz"), []byte("data"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg2.csv.gz"), []byte("data"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "other.csv"), []byte("data"), 0o600)) // should not match
+
+	// when
+	segments, err := findSealedSegments(tmpDir, "csv.gz")
+
+	// then
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []string{"seg1", "seg2"}, segments)
 }

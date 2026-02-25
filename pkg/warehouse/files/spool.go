@@ -255,7 +255,7 @@ func (sd *SpoolDriver) recoverUploading(tableEsc, fingerprint string) error {
 		}
 
 		name := entry.Name()
-		if filepath.Ext(name) != dotExt {
+		if !strings.HasSuffix(name, dotExt) {
 			continue
 		}
 

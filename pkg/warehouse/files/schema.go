@@ -123,7 +123,7 @@ func findSealedSegments(sealedDir, ext string) ([]string, error) {
 			continue
 		}
 		name := entry.Name()
-		if filepath.Ext(name) != dotExt {
+		if !strings.HasSuffix(name, dotExt) {
 			continue
 		}
 		segments = append(segments, strings.TrimSuffix(name, dotExt))
