@@ -87,13 +87,15 @@ func (sd *spoolDriver) startTimer() {
 		defer sd.wg.Done()
 		logrus.WithField("interval", sd.flushInterval).Info("started flush timer")
 
+		//nolint:contextcheck // long-lived goroutine should use context.Background()
+		ctx := context.Background()
 		ticker := time.NewTicker(sd.flushInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				if err := sd.Flush(context.Background()); err != nil {
+				if err := sd.Flush(ctx); err != nil {
 					logrus.WithError(err).Error("automatic flush failed")
 				}
 			case <-sd.stopCh:

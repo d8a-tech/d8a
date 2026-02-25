@@ -301,6 +301,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	}
 
 	// Create spool driver with timer-based flush
+	//nolint:contextcheck // long-lived driver spawns goroutine with context.Background(), not request context
 	driver := whFiles.NewSpoolDriver(uploader, fmt, spoolDir, flushInterval)
 
 	// Wrap with batching
