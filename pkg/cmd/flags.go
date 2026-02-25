@@ -383,6 +383,27 @@ var (
 		Usage:   "Destination directory for filesystem storage (required when warehouse-files-storage=filesystem)",
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FILESYSTEM_PATH", "warehouse.files.filesystem_path"),
 	}
+
+	warehouseFilesMaxSegmentSizeFlag = &cli.Int64Flag{
+		Name:    "warehouse-files-max-segment-size",
+		Usage:   "Maximum segment size in bytes before sealing (default: 1 GiB)",
+		Value:   1 << 30,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_SEGMENT_SIZE", "warehouse.files.max_segment_size"),
+	}
+
+	warehouseFilesMaxSegmentAgeFlag = &cli.DurationFlag{
+		Name:    "warehouse-files-max-segment-age",
+		Usage:   "Maximum segment age before sealing (default: 1h)",
+		Value:   time.Hour,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_SEGMENT_AGE", "warehouse.files.max_segment_age"),
+	}
+
+	warehouseFilesSealCheckIntervalFlag = &cli.DurationFlag{
+		Name:    "warehouse-files-seal-check-interval",
+		Usage:   "How often to evaluate sealing triggers (default: 15s)",
+		Value:   15 * time.Second,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_SEAL_CHECK_INTERVAL", "warehouse.files.seal_check_interval"),
+	}
 )
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
@@ -478,6 +499,9 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesFlushIntervalFlag,
 	warehouseFilesStorageFlag,
 	warehouseFilesFilesystemPathFlag,
+	warehouseFilesMaxSegmentSizeFlag,
+	warehouseFilesMaxSegmentAgeFlag,
+	warehouseFilesSealCheckIntervalFlag,
 }
 
 func getServerFlags() []cli.Flag {

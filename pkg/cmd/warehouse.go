@@ -240,7 +240,6 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 
 func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	format := cmd.String(warehouseFilesFormatFlag.Name)
-	flushInterval := cmd.Duration(warehouseFilesFlushIntervalFlag.Name)
 
 	if !cmd.Bool(storageSpoolEnabledFlag.Name) {
 		logrus.Fatal("files warehouse requires spool to be enabled (--storage-spool-enabled)")
@@ -285,7 +284,11 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
 	}
 
-	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir, flushInterval)
+	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir,
+		whFiles.WithSealCheckInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
+		whFiles.WithMaxSegmentSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
+		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
+	)
 
 	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)
 }

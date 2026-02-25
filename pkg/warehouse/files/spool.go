@@ -2,9 +2,12 @@ package files
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,10 +19,31 @@ import (
 // SpoolOption is a functional option for configuring SpoolDriver.
 type SpoolOption func(*spoolDriver)
 
-// WithManualFlush disables automatic timer-based flushing.
-func WithManualFlush() SpoolOption {
+// WithManualCycle disables automatic timer-based flush cycles.
+func WithManualCycle() SpoolOption {
 	return func(sd *spoolDriver) {
-		sd.flushInterval = 0
+		sd.sealCheckInterval = 0
+	}
+}
+
+// WithMaxSegmentSize sets the maximum segment size in bytes before sealing.
+func WithMaxSegmentSize(n int64) SpoolOption {
+	return func(sd *spoolDriver) {
+		sd.maxSegmentSize = n
+	}
+}
+
+// WithMaxSegmentAge sets the maximum segment age before sealing.
+func WithMaxSegmentAge(d time.Duration) SpoolOption {
+	return func(sd *spoolDriver) {
+		sd.maxSegmentAge = d
+	}
+}
+
+// WithSealCheckInterval sets how often to evaluate sealing triggers.
+func WithSealCheckInterval(d time.Duration) SpoolOption {
+	return func(sd *spoolDriver) {
+		sd.sealCheckInterval = d
 	}
 }
 
@@ -30,15 +54,17 @@ func WithManualFlush() SpoolOption {
 // maintains per-stream state (createdAt, activeSizeBytes) used to evaluate
 // sealing triggers.
 type spoolDriver struct {
-	ctx           context.Context
-	uploader      Uploader
-	format        Format
-	spoolDir      string
-	flushInterval time.Duration
-	stopCh        chan struct{}  // signal to stop timer
-	wg            sync.WaitGroup // wait for timer goroutine
-	mu            sync.Mutex     // protects concurrent file operations
-	streams       map[string]*streamState
+	ctx               context.Context
+	uploader          Uploader
+	format            Format
+	spoolDir          string
+	maxSegmentSize    int64
+	maxSegmentAge     time.Duration
+	sealCheckInterval time.Duration
+	stopCh            chan struct{}  // signal to stop timer
+	wg                sync.WaitGroup // wait for timer goroutine
+	mu                sync.Mutex     // protects concurrent file operations
+	streams           map[string]*streamState
 }
 
 type streamState struct {
@@ -53,17 +79,18 @@ func NewSpoolDriver(
 	uploader Uploader,
 	format Format,
 	spoolDir string,
-	flushInterval time.Duration,
 	opts ...SpoolOption,
 ) *spoolDriver {
 	sd := &spoolDriver{
-		ctx:           ctx,
-		uploader:      uploader,
-		format:        format,
-		spoolDir:      spoolDir,
-		flushInterval: flushInterval,
-		stopCh:        make(chan struct{}),
-		streams:       make(map[string]*streamState),
+		ctx:               ctx,
+		uploader:          uploader,
+		format:            format,
+		spoolDir:          spoolDir,
+		maxSegmentSize:    1 << 30,   // 1 GiB
+		maxSegmentAge:     time.Hour, // 1 hour
+		sealCheckInterval: 15 * time.Second,
+		stopCh:            make(chan struct{}),
+		streams:           make(map[string]*streamState),
 	}
 
 	for _, opt := range opts {
@@ -81,25 +108,25 @@ func NewSpoolDriver(
 	return sd
 }
 
-// startTimer starts the periodic flush timer (if interval > 0).
+// startTimer starts the periodic flush cycle timer (if interval > 0).
 func (sd *spoolDriver) startTimer() {
-	if sd.flushInterval == 0 {
+	if sd.sealCheckInterval == 0 {
 		return
 	}
 
 	sd.wg.Add(1)
 	go func() {
 		defer sd.wg.Done()
-		logrus.WithField("interval", sd.flushInterval).Info("started flush timer")
+		logrus.WithField("interval", sd.sealCheckInterval).Info("started flush cycle timer")
 
-		ticker := time.NewTicker(sd.flushInterval)
+		ticker := time.NewTicker(sd.sealCheckInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ticker.C:
-				if err := sd.Flush(sd.ctx); err != nil {
-					logrus.WithError(err).Error("automatic flush failed")
+				if err := sd.runFlushCycle(sd.ctx, false); err != nil {
+					logrus.WithError(err).Error("automatic flush cycle failed")
 				}
 			case <-sd.ctx.Done():
 				return
@@ -314,9 +341,254 @@ func (sd *spoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 	return []*arrow.Field{}, nil
 }
 
-// Flush scans the spool directory for CSV files and uploads them.
-func (sd *spoolDriver) Flush(ctx context.Context) error {
-	logrus.Debug("flush is currently a no-op")
+type sealedSegment struct {
+	tableEsc  string
+	fp        string
+	segmentID string
+	sealTime  time.Time
+}
+
+// runFlushCycle evaluates triggers, seals segments, and uploads sealed segments.
+func (sd *spoolDriver) runFlushCycle(ctx context.Context, forceAll bool) error {
+	justSealed, err := sd.evaluateAndSeal(forceAll)
+	if err != nil {
+		return err
+	}
+
+	toUpload, err := sd.discoverAllSealed(justSealed)
+	if err != nil {
+		return err
+	}
+
+	var errs []error
+	for _, seg := range toUpload {
+		if err := sd.uploadSegment(ctx, seg); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// evaluateAndSeal checks all active streams for seal triggers and seals those that match.
+func (sd *spoolDriver) evaluateAndSeal(forceAll bool) ([]sealedSegment, error) {
+	var toSeal []sealedSegment
+
+	sd.mu.Lock()
+	defer sd.mu.Unlock()
+
+	for key, state := range sd.streams {
+		parts := strings.SplitN(key, "/", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		tableEsc, fp := parts[0], parts[1]
+
+		shouldSeal := forceAll ||
+			(state.activeSizeBytes > 0 &&
+				(state.activeSizeBytes >= sd.maxSegmentSize ||
+					time.Since(state.createdAt) >= sd.maxSegmentAge))
+
+		if shouldSeal {
+			segmentID, sealTime, err := sd.sealStream(tableEsc, fp)
+			if err != nil {
+				return nil, fmt.Errorf("sealing stream %s: %w", key, err)
+			}
+			toSeal = append(toSeal, sealedSegment{
+				tableEsc:  tableEsc,
+				fp:        fp,
+				segmentID: segmentID,
+				sealTime:  sealTime,
+			})
+		}
+	}
+	return toSeal, nil
+}
+
+// discoverAllSealed merges justSealed with any crash-recovered segments on disk.
+func (sd *spoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSegment, error) {
+	toUpload := make([]sealedSegment, 0, len(justSealed))
+	sealedSet := make(map[string]struct{})
+	for _, s := range justSealed {
+		sealedSet[s.tableEsc+"/"+s.fp+"/"+s.segmentID] = struct{}{}
+		toUpload = append(toUpload, s)
+	}
+
+	streamsRoot := filepath.Join(sd.spoolDir, "streams")
+	tableEntries, err := os.ReadDir(streamsRoot)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("reading streams root: %w", err)
+	}
+
+	for _, tableEntry := range tableEntries {
+		if !tableEntry.IsDir() {
+			continue
+		}
+		tableEsc := tableEntry.Name()
+		tableDir := filepath.Join(streamsRoot, tableEsc)
+		fpEntries, err := os.ReadDir(tableDir)
+		if err != nil {
+			return nil, fmt.Errorf("reading table dir %s: %w", tableDir, err)
+		}
+
+		for _, fpEntry := range fpEntries {
+			if !fpEntry.IsDir() {
+				continue
+			}
+			fp := fpEntry.Name()
+			sealedDir := SealedDir(sd.spoolDir, tableEsc, fp)
+			segments, err := findSealedSegments(sealedDir)
+			if err != nil {
+				return nil, fmt.Errorf("finding sealed segments in %s: %w", sealedDir, err)
+			}
+
+			for _, segmentID := range segments {
+				key := tableEsc + "/" + fp + "/" + segmentID
+				if _, ok := sealedSet[key]; ok {
+					continue // already in toUpload from justSealed
+				}
+				toUpload = append(toUpload, sealedSegment{
+					tableEsc:  tableEsc,
+					fp:        fp,
+					segmentID: segmentID,
+					sealTime:  time.Now().UTC(),
+				})
+			}
+		}
+	}
+	return toUpload, nil
+}
+
+func (sd *spoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) error {
+	streamDir := StreamDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	sealedDir := SealedDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	uploadingDir := UploadingDir(sd.spoolDir, seg.tableEsc, seg.fp)
+	sealedPath := SegmentPath(sealedDir, seg.segmentID)
+	uploadingPath := SegmentPath(uploadingDir, seg.segmentID)
+
+	// Move sealed -> uploading under lock
+	sd.mu.Lock()
+	if err := os.Rename(sealedPath, uploadingPath); err != nil {
+		sd.mu.Unlock()
+		if os.IsNotExist(err) {
+			// Segment was already uploaded or moved by another process
+			return nil
+		}
+		return fmt.Errorf("moving segment to uploading: %w", err)
+	}
+	sd.mu.Unlock()
+
+	// Upload outside lock
+	remoteKey := SegmentRemoteKey(seg.tableEsc, seg.fp, seg.segmentID, seg.sealTime)
+	uploadErr := sd.uploader.Upload(ctx, uploadingPath, remoteKey)
+
+	if uploadErr == nil {
+		// Success: remove the uploaded file
+		if err := os.Remove(uploadingPath); err != nil && !os.IsNotExist(err) {
+			logrus.WithError(err).WithField("path", uploadingPath).Warn("failed to remove uploaded file")
+		}
+		logrus.WithFields(logrus.Fields{
+			"table":      seg.tableEsc,
+			"fp":         seg.fp,
+			"segment_id": seg.segmentID,
+			"remote_key": remoteKey,
+		}).Info("uploaded segment")
+		return nil
+	}
+
+	// Failure: move back to sealed, increment fail count
+	sd.mu.Lock()
+	if err := os.Rename(uploadingPath, sealedPath); err != nil {
+		sd.mu.Unlock()
+		return fmt.Errorf("moving segment back to sealed after upload failure: %w", err)
+	}
+	sd.mu.Unlock()
+
+	failCount := readFailCount(streamDir, seg.segmentID) + 1
+	if writeErr := writeFailCount(streamDir, seg.segmentID, failCount); writeErr != nil {
+		logrus.WithError(writeErr).WithField("segment_id", seg.segmentID).Warn("failed to write fail count")
+	}
+
+	if failCount >= 3 {
+		if err := sd.quarantine(seg.tableEsc, seg.fp, seg.segmentID); err != nil {
+			logrus.WithError(err).WithField("segment_id", seg.segmentID).Error("failed to quarantine segment")
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"table":      seg.tableEsc,
+				"fp":         seg.fp,
+				"segment_id": seg.segmentID,
+			}).Warn("quarantined segment after 3 failures")
+		}
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"table":      seg.tableEsc,
+			"fp":         seg.fp,
+			"segment_id": seg.segmentID,
+			"fail_count": failCount,
+			"error":      uploadErr,
+		}).Warn("upload failed, will retry")
+	}
+
+	return uploadErr
+}
+
+func readFailCount(streamDir, segmentID string) int {
+	path := FailCountPath(streamDir, segmentID)
+	data, err := os.ReadFile(path) //nolint:gosec // path is controlled
+	if err != nil {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
+func writeFailCount(streamDir, segmentID string, n int) error {
+	path := FailCountPath(streamDir, segmentID)
+	tmpPath := path + ".tmp"
+	content := []byte(strconv.Itoa(n))
+	if err := os.WriteFile(tmpPath, content, 0o600); err != nil {
+		return fmt.Errorf("writing fail count temp file: %w", err)
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("renaming fail count file: %w", err)
+	}
+	return nil
+}
+
+func (sd *spoolDriver) quarantine(tableEsc, fp, segmentID string) error {
+	sealedDir := SealedDir(sd.spoolDir, tableEsc, fp)
+	failedDir := FailedDir(sd.spoolDir, tableEsc, fp)
+	streamDir := StreamDir(sd.spoolDir, tableEsc, fp)
+
+	sealedPath := SegmentPath(sealedDir, segmentID)
+	failedPath := SegmentPath(failedDir, segmentID)
+
+	if err := os.Rename(sealedPath, failedPath); err != nil {
+		return fmt.Errorf("moving segment to failed: %w", err)
+	}
+
+	// Move metadata if present
+	sealedMeta := filepath.Join(sealedDir, segmentID+".meta.json")
+	failedMeta := filepath.Join(failedDir, segmentID+".meta.json")
+	if _, err := os.Stat(sealedMeta); err == nil {
+		if err := os.Rename(sealedMeta, failedMeta); err != nil {
+			logrus.WithError(err).WithField("segment_id", segmentID).Warn("failed to move metadata to failed dir")
+		}
+	}
+
+	// Remove failcount file
+	failCountPath := FailCountPath(streamDir, segmentID)
+	if err := os.Remove(failCountPath); err != nil && !os.IsNotExist(err) {
+		logrus.WithError(err).WithField("segment_id", segmentID).Warn("failed to remove failcount file")
+	}
+
 	return nil
 }
 
@@ -359,7 +631,7 @@ func (sd *spoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 func (sd *spoolDriver) Close() error {
 	close(sd.stopCh)
 	sd.wg.Wait()
-	err := sd.Flush(context.Background())
+	err := sd.runFlushCycle(context.Background(), true)
 	logrus.Info("driver closed")
 	return err
 }
