@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -245,13 +246,15 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 
 func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	format := cmd.String(warehouseFilesFormatFlag.Name)
-	spoolDir := cmd.String(warehouseFilesSpoolDirFlag.Name)
 	flushInterval := cmd.Duration(warehouseFilesFlushIntervalFlag.Name)
 
-	// Validation
-	if spoolDir == "" {
-		logrus.Fatal("--warehouse-files-spool-dir is required when using files warehouse")
+	// Check if spool is enabled
+	if !cmd.Bool(storageSpoolEnabledFlag.Name) {
+		logrus.Fatal("files warehouse requires spool to be enabled (--storage-spool-enabled)")
 	}
+
+	baseSpoolDir := cmd.String(storageSpoolDirectoryFlag.Name)
+	spoolDir := filepath.Join(baseSpoolDir, "warehouse/files")
 
 	// Create format
 	var fmt whFiles.Format

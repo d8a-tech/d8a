@@ -365,12 +365,6 @@ var (
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
 	}
 
-	warehouseFilesSpoolDirFlag = &cli.StringFlag{
-		Name:    "warehouse-files-spool-dir",
-		Usage:   "Local directory for spooling files before upload (required)",
-		Sources: defaultSourceChain("WAREHOUSE_FILES_SPOOL_DIR", "warehouse.files.spool_dir"),
-	}
-
 	warehouseFilesFlushIntervalFlag = &cli.DurationFlag{
 		Name:    "warehouse-files-flush-interval",
 		Usage:   "Interval for flushing local spool files to object storage",
@@ -481,7 +475,6 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseBigQueryPartitionIntervalFlag,
 	warehouseBigQueryPartitionExpirationDaysFlag,
 	warehouseFilesFormatFlag,
-	warehouseFilesSpoolDirFlag,
 	warehouseFilesFlushIntervalFlag,
 	warehouseFilesStorageFlag,
 	warehouseFilesFilesystemPathFlag,
