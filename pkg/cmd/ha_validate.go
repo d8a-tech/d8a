@@ -27,34 +27,34 @@ func validateHAFlags(mode string, cmd *cli.Command) error {
 			return fmt.Errorf("%s is required when queue-backend=filesystem", storageQueueDirectoryFlag.Name)
 		}
 	case "objectstorage":
-		if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.Prefix.Name)) == "" {
-			return fmt.Errorf("%s is required when queue-backend=objectstorage", ObjectStorageFlagsSpec.Queue.Prefix.Name)
+		if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.Prefix.Name)) == "" {
+			return fmt.Errorf("%s is required when queue-backend=objectstorage", objectStorageFlagsSpec.Queue.Prefix.Name)
 		}
-		if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.Type.Name)) == "" {
-			return fmt.Errorf("%s is required when queue-backend=objectstorage", ObjectStorageFlagsSpec.Queue.Type.Name)
+		if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.Type.Name)) == "" {
+			return fmt.Errorf("%s is required when queue-backend=objectstorage", objectStorageFlagsSpec.Queue.Type.Name)
 		}
-		storageType := strings.ToLower(strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.Type.Name)))
+		storageType := strings.ToLower(strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.Type.Name)))
 		switch storageType {
 		case "s3":
-			if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.S3Host.Name)) == "" {
-				return fmt.Errorf("%s is required when queue-object-storage-type=s3", ObjectStorageFlagsSpec.Queue.S3Host.Name)
+			if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.S3Host.Name)) == "" {
+				return fmt.Errorf("%s is required when queue-object-storage-type=s3", objectStorageFlagsSpec.Queue.S3Host.Name)
 			}
-			if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.S3Bucket.Name)) == "" {
-				return fmt.Errorf("%s is required when queue-object-storage-type=s3", ObjectStorageFlagsSpec.Queue.S3Bucket.Name)
+			if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.S3Bucket.Name)) == "" {
+				return fmt.Errorf("%s is required when queue-object-storage-type=s3", objectStorageFlagsSpec.Queue.S3Bucket.Name)
 			}
-			if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.S3AccessKey.Name)) == "" {
-				return fmt.Errorf("%s is required when queue-object-storage-type=s3", ObjectStorageFlagsSpec.Queue.S3AccessKey.Name)
+			if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.S3AccessKey.Name)) == "" {
+				return fmt.Errorf("%s is required when queue-object-storage-type=s3", objectStorageFlagsSpec.Queue.S3AccessKey.Name)
 			}
-			if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.S3SecretKey.Name)) == "" {
-				return fmt.Errorf("%s is required when queue-object-storage-type=s3", ObjectStorageFlagsSpec.Queue.S3SecretKey.Name)
+			if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.S3SecretKey.Name)) == "" {
+				return fmt.Errorf("%s is required when queue-object-storage-type=s3", objectStorageFlagsSpec.Queue.S3SecretKey.Name)
 			}
-			proto := strings.ToLower(strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.S3Protocol.Name)))
+			proto := strings.ToLower(strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.S3Protocol.Name)))
 			if proto != "http" && proto != "https" {
-				return fmt.Errorf("%s must be http or https", ObjectStorageFlagsSpec.Queue.S3Protocol.Name)
+				return fmt.Errorf("%s must be http or https", objectStorageFlagsSpec.Queue.S3Protocol.Name)
 			}
 		case "gcs":
-			if strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Queue.GCSBucket.Name)) == "" {
-				return fmt.Errorf("%s is required when queue-object-storage-type=gcs", ObjectStorageFlagsSpec.Queue.GCSBucket.Name)
+			if strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Queue.GCSBucket.Name)) == "" {
+				return fmt.Errorf("%s is required when queue-object-storage-type=gcs", objectStorageFlagsSpec.Queue.GCSBucket.Name)
 			}
 		default:
 			return fmt.Errorf("unsupported queue-object-storage-type: %s", storageType)

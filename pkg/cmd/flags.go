@@ -350,11 +350,11 @@ var queueObjectStorageMaxItemsToReadAtOnceFlag *cli.IntFlag = &cli.IntFlag{
 	Value: 1000,
 }
 
-// Queue object storage flags are generated via ObjectStorageFlagsSpec.Queue
-var queueObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Queue)
+// Queue object storage flags are generated via objectStorageFlagsSpec.Queue
+var queueObjectStorageCliFlags = ToCliFlags(&objectStorageFlagsSpec.Queue)
 
-// Warehouse object storage flags are generated via ObjectStorageFlagsSpec.Warehouse
-var warehouseObjectStorageCliFlags = ToCliFlags(&ObjectStorageFlagsSpec.Warehouse)
+// Warehouse object storage flags are generated via objectStorageFlagsSpec.Warehouse
+var warehouseObjectStorageCliFlags = ToCliFlags(&objectStorageFlagsSpec.Warehouse)
 
 // Files warehouse flags
 var (

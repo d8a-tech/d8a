@@ -9,8 +9,8 @@ import (
 	"gocloud.dev/blob"
 )
 
-func createWarehouseCDKBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, func() error, error) {
-	storageType := strings.ToLower(cmd.String(ObjectStorageFlagsSpec.Warehouse.Type.Name))
+func createWarehouseCDKBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, error) {
+	storageType := strings.ToLower(cmd.String(objectStorageFlagsSpec.Warehouse.Type.Name))
 
 	var bucket *blob.Bucket
 	var cleanup func() error
@@ -22,23 +22,25 @@ func createWarehouseCDKBucket(ctx context.Context, cmd *cli.Command) (*blob.Buck
 	case "gcs":
 		bucket, cleanup, err = createWarehouseGCSBucket(ctx, cmd)
 	default:
-		return nil, nil, fmt.Errorf("unsupported warehouse object storage type: %s", storageType)
+		return nil, fmt.Errorf("unsupported warehouse object storage type: %s", storageType)
 	}
 
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	prefix := strings.TrimSpace(cmd.String(ObjectStorageFlagsSpec.Warehouse.Prefix.Name))
+	_ = cleanup
+
+	prefix := strings.TrimSpace(cmd.String(objectStorageFlagsSpec.Warehouse.Prefix.Name))
 	if prefix != "" {
 		bucket = blob.PrefixedBucket(bucket, prefix)
 	}
 
-	return bucket, cleanup, nil
+	return bucket, nil
 }
 
 func createWarehouseS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
-	return createS3BucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Warehouse)
+	return createS3BucketWithFlags(ctx, c, &objectStorageFlagsSpec.Warehouse)
 }
 
 // Authentication order:
@@ -48,5 +50,5 @@ func createWarehouseS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket,
 func createWarehouseGCSBucket(
 	ctx context.Context, c *cli.Command,
 ) (*blob.Bucket, func() error, error) {
-	return createGCSBucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Warehouse)
+	return createGCSBucketWithFlags(ctx, c, &objectStorageFlagsSpec.Warehouse)
 }

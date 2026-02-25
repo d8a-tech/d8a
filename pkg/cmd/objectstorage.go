@@ -23,24 +23,24 @@ import (
 )
 
 func createBucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
-	switch strings.ToLower(c.String(ObjectStorageFlagsSpec.Queue.Type.Name)) {
+	switch strings.ToLower(c.String(objectStorageFlagsSpec.Queue.Type.Name)) {
 	case "s3":
 		return createS3Bucket(ctx, c)
 	case "gcs":
 		return createGCSBucket(ctx, c)
 	default:
-		return nil, nil, fmt.Errorf("unsupported object storage type: %s", c.String(ObjectStorageFlagsSpec.Queue.Type.Name))
+		return nil, nil, fmt.Errorf("unsupported object storage type: %s", c.String(objectStorageFlagsSpec.Queue.Type.Name))
 	}
 }
 
 func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
-	return createS3BucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
+	return createS3BucketWithFlags(ctx, c, &objectStorageFlagsSpec.Queue)
 }
 
 func createS3BucketWithFlags(
 	ctx context.Context,
 	c *cli.Command,
-	flags *ObjectStorageFlagSet,
+	flags *objectStorageFlagSet,
 ) (*blob.Bucket, func() error, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithCredentialsProvider(
@@ -99,14 +99,11 @@ func createS3BucketWithFlags(
 	return bucket, bucket.Close, nil
 }
 
-// Authentication order:
-// - If QUEUE_OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
-// - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
 // nolint:funlen // straightforward setup
 func createGCSBucket(
 	ctx context.Context, c *cli.Command,
 ) (*blob.Bucket, func() error, error) {
-	return createGCSBucketWithFlags(ctx, c, &ObjectStorageFlagsSpec.Queue)
+	return createGCSBucketWithFlags(ctx, c, &objectStorageFlagsSpec.Queue)
 }
 
 // Authentication order:
@@ -116,7 +113,7 @@ func createGCSBucket(
 func createGCSBucketWithFlags(
 	ctx context.Context,
 	c *cli.Command,
-	flags *ObjectStorageFlagSet,
+	flags *objectStorageFlagSet,
 ) (*blob.Bucket, func() error, error) {
 	bucketName := c.String(flags.GCSBucket.Name)
 	if bucketName == "" {

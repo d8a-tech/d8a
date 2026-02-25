@@ -262,15 +262,10 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
-		bucket, cleanup, err := createWarehouseCDKBucket(ctx, cmd)
+		bucket, err := createWarehouseCDKBucket(ctx, cmd)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
 		}
-		defer func() {
-			if cleanupErr := cleanup(); cleanupErr != nil {
-				logrus.WithError(cleanupErr).Error("failed to cleanup warehouse bucket")
-			}
-		}() // NOTE: In real impl, store cleanup in run.go
 
 		uploader = whFiles.NewBlobUploader(bucket)
 

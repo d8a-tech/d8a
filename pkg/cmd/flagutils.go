@@ -24,7 +24,7 @@ type FlagSpec struct {
 	DefaultValue any
 }
 
-type ObjectStorageFlagSet struct {
+type objectStorageFlagSet struct {
 	Type           FlagSpec
 	Prefix         FlagSpec
 	S3Host         FlagSpec
@@ -40,14 +40,14 @@ type ObjectStorageFlagSet struct {
 	GCSCredsJSON   FlagSpec
 }
 
-type ObjectStorageFlags struct {
-	Queue     ObjectStorageFlagSet
-	Warehouse ObjectStorageFlagSet
+type objectStorageFlags struct {
+	Queue     objectStorageFlagSet
+	Warehouse objectStorageFlagSet
 }
 
 // nolint:funlen // struct initialization for 13 flags
-func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPrefix string) ObjectStorageFlagSet {
-	return ObjectStorageFlagSet{
+func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPrefix string) objectStorageFlagSet {
+	return objectStorageFlagSet{
 		Type: FlagSpec{
 			Name:       flagPrefix + "-type",
 			Usage:      envPrefix + " object storage type (s3 or gcs)",
@@ -147,7 +147,7 @@ func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPref
 	}
 }
 
-func ToCliFlags(specs *ObjectStorageFlagSet) []cli.Flag {
+func ToCliFlags(specs *objectStorageFlagSet) []cli.Flag {
 	allSpecs := []FlagSpec{
 		specs.Type,
 		specs.Prefix,
@@ -238,7 +238,7 @@ func specToCliFlag(spec *FlagSpec) cli.Flag {
 }
 
 // Different default prefixes: queue uses "d8a/queue", warehouse uses "" (no default)
-var ObjectStorageFlagsSpec = ObjectStorageFlags{
+var objectStorageFlagsSpec = objectStorageFlags{
 	Queue: createObjectStorageFlagSet(
 		"QUEUE_OBJECT_STORAGE",
 		"queue-object-storage",
