@@ -265,7 +265,9 @@ func (s *Server) setupRouter(ctx context.Context) *router.Router {
 		for _, endpoint := range protocol.Endpoints() {
 			if endpoint.IsCustom {
 				for _, method := range endpoint.Methods {
-					logrus.Infof("registering custom endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+					logrus.WithFields(logrus.Fields{
+						"path": endpoint.Path, "method": method, "protocol": protocol.ID(),
+					}).Debug("registering endpoint")
 					r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 						start := time.Now()
 						defer func() {
@@ -277,7 +279,9 @@ func (s *Server) setupRouter(ctx context.Context) *router.Router {
 				continue
 			}
 			for _, method := range endpoint.Methods {
-				logrus.Infof("registering endpoint %s %s for protocol %s", method, endpoint.Path, protocol.ID())
+				logrus.WithFields(logrus.Fields{
+					"path": endpoint.Path, "method": method, "protocol": protocol.ID(),
+				}).Debug("registering endpoint")
 				r.Handle(method, endpoint.Path, func(fctx *fasthttp.RequestCtx) {
 					start := time.Now()
 					defer func() {

@@ -44,7 +44,7 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 	require.NoError(t, err, "failed to start worker process")
 
 	// Start receiver process in background
-	receiverHandle, err := startProcessInBackground(t, binaryPath, "receiver", "--config", receiverConfigPath)
+	receiverHandle, err := startProcessInBackground(t, binaryPath, "receiver", "--debug", "--config", receiverConfigPath)
 	require.NoError(t, err, "failed to start receiver process")
 
 	// Wait for receiver to be ready (healthz endpoint)
@@ -88,7 +88,7 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 	// Verify worker logs show "Appending to proto-sessions" message (worker processes hits)
 	assert.True(
 		t,
-		workerHandle.logs.waitFor("Appending to proto-sessions", 90*time.Second),
+		workerHandle.logs.waitFor("appending to proto-sessions", 90*time.Second),
 		"worker should process hits from queue",
 	)
 

@@ -183,7 +183,7 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 		// Verify worker logs show "Appending to proto-sessions" message (worker processes hits)
 		assert.True(
 			t,
-			workerHandle.logs.waitFor("Appending to proto-sessions", 5*time.Second),
+			workerHandle.logs.waitFor("appending to proto-sessions", 5*time.Second),
 			"worker should process hits from queue",
 		)
 

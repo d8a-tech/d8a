@@ -100,6 +100,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			default:
 				logrus.SetLevel(logrus.InfoLevel)
 			}
+			logrus.Infof("d8a.tech (version %s)", version)
 			return ctx, nil
 		},
 		Commands: []*cli.Command{
@@ -212,24 +213,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					// Start server and handle its error
-					server := receiver.NewServer(
-						serverStorage,
-						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(
-							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-							propertySettings(cmd),
-						),
-						// For as long as we don't support multi-property, we return a single protocol.
-						func() []protocol.Protocol {
-							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
-							if currentProtocol == nil {
-								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
-							}
-							return []protocol.Protocol{currentProtocol}
-						}(),
-						cmd.Int(serverPortFlag.Name),
-						receiver.WithHost(cmd.String(serverHostFlag.Name)),
-					)
+					server := buildReceiverServer(cmd, serverStorage)
 					serverErr := server.Run(ctx)
 					if serverErr != nil {
 						logrus.Errorf("server error: %v", serverErr)
@@ -270,23 +254,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					server := receiver.NewServer(
-						serverStorage,
-						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(
-							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-							propertySettings(cmd),
-						),
-						func() []protocol.Protocol {
-							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
-							if currentProtocol == nil {
-								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
-							}
-							return []protocol.Protocol{currentProtocol}
-						}(),
-						cmd.Int(serverPortFlag.Name),
-						receiver.WithHost(cmd.String(serverHostFlag.Name)),
-					)
+					server := buildReceiverServer(cmd, serverStorage)
 					return server.Run(ctx)
 				},
 			},
@@ -375,6 +343,27 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.
+// For as long as we don't support multi-property, we return a single protocol.
+func buildReceiverServer(cmd *cli.Command, storage receiver.Storage) *receiver.Server {
+	currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+	if currentProtocol == nil {
+		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
+	}
+
+	return receiver.NewServer(
+		storage,
+		receiver.NewNoopRawLogStorage(),
+		receiver.HitValidatingRuleSet(
+			1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
+			propertySettings(cmd),
+		),
+		[]protocol.Protocol{currentProtocol},
+		cmd.Int(serverPortFlag.Name),
+		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+	)
 }
 
 func propertySettings(cmd *cli.Command) properties.SettingsRegistry {

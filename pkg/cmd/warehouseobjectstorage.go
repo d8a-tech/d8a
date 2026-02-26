@@ -10,7 +10,6 @@ import (
 )
 
 func createWarehouseCDKBucket(ctx context.Context, storageType string, cmd *cli.Command) (*blob.Bucket, error) {
-
 	var bucket *blob.Bucket
 	var cleanup func() error
 	var err error

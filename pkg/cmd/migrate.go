@@ -34,7 +34,7 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string, whr wareh
 	if err != nil {
 		return err
 	}
-	logrus.Infof("all dependencies fulfilled for property %s", propertyID)
+	logrus.Debugf("all dependencies fulfilled for property %s", propertyID)
 	guard := schema.NewGuard(
 		whr,
 		schema.NewStaticColumnsRegistry(
@@ -57,6 +57,6 @@ func migrate(ctx context.Context, cmd *cli.Command, propertyID string, whr wareh
 		return err
 	}
 
-	logrus.Infof("migrated property %s to the new schema", propertyID)
+	logrus.Debugf("migrated property %s to the new schema", propertyID)
 	return nil
 }
