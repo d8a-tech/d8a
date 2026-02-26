@@ -110,7 +110,7 @@ var deviceDetectionProviderFlag *cli.StringFlag = &cli.StringFlag{
 
 var warehouseDriverFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "warehouse-driver",
-	Usage:   "Target warehouse driver (clickhouse, bigquery, console, or noop)",
+	Usage:   "Target warehouse driver (clickhouse, bigquery, files, console, or noop)",
 	Sources: defaultSourceChain("WAREHOUSE_DRIVER", "warehouse.driver"),
 	Value:   "console",
 }
