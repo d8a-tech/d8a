@@ -274,7 +274,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
-		bucket, err := createWarehouseCDKBucket(ctx, cmd)
+		bucket, err := createWarehouseCDKBucket(ctx, storageType, cmd)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
 		}
@@ -303,5 +303,5 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
 	)
 
-	return warehouse.NewStaticBatchedDriverRegistry(ctx, driver)
+	return warehouse.NewStaticDriverRegistry(driver)
 }

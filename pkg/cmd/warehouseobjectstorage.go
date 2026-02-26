@@ -9,8 +9,7 @@ import (
 	"gocloud.dev/blob"
 )
 
-func createWarehouseCDKBucket(ctx context.Context, cmd *cli.Command) (*blob.Bucket, error) {
-	storageType := strings.ToLower(cmd.String(objectStorageFlagsSpec.Warehouse.Type.Name))
+func createWarehouseCDKBucket(ctx context.Context, storageType string, cmd *cli.Command) (*blob.Bucket, error) {
 
 	var bucket *blob.Bucket
 	var cleanup func() error
