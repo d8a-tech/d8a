@@ -37,19 +37,7 @@ func (u *blobUploader) Upload(ctx context.Context, localPath, remoteKey string) 
 		return fmt.Errorf("reading file for upload: %w", err)
 	}
 
-	fileInfo, err := os.Stat(localPath)
-	if err != nil {
-		logrus.WithError(err).WithField("file", filename).Error("failed to stat file")
-		return fmt.Errorf("getting file info: %w", err)
-	}
-
-	logrus.WithFields(logrus.Fields{
-		"file": filename,
-		"size": fileInfo.Size(),
-	}).Info("uploading file to blob storage")
-
 	if err := u.bucket.WriteAll(ctx, remoteKey, data, nil); err != nil {
-		logrus.WithError(err).WithField("file", filename).Error("failed to upload file")
 		return fmt.Errorf("uploading file to blob storage: %w", err)
 	}
 
@@ -57,11 +45,6 @@ func (u *blobUploader) Upload(ctx context.Context, localPath, remoteKey string) 
 		logrus.WithError(err).WithField("file", filename).Warn("uploaded but failed to delete local file")
 		return fmt.Errorf("deleting local file after upload: %w", err)
 	}
-
-	logrus.WithFields(logrus.Fields{
-		"file": filename,
-		"size": fileInfo.Size(),
-	}).Info("uploaded and deleted file")
 
 	return nil
 }

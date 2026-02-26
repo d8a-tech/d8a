@@ -272,7 +272,7 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 	m.splitterHist.Record(ctx, time.Since(splitterStart).Seconds())
 	if err != nil {
 		logrus.Warnf(
-			"Could not split session for property ID %s: %s. Writing unsplit session.",
+			"could not split session for property ID %s: %s. Writing unsplit session.",
 			session.PropertyID,
 			err.Error(),
 		)

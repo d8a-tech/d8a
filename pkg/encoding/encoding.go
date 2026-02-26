@@ -26,7 +26,7 @@ func ZlibCBORDecoder(r io.Reader, v any) error {
 	defer func() {
 		err = reader.Close()
 		if err != nil {
-			logrus.Errorf("Error closing zlib reader: %v", err)
+			logrus.Errorf("error closing zlib reader: %v", err)
 		}
 	}()
 
@@ -43,7 +43,7 @@ func ZlibCBOREncoder(w io.Writer, v any) (int, error) {
 	compressor := zlib.NewWriter(w)
 	defer func() {
 		if err := compressor.Close(); err != nil {
-			logrus.Errorf("Error closing zlib writer: %v", err)
+			logrus.Errorf("error closing zlib writer: %v", err)
 		}
 	}()
 
@@ -81,7 +81,7 @@ func GzipJSONDecoder(r io.Reader, v any) error {
 	defer func() {
 		err = reader.Close()
 		if err != nil {
-			logrus.Errorf("Error closing gzip reader: %v", err)
+			logrus.Errorf("error closing gzip reader: %v", err)
 		}
 	}()
 
@@ -95,7 +95,7 @@ func GzipJSONEncoder(w io.Writer, v any) (int, error) {
 
 	defer func() {
 		if err := compressor.Close(); err != nil {
-			logrus.Errorf("Error closing gzip writer: %v", err)
+			logrus.Errorf("error closing gzip writer: %v", err)
 		}
 	}()
 
@@ -106,7 +106,7 @@ func GzipJSONEncoder(w io.Writer, v any) (int, error) {
 
 	// Close the compressor to flush any remaining data
 	if err := compressor.Close(); err != nil {
-		logrus.Errorf("Error closing gzip writer: %v", err)
+		logrus.Errorf("error closing gzip writer: %v", err)
 		return countingWriter.count, err
 	}
 

@@ -141,7 +141,7 @@ func (sd *SpoolDriver) startTimer() {
 	sd.wg.Add(1)
 	go func() {
 		defer sd.wg.Done()
-		logrus.WithField("interval", sd.sealCheckInterval).Info("started flush cycle timer")
+		logrus.WithField("interval", sd.sealCheckInterval).Debug("started flush cycle timer")
 
 		tk := sd.newTicker(sd.sealCheckInterval)
 		defer tk.Stop()
@@ -478,9 +478,6 @@ func (sd *SpoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) err
 			logrus.WithError(err).WithField("path", uploadingPath).Warn("failed to remove uploaded file")
 		}
 		logrus.WithFields(logrus.Fields{
-			"table":      seg.tableEsc,
-			"fp":         seg.fp,
-			"segment_id": seg.segmentID,
 			"remote_key": remoteKey,
 		}).Info("uploaded segment")
 		return nil

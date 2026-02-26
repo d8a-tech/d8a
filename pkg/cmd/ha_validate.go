@@ -15,7 +15,7 @@ func validateHAFlags(mode string, cmd *cli.Command) error {
 	}
 
 	if backend == queueBackendFilesystem && (mode == "receiver" || mode == "worker") {
-		logrus.Warn("Filesystem queue backend is not suitable for multi-machine deployments. " +
+		logrus.Warn("filesystem queue backend is not suitable for multi-machine deployments. " +
 			"Receiver and worker modes are designed to run on separate machines, " +
 			"but filesystem queues cannot be shared across machines. " +
 			"Consider using --queue-backend=objectstorage for production deployments.")

@@ -111,14 +111,14 @@ func (tw *TimingWheel) loop(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			logrus.Debugf("TimingWheel loop stopped due to context cancellation")
+			logrus.Debugf("timingWheel loop stopped due to context cancellation")
 			return
 		case <-tw.stop:
-			logrus.Debugf("TimingWheel loop stopped")
+			logrus.Debugf("timingWheel loop stopped")
 			return
 		case <-ticker.C:
 			if err := tw.tick(ctx); err != nil {
-				logrus.Errorf("TimingWheel tick failed: %s", err)
+				logrus.Errorf("timingWheel tick failed: %s", err)
 				tw.loopSleep = tw.tickInterval
 			}
 			// Update ticker interval in case loopSleep changed
@@ -135,7 +135,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	tw.loopSleep = tw.tickInterval
 
 	if tw.currentTime.IsZero() {
-		logrus.Debugf("No hits processed yet, skipping timing wheel tick")
+		logrus.Debugf("no hits processed yet, skipping timing wheel tick")
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	tw.lock.Lock(currentBucket)
 	defer tw.lock.Drop(currentBucket)
 
-	logrus.Debugf("TimingWheel tick next bucket: %d, current bucket: %d", nextBucket, currentBucket)
+	logrus.Debugf("timingWheel tick next bucket: %d, current bucket: %d", nextBucket, currentBucket)
 
 	// Bucket not yet ready to process
 	if nextBucket >= currentBucket {

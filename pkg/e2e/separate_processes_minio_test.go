@@ -135,7 +135,7 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 
 		// when - execution
 		// Start worker process in background
-		workerHandle, err := startProcessInBackground(t, binaryPath, "worker", "--config", workerConfigPath)
+		workerHandle, err := startProcessInBackground(t, binaryPath, "worker", "--debug", "--config", workerConfigPath)
 		require.NoError(t, err, "failed to start worker process")
 
 		// Start receiver process in background
@@ -176,11 +176,11 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 		// Verify receiver started successfully
 		assert.True(
 			t,
-			receiverHandle.logs.waitFor("Starting server", 5*time.Second),
+			receiverHandle.logs.waitFor("starting server", 5*time.Second),
 			"receiver should start successfully",
 		)
 
-		// Verify worker logs show "Appending to proto-sessions" messages (worker processes hits)
+		// Verify worker logs show "Appending to proto-sessions" message (worker processes hits)
 		assert.True(
 			t,
 			workerHandle.logs.waitFor("Appending to proto-sessions", 5*time.Second),

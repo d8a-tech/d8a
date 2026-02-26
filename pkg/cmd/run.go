@@ -202,7 +202,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							// Check if context is done before processing task
 							select {
 							case <-ctx.Done():
-								logrus.Debug("Context cancelled, skipping task processing")
+								logrus.Debug("context cancelled, skipping task processing")
 								return nil
 							default:
 								return runtime.Worker.Process(task)
@@ -228,10 +228,11 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							return []protocol.Protocol{currentProtocol}
 						}(),
 						cmd.Int(serverPortFlag.Name),
+						receiver.WithHost(cmd.String(serverHostFlag.Name)),
 					)
 					serverErr := server.Run(ctx)
 					if serverErr != nil {
-						logrus.Errorf("Server error: %v", serverErr)
+						logrus.Errorf("server error: %v", serverErr)
 						cancel()
 					}
 
@@ -284,6 +285,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							return []protocol.Protocol{currentProtocol}
 						}(),
 						cmd.Int(serverPortFlag.Name),
+						receiver.WithHost(cmd.String(serverHostFlag.Name)),
 					)
 					return server.Run(ctx)
 				},
@@ -327,7 +329,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return queue.Consumer.Consume(func(task *worker.Task) error {
 						select {
 						case <-ctx.Done():
-							logrus.Debug("Context cancelled, skipping task processing")
+							logrus.Debug("context cancelled, skipping task processing")
 							return nil
 						default:
 							return runtime.Worker.Process(task)

@@ -21,7 +21,7 @@ type printingCloser struct {
 func (c *printingCloser) Close(protosessions [][]*hits.Hit) error {
 	for _, protosession := range protosessions {
 		for _, hit := range protosession {
-			logrus.Warnf("Closing protosession: /%v/%v/%v", hit.AuthoritativeClientID, hit.ClientID, hit.ID)
+			logrus.Warnf("closing protosession: /%v/%v/%v", hit.AuthoritativeClientID, hit.ClientID, hit.ID)
 		}
 	}
 	return nil

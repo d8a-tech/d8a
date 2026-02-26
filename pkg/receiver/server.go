@@ -81,8 +81,17 @@ type Server struct {
 	storage         Storage
 	rawLogStorage   RawLogStorage
 	validationRules HitValidatingRule
+	host            string
 	port            int
 }
+
+func WithHost(host string) ServerOption {
+	return func(s *Server) {
+		s.host = host
+	}
+}
+
+type ServerOption func(*Server)
 
 // NewServer creates a new Server instance with the provided dependencies
 func NewServer(
@@ -91,14 +100,22 @@ func NewServer(
 	validationRules HitValidatingRule,
 	protocols []protocol.Protocol,
 	port int,
+	opts ...ServerOption,
 ) *Server {
-	return &Server{
+	s := &Server{
 		protocols:       protocols,
 		storage:         storage,
 		rawLogStorage:   rawLogStorage,
 		validationRules: validationRules,
+		host:            "0.0.0.0",
 		port:            port,
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 func (s *Server) handleRequest(
@@ -109,10 +126,10 @@ func (s *Server) handleRequest(
 	// Log raw HTTP request
 	b := bytes.NewBuffer(make([]byte, 0, 64*1024))
 	if _, err := ctx.Request.WriteTo(b); err != nil {
-		logrus.Errorf("Failed to write raw request: %v", err)
+		logrus.Errorf("failed to write raw request: %v", err)
 	}
 	if err := s.rawLogStorage.Store(b); err != nil {
-		logrus.Errorf("Failed to store raw log: %v", err)
+		logrus.Errorf("failed to store raw log: %v", err)
 	}
 	var err error
 
@@ -228,8 +245,8 @@ func (s *Server) Run(ctx context.Context) error {
 	// Start the server in a goroutine
 	errChan := make(chan error, 1)
 	go func() {
-		logrus.Infof("Starting server on port %d", s.port)
-		if err := httpServer.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", s.port)); err != nil {
+		logrus.Infof("starting server on %s:%d", s.host, s.port)
+		if err := httpServer.ListenAndServe(fmt.Sprintf("%s:%d", s.host, s.port)); err != nil {
 			errChan <- err
 		}
 	}()

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -46,6 +47,9 @@ type Orchestrator struct {
 	processingLagGauge   metric.Float64Gauge
 
 	lastLagWarn time.Time
+
+	protoSessionsHitsLogMu    sync.Mutex
+	protoSessionsHitsLogCount int64
 }
 
 var (
@@ -179,6 +183,7 @@ func NewOrchestrator(
 	}
 	go o.timingWheel.Start(ctx)
 	go o.prefillNextBuckets()
+	go o.logProtoSessionsHitsEveryMinute(ctx)
 	return o
 }
 
@@ -211,7 +216,8 @@ func (o *Orchestrator) processBatch(
 	// which may or may not form a session in the future).
 	// 3. If we chose to evict conflicting hits, we make sure to clean them up.
 	// All of the above will be described below, let's go!
-	logrus.Infof("Appending to proto-sessions hits batch of size `%d`", len(hitsBatch))
+	o.addProtoSessionsHitsForLog(len(hitsBatch))
+	logrus.Debugf("appending to proto-sessions hits batch of size `%d`", len(hitsBatch))
 	processBatchStart := time.Now()
 	defer func() {
 		o.processBatchHist.Record(ctx, time.Since(processBatchStart).Seconds())
@@ -318,6 +324,44 @@ func (o *Orchestrator) processBatch(
 	return nil
 }
 
+func (o *Orchestrator) addProtoSessionsHitsForLog(n int) {
+	if n <= 0 {
+		return
+	}
+	o.protoSessionsHitsLogMu.Lock()
+	o.protoSessionsHitsLogCount += int64(n)
+	o.protoSessionsHitsLogMu.Unlock()
+}
+
+func (o *Orchestrator) takeProtoSessionsHitsForLog() int64 {
+	o.protoSessionsHitsLogMu.Lock()
+	n := o.protoSessionsHitsLogCount
+	o.protoSessionsHitsLogCount = 0
+	o.protoSessionsHitsLogMu.Unlock()
+	return n
+}
+
+func (o *Orchestrator) logProtoSessionsHitsEveryMinute(ctx context.Context) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n := o.takeProtoSessionsHitsForLog()
+			if n == 0 {
+				continue
+			}
+			logrus.WithFields(logrus.Fields{
+				"hits":   fmt.Sprintf("%d", n),
+				"window": "1m",
+			}).Info("worker received incoming hits")
+		}
+	}
+}
+
 func (o *Orchestrator) precomputeIsolatedSessionAndUserStamps(
 	hitsBatch []*hits.Hit,
 	registry properties.SettingsRegistry,
@@ -327,7 +371,7 @@ func (o *Orchestrator) precomputeIsolatedSessionAndUserStamps(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -353,7 +397,7 @@ func (o *Orchestrator) computeAndCacheIsolatedClientIDs(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -377,7 +421,7 @@ func (o *Orchestrator) seedOutdatedHits(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -396,7 +440,7 @@ func (o *Orchestrator) seedOutdatedHits(
 		// because we have nothing else to do with them - it's data loss.
 		ok := o.timingWheel.lock.TryLock(bucketNumber)
 		if !ok {
-			logrus.Warnf("Dropping %d hits for bucket %d because it is being processed", len(bucketHits), bucketNumber)
+			logrus.Warnf("dropping %d hits for bucket %d because it is being processed", len(bucketHits), bucketNumber)
 			for _, hit := range bucketHits {
 				hitsToDrop[hit.AuthoritativeClientID] = hit
 			}
@@ -408,7 +452,7 @@ func (o *Orchestrator) seedOutdatedHits(
 		if bucketNumber <= o.timingWheel.BucketNumber(o.timingWheel.CurrentTime()) {
 			currentBucket := o.timingWheel.BucketNumber(o.timingWheel.CurrentTime())
 			logrus.Warnf(
-				"Dropping %d hits for bucket %d because it is already expired (current bucket: %d)",
+				"dropping %d hits for bucket %d because it is already expired (current bucket: %d)",
 				len(bucketHits), bucketNumber, currentBucket,
 			)
 			for _, hit := range bucketHits {
@@ -434,7 +478,7 @@ func (o *Orchestrator) checkIdentifierConflicts(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -495,7 +539,7 @@ func (o *Orchestrator) buildSaveRequests(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -587,7 +631,7 @@ func (o *Orchestrator) cleanupDroppedAndEvicted(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", hit.PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", hit.PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -698,7 +742,7 @@ func (o *Orchestrator) recordAndWarnLag(ctx context.Context, bucketNumber int64)
 		o.timingWheel.BucketNumber(time.Now().UTC())-bucketNumber,
 	) * o.timingWheel.tickInterval
 	if lag > time.Minute*5 && time.Since(o.lastLagWarn) > time.Second {
-		logrus.Warnf("Processing lag is high: %s", lag)
+		logrus.Warnf("processing lag is high: %s", lag)
 		o.lastLagWarn = time.Now()
 	}
 	o.processingLagGauge.Record(ctx, lag.Seconds())
@@ -744,7 +788,7 @@ func (o *Orchestrator) buildProtoSessionsBatch(
 		if err != nil {
 			var notFoundError *properties.NotFoundError
 			if errors.As(err, &notFoundError) {
-				logrus.Warnf("Property %q not found, skipping hit", sortedHits[0].PropertyID)
+				logrus.Warnf("property %q not found, skipping hit", sortedHits[0].PropertyID)
 				continue
 			}
 			// Possibly a problem with the registry, let's retry.
@@ -825,13 +869,13 @@ func (o *Orchestrator) prefillNextBuckets() {
 	for {
 		select {
 		case <-o.ctx.Done():
-			logrus.Debugf("Prefill next buckets: context done")
+			logrus.Debugf("prefill next buckets: context done")
 			return
 		case requests := <-o.nextBucketRequests:
 			responses := o.backend.GetAllProtosessionsForBucket(o.ctx, requests)
 			for _, response := range responses {
 				if response.Err != nil {
-					logrus.Errorf("Error prefilling next buckets: %v", response.Err)
+					logrus.Errorf("error prefilling next buckets: %v", response.Err)
 					time.Sleep(o.timingWheel.tickInterval)
 					continue
 				}

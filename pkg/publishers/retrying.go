@@ -45,7 +45,7 @@ func (r *RetryingWithFallbackStorage) Publish(t *worker.Task) error {
 		lastErr = err
 
 		if retry < r.maxRetries {
-			logrus.Warnf("Primary storage push failed (attempt %d/%d): %v, retrying in %v...",
+			logrus.Warnf("primary storage push failed (attempt %d/%d): %v, retrying in %v...",
 				retry+1, r.maxRetries, err, r.retryDelay)
 			time.Sleep(r.retryDelay)
 			continue
@@ -53,12 +53,12 @@ func (r *RetryingWithFallbackStorage) Publish(t *worker.Task) error {
 	}
 
 	// If all retries failed, try fallback storage
-	logrus.Warnf("All primary storage attempts failed: %v, trying fallback storage", lastErr)
+	logrus.Warnf("all primary storage attempts failed: %v, trying fallback storage", lastErr)
 
 	if err := r.fallback.Publish(t); err != nil {
 		return fmt.Errorf("both primary (after %d retries) and fallback storage failed: %w", r.maxRetries, err)
 	}
 
-	logrus.Info("Successfully pushed data to fallback storage")
+	logrus.Info("successfully pushed data to fallback storage")
 	return nil
 }

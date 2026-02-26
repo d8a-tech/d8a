@@ -61,6 +61,14 @@ func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 		if len(f.Sources.Chain) > 0 {
 			configKey, envVar = parseSources(f.Sources)
 		}
+	case *cli.Int64Flag:
+		name = f.Name
+		usage = f.Usage
+		flagType = "integer"
+		defaultValue = fmt.Sprintf("%d", f.Value)
+		if len(f.Sources.Chain) > 0 {
+			configKey, envVar = parseSources(f.Sources)
+		}
 	case *cli.DurationFlag:
 		name = f.Name
 		usage = f.Usage

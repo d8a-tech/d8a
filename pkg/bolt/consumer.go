@@ -48,7 +48,7 @@ func (s *consumer) Consume(handler worker.TaskHandlerFunc) error {
 				return nil
 			})
 			if err != nil {
-				logrus.Errorf("Error processing next batch: %v", err)
+				logrus.Errorf("error processing next batch: %v", err)
 			}
 			time.Sleep(s.nextSleep)
 		}
@@ -130,7 +130,7 @@ func (s *consumer) collectItems(b *bolt.Bucket) ([]item, error) {
 		})
 		if len(items) > s.maxItemsToReadAtOnce {
 			logrus.Infof(
-				"Bolt consumer reached max items to read at once (%d), will read more later",
+				"bolt consumer reached max items to read at once (%d), will read more later",
 				s.maxItemsToReadAtOnce,
 			)
 			break

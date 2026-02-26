@@ -42,7 +42,7 @@ func bootstrap(
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigChan
-		logrus.Info("Received shutdown signal, initiating graceful shutdown...")
+		logrus.Info("received shutdown signal, initiating graceful shutdown...")
 		cancel()
 	}()
 
@@ -50,7 +50,7 @@ func bootstrap(
 		shutdownCtx, shutdownCancel := context.WithTimeout(ctx, 5*time.Second)
 		defer shutdownCancel()
 		if err := metricsSetup.Shutdown(shutdownCtx); err != nil {
-			logrus.Errorf("Error shutting down metrics: %v", err)
+			logrus.Errorf("error shutting down metrics: %v", err)
 		}
 	}
 

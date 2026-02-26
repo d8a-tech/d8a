@@ -323,7 +323,7 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 			continue
 		}
 
-		logrus.Infof("wrote %d sessions from spool %q to warehouse", len(allSessions), spoolPath)
+		logrus.Debugf("wrote %d sessions from spool %q to warehouse", len(allSessions), spoolPath)
 
 		// Success: remove spool file and reset failure count
 		if err := os.Remove(spoolPath); err != nil {

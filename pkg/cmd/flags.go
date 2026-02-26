@@ -24,6 +24,13 @@ var traceFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   false,
 }
 
+var serverHostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "server-host",
+	Usage:   "Host to listen on for HTTP server",
+	Sources: defaultSourceChain("SERVER_HOST", "server.host"),
+	Value:   "0.0.0.0",
+}
+
 var serverPortFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "server-port",
 	Usage:   "Port to listen on for HTTP server",
@@ -516,6 +523,7 @@ var warehouseConfigFlags = []cli.Flag{
 func getServerFlags() []cli.Flag {
 	return mergeFlags(
 		[]cli.Flag{
+			serverHostFlag,
 			serverPortFlag,
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
