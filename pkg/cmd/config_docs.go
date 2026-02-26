@@ -26,7 +26,6 @@ var (
 func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 	var name, usage, configKey, envVar, flagType, defaultValue string
 
-	// Type assertion to get flag-specific fields
 	switch f := flag.(type) {
 	case *cli.BoolFlag:
 		name = f.Name
@@ -55,6 +54,14 @@ func extractFlagInfo(flag cli.Flag) (*flagInfo, error) {
 			configKey, envVar = parseSources(f.Sources)
 		}
 	case *cli.IntFlag:
+		name = f.Name
+		usage = f.Usage
+		flagType = "integer"
+		defaultValue = fmt.Sprintf("%d", f.Value)
+		if len(f.Sources.Chain) > 0 {
+			configKey, envVar = parseSources(f.Sources)
+		}
+	case *cli.Int64Flag:
 		name = f.Name
 		usage = f.Usage
 		flagType = "integer"
@@ -104,12 +111,10 @@ func parseSources(sources cli.ValueSourceChain) (configKey, envVar string) {
 
 		goStr := source.GoString()
 
-		// Extract environment variable
 		if matches := envVarRegex.FindStringSubmatch(goStr); len(matches) > 1 {
 			envVar = matches[1]
 		}
 
-		// Extract YAML config key
 		if matches := yamlPathRegex.FindStringSubmatch(goStr); len(matches) > 1 {
 			configKey = matches[1]
 		}
@@ -129,7 +134,6 @@ func generateConfigDocs(flags []cli.Flag) (string, error) {
 		flagInfos = append(flagInfos, info)
 	}
 
-	// Sort by flag name
 	sort.Slice(flagInfos, func(i, j int) bool {
 		return flagInfos[i].Name < flagInfos[j].Name
 	})

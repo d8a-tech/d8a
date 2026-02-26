@@ -44,4 +44,4 @@ spool/
 
 # Local scratch
 tmp/
-
+config.dev2.yaml

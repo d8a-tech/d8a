@@ -63,7 +63,7 @@ func (w *Worker) Process(task *Task) error {
 				return err
 			}
 		}
-		logrus.Debugf("Processed task of type `%s` with %d handlers", task.Type, len(handlers))
+		logrus.Debugf("processed task of type `%s` with %d handlers", task.Type, len(handlers))
 		return nil
 	}
 	for i, mw := range w.middleware {
@@ -89,7 +89,7 @@ func (w *Worker) Process(task *Task) error {
 			return err
 		}
 	}
-	logrus.Debugf("Processed task of type `%s` with %d handlers", task.Type, len(handlers))
+	logrus.Debugf("processed task of type `%s` with %d handlers", task.Type, len(handlers))
 	return nil
 }
 

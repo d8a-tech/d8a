@@ -126,11 +126,11 @@ func (p *backoffPingingPublisher) loop(ctx context.Context) {
 		if timeSinceLastPing > currentInterval && timeSinceLastNonPing >= currentInterval {
 			task, err := p.taskFunc()
 			if err != nil {
-				logrus.Errorf("Failed to create ping task: %v", err)
+				logrus.Errorf("failed to create ping task: %v", err)
 				continue
 			}
 			if err := p.publisher.Publish(task); err != nil {
-				logrus.Errorf("Failed to publish ping task: %v", err)
+				logrus.Errorf("failed to publish ping task: %v", err)
 				continue
 			}
 

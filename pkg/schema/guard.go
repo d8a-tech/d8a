@@ -56,9 +56,9 @@ func (m *Guard) EnsureTables(
 			if !errors.As(err, &tableAlreadyExistsErr) {
 				return err
 			}
-			logrus.Infof("table `%s` already exists", table.Table)
+			logrus.Debugf("table `%s` already exists", table.Table)
 		} else {
-			logrus.Infof("created table `%s`", table.Table)
+			logrus.Debugf("created table `%s`", table.Table)
 		}
 
 		// Add missing columns

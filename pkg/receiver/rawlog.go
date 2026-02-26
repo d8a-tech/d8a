@@ -85,7 +85,7 @@ func NewBatchingRawlogStorage(child RawLogStorage, batchSize int, timeout time.D
 			case <-brs.flushTicker.C:
 				if time.Since(brs.lastFlush) >= brs.timeout {
 					if err := brs.Flush(); err != nil {
-						logrus.Errorf("Failed to flush rawlog batch: %v", err)
+						logrus.Errorf("failed to flush rawlog batch: %v", err)
 					}
 				}
 			case <-brs.done:
@@ -131,7 +131,7 @@ func (brs *BatchingRawlogStorage) flushLocked() error {
 
 	// Process each buffer in the batch
 	if err := brs.child.Store(brs.currentBatch); err != nil {
-		logrus.Errorf("Rawlog storage failed: %v", err)
+		logrus.Errorf("rawlog storage failed: %v", err)
 		return fmt.Errorf("failed to store rawlog data: %w", err)
 	}
 
@@ -145,7 +145,7 @@ func (brs *BatchingRawlogStorage) Close() {
 	brs.flushTicker.Stop()
 	close(brs.done)
 	if err := brs.Flush(); err != nil {
-		logrus.Errorf("Failed to flush rawlog batch: %v", err)
+		logrus.Errorf("failed to flush rawlog batch: %v", err)
 	}
 }
 
@@ -257,7 +257,7 @@ func RawLogMainPageHandler(rawLogIndexSet storage.Set) func(fctx *fasthttp.Reque
 		if err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error loading items"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -280,13 +280,13 @@ func RawLogMainPageHandler(rawLogIndexSet storage.Set) func(fctx *fasthttp.Reque
 		if err := tmpl.Execute(&buf, data); err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error rendering template"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
 
 		if _, writeErr := fctx.Write(buf.Bytes()); writeErr != nil {
-			logrus.Errorf("Failed to write response: %v", writeErr)
+			logrus.Errorf("failed to write response: %v", writeErr)
 		}
 	}
 }
@@ -300,7 +300,7 @@ func RawLogMainPageHandlerFromReader(reader RawLogReader) func(fctx *fasthttp.Re
 		if err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error loading items"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -317,13 +317,13 @@ func RawLogMainPageHandlerFromReader(reader RawLogReader) func(fctx *fasthttp.Re
 		if err := tmpl.Execute(&buf, data); err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error rendering template"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
 
 		if _, writeErr := fctx.Write(buf.Bytes()); writeErr != nil {
-			logrus.Errorf("Failed to write response: %v", writeErr)
+			logrus.Errorf("failed to write response: %v", writeErr)
 		}
 	}
 }
@@ -339,7 +339,7 @@ func RawLogDetailPageHandler(rawLogSet storage.Set) func(fctx *fasthttp.RequestC
 		if len(parts) < 3 || parts[2] == "" {
 			fctx.SetStatusCode(fasthttp.StatusBadRequest)
 			if _, writeErr := fctx.WriteString("Invalid path"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -351,7 +351,7 @@ func RawLogDetailPageHandler(rawLogSet storage.Set) func(fctx *fasthttp.RequestC
 		if err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error loading item content"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -376,13 +376,13 @@ func RawLogDetailPageHandler(rawLogSet storage.Set) func(fctx *fasthttp.RequestC
 		if err := tmpl.Execute(&buf, data); err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error rendering template"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
 
 		if _, writeErr := fctx.Write(buf.Bytes()); writeErr != nil {
-			logrus.Errorf("Failed to write response: %v", writeErr)
+			logrus.Errorf("failed to write response: %v", writeErr)
 		}
 	}
 }
@@ -398,7 +398,7 @@ func RawLogDetailPageHandlerFromReader(reader RawLogReader) func(fctx *fasthttp.
 		if len(parts) < 3 || parts[2] == "" {
 			fctx.SetStatusCode(fasthttp.StatusBadRequest)
 			if _, writeErr := fctx.WriteString("Invalid path"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -410,7 +410,7 @@ func RawLogDetailPageHandlerFromReader(reader RawLogReader) func(fctx *fasthttp.
 		if err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fmt.Fprintf(fctx, "Error loading item content: %v", err); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
@@ -439,13 +439,13 @@ func RawLogDetailPageHandlerFromReader(reader RawLogReader) func(fctx *fasthttp.
 		if err := tmpl.Execute(&buf, data); err != nil {
 			fctx.SetStatusCode(fasthttp.StatusInternalServerError)
 			if _, writeErr := fctx.WriteString("Error rendering template"); writeErr != nil {
-				logrus.Errorf("Failed to write error response: %v", writeErr)
+				logrus.Errorf("failed to write error response: %v", writeErr)
 			}
 			return
 		}
 
 		if _, writeErr := fctx.Write(buf.Bytes()); writeErr != nil {
-			logrus.Errorf("Failed to write response: %v", writeErr)
+			logrus.Errorf("failed to write response: %v", writeErr)
 		}
 	}
 }

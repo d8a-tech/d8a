@@ -74,7 +74,7 @@ func (c *Consumer) Consume(handler worker.TaskHandlerFunc) error {
 		default:
 			processed, err := c.processNextBatch(handler)
 			if err != nil {
-				logrus.Errorf("Error processing next batch: %v", err)
+				logrus.Errorf("error processing next batch: %v", err)
 			}
 
 			// Sleep between polling attempts (only if no tasks were processed)
@@ -83,7 +83,7 @@ func (c *Consumer) Consume(handler worker.TaskHandlerFunc) error {
 				// Apply exponential backoff when nothing to consume
 				c.currentInterval = time.Duration(float64(c.currentInterval) * c.config.IntervalExpFactor)
 				logrus.Debugf(
-					"Object storage consumer exponential backoff: current interval is %s, max interval is %s",
+					"object storage consumer exponential backoff: current interval is %s, max interval is %s",
 					c.currentInterval,
 					c.config.MaxInterval,
 				)
@@ -119,7 +119,7 @@ func (c *Consumer) processNextBatch(handler worker.TaskHandlerFunc) (int, error)
 	// Limit the number of items processed at once
 	if len(items) > c.config.MaxItemsToReadAtOnce {
 		items = items[:c.config.MaxItemsToReadAtOnce]
-		logrus.Infof("Object storage consumer limiting batch to %d items", c.config.MaxItemsToReadAtOnce)
+		logrus.Infof("object storage consumer limiting batch to %d items", c.config.MaxItemsToReadAtOnce)
 	}
 
 	// Download and deserialize tasks
@@ -170,7 +170,7 @@ func (c *Consumer) listObjects(prefix string) ([]objectItem, error) {
 		// Parse timestamp from key for ordering
 		timestamp, err := ParseTimestampFromKey(obj.Key)
 		if err != nil {
-			logrus.Warnf("Failed to parse timestamp from key %s: %v", obj.Key, err)
+			logrus.Warnf("failed to parse timestamp from key %s: %v", obj.Key, err)
 			continue
 		}
 
@@ -181,7 +181,7 @@ func (c *Consumer) listObjects(prefix string) ([]objectItem, error) {
 
 		// Respect max items limit during listing to prevent memory exhaustion
 		if len(items) >= c.config.MaxItemsToReadAtOnce*2 {
-			logrus.Infof("Reached max items during listing, will process more later")
+			logrus.Infof("reached max items during listing, will process more later")
 			break
 		}
 	}

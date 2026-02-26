@@ -33,11 +33,11 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 	db := clickhouse.OpenDB(chOptions)
 	conn, err := clickhouse.Open(chOptions)
 	if err != nil {
-		logrus.Fatalf("Failed to open ClickHouse connection: %v", err)
+		logrus.Fatalf("failed to open ClickHouse connection: %v", err)
 	}
 
 	if err != nil {
-		logrus.Fatalf("Failed to create table columns cache: %v", err)
+		logrus.Fatalf("failed to create table columns cache: %v", err)
 	}
 
 	return &clickhouseDriver{
@@ -133,7 +133,7 @@ func (d *clickhouseDriver) columns(ctx context.Context, table string) ([]*arrow.
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
-			logrus.Error("Failed to close database rows: ", err)
+			logrus.Error("failed to close database rows: ", err)
 		}
 	}()
 
@@ -238,7 +238,7 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 	}
 	defer func() {
 		if err := batch.Send(); err != nil {
-			logrus.Error("Failed to send batch: ", err)
+			logrus.Error("failed to send batch: ", err)
 		}
 	}()
 

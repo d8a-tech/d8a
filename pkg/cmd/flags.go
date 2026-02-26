@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"compress/gzip"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,6 +22,13 @@ var traceFlag *cli.BoolFlag = &cli.BoolFlag{
 	Usage:   "Enable trace mode",
 	Sources: defaultSourceChain("TRACE", "trace"),
 	Value:   false,
+}
+
+var serverHostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "server-host",
+	Usage:   "Host to listen on for HTTP server",
+	Sources: defaultSourceChain("SERVER_HOST", "server.host"),
+	Value:   "0.0.0.0",
 }
 
 var serverPortFlag *cli.IntFlag = &cli.IntFlag{
@@ -114,112 +122,115 @@ var warehouseTableFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "events",
 }
 
-var clickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-host",
+var warehouseClickhouseHostFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-host",
 	Usage:   "ClickHouse host. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "clickhouse.host"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_HOST", "warehouse.clickhouse.host"),
 }
 
-var clickhousePortFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-port",
+var warehouseClickhousePortFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-port",
 	Usage:   "ClickHouse port. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "clickhouse.port"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PORT", "warehouse.clickhouse.port"),
 	Value:   "9000",
 }
 
-var clickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-database",
+var warehouseClickhouseDatabaseFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-database",
 	Usage:   "ClickHouse database name. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "clickhouse.database"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_DB", "warehouse.clickhouse.database"),
 }
 
-var clickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-username",
+var warehouseClickhouseUsernameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-username",
 	Usage:   "ClickHouse username. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "clickhouse.username"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_USER", "warehouse.clickhouse.username"),
 	Value:   "",
 }
 
-var clickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-password",
+var warehouseClickhousePasswordFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-password",
 	Usage:   "ClickHouse password. Only applicable when warehouse-driver is set to 'clickhouse'.",
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "clickhouse.password"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PASSWORD", "warehouse.clickhouse.password"),
 	Value:   "",
 }
 
-var clickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-order-by",
+var warehouseClickhouseOrderByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-order-by",
 	Usage:   "Comma-separated list of columns for ORDER BY clause (e.g., 'property_id,date_utc'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "clickhouse.order_by"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_ORDER_BY", "warehouse.clickhouse.order_by"),
 	Value:   "property_id,date_utc,session_id",
 }
 
-var clickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "clickhouse-partition-by",
+var warehouseClickhousePartitionByFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-clickhouse-partition-by",
 	Usage:   "Expression for PARTITION BY clause (e.g., 'toYYYYMM(date_utc)'). Only applicable when warehouse-driver is set to 'clickhouse'.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PARTITION_BY", "clickhouse.partition_by"),
+	Sources: defaultSourceChain("WAREHOUSE_CLICKHOUSE_PARTITION_BY", "warehouse.clickhouse.partition_by"),
 	Value:   "toYYYYMM(date_utc)",
 }
 
 // BigQuery flags
-var bigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-project-id",
+var warehouseBigQueryProjectIDFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-project-id",
 	Usage:   "BigQuery GCP project ID. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_PROJECT_ID", "bigquery.project_id"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PROJECT_ID", "warehouse.bigquery.project_id"),
 }
 
-var bigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-dataset-name",
+var warehouseBigQueryDatasetNameFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-dataset-name",
 	Usage:   "BigQuery dataset name. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_DATASET_NAME", "bigquery.dataset_name"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_DATASET_NAME", "warehouse.bigquery.dataset_name"),
 }
 
-var bigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-creds-json",
+var warehouseBigQueryCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-creds-json",
 	Usage:   "BigQuery service account JSON (raw or base64). Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_CREDS_JSON", "bigquery.creds_json"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_CREDS_JSON", "warehouse.bigquery.creds_json"),
 }
 
-var bigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-writer-type",
+var warehouseBigQueryWriterTypeFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-writer-type",
 	Usage:   "BigQuery writer type (loadjob or streaming). Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_WRITER_TYPE", "bigquery.writer_type"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_WRITER_TYPE", "warehouse.bigquery.writer_type"),
 	Value:   "loadjob",
 }
 
-var bigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "bigquery-query-timeout",
+var warehouseBigQueryQueryTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "warehouse-bigquery-query-timeout",
 	Usage:   "BigQuery query timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_QUERY_TIMEOUT", "bigquery.query_timeout"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_QUERY_TIMEOUT", "warehouse.bigquery.query_timeout"),
 	Value:   30 * time.Second,
 }
 
-var bigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "bigquery-table-creation-timeout",
+var warehouseBigQueryTableCreationTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "warehouse-bigquery-table-creation-timeout",
 	Usage:   "BigQuery table creation timeout. Only applicable when warehouse-driver is set to 'bigquery'.",
-	Sources: defaultSourceChain("BIGQUERY_TABLE_CREATION_TIMEOUT", "bigquery.table_creation_timeout"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_TABLE_CREATION_TIMEOUT", "warehouse.bigquery.table_creation_timeout"),
 	Value:   10 * time.Second,
 }
 
-var bigQueryPartitionFieldFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-partition-field",
+var warehouseBigQueryPartitionFieldFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-partition-field",
 	Usage:   "BigQuery partition field (top-level TIMESTAMP or DATE). By default uses date_utc column.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_FIELD", "bigquery.partition_field"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PARTITION_FIELD", "warehouse.bigquery.partition_field"),
 	Value:   "date_utc",
 }
 
-var bigQueryPartitionIntervalFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "bigquery-partition-interval",
+var warehouseBigQueryPartitionIntervalFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "warehouse-bigquery-partition-interval",
 	Usage:   "BigQuery partition interval (HOUR, DAY, MONTH, YEAR). By default uses DAY interval.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_INTERVAL", "bigquery.partition_interval"),
+	Sources: defaultSourceChain("WAREHOUSE_BIGQUERY_PARTITION_INTERVAL", "warehouse.bigquery.partition_interval"),
 	Value:   "DAY",
 }
 
-var bigQueryPartitionExpirationDaysFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "bigquery-partition-expiration-days",
-	Usage:   "BigQuery partition expiration in days. 0 means partitions do not expire. By default uses no expiration.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("BIGQUERY_PARTITION_EXPIRATION_DAYS", "bigquery.partition_expiration_days"),
-	Value:   0,
+var warehouseBigQueryPartitionExpirationDaysFlag *cli.IntFlag = &cli.IntFlag{
+	Name:  "warehouse-bigquery-partition-expiration-days",
+	Usage: "BigQuery partition expiration in days. 0 means partitions do not expire. By default uses no expiration.", //nolint:lll // it's a description
+	Sources: defaultSourceChain(
+		"WAREHOUSE_BIGQUERY_PARTITION_EXPIRATION_DAYS",
+		"warehouse.bigquery.partition_expiration_days",
+	),
+	Value: 0,
 }
 
 var propertyIDFlag *cli.StringFlag = &cli.StringFlag{
@@ -316,13 +327,6 @@ var queueBackendFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   queueBackendFilesystem,
 }
 
-var queueObjectPrefixFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "queue-object-prefix",
-	Usage:   "Object storage prefix/namespace for queue objects (only used for objectstorage backend)",
-	Sources: defaultSourceChain("QUEUE_OBJECT_PREFIX", "queue.object_storage.prefix"),
-	Value:   "d8a/queue",
-}
-
 var queueObjectStorageMinIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "queue-objectstorage-min-interval",
 	Usage:   "Minimum polling interval for objectstorage queue consumer (only used for objectstorage backend)",
@@ -354,81 +358,68 @@ var queueObjectStorageMaxItemsToReadAtOnceFlag *cli.IntFlag = &cli.IntFlag{
 	Value: 1000,
 }
 
-var objectStorageTypeFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-type",
-	Usage:   "Object storage type (s3 or gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_TYPE", "queue.object_storage.type"),
-}
+// Queue object storage flags are generated via objectStorageFlagsSpec.Queue
+var queueObjectStorageCliFlags = ToCliFlags(&objectStorageFlagsSpec.Queue)
 
-var objectStorageS3HostFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-host",
-	Usage:   "S3/MinIO host (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_HOST", "queue.object_storage.s3.host"),
-}
+// Warehouse object storage flags are generated via objectStorageFlagsSpec.Warehouse
+var warehouseObjectStorageCliFlags = ToCliFlags(&objectStorageFlagsSpec.Warehouse)
 
-var objectStorageS3PortFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "object-storage-s3-port",
-	Usage:   "S3/MinIO port (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PORT", "queue.object_storage.s3.port"),
-	Value:   9000,
-}
+// Files warehouse flags
+var (
+	warehouseFilesFormatFlag = &cli.StringFlag{
+		Name:    "warehouse-files-format",
+		Usage:   "File format for warehouse output (csv)",
+		Value:   "csv",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
+	}
 
-var objectStorageS3BucketFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-bucket",
-	Usage:   "S3/MinIO bucket name (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_BUCKET", "queue.object_storage.s3.bucket"),
-}
+	warehouseFilesStorageFlag = &cli.StringFlag{
+		Name:    "warehouse-files-storage",
+		Usage:   "Storage destination for warehouse files (s3, gcs, or filesystem)",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_STORAGE", "warehouse.files.storage"),
+	}
 
-var objectStorageS3AccessKeyFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-access-key",
-	Usage:   "S3/MinIO access key (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_ACCESS_KEY", "queue.object_storage.s3.access_key"),
-}
+	warehouseFilesFilesystemPathFlag = &cli.StringFlag{
+		Name:    "warehouse-files-filesystem-path",
+		Usage:   "Destination directory for filesystem storage (required when warehouse-files-storage=filesystem)",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_FILESYSTEM_PATH", "warehouse.files.filesystem.path"),
+	}
 
-var objectStorageS3SecretKeyFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-secret-key",
-	Usage:   "S3/MinIO secret key (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_SECRET_KEY", "queue.object_storage.s3.secret_key"),
-}
+	warehouseFilesMaxSegmentSizeFlag = &cli.Int64Flag{
+		Name:    "warehouse-files-max-segment-size",
+		Usage:   "Maximum segment size in bytes before sealing (default: 1 GiB)",
+		Value:   1 << 30,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_SEGMENT_SIZE", "warehouse.files.max_segment_size"),
+	}
 
-var objectStorageS3RegionFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-region",
-	Usage:   "S3 region (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_REGION", "queue.object_storage.s3.region"),
-	Value:   "us-east-1",
-}
+	warehouseFilesMaxSegmentAgeFlag = &cli.DurationFlag{
+		Name:    "warehouse-files-max-segment-age",
+		Usage:   "Maximum segment age before sealing (default: 1h)",
+		Value:   time.Hour,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_SEGMENT_AGE", "warehouse.files.max_segment_age"),
+	}
 
-var objectStorageS3ProtocolFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-s3-protocol",
-	Usage:   "S3 endpoint protocol (http or https; only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_PROTOCOL", "queue.object_storage.s3.protocol"),
-	Value:   "http",
-}
+	warehouseFilesSealCheckIntervalFlag = &cli.DurationFlag{
+		Name:    "warehouse-files-seal-check-interval",
+		Usage:   "How often to evaluate sealing triggers (default: 15s)",
+		Value:   15 * time.Second,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_SEAL_CHECK_INTERVAL", "warehouse.files.seal_check_interval"),
+	}
 
-var objectStorageS3CreateBucketFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "object-storage-s3-create-bucket",
-	Usage:   "Create bucket on startup if missing (only used when object-storage-type=s3)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_S3_CREATE_BUCKET", "queue.object_storage.s3.create_bucket"),
-	Value:   false,
-}
+	warehouseFilesCompressionFlag = &cli.StringFlag{
+		Name:    "warehouse-files-compression",
+		Usage:   "Compression algorithm for warehouse files (gzip, or empty for none)",
+		Value:   "",
+		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION", "warehouse.files.compression"),
+	}
 
-var objectStorageGCSBucketFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-bucket",
-	Usage:   "GCS bucket name (only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_BUCKET", "queue.object_storage.gcs.bucket"),
-}
-
-var objectStorageGCSProjectFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-project",
-	Usage:   "GCS project ID (optional; only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_PROJECT", "queue.object_storage.gcs.project"),
-}
-
-var objectStorageGCSCredsJSONFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "object-storage-gcs-creds-json",
-	Usage:   "GCS credentials JSON (raw or base64); empty uses ADC (only used when object-storage-type=gcs)",
-	Sources: defaultSourceChain("OBJECT_STORAGE_GCS_CREDS_JSON", "queue.object_storage.gcs.creds_json"),
-}
+	warehouseFilesCompressionLevelFlag = &cli.IntFlag{
+		Name:    "warehouse-files-compression-level",
+		Usage:   "Compression level for warehouse files (-1 = default, 1 = fastest, 9 = best compression)",
+		Value:   gzip.DefaultCompression,
+		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION_LEVEL", "warehouse.files.compression_level"),
+	}
+)
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "storage-spool-enabled",
@@ -503,27 +494,36 @@ var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 var warehouseConfigFlags = []cli.Flag{
 	warehouseDriverFlag,
 	warehouseTableFlag,
-	clickhouseHostFlag,
-	clickhousePortFlag,
-	clickhouseDatabaseFlag,
-	clickhouseUsernameFlag,
-	clickhousePasswordFlag,
-	clickhouseOrderByFlag,
-	clickhousePartitionByFlag,
-	bigQueryProjectIDFlag,
-	bigQueryDatasetNameFlag,
-	bigQueryCredsJSONFlag,
-	bigQueryWriterTypeFlag,
-	bigQueryQueryTimeoutFlag,
-	bigQueryTableCreationTimeoutFlag,
-	bigQueryPartitionFieldFlag,
-	bigQueryPartitionIntervalFlag,
-	bigQueryPartitionExpirationDaysFlag,
+	warehouseClickhouseHostFlag,
+	warehouseClickhousePortFlag,
+	warehouseClickhouseDatabaseFlag,
+	warehouseClickhouseUsernameFlag,
+	warehouseClickhousePasswordFlag,
+	warehouseClickhouseOrderByFlag,
+	warehouseClickhousePartitionByFlag,
+	warehouseBigQueryProjectIDFlag,
+	warehouseBigQueryDatasetNameFlag,
+	warehouseBigQueryCredsJSONFlag,
+	warehouseBigQueryWriterTypeFlag,
+	warehouseBigQueryQueryTimeoutFlag,
+	warehouseBigQueryTableCreationTimeoutFlag,
+	warehouseBigQueryPartitionFieldFlag,
+	warehouseBigQueryPartitionIntervalFlag,
+	warehouseBigQueryPartitionExpirationDaysFlag,
+	warehouseFilesFormatFlag,
+	warehouseFilesStorageFlag,
+	warehouseFilesFilesystemPathFlag,
+	warehouseFilesMaxSegmentSizeFlag,
+	warehouseFilesMaxSegmentAgeFlag,
+	warehouseFilesSealCheckIntervalFlag,
+	warehouseFilesCompressionFlag,
+	warehouseFilesCompressionLevelFlag,
 }
 
 func getServerFlags() []cli.Flag {
 	return mergeFlags(
 		[]cli.Flag{
+			serverHostFlag,
 			serverPortFlag,
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
@@ -549,23 +549,10 @@ func getServerFlags() []cli.Flag {
 			storageBoltDirectoryFlag,
 			storageQueueDirectoryFlag,
 			queueBackendFlag,
-			queueObjectPrefixFlag,
 			queueObjectStorageMinIntervalFlag,
 			queueObjectStorageMaxIntervalFlag,
 			queueObjectStorageIntervalExpFactorFlag,
 			queueObjectStorageMaxItemsToReadAtOnceFlag,
-			objectStorageTypeFlag,
-			objectStorageS3HostFlag,
-			objectStorageS3PortFlag,
-			objectStorageS3BucketFlag,
-			objectStorageS3AccessKeyFlag,
-			objectStorageS3SecretKeyFlag,
-			objectStorageS3RegionFlag,
-			objectStorageS3ProtocolFlag,
-			objectStorageS3CreateBucketFlag,
-			objectStorageGCSBucketFlag,
-			objectStorageGCSProjectFlag,
-			objectStorageGCSCredsJSONFlag,
 			storageSpoolEnabledFlag,
 			storageSpoolDirectoryFlag,
 			storageSpoolWriteChanBufferFlag,
@@ -573,6 +560,8 @@ func getServerFlags() []cli.Flag {
 			filtersFieldsFlag,
 			filtersConditionsFlag,
 		},
+		queueObjectStorageCliFlags,
+		warehouseObjectStorageCliFlags,
 		warehouseConfigFlags,
 	)
 }

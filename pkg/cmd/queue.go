@@ -33,7 +33,7 @@ func buildQueue(ctx context.Context, cmd *cli.Command) (*Queue, error) {
 		q, err := buildObjectStorageQueue(
 			ctx,
 			bucket,
-			cmd.String(queueObjectPrefixFlag.Name),
+			cmd.String(objectStorageFlagsSpec.Queue.Prefix.Name),
 			cmd.Duration(queueObjectStorageMinIntervalFlag.Name),
 			cmd.Duration(queueObjectStorageMaxIntervalFlag.Name),
 			cmd.Float64(queueObjectStorageIntervalExpFactorFlag.Name),

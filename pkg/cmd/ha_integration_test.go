@@ -70,16 +70,16 @@ func TestReceiverWorkerQueue_ObjectStorage_MinIO(t *testing.T) {
 	args := []string{
 		"d8a-test",
 		"--queue-backend=objectstorage",
-		"--queue-object-prefix=it/prefix",
-		"--object-storage-type=s3",
-		"--object-storage-s3-host=" + host,
-		"--object-storage-s3-port=" + portStr,
-		"--object-storage-s3-bucket=d8a-it",
-		"--object-storage-s3-access-key=minioadmin",
-		"--object-storage-s3-secret-key=minioadmin",
-		"--object-storage-s3-region=us-east-1",
-		"--object-storage-s3-protocol=http",
-		"--object-storage-s3-create-bucket=true",
+		"--queue-object-storage-prefix=it/prefix",
+		"--queue-object-storage-type=s3",
+		"--queue-object-storage-s3-host=" + host,
+		"--queue-object-storage-s3-port=" + portStr,
+		"--queue-object-storage-s3-bucket=d8a-it",
+		"--queue-object-storage-s3-access-key=minioadmin",
+		"--queue-object-storage-s3-secret-key=minioadmin",
+		"--queue-object-storage-s3-region=us-east-1",
+		"--queue-object-storage-s3-protocol=http",
+		"--queue-object-storage-s3-create-bucket=true",
 	}
 
 	require.NoError(t, app.Run(ctx, args))

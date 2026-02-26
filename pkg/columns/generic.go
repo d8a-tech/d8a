@@ -423,7 +423,7 @@ func CastToInt64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8ACol
 	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
-			logrus.Debugf("CastToInt64OrNil: %s: value is not a string: %v", columnID, value)
+			logrus.Debugf("castToInt64OrNil: %s: value is not a string: %v", columnID, value)
 			return nil, nil
 		}
 		if valueStr == "" {
@@ -431,7 +431,7 @@ func CastToInt64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8ACol
 		}
 		casted, err := strconv.ParseInt(valueStr, 10, 64)
 		if err != nil {
-			logrus.Debugf("CastToInt64OrNil: %s: value is not an int64: %v", columnID, value)
+			logrus.Debugf("castToInt64OrNil: %s: value is not an int64: %v", columnID, value)
 			return nil, nil
 		}
 		return casted, nil
@@ -443,7 +443,7 @@ func CastToInt64OrZero(columnID schema.InterfaceID) func(any) (any, error) {
 	return func(value any) (any, error) {
 		valueStr, ok := value.(string)
 		if !ok {
-			logrus.Debugf("CastToInt64OrZero: %s: value is not a string: %v", columnID, value)
+			logrus.Debugf("castToInt64OrZero: %s: value is not a string: %v", columnID, value)
 			return 0, nil
 		}
 		if valueStr == "" {
@@ -451,7 +451,7 @@ func CastToInt64OrZero(columnID schema.InterfaceID) func(any) (any, error) {
 		}
 		casted, err := strconv.ParseInt(valueStr, 10, 64)
 		if err != nil {
-			logrus.Debugf("CastToInt64OrZero: %s: value is not an int64: %v", columnID, value)
+			logrus.Debugf("castToInt64OrZero: %s: value is not an int64: %v", columnID, value)
 			return 0, nil
 		}
 		return casted, nil
@@ -463,7 +463,7 @@ func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8AC
 	return func(value any) (any, schema.D8AColumnWriteError) {
 		valueStr, ok := value.(string)
 		if !ok {
-			logrus.Debugf("CastToFloat64OrNil: %s: value is not a string: %v", columnID, value)
+			logrus.Debugf("castToFloat64OrNil: %s: value is not a string: %v", columnID, value)
 			return nil, nil
 		}
 		if valueStr == "" {
@@ -471,7 +471,7 @@ func CastToFloat64OrNil(columnID schema.InterfaceID) func(any) (any, schema.D8AC
 		}
 		casted, err := strconv.ParseFloat(valueStr, 64)
 		if err != nil {
-			logrus.Debugf("CastToFloat64OrNil: %s: value is not a float64: %v", columnID, value)
+			logrus.Debugf("castToFloat64OrNil: %s: value is not a float64: %v", columnID, value)
 			return nil, nil
 		}
 		return casted, nil

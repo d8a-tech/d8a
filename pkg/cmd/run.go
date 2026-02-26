@@ -78,7 +78,6 @@ func startTelemetry(itemName, telemetryURL string) {
 	)
 }
 
-// Run starts the tracker-api server
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	app := &cli.Command{
 		Name:  "d8a",
@@ -101,6 +100,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			default:
 				logrus.SetLevel(logrus.InfoLevel)
 			}
+			logrus.Infof("d8a.tech (version %s)", version)
 			return ctx, nil
 		},
 		Commands: []*cli.Command{
@@ -168,7 +168,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						defer cancel()
 					}
 
-					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name)); err != nil {
+					whr := warehouseRegistry(ctx, cmd)
+					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
@@ -189,7 +190,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr)
 					if err != nil {
 						return err
 					}
@@ -202,7 +203,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 							// Check if context is done before processing task
 							select {
 							case <-ctx.Done():
-								logrus.Debug("Context cancelled, skipping task processing")
+								logrus.Debug("context cancelled, skipping task processing")
 								return nil
 							default:
 								return runtime.Worker.Process(task)
@@ -212,26 +213,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					// Start server and handle its error
-					server := receiver.NewServer(
-						serverStorage,
-						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(
-							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-							propertySettings(cmd),
-						),
-						// For as long as we don't support multi-property, we return a single protocol.
-						func() []protocol.Protocol {
-							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
-							if currentProtocol == nil {
-								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
-							}
-							return []protocol.Protocol{currentProtocol}
-						}(),
-						cmd.Int(serverPortFlag.Name),
-					)
+					server := buildReceiverServer(cmd, serverStorage)
 					serverErr := server.Run(ctx)
 					if serverErr != nil {
-						logrus.Errorf("Server error: %v", serverErr)
+						logrus.Errorf("server error: %v", serverErr)
 						cancel()
 					}
 
@@ -269,22 +254,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					server := receiver.NewServer(
-						serverStorage,
-						receiver.NewNoopRawLogStorage(),
-						receiver.HitValidatingRuleSet(
-							1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-							propertySettings(cmd),
-						),
-						func() []protocol.Protocol {
-							currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
-							if currentProtocol == nil {
-								logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
-							}
-							return []protocol.Protocol{currentProtocol}
-						}(),
-						cmd.Int(serverPortFlag.Name),
-					)
+					server := buildReceiverServer(cmd, serverStorage)
 					return server.Run(ctx)
 				},
 			},
@@ -318,7 +288,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, warehouseRegistry(ctx, cmd))
 					if err != nil {
 						return err
 					}
@@ -327,7 +297,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					return queue.Consumer.Consume(func(task *worker.Task) error {
 						select {
 						case <-ctx.Done():
-							logrus.Debug("Context cancelled, skipping task processing")
+							logrus.Debug("context cancelled, skipping task processing")
 							return nil
 						default:
 							return runtime.Worker.Process(task)
@@ -351,7 +321,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					warehouseConfigFlags,
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					return migrate(ctx, cmd, cmd.String("property-id"))
+					return migrate(ctx, cmd, cmd.String("property-id"), warehouseRegistry(ctx, cmd))
 				},
 			},
 			{
@@ -373,6 +343,27 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.
+// For as long as we don't support multi-property, we return a single protocol.
+func buildReceiverServer(cmd *cli.Command, storage receiver.Storage) *receiver.Server {
+	currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+	if currentProtocol == nil {
+		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
+	}
+
+	return receiver.NewServer(
+		storage,
+		receiver.NewNoopRawLogStorage(),
+		receiver.HitValidatingRuleSet(
+			1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
+			propertySettings(cmd),
+		),
+		[]protocol.Protocol{currentProtocol},
+		cmd.Int(serverPortFlag.Name),
+		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+	)
 }
 
 func propertySettings(cmd *cli.Command) properties.SettingsRegistry {

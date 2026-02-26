@@ -71,12 +71,12 @@ func (c *FilesystemDirectoryConsumer) Consume(handler TaskHandlerFunc) error {
 	for {
 		select {
 		case <-c.ctx.Done():
-			logrus.Debugf("FilesystemDirectoryConsumer stopping due to context done")
+			logrus.Debugf("filesystemDirectoryConsumer stopping due to context done")
 			return nil
 		default:
 			processed, err := c.processNextBatch(handler)
 			if err != nil {
-				logrus.Errorf("FilesystemDirectoryConsumer error: %v", err)
+				logrus.Errorf("filesystemDirectoryConsumer error: %v", err)
 				return err
 			}
 			if !processed {

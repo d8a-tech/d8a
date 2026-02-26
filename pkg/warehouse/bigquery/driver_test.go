@@ -238,12 +238,12 @@ func createEmulatorDriver(t *testing.T) testDriverConfig {
 func createRealBigQueryDriver(t *testing.T) *testDriverConfig {
 	t.Helper()
 
-	projectID := os.Getenv("BIGQUERY_PROJECT_ID")
-	datasetName := os.Getenv("BIGQUERY_DATASET_NAME")
+	projectID := os.Getenv("WAREHOUSE_BIGQUERY_PROJECT_ID")
+	datasetName := os.Getenv("WAREHOUSE_BIGQUERY_DATASET_NAME")
 
 	// Check if required environment variables are present
 	if projectID == "" {
-		t.Logf("Skipping real BigQuery tests: BIGQUERY_PROJECT_ID not set")
+		t.Logf("Skipping real BigQuery tests: WAREHOUSE_BIGQUERY_PROJECT_ID not set")
 		return nil
 	}
 

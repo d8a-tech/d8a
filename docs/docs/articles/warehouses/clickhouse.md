@@ -5,7 +5,7 @@ ClickHouse is a fast, open-source column-oriented database management system. Co
 ## Configuration
 
 :::info Tip
-   Full configuration reference is available [here](/articles/config#--clickhouse-database).
+   Full configuration reference is available [here](/articles/config#--warehouse-clickhouse-database).
 :::
 
 Add the following to your `config.yaml` file:
@@ -13,12 +13,12 @@ Add the following to your `config.yaml` file:
 ```yaml
 warehouse:
   driver: clickhouse
-clickhouse:
-  host: localhost
-  port: "9000"
-  database: d8a
-  username: default
-  password: "your-password"
+  clickhouse:
+    host: localhost
+    port: "9000"
+    database: d8a
+    username: default
+    password: "your-password"
 ```
 
 ## Important notes

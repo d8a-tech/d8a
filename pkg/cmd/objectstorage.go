@@ -23,51 +23,57 @@ import (
 )
 
 func createBucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
-	switch strings.ToLower(c.String(objectStorageTypeFlag.Name)) {
+	switch strings.ToLower(c.String(objectStorageFlagsSpec.Queue.Type.Name)) {
 	case "s3":
 		return createS3Bucket(ctx, c)
 	case "gcs":
 		return createGCSBucket(ctx, c)
 	default:
-		return nil, nil, fmt.Errorf("unsupported object storage type: %s", c.String(objectStorageTypeFlag.Name))
+		return nil, nil, fmt.Errorf("unsupported object storage type: %s", c.String(objectStorageFlagsSpec.Queue.Type.Name))
 	}
 }
 
 func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() error, error) {
+	return createS3BucketWithFlags(ctx, c, &objectStorageFlagsSpec.Queue)
+}
+
+func createS3BucketWithFlags(
+	ctx context.Context,
+	c *cli.Command,
+	flags *objectStorageFlagSet,
+) (*blob.Bucket, func() error, error) {
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				c.String(objectStorageS3AccessKeyFlag.Name),
-				c.String(objectStorageS3SecretKeyFlag.Name),
+				c.String(flags.S3AccessKey.Name),
+				c.String(flags.S3SecretKey.Name),
 				"",
 			),
 		),
-		config.WithRegion(c.String(objectStorageS3RegionFlag.Name)),
+		config.WithRegion(c.String(flags.S3Region.Name)),
 	)
 
 	if err != nil {
 		return nil, nil, fmt.Errorf("load aws config: %w", err)
 	}
 
-	// Create S3 client with MinIO endpoint
 	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(
 			fmt.Sprintf(
 				"%s://%s:%d",
-				c.String(objectStorageS3ProtocolFlag.Name),
-				c.String(objectStorageS3HostFlag.Name),
-				c.Int(objectStorageS3PortFlag.Name),
+				c.String(flags.S3Protocol.Name),
+				c.String(flags.S3Host.Name),
+				c.Int(flags.S3Port.Name),
 			),
 		)
 		o.UsePathStyle = true
 	})
 
-	// Create bucket first
-	bucketName := c.String(objectStorageS3BucketFlag.Name)
+	bucketName := c.String(flags.S3Bucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", objectStorageS3BucketFlag.Name)
+		return nil, nil, fmt.Errorf("s3 bucket name is required: set %s", flags.S3Bucket.Name)
 	}
-	if c.Bool(objectStorageS3CreateBucketFlag.Name) {
+	if c.Bool(flags.S3CreateBucket.Name) {
 		_, err = s3Client.CreateBucket(ctx, &s3.CreateBucketInput{
 			Bucket: &bucketName,
 		})
@@ -86,7 +92,6 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 		}
 	}
 
-	// Create bucket using Go CDK
 	bucket, err := s3blob.OpenBucketV2(ctx, s3Client, bucketName, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open s3 bucket: %w", err)
@@ -94,32 +99,38 @@ func createS3Bucket(ctx context.Context, c *cli.Command) (*blob.Bucket, func() e
 	return bucket, bucket.Close, nil
 }
 
-// createGCSBucket initializes a Go CDK bucket backed by Google Cloud Storage.
-// Authentication order:
-// - If OBJECT_STORAGE_GCS_CREDS_JSON is set (raw or base64), use it.
-// - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
 // nolint:funlen // straightforward setup
 func createGCSBucket(
 	ctx context.Context, c *cli.Command,
 ) (*blob.Bucket, func() error, error) {
-	bucketName := c.String(objectStorageGCSBucketFlag.Name)
+	return createGCSBucketWithFlags(ctx, c, &objectStorageFlagsSpec.Queue)
+}
+
+// Authentication order:
+// - If GCS_CREDS_JSON is set (raw or base64), use it.
+// - Else fall back to ADC (env var GOOGLE_APPLICATION_CREDENTIALS, GCE metadata, gcloud ADC, etc.).
+// nolint:funlen // straightforward setup
+func createGCSBucketWithFlags(
+	ctx context.Context,
+	c *cli.Command,
+	flags *objectStorageFlagSet,
+) (*blob.Bucket, func() error, error) {
+	bucketName := c.String(flags.GCSBucket.Name)
 	if bucketName == "" {
-		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", objectStorageGCSBucketFlag.Name)
+		return nil, nil, fmt.Errorf("gcs bucket name is required: set %s", flags.GCSBucket.Name)
 	}
 
-	// Resolve credentials
 	var httpClient *gcp.HTTPClient
 	var err error
 	var ts oauth2.TokenSource
 
-	credsJSON := strings.TrimSpace(c.String(objectStorageGCSCredsJSONFlag.Name))
+	credsJSON := strings.TrimSpace(c.String(flags.GCSCredsJSON.Name))
 	if credsJSON != "" {
 		// Support base64-encoded JSON for convenience
 		raw := []byte(credsJSON)
 		if decoded, decErr := base64.StdEncoding.DecodeString(credsJSON); decErr == nil {
 			raw = decoded
 		}
-		// Build token source from JSON
 		googleCreds, credErr := google.CredentialsFromJSONWithType(
 			ctx,
 			raw,
@@ -148,7 +159,6 @@ func createGCSBucket(
 	}
 
 	// No bucket creation logic for GCS; bucket must already exist
-	// Open Go CDK bucket
 	bkt, err := gcsblob.OpenBucket(ctx, httpClient, bucketName, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open gcs bucket: %w", err)

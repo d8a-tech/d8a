@@ -39,7 +39,7 @@ func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration) *Ba
 			case <-bs.flushTicker.C:
 				if time.Since(bs.lastFlush) >= bs.timeout {
 					if err := bs.Flush(); err != nil {
-						logrus.Errorf("Failed to flush batch: %v", err)
+						logrus.Errorf("failed to flush batch: %v", err)
 					}
 				}
 			case <-bs.done:
@@ -83,7 +83,7 @@ func (bs *BatchingStorage) flushLocked() error {
 	bs.buffer = bs.buffer[:0]
 
 	if err := bs.child.Push(toSend); err != nil {
-		logrus.Errorf("Storage push failed: %v", err)
+		logrus.Errorf("storage push failed: %v", err)
 		return fmt.Errorf("failed to push data: %w", err)
 	}
 
@@ -95,6 +95,6 @@ func (bs *BatchingStorage) Close() {
 	bs.flushTicker.Stop()
 	close(bs.done)
 	if err := bs.Flush(); err != nil {
-		logrus.Errorf("Failed to flush batch: %v", err)
+		logrus.Errorf("failed to flush batch: %v", err)
 	}
 }

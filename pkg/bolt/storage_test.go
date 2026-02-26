@@ -20,7 +20,7 @@ func TestBoltKV(t *testing.T) {
 	}
 	defer func() {
 		if err := os.Remove(dbPath); err != nil {
-			logrus.Error("Failed to remove test database file: ", err)
+			logrus.Error("failed to remove test database file: ", err)
 		}
 	}()
 
@@ -45,7 +45,7 @@ func TestBoltSet(t *testing.T) {
 	}
 	defer func() {
 		if err := os.Remove(dbPath); err != nil {
-			logrus.Error("Failed to remove test database file: ", err)
+			logrus.Error("failed to remove test database file: ", err)
 		}
 	}()
 
