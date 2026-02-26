@@ -14,6 +14,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
+	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
@@ -27,7 +28,7 @@ type WorkerRuntime struct {
 
 //nolint:funlen,gocognit // wiring
 func buildWorkerRuntime(
-	ctx context.Context, cmd *cli.Command, serverStorage receiver.Storage,
+	ctx context.Context, cmd *cli.Command, serverStorage receiver.Storage, whr warehouse.Registry,
 ) (*WorkerRuntime, error) {
 	boltDBPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt.db")
 	boltDB, err := bbolt.Open(boltDBPath, 0o600, nil)
@@ -42,7 +43,6 @@ func buildWorkerRuntime(
 		return nil, fmt.Errorf("open bolt kv: %w", err)
 	}
 
-	whr := warehouseRegistry(ctx, cmd)
 	cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},
