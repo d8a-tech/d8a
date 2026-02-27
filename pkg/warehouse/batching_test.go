@@ -242,3 +242,75 @@ func TestBatchingDriverWriteTableIsolation(t *testing.T) {
 	assert.True(t, tableNames["table2"], "should write to table2")
 	assert.Len(t, tableNames, 2, "should write to exactly 2 tables")
 }
+
+func TestBatchingDriverClose_FlushesBeforeClose(t *testing.T) {
+	// given
+	mock := &MockWarehouseDriver{}
+	ctx := context.Background()
+
+	driver := NewBatchingDriver(ctx, mock, 10, 1*time.Hour) // long interval so flush only happens on close
+
+	testSchema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64, Nullable: false},
+	}, nil)
+
+	records := []map[string]any{
+		{"id": int64(1)},
+		{"id": int64(2)},
+	}
+
+	// when
+	err := driver.Write(context.Background(), "test_table", testSchema, records)
+	require.NoError(t, err)
+
+	// Give a moment to ensure no automatic flush happens
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, 0, mock.GetWriteCallCount(), "should not flush before Close")
+
+	err = driver.Close()
+
+	// then
+	assert.NoError(t, err, "Close should succeed")
+	assert.True(t, mock.CloseCalled, "inner driver Close should be called")
+
+	writeCalls := mock.GetWriteCalls()
+	require.Len(t, writeCalls, 1, "should flush buffered records on Close")
+	assert.Equal(t, "test_table", writeCalls[0].Table)
+	assert.Equal(t, records, writeCalls[0].Records)
+}
+
+func TestBatchingDriverClose_Idempotent(t *testing.T) {
+	// given
+	mock := &MockWarehouseDriver{}
+	ctx := context.Background()
+
+	driver := NewBatchingDriver(ctx, mock, 10, 1*time.Hour)
+
+	// when
+	err1 := driver.Close()
+	err2 := driver.Close()
+
+	// then
+	assert.NoError(t, err1, "first Close should succeed")
+	assert.NoError(t, err2, "second Close should succeed")
+	assert.True(t, mock.CloseCalled, "inner driver Close should be called")
+
+	// Verify no panic or deadlock occurred
+	// (if we got here, the test passed the idempotency check)
+}
+
+func TestBatchingDriverClose_EmptyFlush(t *testing.T) {
+	// given
+	mock := &MockWarehouseDriver{}
+	ctx := context.Background()
+
+	driver := NewBatchingDriver(ctx, mock, 10, 1*time.Hour)
+
+	// when - close without writing anything
+	err := driver.Close()
+
+	// then
+	assert.NoError(t, err, "Close should succeed with no buffered data")
+	assert.Equal(t, 0, mock.GetWriteCallCount(), "should not write when buffer is empty")
+	assert.True(t, mock.CloseCalled, "inner driver Close should still be called")
+}

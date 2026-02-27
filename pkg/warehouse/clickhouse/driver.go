@@ -306,6 +306,11 @@ func (d *clickhouseDriver) sortSchemaFieldsForWriting(
 	return realFields, nil
 }
 
+// Close implements warehouse.Driver.
+func (d *clickhouseDriver) Close() error {
+	return nil
+}
+
 // AreFieldsCompatible implements warehouse.FieldCompatibilityChecker
 func (d *clickhouseDriver) AreFieldsCompatible(existing, input *arrow.Field) (bool, error) {
 	return d.areFieldsCompatible(existing, input)

@@ -641,9 +641,10 @@ func TestSpoolDriver_Close_Lifecycle(t *testing.T) {
 	spoolDir := t.TempDir()
 	uploader := &mockUploader{}
 	format := NewCSVFormat()
-	// Create driver with timer
+	// Create driver with timer and flush-on-close enabled
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
-		WithSealCheckInterval(1*time.Second))
+		WithSealCheckInterval(1*time.Second),
+		WithFlushOnClose(true))
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -791,7 +792,8 @@ func TestSpoolDriver_ForceAll_OnClose(t *testing.T) {
 	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
 		withManualCycle(),
 		WithMaxSegmentSize(1<<30),    // Large threshold
-		WithMaxSegmentAge(time.Hour)) // Long age
+		WithMaxSegmentAge(time.Hour), // Long age
+		WithFlushOnClose(true))
 
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -995,6 +997,75 @@ func TestSpoolDriver_Close_Idempotent(t *testing.T) {
 	// then - neither panics and both return nil
 	require.NoError(t, err1)
 	require.NoError(t, err2)
+}
+
+// TestSpoolDriver_Close_NoFlush tests that Close does not flush active segments by default.
+func TestSpoolDriver_Close_NoFlush(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
+		withManualCycle())
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - close driver without flush-on-close
+	err = driver.Close()
+
+	// then
+	require.NoError(t, err, "Close should succeed")
+
+	// Verify uploader was NOT called
+	assert.Equal(t, 0, len(uploader.calls), "Close should not upload without WithFlushOnClose")
+
+	// Verify active file remains on disk
+	fingerprint := schemaFingerprint(schema)
+	csvPath := activePath(spoolDir, escapeTableName("users"), fingerprint, "csv")
+	assert.FileExists(t, csvPath, "Active file should remain on disk for recovery")
+}
+
+// TestSpoolDriver_Close_WithFlushOnClose tests that Close flushes when configured.
+func TestSpoolDriver_Close_WithFlushOnClose(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	uploader := &mockUploader{}
+	format := NewCSVFormat()
+	driver := NewSpoolDriver(context.Background(), uploader, format, spoolDir,
+		withManualCycle(),
+		WithFlushOnClose(true))
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+
+	// Write rows
+	err := driver.Write(context.Background(), "users", schema, []map[string]any{
+		{"id": int64(1)},
+	})
+	require.NoError(t, err)
+
+	// when - close driver with flush-on-close enabled
+	err = driver.Close()
+
+	// then
+	require.NoError(t, err, "Close should succeed")
+
+	// Verify uploader was called
+	assert.Equal(t, 1, len(uploader.calls), "Close should upload with WithFlushOnClose(true)")
+
+	// Verify active file is gone (sealed and uploaded)
+	fingerprint := schemaFingerprint(schema)
+	csvPath := activePath(spoolDir, escapeTableName("users"), fingerprint, "csv")
+	assert.NoFileExists(t, csvPath, "Active file should be sealed and uploaded")
 }
 
 // TestSpoolDriver_Rotation_SealedFileImmutable tests that sealing creates an immutable file.
