@@ -130,12 +130,6 @@ func (s *Server) handleRequest(
 		return
 	}
 
-	if len(hits) > 0 && hits[0].Request != nil {
-		if err := s.rawLogStorage.Store(hits[0].Request); err != nil {
-			logrus.Errorf("failed to store raw log: %v", err)
-		}
-	}
-
 	for _, hit := range hits {
 		if hit.Request == nil {
 			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
@@ -193,6 +187,10 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		QueryParams:        queryParams,
 		Headers:            headers,
 		Body:               bodyCopy,
+	}
+
+	if err := s.rawLogStorage.Store(request); err != nil {
+		logrus.Errorf("failed to store raw log: %v", err)
 	}
 
 	hits, err := p.Hits(ctx, request)
