@@ -90,48 +90,6 @@ type MockWrittenRows struct {
 	Rows  []map[string]any
 }
 
-// MockDriver is a mock driver that stores written rows in memory.
-type MockDriver struct {
-	Writes     []MockWrittenRows
-	WriteError error
-}
-
-var _ Driver = &MockDriver{}
-
-// CreateTable implements Driver
-func (d *MockDriver) CreateTable(_ string, _ *arrow.Schema) error {
-	return nil
-}
-
-// AddColumn implements Driver
-func (d *MockDriver) AddColumn(_ string, _ *arrow.Field) error {
-	return nil
-}
-
-// Write implements Driver
-func (d *MockDriver) Write(_ context.Context, table string, _ *arrow.Schema, rows []map[string]any) error {
-	d.Writes = append(d.Writes, MockWrittenRows{
-		Table: table,
-		Rows:  rows,
-	})
-	return d.WriteError
-}
-
-// MissingColumns implements Driver
-func (d *MockDriver) MissingColumns(_ string, _ *arrow.Schema) ([]*arrow.Field, error) {
-	return []*arrow.Field{}, nil
-}
-
-// Close implements Driver.
-func (d *MockDriver) Close() error {
-	return d.WriteError
-}
-
-// NewMockDriver creates a new mock driver that stores written rows in memory.
-func NewMockDriver() *MockDriver {
-	return &MockDriver{}
-}
-
 type loggingDriver struct {
 	driver Driver
 }

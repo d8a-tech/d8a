@@ -19,6 +19,11 @@ type MockWarehouseDriver struct {
 	CloseCalled       bool
 }
 
+// NewMockWarehouseDriver creates a new mock warehouse driver
+func NewMockWarehouseDriver() *MockWarehouseDriver {
+	return &MockWarehouseDriver{}
+}
+
 // WriteCall is a call to the Write method of the MockWarehouseDriver
 type WriteCall struct {
 	Table   string

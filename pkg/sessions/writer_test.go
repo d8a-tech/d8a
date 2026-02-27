@@ -16,7 +16,7 @@ func TestWriter(t *testing.T) {
 	// given
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	mockDriver := warehouse.NewMockDriver()
+	mockDriver := warehouse.NewMockWarehouseDriver()
 	writer := NewSessionWriter(
 		ctx,
 		warehouse.NewStaticDriverRegistry(mockDriver),
@@ -84,5 +84,5 @@ func TestWriter(t *testing.T) {
 
 	// then
 	assert.NoError(t, err)
-	assert.Len(t, mockDriver.Writes, 1) // Should be a single write, batching should kick in
+	assert.Len(t, mockDriver.WriteCalls, 1) // Should be a single write, batching should kick in
 }
