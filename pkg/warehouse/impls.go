@@ -28,6 +28,11 @@ func (d *noopDriver) MissingColumns(_ string, _ *arrow.Schema) ([]*arrow.Field, 
 	return []*arrow.Field{}, nil
 }
 
+// Close implements Driver.
+func (d *noopDriver) Close() error {
+	return nil
+}
+
 // NewNoopDriver creates a new noop driver that does nothing.
 func NewNoopDriver() Driver {
 	return &noopDriver{}
@@ -60,6 +65,11 @@ func (d *consoleDriver) MissingColumns(table string, schema *arrow.Schema) ([]*a
 	return d.driver.MissingColumns(table, schema)
 }
 
+// Close implements Driver.
+func (d *consoleDriver) Close() error {
+	return d.driver.Close()
+}
+
 // NewConsoleDriver creates a new console driver that prints data to stdout.
 func NewConsoleDriver() Driver {
 	return &consoleDriver{
@@ -78,43 +88,6 @@ func NewDebuggingDriver(driver Driver) Driver {
 type MockWrittenRows struct {
 	Table string
 	Rows  []map[string]any
-}
-
-// MockDriver is a mock driver that stores written rows in memory.
-type MockDriver struct {
-	Writes     []MockWrittenRows
-	WriteError error
-}
-
-var _ Driver = &MockDriver{}
-
-// CreateTable implements Driver
-func (d *MockDriver) CreateTable(_ string, _ *arrow.Schema) error {
-	return nil
-}
-
-// AddColumn implements Driver
-func (d *MockDriver) AddColumn(_ string, _ *arrow.Field) error {
-	return nil
-}
-
-// Write implements Driver
-func (d *MockDriver) Write(_ context.Context, table string, _ *arrow.Schema, rows []map[string]any) error {
-	d.Writes = append(d.Writes, MockWrittenRows{
-		Table: table,
-		Rows:  rows,
-	})
-	return d.WriteError
-}
-
-// MissingColumns implements Driver
-func (d *MockDriver) MissingColumns(_ string, _ *arrow.Schema) ([]*arrow.Field, error) {
-	return []*arrow.Field{}, nil
-}
-
-// NewMockDriver creates a new mock driver that stores written rows in memory.
-func NewMockDriver() *MockDriver {
-	return &MockDriver{}
 }
 
 type loggingDriver struct {
@@ -139,6 +112,11 @@ func (d *loggingDriver) CreateTable(table string, schema *arrow.Schema) error {
 func (d *loggingDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
 	logrus.Infof("checking for missing columns in `%s`", table)
 	return d.driver.MissingColumns(table, schema)
+}
+
+// Close implements Driver.
+func (d *loggingDriver) Close() error {
+	return d.driver.Close()
 }
 
 // NewLoggingDriver creates a new driver that logs all writes.

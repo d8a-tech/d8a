@@ -169,6 +169,12 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}
 
 					whr := warehouseRegistry(ctx, cmd)
+					defer func() {
+						if err := whr.Close(); err != nil {
+							logrus.WithError(err).Error("failed to close warehouse registry")
+						}
+					}()
+
 					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
@@ -288,7 +294,14 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, warehouseRegistry(ctx, cmd))
+					whr := warehouseRegistry(ctx, cmd)
+					defer func() {
+						if err := whr.Close(); err != nil {
+							logrus.WithError(err).Error("failed to close warehouse registry")
+						}
+					}()
+
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr)
 					if err != nil {
 						return err
 					}
@@ -321,7 +334,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					warehouseConfigFlags,
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					return migrate(ctx, cmd, cmd.String("property-id"), warehouseRegistry(ctx, cmd))
+					whr := warehouseRegistry(ctx, cmd)
+					defer func() {
+						if err := whr.Close(); err != nil {
+							logrus.WithError(err).Error("failed to close warehouse registry")
+						}
+					}()
+					return migrate(ctx, cmd, cmd.String("property-id"), whr)
 				},
 			},
 			{

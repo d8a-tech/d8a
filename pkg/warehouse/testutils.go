@@ -16,6 +16,12 @@ type MockWarehouseDriver struct {
 	CreateTableCalls  []CreateTableCall
 	AddColumnCalls    []AddColumnCall
 	MissingColumnResp []MissingColumnResp
+	CloseCalled       bool
+}
+
+// NewMockWarehouseDriver creates a new mock warehouse driver
+func NewMockWarehouseDriver() *MockWarehouseDriver {
+	return &MockWarehouseDriver{}
 }
 
 // WriteCall is a call to the Write method of the MockWarehouseDriver
@@ -106,6 +112,14 @@ func (m *MockWarehouseDriver) MissingColumns(
 		return resp.fields, resp.err
 	}
 	return nil, nil
+}
+
+// Close implements warehouse.Driver.
+func (m *MockWarehouseDriver) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.CloseCalled = true
+	return nil
 }
 
 // GetWriteCalls returns the write calls

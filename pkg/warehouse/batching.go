@@ -22,6 +22,10 @@ type batchingDriver struct {
 	maxBatchSize int
 	interval     time.Duration
 	tableProps   map[string]*tableProps
+
+	stopCh   chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 // NewBatchingDriver creates a batching driver that accumulates writes in memory
@@ -38,6 +42,7 @@ func NewBatchingDriver(
 		interval:     interval,
 		maxBatchSize: maxBatchSize,
 		tableProps:   make(map[string]*tableProps),
+		stopCh:       make(chan struct{}),
 	}
 	d.start()
 	return d
@@ -84,6 +89,14 @@ func (d *batchingDriver) MissingColumns(table string, schema *arrow.Schema) ([]*
 	return d.driver.MissingColumns(table, schema)
 }
 
+// Close implements Driver.
+func (d *batchingDriver) Close() error {
+	d.stopOnce.Do(func() { close(d.stopCh) })
+	d.wg.Wait()
+	d.flush()
+	return d.driver.Close()
+}
+
 func (d *batchingDriver) flush() {
 	d.lock.Lock()
 	defer d.lock.Unlock()
@@ -103,12 +116,16 @@ func (d *batchingDriver) flush() {
 }
 
 func (d *batchingDriver) start() {
+	d.wg.Add(1)
 	go func() {
+		defer d.wg.Done()
 		ticker := time.NewTicker(d.interval)
 		defer ticker.Stop()
 
 		for {
 			select {
+			case <-d.stopCh:
+				return
 			case <-d.ctx.Done():
 				d.flush()
 				return

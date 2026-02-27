@@ -65,7 +65,6 @@ func statusGroup(statusCode int) string {
 }
 
 func extractTrackingLibrary(queryParams url.Values) string {
-	logrus.Debugf("queryParams: %v", queryParams)
 	dtn := queryParams.Get("_dtn")
 	dtv := queryParams.Get("_dtv")
 	if dtn == "" || dtv == "" {

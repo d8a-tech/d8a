@@ -292,6 +292,11 @@ func (d *bigQueryTableDriver) Write(
 	return d.writer.Write(ctx, table, schema, rows)
 }
 
+// Close implements warehouse.Driver.
+func (d *bigQueryTableDriver) Close() error {
+	return nil
+}
+
 type dynamicRowSaver struct {
 	Data map[string]any
 }

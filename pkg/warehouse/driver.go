@@ -13,6 +13,9 @@ import (
 // Registry is a registry of drivers for different properties.
 type Registry interface {
 	Get(propertyID string) (Driver, error)
+
+	// Close releases resources held by the registry and its underlying driver.
+	Close() error
 }
 
 // Driver abstracts data warehouse operations for table management and data ingestion.
@@ -38,6 +41,10 @@ type Driver interface {
 	// Used for schema drift detection before writes.
 	// Returns TableNotFoundError if table doesn't exist.
 	MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error)
+
+	// Close flushes any buffered data and releases resources.
+	// Must be called exactly once when the driver is no longer needed.
+	Close() error
 }
 
 // QueryMapper defines SQL DDL query construction from Arrow schemas.
@@ -103,6 +110,11 @@ type staticDriverRegistry struct {
 
 func (r *staticDriverRegistry) Get(_ string) (Driver, error) {
 	return r.driver, nil
+}
+
+// Close implements Registry.
+func (r *staticDriverRegistry) Close() error {
+	return r.driver.Close()
 }
 
 // NewStaticDriverRegistry creates a new static driver registry that always returns the same driver.

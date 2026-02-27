@@ -47,6 +47,15 @@ func WithSealCheckInterval(d time.Duration) SpoolOption {
 	}
 }
 
+// WithFlushOnClose configures whether Close seals and uploads all active segments.
+// Enable this for ephemeral storage where data would be lost on shutdown.
+// With persistent storage, active segments are recovered on next startup.
+func WithFlushOnClose(v bool) SpoolOption {
+	return func(sd *SpoolDriver) {
+		sd.flushOnClose = v
+	}
+}
+
 // ticker abstracts time.Ticker to allow deterministic testing.
 type ticker interface {
 	C() <-chan time.Time
@@ -82,6 +91,7 @@ type SpoolDriver struct {
 	mu                sync.Mutex     // protects concurrent file operations
 	streams           map[string]*streamState
 	newTicker         func(time.Duration) ticker
+	flushOnClose      bool
 }
 
 var _ warehouse.Driver = (*SpoolDriver)(nil)
@@ -588,9 +598,13 @@ func (sd *SpoolDriver) sealStream(tableEsc, fingerprint string) (segmentID strin
 func (sd *SpoolDriver) Close() error {
 	sd.stopOnce.Do(func() { close(sd.stopCh) })
 	sd.wg.Wait()
-	err := sd.runFlushCycle(context.Background(), true)
+	if sd.flushOnClose {
+		if err := sd.runFlushCycle(context.Background(), true); err != nil {
+			return err
+		}
+	}
 	logrus.Info("driver closed")
-	return err
+	return nil
 }
 
 func (sd *SpoolDriver) recoverStreams() error {
