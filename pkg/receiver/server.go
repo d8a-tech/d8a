@@ -1,7 +1,6 @@
 package receiver
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -123,20 +122,18 @@ func (s *Server) handleRequest(
 	ctx *fasthttp.RequestCtx,
 	selectedProtocol protocol.Protocol,
 ) {
-	// Log raw HTTP request
-	b := bytes.NewBuffer(make([]byte, 0, 64*1024))
-	if _, err := ctx.Request.WriteTo(b); err != nil {
-		logrus.Errorf("failed to write raw request: %v", err)
-	}
-	if err := s.rawLogStorage.Store(b); err != nil {
-		logrus.Errorf("failed to store raw log: %v", err)
-	}
 	var err error
 
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
+	}
+
+	if len(hits) > 0 && hits[0].Request != nil {
+		if err := s.rawLogStorage.Store(hits[0].Request); err != nil {
+			logrus.Errorf("failed to store raw log: %v", err)
+		}
 	}
 
 	for _, hit := range hits {
