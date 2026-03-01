@@ -89,7 +89,7 @@ Segments are sealed when either threshold is crossed first.
 
 ## Path template
 
-The files warehouse writes data to paths generated from a configurable template. By default, files are organized as `table=xyz/schema=abc/dt=yyyy/m/d/...`. Use the `warehouse.files.path_template` option to customize the structure.
+The files warehouse writes data to paths generated from a configurable template. See [`--warehouse-files-path-template`](/articles/config/#--warehouse-files-path-template) for the default value and customization options.
 
 **Available variables:**
 
