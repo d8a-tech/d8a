@@ -1,11 +1,13 @@
 package files
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -83,10 +85,46 @@ func failCountPath(streamDir, segmentID string) string {
 	return filepath.Join(streamDir, fmt.Sprintf("%s.failcount", segmentID))
 }
 
+// pathTemplateData holds the data available for path template execution.
+type pathTemplateData struct {
+	Table       string
+	Schema      string
+	SegmentID   string
+	Extension   string
+	Year        int
+	Month       int
+	MonthPadded string
+	Day         int
+	DayPadded   string
+}
+
 // segmentRemoteKey returns the remote object key for a segment.
-func segmentRemoteKey(tableEsc, fingerprint, segmentID, ext string, sealTime time.Time) string {
-	date := sealTime.UTC().Format("2006/01/02")
-	return fmt.Sprintf("table=%s/schema=%s/dt=%s/%s.%s", tableEsc, fingerprint, date, segmentID, ext)
+func segmentRemoteKey(
+	tmpl *template.Template,
+	tableEsc, fingerprint, segmentID, ext string,
+	sealTime time.Time,
+) (string, error) {
+	utc := sealTime.UTC()
+	year, month, day := utc.Date()
+
+	data := pathTemplateData{
+		Table:       tableEsc,
+		Schema:      fingerprint,
+		SegmentID:   segmentID,
+		Extension:   ext,
+		Year:        year,
+		Month:       int(month),
+		MonthPadded: fmt.Sprintf("%02d", month),
+		Day:         day,
+		DayPadded:   fmt.Sprintf("%02d", day),
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("executing path template: %w", err)
+	}
+
+	return buf.String(), nil
 }
 
 // ensureStreamDirs creates the directory structure for a stream.

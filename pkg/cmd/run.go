@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
@@ -162,6 +163,17 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err := validateHAFlags("server", cmd); err != nil {
 						return err
 					}
+
+					warehouseType := strings.ToLower(cmd.String(warehouseDriverFlag.Name))
+					if warehouseType == "" {
+						warehouseType = warehouseDriverFlag.Value
+					}
+					if warehouseType == warehouseTypeFiles {
+						if err := validateWarehouseFilesFlags(cmd); err != nil {
+							return err
+						}
+					}
+
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
 						ctx, cancel = context.WithCancel(context.Background())
@@ -272,6 +284,17 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					if err := validateHAFlags("worker", cmd); err != nil {
 						return err
 					}
+
+					warehouseType := strings.ToLower(cmd.String(warehouseDriverFlag.Name))
+					if warehouseType == "" {
+						warehouseType = warehouseDriverFlag.Value
+					}
+					if warehouseType == warehouseTypeFiles {
+						if err := validateWarehouseFilesFlags(cmd); err != nil {
+							return err
+						}
+					}
+
 					if ctx == nil {
 						ctx, cancel = context.WithCancel(context.Background())
 						defer cancel()
@@ -334,6 +357,16 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					warehouseConfigFlags,
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
+					warehouseType := strings.ToLower(cmd.String(warehouseDriverFlag.Name))
+					if warehouseType == "" {
+						warehouseType = warehouseDriverFlag.Value
+					}
+					if warehouseType == warehouseTypeFiles {
+						if err := validateWarehouseFilesFlags(cmd); err != nil {
+							return err
+						}
+					}
+
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {

@@ -87,6 +87,26 @@ Segments are sealed when either threshold is crossed first.
 | `warehouse.files.max_segment_age` | `1h` | Seal when the active file is this old |
 | `warehouse.files.seal_check_interval` | `15s` | How often to evaluate sealing triggers |
 
+## Path template
+
+The files warehouse writes data to paths generated from a configurable template. By default, files are organized as `table=xyz/schema=abc/dt=yyyy/m/d/...`. Use the `warehouse.files.path_template` option to customize the structure.
+
+**Available variables:**
+
+| Variable | Type | Description |
+|---|---|---|
+| `Table` | string | Escaped table name |
+| `Schema` | string | 16-character schema fingerprint |
+| `SegmentID` | string | Segment identifier (unixSeconds_uuid) |
+| `Extension` | string | File extension (csv or csv.gz) |
+| `Year` | int | Year (e.g., 2026) |
+| `Month` | int | Month number (1-12) |
+| `MonthPadded` | string | Month with leading zero (01-12) |
+| `Day` | int | Day of month (1-31) |
+| `DayPadded` | string | Day with leading zero (01-31) |
+
+**Example:** `table={{.Table}}/year={{.Year}}/month={{.MonthPadded}}/day={{.DayPadded}}/{{.SegmentID}}.{{.Extension}}`
+
 ## Important notes
 
 - **Spool required**: `storage.spool_enabled` must be `true`. The files warehouse uses the spool directory to stage segments before upload.

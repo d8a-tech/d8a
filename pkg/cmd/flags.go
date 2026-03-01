@@ -419,6 +419,13 @@ var (
 		Value:   gzip.DefaultCompression,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION_LEVEL", "warehouse.files.compression_level"),
 	}
+
+	warehouseFilesPathTemplateFlag = &cli.StringFlag{
+		Name:    "warehouse-files-path-template",
+		Usage:   "Path template for warehouse file uploads. Variables: Table, Schema, SegmentID, Extension, Year, Month, MonthPadded, Day, DayPadded", //nolint:lll // it's a description
+		Value:   "table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/{{.DayPadded}}/{{.SegmentID}}.{{.Extension}}",                     //nolint:lll // default template
+		Sources: defaultSourceChain("WAREHOUSE_FILES_PATH_TEMPLATE", "warehouse.files.path_template"),
+	}
 )
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
@@ -518,6 +525,7 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesSealCheckIntervalFlag,
 	warehouseFilesCompressionFlag,
 	warehouseFilesCompressionLevelFlag,
+	warehouseFilesPathTemplateFlag,
 }
 
 func getServerFlags() []cli.Flag {
