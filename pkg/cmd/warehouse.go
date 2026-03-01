@@ -25,7 +25,6 @@ const (
 	storageTypeS3         = "s3"
 	storageTypeGCS        = "gcs"
 	storageTypeFilesystem = "filesystem"
-	warehouseTypeFiles    = "files"
 )
 
 func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry {
@@ -240,53 +239,6 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 	)
 }
 
-func validateWarehouseFilesFlags(cmd *cli.Command) error {
-	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
-
-	if tmplStr == "" {
-		return fmt.Errorf("warehouse-files-path-template cannot be empty")
-	}
-
-	tmpl, err := template.New("path").Parse(tmplStr)
-	if err != nil {
-		return fmt.Errorf("invalid warehouse-files-path-template: %w", err)
-	}
-
-	data := struct {
-		Table       string
-		Schema      string
-		SegmentID   string
-		Extension   string
-		Year        int
-		Month       int
-		MonthPadded string
-		Day         int
-		DayPadded   string
-	}{
-		Table:       "test",
-		Schema:      "abc123",
-		SegmentID:   "12345_uuid",
-		Extension:   "csv",
-		Year:        2026,
-		Month:       3,
-		Day:         1,
-		MonthPadded: "03",
-		DayPadded:   "01",
-	}
-
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return fmt.Errorf("failed to execute warehouse-files-path-template: %w", err)
-	}
-
-	output := buf.String()
-	if strings.Contains(output, "..") {
-		return fmt.Errorf("warehouse-files-path-template output contains path traversal (..) which is not allowed")
-	}
-
-	return nil
-}
-
 func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {
 	format := cmd.String(warehouseFilesFormatFlag.Name)
 
@@ -346,7 +298,8 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
 	}
 
-	tmplStr := cmd.String(warehouseFilesPathTemplateFlag.Name)
+	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
+	validateFilesPathTemplate(tmplStr)
 
 	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir,
 		whFiles.WithPathTemplate(tmplStr),
@@ -356,4 +309,32 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	)
 
 	return warehouse.NewStaticDriverRegistry(driver)
+}
+
+func validateFilesPathTemplate(tmplStr string) {
+	if tmplStr == "" {
+		logrus.Fatal("warehouse-files-path-template cannot be empty")
+	}
+
+	tmpl, err := template.New("path").Parse(tmplStr)
+	if err != nil {
+		logrus.WithError(err).Fatal("invalid warehouse-files-path-template")
+	}
+
+	sampleData := struct {
+		Table, Schema, SegmentID, Extension, MonthPadded, DayPadded string
+		Year, Month, Day                                            int
+	}{
+		Table: "test", Schema: "abc123", SegmentID: "12345_uuid", Extension: "csv",
+		Year: 2026, Month: 3, Day: 1, MonthPadded: "03", DayPadded: "01",
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, sampleData); err != nil {
+		logrus.WithError(err).Fatal("failed to execute warehouse-files-path-template")
+	}
+
+	if strings.Contains(buf.String(), "..") {
+		logrus.Fatal("warehouse-files-path-template output contains path traversal (..) which is not allowed")
+	}
 }
