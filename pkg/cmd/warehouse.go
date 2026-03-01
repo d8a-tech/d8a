@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -297,11 +298,43 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
 	}
 
+	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
+	validateFilesPathTemplate(tmplStr)
+
 	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir,
+		whFiles.WithPathTemplate(tmplStr),
 		whFiles.WithSealCheckInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
 		whFiles.WithMaxSegmentSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
 		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
 	)
 
 	return warehouse.NewStaticDriverRegistry(driver)
+}
+
+func validateFilesPathTemplate(tmplStr string) {
+	if tmplStr == "" {
+		logrus.Fatal("warehouse-files-path-template cannot be empty")
+	}
+
+	tmpl, err := template.New("path").Parse(tmplStr)
+	if err != nil {
+		logrus.WithError(err).Fatal("invalid warehouse-files-path-template")
+	}
+
+	sampleData := struct {
+		Table, Schema, SegmentID, Extension, MonthPadded, DayPadded string
+		Year, Month, Day                                            int
+	}{
+		Table: "test", Schema: "abc123", SegmentID: "12345_uuid", Extension: "csv",
+		Year: 2026, Month: 3, Day: 1, MonthPadded: "03", DayPadded: "01",
+	}
+
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, sampleData); err != nil {
+		logrus.WithError(err).Fatal("failed to execute warehouse-files-path-template")
+	}
+
+	if strings.Contains(buf.String(), "..") {
+		logrus.Fatal("warehouse-files-path-template output contains path traversal (..) which is not allowed")
+	}
 }

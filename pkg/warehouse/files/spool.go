@@ -1,6 +1,7 @@
 package files
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -56,6 +58,14 @@ func WithFlushOnClose(v bool) SpoolOption {
 	}
 }
 
+// WithPathTemplate sets the path template string for remote object keys.
+// The template is parsed during driver construction.
+func WithPathTemplate(tmplStr string) SpoolOption {
+	return func(sd *SpoolDriver) {
+		sd.pathTemplateStr = tmplStr
+	}
+}
+
 // ticker abstracts time.Ticker to allow deterministic testing.
 type ticker interface {
 	C() <-chan time.Time
@@ -82,6 +92,8 @@ type SpoolDriver struct {
 	format            Format
 	ext               string // file extension without leading dot, derived from format
 	spoolDir          string
+	pathTemplate      *template.Template
+	pathTemplateStr   string
 	maxSegmentSize    int64
 	maxSegmentAge     time.Duration
 	sealCheckInterval time.Duration
@@ -99,6 +111,55 @@ var _ warehouse.Driver = (*SpoolDriver)(nil)
 type streamState struct {
 	createdAt       time.Time
 	activeSizeBytes int64
+}
+
+// parsePathTemplate parses and validates a path template string.
+// It returns an error if the template is empty, has invalid syntax,
+// or contains path traversal sequences (..).
+func parsePathTemplate(tmplStr string) (*template.Template, error) {
+	tmplStr = strings.TrimSpace(tmplStr)
+	if tmplStr == "" {
+		return nil, fmt.Errorf("template string cannot be empty")
+	}
+
+	tmpl, err := template.New("path").Parse(tmplStr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing template: %w", err)
+	}
+
+	// Validate template doesn't produce path traversal by executing with sample data
+	sampleData := struct {
+		Table       string
+		Schema      string
+		SegmentID   string
+		Extension   string
+		Year        int
+		Month       int
+		MonthPadded string
+		Day         int
+		DayPadded   string
+	}{
+		Table:       "test",
+		Schema:      "abc123",
+		SegmentID:   "12345_uuid",
+		Extension:   "csv",
+		Year:        2026,
+		Month:       3,
+		MonthPadded: "03",
+		Day:         1,
+		DayPadded:   "01",
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, sampleData); err != nil {
+		return nil, fmt.Errorf("executing template with sample data: %w", err)
+	}
+
+	if strings.Contains(buf.String(), "..") {
+		return nil, fmt.Errorf("template output contains path traversal sequence (..)")
+	}
+
+	return tmpl, nil
 }
 
 // NewSpoolDriver creates a new spool driver that writes rows directly to disk
@@ -130,6 +191,18 @@ func NewSpoolDriver(
 	for _, opt := range opts {
 		opt(sd)
 	}
+
+	// Parse path template: use default if not set via option
+	tmplStr := sd.pathTemplateStr
+	if tmplStr == "" {
+		tmplStr = "table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/{{.DayPadded}}/" +
+			"{{.SegmentID}}.{{.Extension}}"
+	}
+	tmpl, err := parsePathTemplate(tmplStr)
+	if err != nil {
+		logrus.WithError(err).Panic("failed to parse path template")
+	}
+	sd.pathTemplate = tmpl
 
 	// Unrecoverable initialization failure - if we can't recover streams,
 	// the driver cannot safely operate or ensure data consistency.
@@ -479,7 +552,10 @@ func (sd *SpoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) err
 	sd.mu.Unlock()
 
 	// Upload outside lock
-	remoteKey := segmentRemoteKey(seg.tableEsc, seg.fp, seg.segmentID, sd.ext, seg.sealTime)
+	remoteKey, err := segmentRemoteKey(sd.pathTemplate, seg.tableEsc, seg.fp, seg.segmentID, sd.ext, seg.sealTime)
+	if err != nil {
+		return fmt.Errorf("generating remote key: %w", err)
+	}
 	uploadErr := sd.uploader.Upload(ctx, uploadingPath, remoteKey)
 
 	if uploadErr == nil {

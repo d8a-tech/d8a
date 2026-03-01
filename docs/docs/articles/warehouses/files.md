@@ -87,6 +87,26 @@ Segments are sealed when either threshold is crossed first.
 | `warehouse.files.max_segment_age` | `1h` | Seal when the active file is this old |
 | `warehouse.files.seal_check_interval` | `15s` | How often to evaluate sealing triggers |
 
+## Path template
+
+The files warehouse writes data to paths generated from a configurable template. By default, files are organized as `table=xyz/schema=abc/dt=yyyy/m/d/...`. Use the `warehouse.files.path_template` option to customize the structure.
+
+**Available variables:**
+
+| Variable | Type | Description |
+|---|---|---|
+| `Table` | string | Escaped table name |
+| `Schema` | string | 16-character schema fingerprint |
+| `SegmentID` | string | Segment identifier (unixSeconds_uuid) |
+| `Extension` | string | File extension (csv or csv.gz) |
+| `Year` | int | Year (e.g., 2026) |
+| `Month` | int | Month number (1-12) |
+| `MonthPadded` | string | Month with leading zero (01-12) |
+| `Day` | int | Day of month (1-31) |
+| `DayPadded` | string | Day with leading zero (01-31) |
+
+**Example:** `table={{.Table}}/year={{.Year}}/month={{.MonthPadded}}/day={{.DayPadded}}/{{.SegmentID}}.{{.Extension}}`
+
 ## Important notes
 
 - **Spool required**: `storage.spool_enabled` must be `true`. The files warehouse uses the spool directory to stage segments before upload.
@@ -97,3 +117,27 @@ Segments are sealed when either threshold is crossed first.
 ## Verifying your setup
 
 After configuring the files warehouse, start d8a and check the logs. You should see messages indicating segments being sealed and uploaded to your configured destination.
+
+## Querying your files
+
+The files written by this driver can be consumed directly by most analytics warehouses without an external pipeline.
+
+- **Snowflake** — Automate ingestion using Snowpipe to continuously load new CSV/CSV.GZ files from an external stage into a target table as soon as they arrive. This completely eliminates the need for an external pipeline, though querying a configured External Table with auto-refresh is an alternative if you prefer zero data movement. See the [Snowflake Snowpipe documentation](https://docs.snowflake.com/en/user-guide/data-load-snowpipe-intro.html) to set this up.
+
+- **Amazon Redshift** — Use Redshift Spectrum to create an external table and query the files directly from S3, leveraging partition pruning if you update your prefixes to the standard `year=YYYY/month=MM/day=DD` format. While Spectrum requires no pipeline for direct querying, Redshift's native auto-copy feature can automatically ingest new files into managed storage without external orchestrators. Check out the [Redshift Spectrum documentation](https://docs.aws.amazon.com/redshift/latest/dg/c-using-spectrum.html) for implementation steps.
+
+- **Databricks SQL** — Use Auto Loader to incrementally and automatically process new CSV files as they land in your cloud storage. This serves as a native, pipeline-free ingestion method into Delta tables, but renaming your prefixes to standard Hive partitioning will significantly optimize the initial directory discovery. Read the [Databricks Auto Loader documentation](https://docs.databricks.com/ingestion/auto-loader/index.html) for configuration.
+
+- **Azure Synapse Analytics** — Query object storage directly using Serverless SQL pools by creating an external table or using the `OPENROWSET` function on your bucket path. This requires no pipeline for basic querying, though for optimal performance on large datasets you would need Azure Data Factory/Synapse Pipelines to copy the data into Dedicated SQL pools. Explore the [Azure Synapse Serverless SQL documentation](https://learn.microsoft.com/en-us/azure/synapse-analytics/sql/query-data-storage) to get started.
+
+- **Starburst / Trino** — Connect a Hive or Iceberg catalog to your bucket and define an external table directly over your CSV directory. Trino is a federated query engine, so it inherently requires no ingestion pipeline to query the files in-place, but changing your directory structure to `y=YYYY/m=MM/d=DD` is highly recommended for efficient partition pruning. Visit the [Trino Hive Connector documentation](https://trino.io/docs/current/connector/hive.html) for setup details.
+
+- **Apache Druid** — Continuously ingest the CSVs using Druid's native batch or streaming ingestion by pointing a supervisor spec to the object storage path. No external pipeline is needed because Druid manages the ingestion tasks internally, but you must ensure your CSV contains a timestamp column for Druid's mandatory primary time partitioning. Review the [Apache Druid Ingestion documentation](https://druid.apache.org/docs/latest/ingestion/index.html) to configure your spec.
+
+- **Firebolt** — Create an external table pointing to your bucket and then use standard `INSERT INTO ... SELECT` statements to load data into a fact table. While external tables allow direct querying without a pipeline, moving data to native Firebolt tables requires some external orchestration (such as Airflow) to regularly trigger the ingestion of new files. More information is available in the [Firebolt External Tables documentation](https://docs.firebolt.io/sql-reference/commands/data-management/external-table.html).
+
+- **Teradata Vantage** — Use the Native Object Store (NOS) feature to create a foreign table directly over your CSV/CSV.GZ files in cloud storage. This eliminates the need for an external pipeline for direct querying, though using standard Hive naming conventions (`$path/$var=...`) will allow NOS to filter partitions efficiently without scanning every file. The [Teradata Native Object Store documentation](https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Foreign-Tables) outlines the syntax required.
+
+- **Google BigQuery** — For the best experience, use the dedicated [BigQuery warehouse driver](/articles/warehouses/bigquery) instead. If you prefer to consume the files directly, you can query them by creating an external table over the bucket, ideally updating your prefix to Hive partitioning (`y=YYYY/m=MM/d=DD`) for better query performance. This works entirely without a pipeline, but for faster querying on frequent appends you should use native scheduled queries to move data into partitioned native tables. Refer to the [BigQuery External Tables documentation](https://cloud.google.com/bigquery/docs/external-tables) for more details.
+
+- **ClickHouse** — For the best experience, use the dedicated [ClickHouse warehouse driver](/articles/warehouses/clickhouse) instead. If you prefer to consume the files directly, you can use the `S3` table engine or function to query them using glob patterns like `y/m/d/*.csv.gz`. A pipeline isn't strictly necessary as you can set up a Materialized View over the S3 engine to automatically ingest new data into a native MergeTree table, but adding the `y=YYYY/` Hive format improves partition filtering. Learn more in the [ClickHouse S3 Engine documentation](https://clickhouse.com/docs/en/engines/table-engines/integrations/s3).

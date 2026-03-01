@@ -1378,3 +1378,166 @@ func TestSpoolDriver_Concurrency_WritesDuringTickSeal(t *testing.T) {
 			"No .csv files should remain in sealed dir, found: %s", entry.Name())
 	}
 }
+
+func TestParsePathTemplate(t *testing.T) {
+	tests := []struct {
+		name        string
+		template    string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid default template",
+			template: "table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/{{.DayPadded}}/" +
+				"{{.SegmentID}}.{{.Extension}}",
+			expectError: false,
+		},
+		{
+			name:        "valid simple template",
+			template:    "{{.Table}}/{{.SegmentID}}.{{.Extension}}",
+			expectError: false,
+		},
+		{
+			name: "valid template with all variables",
+			template: "{{.Table}}_{{.Schema}}_{{.Year}}_{{.Month}}_{{.MonthPadded}}_{{.Day}}_" +
+				"{{.DayPadded}}_{{.SegmentID}}.{{.Extension}}",
+			expectError: false,
+		},
+		{
+			name:        "empty string",
+			template:    "",
+			expectError: true,
+			errorMsg:    "template string cannot be empty",
+		},
+		{
+			name:        "whitespace only",
+			template:    "   ",
+			expectError: true,
+			errorMsg:    "template string cannot be empty",
+		},
+		{
+			name:        "invalid template syntax",
+			template:    "{{.Table",
+			expectError: true,
+			errorMsg:    "parsing template",
+		},
+		{
+			name:        "template with path traversal in literal",
+			template:    "../{{.Table}}/{{.SegmentID}}.{{.Extension}}",
+			expectError: true,
+			errorMsg:    "template output contains path traversal sequence (..)",
+		},
+		{
+			name:        "template with path traversal in middle",
+			template:    "{{.Table}}/../{{.SegmentID}}.{{.Extension}}",
+			expectError: true,
+			errorMsg:    "template output contains path traversal sequence (..)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			// (test case defined above)
+
+			// when
+			tmpl, err := parsePathTemplate(tt.template)
+
+			// then
+			if tt.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, tmpl)
+				if tt.errorMsg != "" {
+					assert.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, tmpl)
+			}
+		})
+	}
+}
+
+func TestSpoolDriver_WithPathTemplate(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	ctx := context.Background()
+	mockUploader := &mockUploader{}
+	customTemplate := "custom/{{.Table}}/{{.SegmentID}}.{{.Extension}}"
+
+	// when
+	driver := NewSpoolDriver(
+		ctx,
+		mockUploader,
+		NewCSVFormat(),
+		spoolDir,
+		WithPathTemplate(customTemplate),
+		withManualCycle(),
+	)
+
+	// then
+	assert.NotNil(t, driver.pathTemplate)
+	assert.Equal(t, customTemplate, driver.pathTemplateStr)
+
+	_ = driver.Close()
+}
+
+func TestSpoolDriver_DefaultPathTemplate(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	ctx := context.Background()
+	mockUploader := &mockUploader{}
+
+	// when - no WithPathTemplate option provided
+	driver := NewSpoolDriver(
+		ctx,
+		mockUploader,
+		NewCSVFormat(),
+		spoolDir,
+		withManualCycle(),
+	)
+
+	// then
+	assert.NotNil(t, driver.pathTemplate)
+	assert.Empty(t, driver.pathTemplateStr, "pathTemplateStr should be empty when using default")
+
+	_ = driver.Close()
+}
+
+func TestSpoolDriver_InvalidPathTemplate_Panics(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	ctx := context.Background()
+	mockUploader := &mockUploader{}
+
+	// when/then - invalid template should panic
+	assert.Panics(t, func() {
+		NewSpoolDriver(
+			ctx,
+			mockUploader,
+			NewCSVFormat(),
+			spoolDir,
+			WithPathTemplate("{{.Table"),
+			withManualCycle(),
+		)
+	})
+}
+
+func TestSpoolDriver_PathTraversalTemplate_Panics(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	ctx := context.Background()
+	mockUploader := &mockUploader{}
+
+	// when/then - template with path traversal should panic
+	assert.Panics(t, func() {
+		NewSpoolDriver(
+			ctx,
+			mockUploader,
+			NewCSVFormat(),
+			spoolDir,
+			WithPathTemplate("../{{.Table}}/{{.SegmentID}}.{{.Extension}}"),
+			withManualCycle(),
+		)
+	})
+}
