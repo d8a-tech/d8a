@@ -34,7 +34,7 @@ func TestHits(t *testing.T) {
 		expectedEventNames []string
 		expectedClientID   *hits.ClientID
 		expectedUserID     *string
-		checkUserID        bool
+		expectNilUserID    bool
 		expectError        bool
 	}{
 		{
@@ -142,7 +142,6 @@ func TestHits(t *testing.T) {
 				value := "user@example.com"
 				return &value
 			}(),
-			checkUserID: true,
 		},
 		{
 			name: "missing_uid_is_nil",
@@ -150,11 +149,11 @@ func TestHits(t *testing.T) {
 				"idsite": []string{"10"},
 				"_id":    []string{"abc132"},
 			},
-			method:        "POST",
-			body:          "",
-			expectedHits:  1,
-			expectedEvent: "page_view",
-			checkUserID:   true,
+			method:          "POST",
+			body:            "",
+			expectedHits:    1,
+			expectedEvent:   "page_view",
+			expectNilUserID: true,
 		},
 		{
 			name: "client_id_from_cid",
@@ -210,13 +209,11 @@ func TestHits(t *testing.T) {
 				if tc.expectedEvent != "" {
 					assert.Equal(t, tc.expectedEvent, hitsResult[0].EventName)
 				}
-				if tc.checkUserID {
-					if tc.expectedUserID == nil {
-						assert.Nil(t, hitsResult[0].UserID)
-					} else {
-						require.NotNil(t, hitsResult[0].UserID)
-						assert.Equal(t, *tc.expectedUserID, *hitsResult[0].UserID)
-					}
+				if tc.expectNilUserID {
+					assert.Nil(t, hitsResult[0].UserID)
+				} else if tc.expectedUserID != nil {
+					require.NotNil(t, hitsResult[0].UserID)
+					assert.Equal(t, *tc.expectedUserID, *hitsResult[0].UserID)
 				}
 				if tc.expectedClientID != nil {
 					assert.Equal(t, *tc.expectedClientID, hitsResult[0].ClientID)
