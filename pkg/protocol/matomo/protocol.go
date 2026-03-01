@@ -11,6 +11,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 )
 
@@ -22,7 +23,7 @@ func (p *matomoProtocol) ID() string {
 	return "matomo"
 }
 
-func (p *matomoProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
+func (p *matomoProtocol) Hits(fhCtx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
 	body := bytes.TrimSpace(request.Body)
 	if len(body) > 0 && body[0] == '{' {
 		var payload struct {
@@ -40,7 +41,7 @@ func (p *matomoProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedReques
 			if err != nil {
 				return nil, err
 			}
-			hit, err := createHitFromParams(p, params, request)
+			hit, err := createHitFromParams(p, params, request, fhCtx)
 			if err != nil {
 				return nil, err
 			}
@@ -49,7 +50,7 @@ func (p *matomoProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedReques
 		return theHits, nil
 	}
 
-	hit, err := createHitFromParams(p, request.QueryParams, request)
+	hit, err := createHitFromParams(p, request.QueryParams, request, fhCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +91,7 @@ func (e *fromIDSiteExtractor) PropertyID(ctx *protocol.RequestContext) (string, 
 	if idSite == "" {
 		return "", errors.New("missing idsite")
 	}
-	property, err := e.psr.GetByPropertyID(idSite)
+	property, err := e.psr.GetByMeasurementID(idSite)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +104,12 @@ func NewFromIDSiteExtractor(psr properties.SettingsRegistry) protocol.PropertyID
 	return &fromIDSiteExtractor{psr: psr}
 }
 
-func createHitFromParams(p *matomoProtocol, params url.Values, req *hits.ParsedRequest) (*hits.Hit, error) {
+func createHitFromParams(
+	p *matomoProtocol,
+	params url.Values,
+	req *hits.ParsedRequest,
+	fhCtx *fasthttp.RequestCtx,
+) (*hits.Hit, error) {
 	queryParams := url.Values{}
 	for key, values := range params {
 		for _, value := range values {
@@ -115,7 +121,8 @@ func createHitFromParams(p *matomoProtocol, params url.Values, req *hits.ParsedR
 	requestCopy.QueryParams = queryParams
 
 	ctx := &protocol.RequestContext{
-		Parsed: requestCopy,
+		Parsed:   requestCopy,
+		FastHttp: fhCtx,
 	}
 
 	propertyID, err := p.extractor.PropertyID(ctx)
@@ -162,5 +169,5 @@ func clientIDFromParams(params url.Values) hits.ClientID {
 	if clientID := params.Get("cid"); clientID != "" {
 		return hits.ClientID(clientID)
 	}
-	return hits.New().ClientID
+	return hits.ClientID(uuid.New().String())
 }

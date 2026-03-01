@@ -25,13 +25,17 @@ func (e *testPropertyIDExtractor) PropertyID(ctx *protocol.RequestContext) (stri
 func TestHits(t *testing.T) {
 	// given
 	testCases := []struct {
-		name          string
-		method        string
-		queryParams   url.Values
-		body          string
-		expectedHits  int
-		expectedEvent string
-		expectError   bool
+		name               string
+		method             string
+		queryParams        url.Values
+		body               string
+		expectedHits       int
+		expectedEvent      string
+		expectedEventNames []string
+		expectedClientID   *hits.ClientID
+		expectedUserID     *string
+		checkUserID        bool
+		expectError        bool
 	}{
 		{
 			name: "single_get_default_page_view",
@@ -94,13 +98,15 @@ func TestHits(t *testing.T) {
 			expectedEvent: "outlink",
 		},
 		{
-			name: "bulk_json_post_two_requests",
-			queryParams: url.Values{
-				"_id": []string{"abc128"},
-			},
+			name:         "bulk_json_post_two_requests",
+			queryParams:  nil,
 			method:       "POST",
 			body:         `{"requests":["?idsite=6&_id=abc128","?idsite=7&_id=abc129"]}`,
 			expectedHits: 2,
+			expectedEventNames: []string{
+				"page_view",
+				"page_view",
+			},
 		},
 		{
 			name: "missing_client_id_generates",
@@ -120,6 +126,50 @@ func TestHits(t *testing.T) {
 			method:      "POST",
 			body:        "",
 			expectError: true,
+		},
+		{
+			name: "user_id_from_uid",
+			queryParams: url.Values{
+				"idsite": []string{"9"},
+				"uid":    []string{"user@example.com"},
+				"_id":    []string{"abc131"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "page_view",
+			expectedUserID: func() *string {
+				value := "user@example.com"
+				return &value
+			}(),
+			checkUserID: true,
+		},
+		{
+			name: "missing_uid_is_nil",
+			queryParams: url.Values{
+				"idsite": []string{"10"},
+				"_id":    []string{"abc132"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "page_view",
+			checkUserID:   true,
+		},
+		{
+			name: "client_id_from_cid",
+			queryParams: url.Values{
+				"idsite": []string{"11"},
+				"cid":    []string{"abcd1234abcd5678"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "page_view",
+			expectedClientID: func() *hits.ClientID {
+				value := hits.ClientID("abcd1234abcd5678")
+				return &value
+			}(),
 		},
 	}
 
@@ -148,10 +198,29 @@ func TestHits(t *testing.T) {
 			assert.Len(t, hitsResult, tc.expectedHits)
 
 			if tc.expectedHits > 0 {
+				for _, hit := range hitsResult {
+					assert.NotEmpty(t, hit.ClientID)
+				}
+				if len(tc.expectedEventNames) > 0 {
+					require.Len(t, hitsResult, len(tc.expectedEventNames))
+					for index, expectedEvent := range tc.expectedEventNames {
+						assert.Equal(t, expectedEvent, hitsResult[index].EventName)
+					}
+				}
 				if tc.expectedEvent != "" {
 					assert.Equal(t, tc.expectedEvent, hitsResult[0].EventName)
 				}
-				assert.NotEmpty(t, hitsResult[0].ClientID)
+				if tc.checkUserID {
+					if tc.expectedUserID == nil {
+						assert.Nil(t, hitsResult[0].UserID)
+					} else {
+						require.NotNil(t, hitsResult[0].UserID)
+						assert.Equal(t, *tc.expectedUserID, *hitsResult[0].UserID)
+					}
+				}
+				if tc.expectedClientID != nil {
+					assert.Equal(t, *tc.expectedClientID, hitsResult[0].ClientID)
+				}
 			}
 		})
 	}
