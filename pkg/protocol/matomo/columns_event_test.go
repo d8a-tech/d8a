@@ -12,6 +12,104 @@ import (
 )
 
 // nolint:funlen,lll // test code
+func TestMatomoSessionClickIDColumns(t *testing.T) {
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+
+	buildPageViewHit := func(_ *testing.T) *hits.Hit {
+		hit := columntests.TestHitOne()
+		hit.EventName = "page_view"
+		return hit
+	}
+
+	buildNonPageViewHit := func(_ *testing.T) *hits.Hit {
+		hit := columntests.TestHitOne()
+		hit.EventName = "scroll"
+		return hit
+	}
+
+	type testCase struct {
+		name        string
+		buildHits   func(t *testing.T) columntests.TestHits
+		cfg         []columntests.CaseConfigFunc
+		fieldName   string
+		expected    any
+		description string
+	}
+
+	clickIDCases := func(fieldName, urlParam, clickIDValue string) []testCase {
+		return []testCase{
+			{
+				name: fieldName + "_PageViewWithValue",
+				buildHits: func(t *testing.T) columntests.TestHits {
+					return columntests.TestHits{buildPageViewHit(t)}
+				},
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "url", "https://example.com/?"+urlParam+"="+clickIDValue),
+				},
+				fieldName:   fieldName,
+				expected:    clickIDValue,
+				description: "Returns click ID value from the first page view event",
+			},
+			{
+				name: fieldName + "_SecondHitIsPageViewWithValue",
+				buildHits: func(t *testing.T) columntests.TestHits {
+					return columntests.TestHits{buildNonPageViewHit(t), buildPageViewHit(t)}
+				},
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(1, "url", "https://example.com/?"+urlParam+"="+clickIDValue),
+					columntests.EnsureQueryParam(1, "v", "2"),
+				},
+				fieldName:   fieldName,
+				expected:    clickIDValue,
+				description: "Returns click ID from the first page view even when preceded by a non-page-view event",
+			},
+			{
+				name: fieldName + "_NoPageViewEvents",
+				buildHits: func(t *testing.T) columntests.TestHits {
+					return columntests.TestHits{buildNonPageViewHit(t)}
+				},
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "url", "https://example.com/?"+urlParam+"="+clickIDValue),
+				},
+				fieldName:   fieldName,
+				expected:    nil,
+				description: "Returns nil when there are no page view events in the session",
+			},
+		}
+	}
+
+	testCases := make([]testCase, 0, 21)
+	testCases = append(testCases, clickIDCases("session_click_id_gclid", "gclid", "gclid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_dclid", "dclid", "dclid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_gbraid", "gbraid", "gbraid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_srsltid", "srsltid", "srsltid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_wbraid", "wbraid", "wbraid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_fbclid", "fbclid", "fbclid_test_123")...)
+	testCases = append(testCases, clickIDCases("session_click_id_msclkid", "msclkid", "msclkid_test_123")...)
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			testHits := tc.buildHits(t)
+			// given
+			columntests.ColumnTestCase(
+				t,
+				testHits,
+				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					// when + then
+					require.NoError(t, closeErr)
+					require.NotEmpty(t, whd.WriteCalls, "expected at least one warehouse write call")
+					require.NotEmpty(t, whd.WriteCalls[0].Records, "expected at least one record written")
+					record := whd.WriteCalls[0].Records[0]
+					assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
+				},
+				proto,
+				append(tc.cfg, columntests.EnsureQueryParam(0, "v", "2"))...,
+			)
+		})
+	}
+}
+
+// nolint:funlen,lll // test code
 func TestMatomoEventColumns(t *testing.T) {
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 
@@ -180,9 +278,7 @@ func TestMatomoEventColumns(t *testing.T) {
 					// when + then
 					require.NoError(t, closeErr)
 					if tc.expectNoIO {
-						for _, call := range whd.WriteCalls {
-							assert.Empty(t, call.Records, "expected no records written")
-						}
+						require.Empty(t, whd.WriteCalls, "expected no warehouse write calls")
 						return
 					}
 					require.NotEmpty(t, whd.WriteCalls, "expected at least one warehouse write call")

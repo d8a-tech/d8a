@@ -9,7 +9,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// eventPageLocationColumn implements the EventPageLocation interface
 var eventPageLocationColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPageLocation.ID,
 	columns.CoreInterfaces.EventPageLocation.Field,
@@ -32,7 +31,6 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 	),
 )
 
-// eventPageHostnameColumn implements the EventPageHostname interface
 var eventPageHostnameColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPageHostname.ID,
 	columns.CoreInterfaces.EventPageHostname.Field,
@@ -45,7 +43,6 @@ var eventPageHostnameColumn = columns.URLElementColumn(
 	),
 )
 
-// eventPagePathColumn implements the EventPagePath interface
 var eventPagePathColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPagePath.ID,
 	columns.CoreInterfaces.EventPagePath.Field,
@@ -58,12 +55,10 @@ var eventPagePathColumn = columns.URLElementColumn(
 	),
 )
 
-// eventTrackingProtocolColumn implements the EventTrackingProtocol interface
 var eventTrackingProtocolColumn = columns.ProtocolColumn(func(_ *schema.Event) (any, schema.D8AColumnWriteError) {
 	return "matomo", nil
 })
 
-// eventPlatformColumn implements the EventPlatform interface
 var eventPlatformColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventPlatform.ID,
 	columns.CoreInterfaces.EventPlatform.Field,
@@ -77,7 +72,6 @@ var eventPlatformColumn = columns.NewSimpleEventColumn(
 	),
 )
 
-// deviceLanguageColumn implements the DeviceLanguage interface
 var deviceLanguageColumn = columns.NewLanguageColumn(
 	columns.CoreInterfaces.DeviceLanguage.ID,
 	columns.CoreInterfaces.DeviceLanguage.Field,

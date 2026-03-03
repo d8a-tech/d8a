@@ -1,6 +1,6 @@
 # Matomo
 
-This document is a temporary copy/paste for LLM convenience, source: https://developer.matomo.org/api-reference/tracking-api
+This document is kept as a reference until the Matomo implementation is 100% complete. Source: https://developer.matomo.org/api-reference/tracking-api
 
 To track page views, events, visits, you have to send an HTTP request (GET or POST) to your Tracking HTTP API endpoint, for example, **https://your-matomo-domain.example/matomo.php** with the correct query parameters set.
 

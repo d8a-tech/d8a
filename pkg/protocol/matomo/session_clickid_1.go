@@ -1,4 +1,3 @@
-//nolint:godox,dupl,nilnil // TODO comments are intentional stubs.
 package matomo
 
 import (
@@ -6,47 +5,96 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-var sessionClickIDGclidColumn = columns.NewSimpleSessionColumn(
+const pageViewEventType = "page_view"
+
+func isPageViewEvent(event *schema.Event) bool {
+	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+	if !ok {
+		return false
+	}
+	eventNameStr, ok := eventName.(string)
+	if !ok {
+		return false
+	}
+	return eventNameStr == pageViewEventType
+}
+
+var sessionClickIDGclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDGclid.ID,
 	columns.CoreInterfaces.SessionClickIDGclid.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	0,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventClickIDGclid.Field.Name),
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventClickIDGclid.ID},
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Click ID GCLID",
+		"The Google Click ID (gclid) from the first page view event in the session.", // nolint:lll // it's a description
+	),
 )
 
-var sessionClickIDDclidColumn = columns.NewSimpleSessionColumn(
+var sessionClickIDDclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDDclid.ID,
 	columns.CoreInterfaces.SessionClickIDDclid.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	0,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventClickIDDclid.Field.Name),
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventClickIDDclid.ID},
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Click ID DCLID",
+		"The Google Display & Video 360 Click ID (dclid) from the first page view event in the session.", // nolint:lll // it's a description
+	),
 )
 
-var sessionClickIDGbraidColumn = columns.NewSimpleSessionColumn(
+var sessionClickIDGbraidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDGbraid.ID,
 	columns.CoreInterfaces.SessionClickIDGbraid.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	0,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventClickIDGbraid.Field.Name),
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventClickIDGbraid.ID},
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Click ID GBRAID",
+		"The Google Click ID for iOS app-to-web conversions (gbraid) from the first page view event in the session.", // nolint:lll // it's a description
+	),
 )
 
-var sessionClickIDSrsltidColumn = columns.NewSimpleSessionColumn(
+var sessionClickIDSrsltidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDSrsltid.ID,
 	columns.CoreInterfaces.SessionClickIDSrsltid.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	0,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventClickIDSrsltid.Field.Name),
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventClickIDSrsltid.ID},
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Click ID SRSLTID",
+		"The Google Shopping Result Click ID (srsltid) from the first page view event in the session.", // nolint:lll // it's a description
+	),
 )
 
-var sessionClickIDWbraidColumn = columns.NewSimpleSessionColumn(
+var sessionClickIDWbraidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDWbraid.ID,
 	columns.CoreInterfaces.SessionClickIDWbraid.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	0,
+	columns.ExctractFieldValue(columns.CoreInterfaces.EventClickIDWbraid.Field.Name),
+	isPageViewEvent,
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventClickIDWbraid.ID},
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Click ID WBRAID",
+		"The Google Click ID for iOS web-to-app conversions (wbraid) from the first page view event in the session.", // nolint:lll // it's a description
+	),
 )
