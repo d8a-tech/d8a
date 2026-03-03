@@ -7,6 +7,11 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+/*
+* TODO: it actually can be implemented
+*  url = removeUrlParameter(url, "ignore_referrer");
+url = removeUrlParameter(url, "ignore_referer");, take those two params and check if they are truthy
+*/
 var eventIgnoreReferrerColumn = columns.AlwaysNilEventColumn(
 	columns.CoreInterfaces.EventIgnoreReferrer.ID,
 	columns.CoreInterfaces.EventIgnoreReferrer.Field,
