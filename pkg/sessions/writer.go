@@ -181,6 +181,9 @@ func (m *sessionWriterImpl) Write(sessions ...*schema.Session) error {
 	g, gCtx := errgroup.WithContext(ctx)
 	g.SetLimit(m.concurrency)
 	for _, allRowsForGivenTable := range perTableRows {
+		if len(allRowsForGivenTable.Rows) == 0 {
+			continue
+		}
 		table, rows := allRowsForGivenTable.Table, allRowsForGivenTable.Rows
 		g.Go(func() error {
 			schema, err := m.getSchemaForWriting(writeDeps.propertyID, allRowsForGivenTable.Table)

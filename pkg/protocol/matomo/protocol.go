@@ -159,7 +159,7 @@ func deriveEventName(params url.Values) string {
 	if params.Get("e_c") != "" && params.Get("e_a") != "" {
 		return "event"
 	}
-	return "page_view"
+	return pageViewEventType
 }
 
 func clientIDFromParams(params url.Values) hits.ClientID {
