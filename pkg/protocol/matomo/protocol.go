@@ -67,7 +67,7 @@ func (p *matomoProtocol) Endpoints() []protocol.ProtocolEndpoint {
 }
 
 func (p *matomoProtocol) Interfaces() any {
-	return nil
+	return ProtocolInterfaces
 }
 
 func (p *matomoProtocol) Columns() schema.Columns {
@@ -147,14 +147,20 @@ func createHitFromParams(
 }
 
 func deriveEventName(params url.Values) string {
+	if params.Get("idgoal") == "0" && params.Get("ec_id") != "" {
+		return ecOrderEventType
+	}
+	if params.Get("ma_id") != "" && params.Get("ma_mt") == "video" {
+		return videoPlayEventType
+	}
 	if params.Get("download") != "" {
-		return "download"
+		return downloadEventType
 	}
 	if params.Get("link") != "" {
-		return "outlink"
+		return outlinkEventType
 	}
 	if params.Get("search") != "" {
-		return "site_search"
+		return siteSearchEventType
 	}
 	if params.Get("e_c") != "" && params.Get("e_a") != "" {
 		return "event"
