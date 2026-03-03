@@ -2,10 +2,30 @@
 package matomo
 
 import (
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-const pageViewEventType = "page_view"
+const (
+	pageViewEventType   = "page_view"
+	downloadEventType   = "download"
+	outlinkEventType    = "outlink"
+	siteSearchEventType = "site_search"
+	ecOrderEventType    = "ecommerce_order"
+	videoPlayEventType  = "video_play"
+)
+
+func isPageViewEvent(event *schema.Event) bool {
+	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+	if !ok {
+		return false
+	}
+	eventNameStr, ok := eventName.(string)
+	if !ok {
+		return false
+	}
+	return eventNameStr == pageViewEventType
+}
 
 var eventColumns = []schema.EventColumn{
 	eventIgnoreReferrerColumn,
@@ -19,6 +39,9 @@ var eventColumns = []schema.EventColumn{
 	eventTrackingProtocolColumn,
 	eventPlatformColumn,
 	deviceLanguageColumn,
+	eventLinkURLColumn,
+	eventDownloadURLColumn,
+	eventSearchTermColumn,
 }
 
 var sessionColumns = []schema.SessionColumn{
@@ -64,3 +87,51 @@ var sseColumns = []schema.SessionScopedEventColumn{
 	sseIsEntryPageColumn,
 	sseIsExitPageColumn,
 }
+
+var eventLinkURLColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventLinkURL.ID,
+	ProtocolInterfaces.EventLinkURL.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		v := event.BoundHit.MustParsedRequest().QueryParams.Get("link")
+		if v == "" {
+			return nil, nil //nolint:nilnil // optional field
+		}
+		return v, nil
+	},
+	columns.WithEventColumnDocs(
+		"Link URL",
+		"The URL of an outbound link clicked by the user, extracted from the link query parameter.", // nolint:lll // it's a description
+	),
+)
+
+var eventDownloadURLColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventDownloadURL.ID,
+	ProtocolInterfaces.EventDownloadURL.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		v := event.BoundHit.MustParsedRequest().QueryParams.Get("download")
+		if v == "" {
+			return nil, nil //nolint:nilnil // optional field
+		}
+		return v, nil
+	},
+	columns.WithEventColumnDocs(
+		"Download URL",
+		"The URL of a file downloaded by the user, extracted from the download query parameter.", // nolint:lll // it's a description
+	),
+)
+
+var eventSearchTermColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventSearchTerm.ID,
+	ProtocolInterfaces.EventSearchTerm.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		v := event.BoundHit.MustParsedRequest().QueryParams.Get("search")
+		if v == "" {
+			return nil, nil //nolint:nilnil // optional field
+		}
+		return v, nil
+	},
+	columns.WithEventColumnDocs(
+		"Search Term",
+		"The keyword used in a site search, extracted from the search query parameter.", // nolint:lll // it's a description
+	),
+)
