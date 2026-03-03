@@ -107,11 +107,35 @@ func TestMatomoEventColumns(t *testing.T) {
 	testCases := mergeCases(
 		[]testCase{
 			{
-				name:        "EventIgnoreReferrer_AlwaysNil",
+				name:        "EventIgnoreReferrer_TrueViaReferrer",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "ignore_referrer", "1")},
+				fieldName:   "ignore_referrer",
+				expected:    true,
+				description: "ignore_referrer=1 returns true",
+			},
+			{
+				name:        "EventIgnoreReferrer_TrueViaReferer",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "ignore_referer", "1")},
+				fieldName:   "ignore_referrer",
+				expected:    true,
+				description: "ignore_referer=1 (misspelled alias) returns true",
+			},
+			{
+				name:        "EventIgnoreReferrer_FalseWhenZero",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "ignore_referrer", "0")},
+				fieldName:   "ignore_referrer",
+				expected:    false,
+				description: "ignore_referrer=0 returns false",
+			},
+			{
+				name:        "EventIgnoreReferrer_NilWhenAbsent",
 				buildHits:   single(buildPageViewHit),
 				fieldName:   "ignore_referrer",
 				expected:    nil,
-				description: "Ignore referrer is always nil for Matomo",
+				description: "Returns nil when neither ignore_referrer nor ignore_referer is present",
 			},
 			{
 				name:        "EventDateUTC_Valid",

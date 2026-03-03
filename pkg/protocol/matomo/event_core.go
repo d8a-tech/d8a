@@ -7,18 +7,29 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-/*
-* TODO: it actually can be implemented
-*  url = removeUrlParameter(url, "ignore_referrer");
-url = removeUrlParameter(url, "ignore_referer");, take those two params and check if they are truthy
-*/
-var eventIgnoreReferrerColumn = columns.AlwaysNilEventColumn(
+// eventIgnoreReferrerColumn reads the ignore_referrer (or its misspelled alias ignore_referer)
+// query parameter and returns true when either is set to "1", false when present but not "1",
+// and nil when neither is present.
+var eventIgnoreReferrerColumn = columns.NewSimpleEventColumn(
 	columns.CoreInterfaces.EventIgnoreReferrer.ID,
 	columns.CoreInterfaces.EventIgnoreReferrer.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		params := event.BoundHit.MustParsedRequest().QueryParams
+		if len(params) == 0 {
+			return nil, nil //nolint:nilnil // no params present
+		}
+		_, hasReferrer := params["ignore_referrer"]
+		_, hasReferer := params["ignore_referer"]
+		if !hasReferrer && !hasReferer {
+			return nil, nil //nolint:nilnil // param not present
+		}
+		return params.Get("ignore_referrer") == "1" || params.Get("ignore_referer") == "1", nil
+	},
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnDocs(
 		"Ignore Referrer",
-		"Not applicable for Matomo protocol.",
+		"Whether the referrer should be ignored for this hit. "+
+			"True when ignore_referrer or ignore_referer query parameter is set to \"1\".",
 	),
 )
 
