@@ -5,6 +5,8 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+const pageViewEventType = "page_view"
+
 var eventColumns = []schema.EventColumn{
 	eventIgnoreReferrerColumn,
 	eventDateUTCColumn,
