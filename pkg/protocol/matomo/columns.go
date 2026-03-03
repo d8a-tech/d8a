@@ -2,10 +2,23 @@
 package matomo
 
 import (
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 const pageViewEventType = "page_view"
+
+func isPageViewEvent(event *schema.Event) bool {
+	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
+	if !ok {
+		return false
+	}
+	eventNameStr, ok := eventName.(string)
+	if !ok {
+		return false
+	}
+	return eventNameStr == pageViewEventType
+}
 
 var eventColumns = []schema.EventColumn{
 	eventIgnoreReferrerColumn,

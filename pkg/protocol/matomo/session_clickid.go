@@ -5,18 +5,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-func isPageViewEvent(event *schema.Event) bool {
-	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
-	if !ok {
-		return false
-	}
-	eventNameStr, ok := eventName.(string)
-	if !ok {
-		return false
-	}
-	return eventNameStr == pageViewEventType
-}
-
 var sessionClickIDGclidColumn = columns.NthEventMatchingPredicateValueColumn(
 	columns.CoreInterfaces.SessionClickIDGclid.ID,
 	columns.CoreInterfaces.SessionClickIDGclid.Field,
