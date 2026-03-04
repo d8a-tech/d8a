@@ -1,4 +1,3 @@
-//nolint:godox,dupl,nilnil // TODO comments are intentional stubs.
 package matomo
 
 import (
@@ -6,29 +5,56 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-var sseTimeOnPageColumn = columns.NewSimpleSessionScopedEventColumn(
+var sseTimeOnPageColumn = columns.NewTimeOnPageColumn(
 	columns.CoreInterfaces.SSETimeOnPage.ID,
 	columns.CoreInterfaces.SSETimeOnPage.Field,
-	func(session *schema.Session, i int) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventName.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Time On Page",
+		"Time spent on a particular page, calculated as the interval between subsequent page view events in seconds, or using other events timestamps if no subsequent page view was recorded.", //nolint:lll // it's a description
+	),
 )
 
-var sseIsEntryPageColumn = columns.NewSimpleSessionScopedEventColumn(
+var sseIsEntryPageColumn = columns.NewFirstLastMatchingEventColumn(
 	columns.CoreInterfaces.SSEIsEntryPage.ID,
 	columns.CoreInterfaces.SSEIsEntryPage.Field,
-	func(session *schema.Session, i int) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	true,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventName.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Is Entry Page",
+		"An integer flag indicating whether this event is the first page view in the session. "+
+			"Returns 1 for the first page view event in the session, 0 for all other events. "+
+			"Returns 0 if there are no page views in the session.",
+	),
 )
 
-var sseIsExitPageColumn = columns.NewSimpleSessionScopedEventColumn(
+var sseIsExitPageColumn = columns.NewFirstLastMatchingEventColumn(
 	columns.CoreInterfaces.SSEIsExitPage.ID,
 	columns.CoreInterfaces.SSEIsExitPage.Field,
-	func(session *schema.Session, i int) (any, schema.D8AColumnWriteError) {
-		// TODO(matomo): implement
-		return nil, nil
-	},
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	false,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventName.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Session Is Exit Page",
+		"An integer flag indicating whether this event is the last page view in the session. "+
+			"Returns 1 for the last page view event in the session, 0 for all other events. "+
+			"Returns 0 if there are no page views in the session.",
+	),
 )
