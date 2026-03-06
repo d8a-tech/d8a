@@ -143,32 +143,28 @@ var eventSearchTermColumn = columns.NewSimpleEventColumn(
 	),
 )
 
-var eventParamsCategoryColumn = columns.NewSimpleEventColumn(
+var eventParamsCategoryColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsCategory.ID,
 	ProtocolInterfaces.EventParamsCategory.Field,
-	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-		queryParams := event.BoundHit.MustParsedRequest().QueryParams
-		if v, ok := queryParams["e_c"]; ok && len(v) > 0 {
-			return v[0], nil
-		}
-		return nil, nil // nolint:nilnil // nil is valid
-	},
+	"e_c",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsCategory.ID)),
+	),
 	columns.WithEventColumnDocs(
 		"Event Params Category",
 		"The category of the event, extracted from the e_c query parameter.",
 	),
 )
 
-var eventParamsActionColumn = columns.NewSimpleEventColumn(
+var eventParamsActionColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsAction.ID,
 	ProtocolInterfaces.EventParamsAction.Field,
-	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-		queryParams := event.BoundHit.MustParsedRequest().QueryParams
-		if v, ok := queryParams["e_a"]; ok && len(v) > 0 {
-			return v[0], nil
-		}
-		return nil, nil // nolint:nilnil // nil is valid
-	},
+	"e_a",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsAction.ID)),
+	),
 	columns.WithEventColumnDocs(
 		"Event Params Action",
 		"The action of the event, extracted from the e_a query parameter.",
