@@ -7,6 +7,61 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+var eventEcommercePurchaseRevenueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommercePurchaseRevenue.ID,
+	ProtocolInterfaces.EventEcommercePurchaseRevenue.Field,
+	"revenue",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventEcommercePurchaseRevenue.ID)),
+	columns.WithEventColumnDocs(
+		"Ecommerce Purchase Revenue",
+		"The grand total for the ecommerce order, extracted from the revenue query parameter.",
+	),
+)
+
+var eventEcommerceShippingValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceShippingValue.ID,
+	ProtocolInterfaces.EventEcommerceShippingValue.Field,
+	"ec_sh",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventEcommerceShippingValue.ID)),
+	columns.WithEventColumnDocs(
+		"Ecommerce Shipping Value",
+		"The shipping cost of the ecommerce order, extracted from the ec_sh query parameter.",
+	),
+)
+
+var eventEcommerceSubtotalValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceSubtotalValue.ID,
+	ProtocolInterfaces.EventEcommerceSubtotalValue.Field,
+	"ec_st",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventEcommerceSubtotalValue.ID)),
+	columns.WithEventColumnDocs(
+		"Ecommerce Subtotal Value",
+		"The subtotal of the ecommerce order excluding shipping, extracted from the ec_st query parameter.",
+	),
+)
+
+var eventEcommerceTaxValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceTaxValue.ID,
+	ProtocolInterfaces.EventEcommerceTaxValue.Field,
+	"ec_tx",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventEcommerceTaxValue.ID)),
+	columns.WithEventColumnDocs(
+		"Ecommerce Tax Value",
+		"The tax amount of the ecommerce order, extracted from the ec_tx query parameter.",
+	),
+)
+
+var eventEcommerceDiscountValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceDiscountValue.ID,
+	ProtocolInterfaces.EventEcommerceDiscountValue.Field,
+	"ec_dt",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventEcommerceDiscountValue.ID)),
+	columns.WithEventColumnDocs(
+		"Ecommerce Discount Value",
+		"The discount offered for the ecommerce order, extracted from the ec_dt query parameter.",
+	),
+)
+
 var eventParamsProductPriceColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsProductPrice.ID,
 	ProtocolInterfaces.EventParamsProductPrice.Field,

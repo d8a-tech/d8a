@@ -18,6 +18,11 @@ var ProtocolInterfaces = struct {
 	EventParamsContentName        schema.Interface
 	EventParamsContentPiece       schema.Interface
 	EventParamsContentTarget      schema.Interface
+	EventEcommercePurchaseRevenue schema.Interface
+	EventEcommerceShippingValue   schema.Interface
+	EventEcommerceSubtotalValue   schema.Interface
+	EventEcommerceTaxValue        schema.Interface
+	EventEcommerceDiscountValue   schema.Interface
 	EventParamsProductPrice       schema.Interface
 	EventParamsProductSKU         schema.Interface
 	EventParamsProductName        schema.Interface
@@ -70,6 +75,26 @@ var ProtocolInterfaces = struct {
 	EventParamsContentTarget: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_content_target",
 		Field: &arrow.Field{Name: "params_content_target", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventEcommercePurchaseRevenue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_purchase_revenue",
+		Field: &arrow.Field{Name: "ecommerce_purchase_revenue", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventEcommerceShippingValue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_shipping_value",
+		Field: &arrow.Field{Name: "ecommerce_shipping_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventEcommerceSubtotalValue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_subtotal_value",
+		Field: &arrow.Field{Name: "ecommerce_subtotal_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventEcommerceTaxValue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_tax_value",
+		Field: &arrow.Field{Name: "ecommerce_tax_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventEcommerceDiscountValue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_discount_value",
+		Field: &arrow.Field{Name: "ecommerce_discount_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	EventParamsProductPrice: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
