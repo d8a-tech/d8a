@@ -49,6 +49,10 @@ var eventColumns = []schema.EventColumn{
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
 	eventParamsContentTargetColumn,
+	eventParamsProductPriceColumn,
+	eventParamsProductSKUColumn,
+	eventParamsProductNameColumn,
+	eventParamsProductCategoriesColumn,
 }
 
 var sessionColumns = []schema.SessionColumn{

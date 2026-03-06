@@ -18,6 +18,10 @@ var ProtocolInterfaces = struct {
 	EventParamsContentName        schema.Interface
 	EventParamsContentPiece       schema.Interface
 	EventParamsContentTarget      schema.Interface
+	EventParamsProductPrice       schema.Interface
+	EventParamsProductSKU         schema.Interface
+	EventParamsProductName        schema.Interface
+	EventParamsProductCategories  schema.Interface
 	EventPreviousPageLocation     schema.Interface
 	EventNextPageLocation         schema.Interface
 	EventPreviousPageTitle        schema.Interface
@@ -62,6 +66,26 @@ var ProtocolInterfaces = struct {
 	EventParamsContentTarget: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_content_target",
 		Field: &arrow.Field{Name: "params_content_target", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductPrice: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
+		Field: &arrow.Field{Name: "params_product_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventParamsProductSKU: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_sku",
+		Field: &arrow.Field{Name: "params_product_sku", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductName: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_name",
+		Field: &arrow.Field{Name: "params_product_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategories: schema.Interface{
+		ID: "matomo.protocols.d8a.tech/event/params_product_categories",
+		Field: &arrow.Field{
+			Name:     "params_product_categories",
+			Type:     arrow.ListOf(arrow.StructOf(arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true})),
+			Nullable: true,
+		},
 	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",
