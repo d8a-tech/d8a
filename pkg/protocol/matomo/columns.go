@@ -52,7 +52,11 @@ var eventColumns = []schema.EventColumn{
 	eventParamsProductPriceColumn,
 	eventParamsProductSKUColumn,
 	eventParamsProductNameColumn,
-	eventParamsProductCategoriesColumn,
+	eventParamsProductCategory1Column,
+	eventParamsProductCategory2Column,
+	eventParamsProductCategory3Column,
+	eventParamsProductCategory4Column,
+	eventParamsProductCategory5Column,
 }
 
 var sessionColumns = []schema.SessionColumn{
