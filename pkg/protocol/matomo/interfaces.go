@@ -9,6 +9,7 @@ import (
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
 	EventCustomVariables          schema.Interface
+	SessionCustomVariables        schema.Interface
 	EventLinkURL                  schema.Interface
 	EventDownloadURL              schema.Interface
 	EventSearchTerm               schema.Interface
@@ -40,6 +41,10 @@ var ProtocolInterfaces = struct {
 	EventCustomVariables: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/custom_variables",
 		Field: repeatedNameValueField("custom_variables"),
+	},
+	SessionCustomVariables: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/session/session_custom_variables",
+		Field: repeatedNameValueField("session_custom_variables"),
 	},
 	EventLinkURL: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/link_url",

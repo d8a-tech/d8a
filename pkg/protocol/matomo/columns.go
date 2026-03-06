@@ -101,6 +101,7 @@ var sessionColumns = []schema.SessionColumn{
 	sessionTotalVideoEngagementsColumn,
 	sessionTotalFileDownloadsColumn,
 	sessionUniqueFileDownloadsColumn,
+	sessionCustomVariablesColumn,
 }
 
 var sseColumns = []schema.SessionScopedEventColumn{
