@@ -873,11 +873,12 @@ func NewFieldTypeMapper() warehouse.FieldTypeMapper[SpecificClickhouseType] {
 	// nullability-as-default mapper converts nullable scalars to DEFAULT instead of Nullable(...)
 	nullabilityAsDefaultMapper := &clickhouseNullabilityAsDefaultMapper{SubMapper: deferredMapper}
 
-	complexMappers := []warehouse.FieldTypeMapper[SpecificClickhouseType]{
+	complexMappers := make([]warehouse.FieldTypeMapper[SpecificClickhouseType], 0, 3+len(baseMappers))
+	complexMappers = append(complexMappers,
 		arrayMapper,
 		restrictedNestedMapper,
 		nullabilityAsDefaultMapper,
-	}
+	)
 
 	// LowCardinality mapper must be first so it can wrap whatever the rest of the chain produces
 	allMappers := append(

@@ -12,12 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestWriter(t *testing.T) {
-	// given
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	mockDriver := warehouse.NewMockWarehouseDriver()
-	writer := NewSessionWriter(
+func newTestWriter(ctx context.Context, mockDriver warehouse.Driver) SessionWriter {
+	return NewSessionWriter(
 		ctx,
 		warehouse.NewStaticDriverRegistry(mockDriver),
 		schema.NewStaticColumnsRegistry(
@@ -38,45 +34,37 @@ func TestWriter(t *testing.T) {
 		splitter.NewStaticRegistry(splitter.NewNoop()),
 		WithConcurrency(5),
 	)
+}
+
+func testSession(propertyID, sessionID, eventID string) *schema.Session {
+	return &schema.Session{
+		PropertyID: propertyID,
+		Values: map[string]any{
+			"session_id":        sessionID,
+			"session_timestamp": time.Now(),
+		},
+		Events: []*schema.Event{
+			{
+				BoundHit: &hits.Hit{ID: eventID},
+				Values: map[string]any{
+					"id":            eventID,
+					"name":          "test",
+					"timestamp_utc": time.Now(),
+				},
+			},
+		},
+	}
+}
+
+func TestWriter(t *testing.T) {
+	// given
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	mockDriver := warehouse.NewMockWarehouseDriver()
+	writer := newTestWriter(ctx, mockDriver)
 	sessions := []*schema.Session{
-		{
-			PropertyID: "1",
-			Values: map[string]any{
-				"session_id":        "1",
-				"session_timestamp": time.Now(),
-			},
-			Events: []*schema.Event{
-				{
-					BoundHit: &hits.Hit{
-						ID: "1",
-					},
-					Values: map[string]any{
-						"id":            "1",
-						"name":          "test",
-						"timestamp_utc": time.Now(),
-					},
-				},
-			},
-		},
-		{
-			PropertyID: "1",
-			Values: map[string]any{
-				"session_id":        "2",
-				"session_timestamp": time.Now(),
-			},
-			Events: []*schema.Event{
-				{
-					BoundHit: &hits.Hit{
-						ID: "2",
-					},
-					Values: map[string]any{
-						"id":            "2",
-						"name":          "test",
-						"timestamp_utc": time.Now(),
-					},
-				},
-			},
-		},
+		testSession("1", "1", "1"),
+		testSession("1", "2", "2"),
 	}
 
 	// when
@@ -85,4 +73,38 @@ func TestWriter(t *testing.T) {
 	// then
 	assert.NoError(t, err)
 	assert.Len(t, mockDriver.WriteCalls, 1) // Should be a single write, batching should kick in
+}
+
+func TestWriter_SkipsEmptyRows(t *testing.T) {
+	// given
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	mockDriver := warehouse.NewMockWarehouseDriver()
+	writer := newTestWriter(ctx, mockDriver)
+
+	// A session with all events filtered out (all broken) produces zero rows.
+	// The brokenFilteringLayout drops sessions whose entire event list is broken,
+	// resulting in len(Rows)==0 for every table — the writer must skip the write.
+	brokenSession := &schema.Session{
+		PropertyID: "1",
+		Values: map[string]any{
+			"session_id":        "broken-1",
+			"session_timestamp": time.Now(),
+		},
+		Events: []*schema.Event{
+			{
+				BoundHit: &hits.Hit{ID: "broken-event-1"},
+				Values:   map[string]any{},
+				IsBroken: true,
+			},
+		},
+	}
+
+	// when
+	err := writer.Write(brokenSession)
+
+	// then
+	assert.NoError(t, err)
+	assert.Empty(t, mockDriver.WriteCalls,
+		"sessions with all broken events produce empty rows and must not trigger warehouse writes")
 }
