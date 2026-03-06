@@ -8,16 +8,20 @@ import (
 
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
-	EventLinkURL              schema.Interface
-	EventDownloadURL          schema.Interface
-	EventSearchTerm           schema.Interface
-	EventParamsCategory       schema.Interface
-	EventParamsAction         schema.Interface
-	EventParamsValue          schema.Interface
-	EventPreviousPageLocation schema.Interface
-	EventNextPageLocation     schema.Interface
-	EventPreviousPageTitle    schema.Interface
-	EventNextPageTitle        schema.Interface
+	EventLinkURL                  schema.Interface
+	EventDownloadURL              schema.Interface
+	EventSearchTerm               schema.Interface
+	EventParamsCategory           schema.Interface
+	EventParamsAction             schema.Interface
+	EventParamsValue              schema.Interface
+	EventParamsContentInteraction schema.Interface
+	EventParamsContentName        schema.Interface
+	EventParamsContentPiece       schema.Interface
+	EventParamsContentTarget      schema.Interface
+	EventPreviousPageLocation     schema.Interface
+	EventNextPageLocation         schema.Interface
+	EventPreviousPageTitle        schema.Interface
+	EventNextPageTitle            schema.Interface
 }{
 	EventLinkURL: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/link_url",
@@ -42,6 +46,22 @@ var ProtocolInterfaces = struct {
 	EventParamsValue: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_value",
 		Field: &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventParamsContentInteraction: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_content_interaction",
+		Field: &arrow.Field{Name: "params_content_interaction", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsContentName: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_content_name",
+		Field: &arrow.Field{Name: "params_content_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsContentPiece: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_content_piece",
+		Field: &arrow.Field{Name: "params_content_piece", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsContentTarget: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_content_target",
+		Field: &arrow.Field{Name: "params_content_target", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",

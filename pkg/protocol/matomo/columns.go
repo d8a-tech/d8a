@@ -45,6 +45,10 @@ var eventColumns = []schema.EventColumn{
 	eventParamsCategoryColumn,
 	eventParamsActionColumn,
 	eventParamsValueColumn,
+	eventParamsContentInteractionColumn,
+	eventParamsContentNameColumn,
+	eventParamsContentPieceColumn,
+	eventParamsContentTargetColumn,
 }
 
 var sessionColumns = []schema.SessionColumn{
