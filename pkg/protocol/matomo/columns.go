@@ -49,6 +49,7 @@ var eventColumns = []schema.EventColumn{
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
 	eventParamsContentTargetColumn,
+	eventCustomVariablesColumn,
 	eventEcommercePurchaseRevenueColumn,
 	eventEcommerceShippingValueColumn,
 	eventEcommerceSubtotalValueColumn,
