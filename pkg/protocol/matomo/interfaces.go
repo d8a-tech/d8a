@@ -11,6 +11,9 @@ var ProtocolInterfaces = struct {
 	EventLinkURL              schema.Interface
 	EventDownloadURL          schema.Interface
 	EventSearchTerm           schema.Interface
+	EventParamsCategory       schema.Interface
+	EventParamsAction         schema.Interface
+	EventParamsValue          schema.Interface
 	EventPreviousPageLocation schema.Interface
 	EventNextPageLocation     schema.Interface
 	EventPreviousPageTitle    schema.Interface
@@ -27,6 +30,18 @@ var ProtocolInterfaces = struct {
 	EventSearchTerm: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/search_term",
 		Field: &arrow.Field{Name: "search_term", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsCategory: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_category",
+		Field: &arrow.Field{Name: "params_category", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsAction: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_action",
+		Field: &arrow.Field{Name: "params_action", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsValue: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_value",
+		Field: &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",

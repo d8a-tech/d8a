@@ -42,6 +42,9 @@ var eventColumns = []schema.EventColumn{
 	eventLinkURLColumn,
 	eventDownloadURLColumn,
 	eventSearchTermColumn,
+	eventParamsCategoryColumn,
+	eventParamsActionColumn,
+	eventParamsValueColumn,
 }
 
 var sessionColumns = []schema.SessionColumn{
@@ -137,5 +140,48 @@ var eventSearchTermColumn = columns.NewSimpleEventColumn(
 	columns.WithEventColumnDocs(
 		"Search Term",
 		"The keyword used in a site search, extracted from the search query parameter.", // nolint:lll // it's a description
+	),
+)
+
+var eventParamsCategoryColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsCategory.ID,
+	ProtocolInterfaces.EventParamsCategory.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		queryParams := event.BoundHit.MustParsedRequest().QueryParams
+		if v, ok := queryParams["e_c"]; ok && len(v) > 0 {
+			return v[0], nil
+		}
+		return nil, nil // nolint:nilnil // nil is valid
+	},
+	columns.WithEventColumnDocs(
+		"Event Params Category",
+		"The category of the event, extracted from the e_c query parameter.",
+	),
+)
+
+var eventParamsActionColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsAction.ID,
+	ProtocolInterfaces.EventParamsAction.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		queryParams := event.BoundHit.MustParsedRequest().QueryParams
+		if v, ok := queryParams["e_a"]; ok && len(v) > 0 {
+			return v[0], nil
+		}
+		return nil, nil // nolint:nilnil // nil is valid
+	},
+	columns.WithEventColumnDocs(
+		"Event Params Action",
+		"The action of the event, extracted from the e_a query parameter.",
+	),
+)
+
+var eventParamsValueColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsValue.ID,
+	ProtocolInterfaces.EventParamsValue.Field,
+	"e_v",
+	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamsValue.ID)),
+	columns.WithEventColumnDocs(
+		"Event Params Value",
+		"The numeric value of the event, extracted from the e_v query parameter.",
 	),
 )
