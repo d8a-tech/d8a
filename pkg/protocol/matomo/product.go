@@ -46,25 +46,92 @@ var eventParamsProductNameColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var eventParamsProductCategoriesColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventParamsProductCategories.ID,
-	ProtocolInterfaces.EventParamsProductCategories.Field,
+var eventParamsProductCategory1Column = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsProductCategory1.ID,
+	ProtocolInterfaces.EventParamsProductCategory1.Field,
 	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-		category := event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc")
-		normalized := normalizeProductCategories(category)
-		if normalized == nil {
+		categories := parseProductCategories(event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc"))
+		if len(categories) < 1 {
 			return nil, nil //nolint:nilnil // optional field
 		}
 
-		return normalized, nil
+		return categories[0], nil
 	},
 	columns.WithEventColumnDocs(
-		"Product Categories",
-		"The product categories, extracted from the _pkc query parameter.",
+		"Product Category 1",
+		"The first product category, extracted from the _pkc query parameter.",
 	),
 )
 
-func normalizeProductCategories(raw string) []any {
+var eventParamsProductCategory2Column = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsProductCategory2.ID,
+	ProtocolInterfaces.EventParamsProductCategory2.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		categories := parseProductCategories(event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc"))
+		if len(categories) < 2 {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		return categories[1], nil
+	},
+	columns.WithEventColumnDocs(
+		"Product Category 2",
+		"The second product category, extracted from the _pkc query parameter.",
+	),
+)
+
+var eventParamsProductCategory3Column = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsProductCategory3.ID,
+	ProtocolInterfaces.EventParamsProductCategory3.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		categories := parseProductCategories(event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc"))
+		if len(categories) < 3 {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		return categories[2], nil
+	},
+	columns.WithEventColumnDocs(
+		"Product Category 3",
+		"The third product category, extracted from the _pkc query parameter.",
+	),
+)
+
+var eventParamsProductCategory4Column = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsProductCategory4.ID,
+	ProtocolInterfaces.EventParamsProductCategory4.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		categories := parseProductCategories(event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc"))
+		if len(categories) < 4 {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		return categories[3], nil
+	},
+	columns.WithEventColumnDocs(
+		"Product Category 4",
+		"The fourth product category, extracted from the _pkc query parameter.",
+	),
+)
+
+var eventParamsProductCategory5Column = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventParamsProductCategory5.ID,
+	ProtocolInterfaces.EventParamsProductCategory5.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		categories := parseProductCategories(event.BoundHit.MustParsedRequest().QueryParams.Get("_pkc"))
+		if len(categories) < 5 {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		return categories[4], nil
+	},
+	columns.WithEventColumnDocs(
+		"Product Category 5",
+		"The fifth product category, extracted from the _pkc query parameter.",
+	),
+)
+
+func parseProductCategories(raw string) []string {
 	if raw == "" {
 		return nil
 	}
@@ -75,13 +142,8 @@ func normalizeProductCategories(raw string) []any {
 			return nil
 		}
 
-		normalized := make([]any, 0, len(categories))
-		for _, category := range categories {
-			normalized = append(normalized, map[string]any{"name": category})
-		}
-
-		return normalized
+		return categories
 	}
 
-	return []any{map[string]any{"name": raw}}
+	return []string{raw}
 }

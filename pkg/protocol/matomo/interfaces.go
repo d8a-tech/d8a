@@ -21,7 +21,11 @@ var ProtocolInterfaces = struct {
 	EventParamsProductPrice       schema.Interface
 	EventParamsProductSKU         schema.Interface
 	EventParamsProductName        schema.Interface
-	EventParamsProductCategories  schema.Interface
+	EventParamsProductCategory1   schema.Interface
+	EventParamsProductCategory2   schema.Interface
+	EventParamsProductCategory3   schema.Interface
+	EventParamsProductCategory4   schema.Interface
+	EventParamsProductCategory5   schema.Interface
 	EventPreviousPageLocation     schema.Interface
 	EventNextPageLocation         schema.Interface
 	EventPreviousPageTitle        schema.Interface
@@ -79,13 +83,25 @@ var ProtocolInterfaces = struct {
 		ID:    "matomo.protocols.d8a.tech/event/params_product_name",
 		Field: &arrow.Field{Name: "params_product_name", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventParamsProductCategories: schema.Interface{
-		ID: "matomo.protocols.d8a.tech/event/params_product_categories",
-		Field: &arrow.Field{
-			Name:     "params_product_categories",
-			Type:     arrow.ListOf(arrow.StructOf(arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true})),
-			Nullable: true,
-		},
+	EventParamsProductCategory1: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_1",
+		Field: &arrow.Field{Name: "params_product_category_1", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory2: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_2",
+		Field: &arrow.Field{Name: "params_product_category_2", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory3: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_3",
+		Field: &arrow.Field{Name: "params_product_category_3", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory4: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_4",
+		Field: &arrow.Field{Name: "params_product_category_4", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory5: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_5",
+		Field: &arrow.Field{Name: "params_product_category_5", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",

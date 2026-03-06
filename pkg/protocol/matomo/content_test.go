@@ -441,15 +441,32 @@ func TestMatomoEventColumns(t *testing.T) {
 				description: "Returns nil when _pkn parameter is absent",
 			},
 			{
-				name:        "EventParamsProductCategories_ValidString",
+				name:        "EventParamsProductCategory1_ValidString",
 				buildHits:   single(buildPageViewHit),
 				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "_pkc", "Shoes")},
-				fieldName:   "params_product_categories",
-				expected:    []any{map[string]any{"name": "Shoes"}},
-				description: "String _pkc maps to one category object",
+				fieldName:   "params_product_category_1",
+				expected:    "Shoes",
+				description: "String _pkc maps to first flattened category",
 			},
 			{
-				name:      "EventParamsProductCategories_ValidJSONList",
+				name:      "EventParamsProductCategory1_ValidJSONList",
+				buildHits: single(buildPageViewHit),
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "_pkc", `[
+						"Men",
+						"Shoes",
+						"Running",
+						"Sneakers",
+						"Sale",
+						"Ignored"
+					]`),
+				},
+				fieldName:   "params_product_category_1",
+				expected:    "Men",
+				description: "First JSON category maps to category_1",
+			},
+			{
+				name:      "EventParamsProductCategory2_ValidJSONList",
 				buildHits: single(buildPageViewHit),
 				cfg: []columntests.CaseConfigFunc{
 					columntests.EnsureQueryParam(0, "_pkc", `[
@@ -457,33 +474,84 @@ func TestMatomoEventColumns(t *testing.T) {
 						"Shoes"
 					]`),
 				},
-				fieldName: "params_product_categories",
-				expected: []any{
-					map[string]any{"name": "Men"},
-					map[string]any{"name": "Shoes"},
-				},
-				description: "JSON list _pkc maps to multiple category objects",
+				fieldName:   "params_product_category_2",
+				expected:    "Shoes",
+				description: "Second JSON category maps to category_2",
 			},
 			{
-				name:        "EventParamsProductCategories_EmptyJSONList",
+				name:      "EventParamsProductCategory3_ValidJSONList",
+				buildHits: single(buildPageViewHit),
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "_pkc", `[
+						"Men",
+						"Shoes",
+						"Running"
+					]`),
+				},
+				fieldName:   "params_product_category_3",
+				expected:    "Running",
+				description: "Third JSON category maps to category_3",
+			},
+			{
+				name:      "EventParamsProductCategory4_ValidJSONList",
+				buildHits: single(buildPageViewHit),
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "_pkc", `[
+						"Men",
+						"Shoes",
+						"Running",
+						"Sneakers"
+					]`),
+				},
+				fieldName:   "params_product_category_4",
+				expected:    "Sneakers",
+				description: "Fourth JSON category maps to category_4",
+			},
+			{
+				name:      "EventParamsProductCategory5_ValidJSONList",
+				buildHits: single(buildPageViewHit),
+				cfg: []columntests.CaseConfigFunc{
+					columntests.EnsureQueryParam(0, "_pkc", `[
+						"Men",
+						"Shoes",
+						"Running",
+						"Sneakers",
+						"Sale",
+						"Ignored"
+					]`),
+				},
+				fieldName:   "params_product_category_5",
+				expected:    "Sale",
+				description: "Fifth JSON category maps to category_5 and ignores extras",
+			},
+			{
+				name:        "EventParamsProductCategory2_ValidString",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "_pkc", "Shoes")},
+				fieldName:   "params_product_category_2",
+				expected:    nil,
+				description: "Single string _pkc leaves category_2 nil",
+			},
+			{
+				name:        "EventParamsProductCategory1_EmptyJSONList",
 				buildHits:   single(buildPageViewHit),
 				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "_pkc", "[]")},
-				fieldName:   "params_product_categories",
+				fieldName:   "params_product_category_1",
 				expected:    nil,
 				description: "Returns nil when _pkc is an empty JSON list",
 			},
 			{
-				name:        "EventParamsProductCategories_Empty",
+				name:        "EventParamsProductCategory1_Empty",
 				buildHits:   single(buildPageViewHit),
 				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "_pkc", "")},
-				fieldName:   "params_product_categories",
+				fieldName:   "params_product_category_1",
 				expected:    nil,
 				description: "Returns nil when _pkc parameter is empty",
 			},
 			{
-				name:        "EventParamsProductCategories_Absent",
+				name:        "EventParamsProductCategory1_Absent",
 				buildHits:   single(buildPageViewHit),
-				fieldName:   "params_product_categories",
+				fieldName:   "params_product_category_1",
 				expected:    nil,
 				description: "Returns nil when _pkc parameter is absent",
 			},
