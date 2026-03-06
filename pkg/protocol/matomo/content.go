@@ -11,7 +11,7 @@ var eventParamsContentInteractionColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsContentInteraction.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Content Interaction",
+		"Content Interaction",
 		"The content interaction name, extracted from the c_i query parameter.",
 	),
 )
@@ -25,7 +25,7 @@ var eventParamsContentNameColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsContentName.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Content Name",
+		"Content Name",
 		"The content name, extracted from the c_n query parameter.",
 	),
 )
@@ -39,7 +39,7 @@ var eventParamsContentPieceColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsContentPiece.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Content Piece",
+		"Content Piece",
 		"The content piece, extracted from the c_p query parameter.",
 	),
 )
@@ -53,7 +53,7 @@ var eventParamsContentTargetColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsContentTarget.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Content Target",
+		"Content Target",
 		"The content target, extracted from the c_t query parameter.",
 	),
 )
