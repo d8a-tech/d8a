@@ -58,3 +58,83 @@ var sseIsExitPageColumn = columns.NewFirstLastMatchingEventColumn(
 			"Returns 0 if there are no page views in the session.",
 	),
 )
+
+var eventPreviousPageLocationColumn = columns.NewValueTransitionColumn(
+	ProtocolInterfaces.EventPreviousPageLocation.ID,
+	ProtocolInterfaces.EventPreviousPageLocation.Field,
+	columns.CoreInterfaces.EventPageLocation.Field.Name,
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	columns.TransitionDirectionBackward,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Previous Page Location",
+		"The URL of the previous page viewed in the session before the current page. "+
+			"Only populated when a page transition is detected. "+
+			"Returns nil for the first page or when no page change has occurred.",
+	),
+)
+
+var eventNextPageLocationColumn = columns.NewValueTransitionColumn(
+	ProtocolInterfaces.EventNextPageLocation.ID,
+	ProtocolInterfaces.EventNextPageLocation.Field,
+	columns.CoreInterfaces.EventPageLocation.Field.Name,
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	columns.TransitionDirectionForward,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventPageLocation.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Next Page Location",
+		"The URL of the next page viewed in the session after the current page. "+
+			"Only populated when a page transition is detected. "+
+			"Returns nil for the last page or when no page change has occurred.",
+	),
+)
+
+var eventPreviousPageTitleColumn = columns.NewValueTransitionColumn(
+	ProtocolInterfaces.EventPreviousPageTitle.ID,
+	ProtocolInterfaces.EventPreviousPageTitle.Field,
+	columns.CoreInterfaces.EventPageTitle.Field.Name,
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	columns.TransitionDirectionBackward,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Previous Page Title",
+		"The title of the previous page viewed in the session before the current page. "+
+			"Only populated when a page transition is detected. "+
+			"Returns nil for the first page or when no page change has occurred.",
+	),
+)
+
+var eventNextPageTitleColumn = columns.NewValueTransitionColumn(
+	ProtocolInterfaces.EventNextPageTitle.ID,
+	ProtocolInterfaces.EventNextPageTitle.Field,
+	columns.CoreInterfaces.EventPageTitle.Field.Name,
+	columns.TransitionAdvanceWhenEventNameIs(pageViewEventType),
+	columns.TransitionDirectionForward,
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{
+			Interface: columns.CoreInterfaces.EventPageTitle.ID,
+		},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Next Page Title",
+		"The title of the next page viewed in the session after the current page. "+
+			"Only populated when a page transition is detected. "+
+			"Returns nil for the last page or when no page change has occurred.",
+	),
+)

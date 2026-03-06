@@ -214,11 +214,14 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})
-	go func() {
+	go func() { //nolint:gosec // shutdown must use a fresh context independent from request lifecycle
 		// This whole abomination is because fasthttp can sometimes not shutdown
 		// and therefore block whole program from exiting
 		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(),
+			2*time.Second,
+		)
 		defer cancel()
 		shutdownDone := make(chan struct{})
 		go func() {

@@ -86,6 +86,10 @@ var sseColumns = []schema.SessionScopedEventColumn{
 	sseTimeOnPageColumn,
 	sseIsEntryPageColumn,
 	sseIsExitPageColumn,
+	eventPreviousPageLocationColumn,
+	eventNextPageLocationColumn,
+	eventPreviousPageTitleColumn,
+	eventNextPageTitleColumn,
 }
 
 var eventLinkURLColumn = columns.NewSimpleEventColumn(
