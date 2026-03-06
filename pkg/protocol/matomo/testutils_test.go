@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 )
 
 // testMatomoHitOne is a minimal Matomo-protocol page_view hit for use in Matomo column tests.
@@ -36,4 +37,12 @@ var testMatomoHitOne = &hits.Hit{
 func testHitOne() *hits.Hit {
 	hitCopy := testMatomoHitOne.Copy()
 	return &hitCopy
+}
+
+type staticPropertyIDExtractor struct {
+	propertyID string
+}
+
+func (e *staticPropertyIDExtractor) PropertyID(_ *protocol.RequestContext) (string, error) {
+	return e.propertyID, nil
 }

@@ -45,6 +45,10 @@ var eventColumns = []schema.EventColumn{
 	eventParamsCategoryColumn,
 	eventParamsActionColumn,
 	eventParamsValueColumn,
+	eventParamsContentInteractionColumn,
+	eventParamsContentNameColumn,
+	eventParamsContentPieceColumn,
+	eventParamsContentTargetColumn,
 }
 
 var sessionColumns = []schema.SessionColumn{
@@ -152,7 +156,7 @@ var eventParamsCategoryColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsCategory.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Category",
+		"Category",
 		"The category of the event, extracted from the e_c query parameter.",
 	),
 )
@@ -166,7 +170,7 @@ var eventParamsActionColumn = columns.FromQueryParamEventColumn(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsAction.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Event Params Action",
+		"Action",
 		"The action of the event, extracted from the e_a query parameter.",
 	),
 )
@@ -177,7 +181,7 @@ var eventParamsValueColumn = columns.FromQueryParamEventColumn(
 	"e_v",
 	columns.WithEventColumnCast(columns.CastToFloat64OrNil(ProtocolInterfaces.EventParamsValue.ID)),
 	columns.WithEventColumnDocs(
-		"Event Params Value",
+		"Value",
 		"The numeric value of the event, extracted from the e_v query parameter.",
 	),
 )
