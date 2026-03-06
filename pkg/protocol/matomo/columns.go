@@ -49,6 +49,7 @@ var eventColumns = []schema.EventColumn{
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
 	eventParamsContentTargetColumn,
+	eventCustomVariablesColumn,
 	eventEcommercePurchaseRevenueColumn,
 	eventEcommerceShippingValueColumn,
 	eventEcommerceSubtotalValueColumn,
@@ -100,6 +101,7 @@ var sessionColumns = []schema.SessionColumn{
 	sessionTotalVideoEngagementsColumn,
 	sessionTotalFileDownloadsColumn,
 	sessionUniqueFileDownloadsColumn,
+	sessionCustomVariablesColumn,
 }
 
 var sseColumns = []schema.SessionScopedEventColumn{
