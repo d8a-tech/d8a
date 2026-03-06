@@ -53,6 +53,132 @@ func buildMatomoHits(h [][2]string) columntests.TestHits {
 	return allHits
 }
 
+// buildMatomoTransitionHits creates Matomo hits with event name, URL, and title.
+// Each entry is [event_type, page_url, page_title].
+func buildMatomoTransitionHits(h [][3]string) columntests.TestHits {
+	allHits := make([]*hits.Hit, len(h))
+	for i, hit := range h {
+		allHits[i] = testHitOne()
+		allHits[i].EventName = hit[0]
+		allHits[i].MustParsedRequest().QueryParams.Set("v", "2")
+		allHits[i].MustParsedRequest().QueryParams.Set("url", hit[1])
+		allHits[i].MustParsedRequest().QueryParams.Set("action_name", hit[2])
+	}
+
+	return allHits
+}
+
+func TestMatomoValueTransitions(t *testing.T) {
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+
+	var testCases = []struct {
+		name        string
+		hits        columntests.TestHits
+		field       string
+		expected    []any
+		description string
+	}{
+		{
+			name: "PreviousPageLocation",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1", "Page 1"},
+				{"page_view", "https://example.com/page2", "Page 2"},
+				{"outlink", "https://example.com/page2", "Page 2"},
+				{"download", "https://example.com/page2", "Page 2"},
+				{"page_view", "https://example.com/page3", "Page 3"},
+			}),
+			field: "previous_page_location",
+			expected: []any{
+				nil,
+				"https://example.com/page1",
+				"https://example.com/page1",
+				"https://example.com/page1",
+				"https://example.com/page2",
+			},
+			description: "Previous page location should carry forward across non-page-view events",
+		},
+		{
+			name: "PreviousPageTitle",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1", "Page 1"},
+				{"page_view", "https://example.com/page2", "Page 2"},
+				{"outlink", "https://example.com/page2", "Page 2"},
+				{"download", "https://example.com/page2", "Page 2"},
+				{"page_view", "https://example.com/page3", "Page 3"},
+			}),
+			field: "previous_page_title",
+			expected: []any{
+				nil,
+				"Page 1",
+				"Page 1",
+				"Page 1",
+				"Page 2",
+			},
+			description: "Previous page title should carry forward across non-page-view events",
+		},
+		{
+			name: "NextPageLocation",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1", "Page 1"},
+				{"page_view", "https://example.com/page2", "Page 2"},
+				{"outlink", "https://example.com/page2", "Page 2"},
+				{"download", "https://example.com/page2", "Page 2"},
+				{"page_view", "https://example.com/page3", "Page 3"},
+			}),
+			field: "next_page_location",
+			expected: []any{
+				"https://example.com/page2",
+				"https://example.com/page3",
+				"https://example.com/page3",
+				"https://example.com/page3",
+				nil,
+			},
+			description: "Next page location should be nil for last page view and shared by in-between events",
+		},
+		{
+			name: "NextPageTitle",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1", "Page 1"},
+				{"page_view", "https://example.com/page2", "Page 2"},
+				{"outlink", "https://example.com/page2", "Page 2"},
+				{"download", "https://example.com/page2", "Page 2"},
+				{"page_view", "https://example.com/page3", "Page 3"},
+			}),
+			field: "next_page_title",
+			expected: []any{
+				"Page 2",
+				"Page 3",
+				"Page 3",
+				"Page 3",
+				nil,
+			},
+			description: "Next page title should be nil for last page view and shared by in-between events",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			columntests.ColumnTestCase(
+				t,
+				tc.hits,
+				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					// when + then
+					require.NoError(t, closeErr)
+					require.GreaterOrEqual(t, len(whd.WriteCalls[0].Records), len(tc.expected),
+						"Not enough records in output")
+					writeResult := make([]any, 0, len(whd.WriteCalls[0].Records))
+					for _, record := range whd.WriteCalls[0].Records {
+						writeResult = append(writeResult, record[tc.field])
+					}
+					assert.Equal(t, tc.expected, writeResult, tc.description)
+				},
+				proto,
+			)
+		})
+	}
+}
+
 func TestMatomoSSEIsEntryExitPage(t *testing.T) {
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 

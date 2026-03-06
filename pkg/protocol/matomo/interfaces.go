@@ -8,9 +8,13 @@ import (
 
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
-	EventLinkURL     schema.Interface
-	EventDownloadURL schema.Interface
-	EventSearchTerm  schema.Interface
+	EventLinkURL              schema.Interface
+	EventDownloadURL          schema.Interface
+	EventSearchTerm           schema.Interface
+	EventPreviousPageLocation schema.Interface
+	EventNextPageLocation     schema.Interface
+	EventPreviousPageTitle    schema.Interface
+	EventNextPageTitle        schema.Interface
 }{
 	EventLinkURL: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/link_url",
@@ -23,5 +27,21 @@ var ProtocolInterfaces = struct {
 	EventSearchTerm: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/search_term",
 		Field: &arrow.Field{Name: "search_term", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageLocation: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",
+		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageLocation: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/next_page_location",
+		Field: &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageTitle: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/previous_page_title",
+		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageTitle: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/next_page_title",
+		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 }
