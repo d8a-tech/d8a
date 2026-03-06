@@ -16,7 +16,7 @@ func TestMatomoSessionUTMColumns(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) *hits.Hit {
 		hit := columntests.TestHitOne()
-		hit.EventName = "page_view"
+		hit.EventName = pageViewEventType
 		return hit
 	}
 
