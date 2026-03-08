@@ -7,12 +7,15 @@ import (
 )
 
 const (
-	pageViewEventType   = "page_view"
-	downloadEventType   = "download"
-	outlinkEventType    = "outlink"
-	siteSearchEventType = "site_search"
-	ecOrderEventType    = "ecommerce_order"
-	videoPlayEventType  = "video_play"
+	pageViewEventType       = "page_view"
+	downloadEventType       = "download"
+	outlinkEventType        = "outlink"
+	siteSearchEventType     = "site_search"
+	ecOrderEventType        = "ecommerce_order"
+	goalConversionEventType = "goal_conversion"
+	contentImpressionType   = "content_impression"
+	contentInteractionType  = "content_interaction"
+	videoPlayEventType      = "video_play"
 )
 
 func isPageViewEvent(event *schema.Event) bool {
@@ -50,6 +53,7 @@ var eventColumns = []schema.EventColumn{
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
 	eventParamsContentTargetColumn,
+	eventParamsSearchKeywordColumn,
 	eventParamsSearchCategoryColumn,
 	eventParamsSearchCountColumn,
 	eventCustomVariablesColumn,
@@ -94,10 +98,13 @@ var sessionColumns = []schema.SessionColumn{
 	sessionTotalPageViewsColumn,
 	sessionUniquePageViewsColumn,
 	sessionTotalPurchasesColumn,
+	sessionTotalGoalConversionsColumn,
 	sessionTotalScrollsColumn,
 	sessionTotalOutboundClicksColumn,
 	sessionUniqueOutboundClicksColumn,
 	sessionTotalSiteSearchesColumn,
+	sessionTotalContentImpressionsColumn,
+	sessionTotalContentInteractionsColumn,
 	sessionUniqueSiteSearchesColumn,
 	sessionTotalFormInteractionsColumn,
 	sessionUniqueFormInteractionsColumn,

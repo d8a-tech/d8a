@@ -79,6 +79,27 @@ func TestMatomoSessionEngagementColumns(t *testing.T) {
 			description: "A non-ecommerce goal does not count as a purchase",
 		},
 		{
+			name: "TotalGoalConversions_GoalCounted",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "idgoal", "7"),
+				columntests.EnsureEventName(0, "goal_conversion"),
+			},
+			fieldName:   "session_total_goal_conversions",
+			expected:    1,
+			description: "A goal conversion event counts as one goal conversion",
+		},
+		{
+			name: "TotalGoalConversions_NoGoalNoCount",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "idgoal", "0"),
+				columntests.EnsureQueryParam(0, "ec_id", "ord_123"),
+				columntests.EnsureEventName(0, "ecommerce_order"),
+			},
+			fieldName:   "session_total_goal_conversions",
+			expected:    0,
+			description: "An ecommerce order does not count as a goal conversion",
+		},
+		{
 			name:        "TotalScrolls_AlwaysNull",
 			cfg:         nil,
 			fieldName:   "session_total_scrolls",

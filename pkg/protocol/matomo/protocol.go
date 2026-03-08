@@ -150,6 +150,9 @@ func deriveEventName(params url.Values) string {
 	if params.Get("idgoal") == "0" && params.Get("ec_id") != "" {
 		return ecOrderEventType
 	}
+	if params.Get("idgoal") != "" {
+		return goalConversionEventType
+	}
 	if params.Get("ma_id") != "" && params.Get("ma_mt") == "video" {
 		return videoPlayEventType
 	}
@@ -159,8 +162,14 @@ func deriveEventName(params url.Values) string {
 	if params.Get("link") != "" {
 		return outlinkEventType
 	}
-	if params.Get("search") != "" {
+	if _, hasSearch := params["search"]; hasSearch {
 		return siteSearchEventType
+	}
+	if params.Get("c_i") != "" {
+		return contentInteractionType
+	}
+	if params.Get("c_n") != "" {
+		return contentImpressionType
 	}
 	if params.Get("e_c") != "" && params.Get("e_a") != "" {
 		return "event"

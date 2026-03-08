@@ -2,6 +2,21 @@ package matomo
 
 import "github.com/d8a-tech/d8a/pkg/columns"
 
+var eventParamsSearchKeywordColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsSearchKeyword.ID,
+	ProtocolInterfaces.EventParamsSearchKeyword.Field,
+	"search",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsSearchKeyword.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Search Keyword",
+		"The site-search keyword extracted from the search query parameter. "+
+			"This is not the external referrer keyword (for example, not referer_keyword).",
+	),
+)
+
 var eventParamsSearchCategoryColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsSearchCategory.ID,
 	ProtocolInterfaces.EventParamsSearchCategory.Field,
