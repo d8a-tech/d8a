@@ -50,6 +50,17 @@ var sessionTotalPurchasesColumn = columns.TotalEventsOfGivenNameColumn(
 	),
 )
 
+// sessionTotalGoalConversionsColumn counts goal conversion events in the session.
+var sessionTotalGoalConversionsColumn = columns.TotalEventsOfGivenNameColumn(
+	ProtocolInterfaces.SessionTotalGoalConversions.ID,
+	ProtocolInterfaces.SessionTotalGoalConversions.Field,
+	[]string{goalConversionEventType},
+	columns.WithSessionColumnDocs(
+		"Total Goal Conversions",
+		fmt.Sprintf("The total number of goal conversions (event name: %s) in the session.", goalConversionEventType), //nolint:lll // description
+	),
+)
+
 // sessionTotalScrollsColumn is not supported in the Matomo protocol and always returns null.
 var sessionTotalScrollsColumn = columns.NewSimpleSessionColumn(
 	columns.CoreInterfaces.SessionTotalScrolls.ID,

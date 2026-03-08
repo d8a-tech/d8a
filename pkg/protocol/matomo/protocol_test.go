@@ -74,6 +74,45 @@ func TestHits(t *testing.T) {
 			expectedEvent: "site_search",
 		},
 		{
+			name: "single_post_site_search_when_search_empty",
+			queryParams: url.Values{
+				"idsite": []string{"12"},
+				"search": []string{""},
+				"e_c":    []string{"Videos"},
+				"e_a":    []string{"Play"},
+				"_id":    []string{"abc133"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "site_search",
+		},
+		{
+			name: "single_post_content_impression",
+			queryParams: url.Values{
+				"idsite": []string{"13"},
+				"c_n":    []string{"Hero Banner"},
+				"_id":    []string{"abc134"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "content_impression",
+		},
+		{
+			name: "single_post_content_interaction",
+			queryParams: url.Values{
+				"idsite": []string{"14"},
+				"c_i":    []string{"click"},
+				"c_n":    []string{"Hero Banner"},
+				"_id":    []string{"abc135"},
+			},
+			method:        "POST",
+			body:          "",
+			expectedHits:  1,
+			expectedEvent: "content_interaction",
+		},
+		{
 			name: "single_post_download",
 			queryParams: url.Values{
 				"idsite":   []string{"4"},

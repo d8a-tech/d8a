@@ -444,3 +444,82 @@ func TestMatomoEventColumns(t *testing.T) {
 		})
 	}
 }
+
+func TestMatomoSessionContentColumns(t *testing.T) {
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+
+	type testCase struct {
+		name        string
+		cfg         []columntests.CaseConfigFunc
+		fieldName   string
+		expected    any
+		description string
+	}
+
+	testCases := []testCase{
+		{
+			name: "TotalContentImpressions_ContentNameCounted",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "c_n", "Hero Banner"),
+				columntests.EnsureQueryParam(0, "c_p", "/assets/banner.jpg"),
+				columntests.EnsureQueryParam(0, "c_t", "https://example.com/landing"),
+				columntests.EnsureEventName(0, "content_impression"),
+			},
+			fieldName:   "session_total_content_impressions",
+			expected:    1,
+			description: "A content impression event counts as one content impression",
+		},
+		{
+			name: "TotalContentImpressions_NoContentNameNoCount",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "c_i", "click"),
+				columntests.EnsureEventName(0, "content_interaction"),
+			},
+			fieldName:   "session_total_content_impressions",
+			expected:    0,
+			description: "A content interaction event does not count as a content impression",
+		},
+		{
+			name: "TotalContentInteractions_ContentInteractionCounted",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "c_i", "click"),
+				columntests.EnsureQueryParam(0, "c_n", "Hero Banner"),
+				columntests.EnsureEventName(0, "content_interaction"),
+			},
+			fieldName:   "session_total_content_interactions",
+			expected:    1,
+			description: "A content interaction event counts as one content interaction",
+		},
+		{
+			name: "TotalContentInteractions_NoContentInteractionNoCount",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "c_n", "Hero Banner"),
+				columntests.EnsureEventName(0, "content_impression"),
+			},
+			fieldName:   "session_total_content_interactions",
+			expected:    0,
+			description: "A content impression event does not count as a content interaction",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			cfgs := append(tc.cfg, columntests.EnsureQueryParam(0, "v", "2")) //nolint:gocritic // test code
+			columntests.ColumnTestCase(
+				t,
+				columntests.TestHits{testHitOne()},
+				func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					// when + then
+					require.NoError(t, closeErr)
+					require.NotEmpty(t, whd.WriteCalls, "expected at least one warehouse write call")
+					require.NotEmpty(t, whd.WriteCalls[0].Records, "expected at least one record")
+					record := whd.WriteCalls[0].Records[0]
+					assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
+				},
+				proto,
+				cfgs...,
+			)
+		})
+	}
+}
