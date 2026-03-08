@@ -12,7 +12,8 @@ var eventParamsSearchKeywordColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Search Keyword",
-		"The site-search keyword extracted from the search query parameter. This is not the external referrer keyword (for example, not referer_keyword).",
+		"The site-search keyword extracted from the search query parameter. "+
+			"This is not the external referrer keyword (for example, not referer_keyword).",
 	),
 )
 

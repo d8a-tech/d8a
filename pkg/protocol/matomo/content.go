@@ -16,7 +16,8 @@ var eventParamsContentInteractionColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content Interaction",
-		"The content interaction name, extracted from the c_i query parameter. To track a content interaction, set c_i (typically together with c_n/c_p/c_t).",
+		"The content interaction name, extracted from the c_i query parameter. "+
+			"To track a content interaction, set c_i (typically together with c_n/c_p/c_t).",
 	),
 )
 
@@ -30,7 +31,8 @@ var eventParamsContentNameColumn = columns.FromQueryParamEventColumn(
 	),
 	columns.WithEventColumnDocs(
 		"Content Name",
-		"The content name, extracted from the c_n query parameter. To track a content impression, set c_n and optionally c_p and c_t.",
+		"The content name, extracted from the c_n query parameter. "+
+			"To track a content impression, set c_n and optionally c_p and c_t.",
 	),
 )
 
