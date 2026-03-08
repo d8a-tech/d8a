@@ -14,7 +14,7 @@ func TestMatomoProductColumns(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
-		hit.EventName = "page_view"
+		hit.EventName = pageViewEventType
 		return columntests.TestHits{hit}
 	}
 
