@@ -42,6 +42,7 @@ var eventColumns = []schema.EventColumn{
 	eventLinkURLColumn,
 	eventDownloadURLColumn,
 	eventSearchTermColumn,
+	eventParamsPageViewIDColumn,
 	eventParamsCategoryColumn,
 	eventParamsActionColumn,
 	eventParamsValueColumn,
@@ -49,6 +50,8 @@ var eventColumns = []schema.EventColumn{
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
 	eventParamsContentTargetColumn,
+	eventParamsSearchCategoryColumn,
+	eventParamsSearchCountColumn,
 	eventCustomVariablesColumn,
 	eventEcommercePurchaseRevenueColumn,
 	eventEcommerceShippingValueColumn,
@@ -159,6 +162,20 @@ var eventSearchTermColumn = columns.NewSimpleEventColumn(
 	columns.WithEventColumnDocs(
 		"Search Term",
 		"The keyword used in a site search, extracted from the search query parameter.", // nolint:lll // it's a description
+	),
+)
+
+var eventParamsPageViewIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsPageViewID.ID,
+	ProtocolInterfaces.EventParamsPageViewID.Field,
+	"pv_id",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsPageViewID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Page View ID",
+		"The page view identifier, extracted from the pv_id query parameter.",
 	),
 )
 

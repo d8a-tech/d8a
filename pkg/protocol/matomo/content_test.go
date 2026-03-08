@@ -259,6 +259,29 @@ func TestMatomoEventColumns(t *testing.T) {
 		},
 		[]testCase{
 			{
+				name:        "EventParamsPageViewID_Valid",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "pv_id", "abc123")},
+				fieldName:   "params_page_view_id",
+				expected:    "abc123",
+				description: "Valid page view ID via pv_id query parameter",
+			},
+			{
+				name:        "EventParamsPageViewID_Empty",
+				buildHits:   single(buildPageViewHit),
+				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "pv_id", "")},
+				fieldName:   "params_page_view_id",
+				expected:    nil,
+				description: "Returns nil when pv_id parameter is empty",
+			},
+			{
+				name:        "EventParamsPageViewID_Absent",
+				buildHits:   single(buildPageViewHit),
+				fieldName:   "params_page_view_id",
+				expected:    nil,
+				description: "Returns nil when pv_id parameter is absent",
+			},
+			{
 				name:        "EventParamsCategory_Valid",
 				buildHits:   single(buildPageViewHit),
 				cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "e_c", "checkout")},
