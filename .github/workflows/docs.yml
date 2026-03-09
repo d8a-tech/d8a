@@ -36,8 +36,11 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Generate column documentation
-        run: go run main.go columns --property-id=1337 --output=markdown >> docs/docs/articles/database-schema.md
+      - name: Generate GA4 + d8a schema documentation
+        run: go run main.go columns --property-id=1337 --protocol=ga4 --output=markdown >> docs/docs/articles/database-schema/ga4-d8a.md
+
+      - name: Generate Matomo schema documentation
+        run: go run main.go columns --property-id=1337 --protocol=matomo --output=markdown >> docs/docs/articles/database-schema/matomo.md
       
       - name: Generate configuration documentation
         run: go run main.go config-docs >> docs/docs/articles/config.md

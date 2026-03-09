@@ -114,7 +114,7 @@ Your d8a server setup is now complete. If you'd like to hook up a domain and use
 
 After d8a is up and running, the next step is to send tracking traffic to your d8a endpoint. This allows you to capture analytics data using your own infrastructure while maintaining compatibility with GA4 tracking protocols.
 
-We recommend starting with [Intercepting GA4 events](/articles/sources/intercepting-ga4-events). If that approach does not fit your setup, you can choose another integration option from the **Sources** section in the sidebar.
+We recommend starting with [Intercepting GA4 events](/articles/sources/ga4). If that approach does not fit your setup, you can choose another integration option from the **Sources** section in the sidebar.
 
 ## Next steps
 
