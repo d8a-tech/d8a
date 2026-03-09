@@ -4,6 +4,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/d8a"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
+	"github.com/d8a-tech/d8a/pkg/protocol/matomo"
 	"github.com/urfave/cli/v3"
 )
 
@@ -11,6 +12,7 @@ func protocols(cmd *cli.Command) []protocol.Protocol {
 	return []protocol.Protocol{
 		ga4.NewGA4Protocol(currencyConverter, propertySettings(cmd)),
 		d8a.NewD8AProtocol(currencyConverter, propertySettings(cmd)),
+		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(propertySettings(cmd))),
 	}
 }
 

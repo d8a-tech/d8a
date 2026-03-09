@@ -451,7 +451,7 @@ var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
 
 var protocolFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "protocol",
-	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4', 'd8a'.",
+	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4', 'd8a', 'matomo'.",
 	Sources: defaultSourceChain("PROTOCOL", "protocol"),
 	Value:   "ga4",
 }
