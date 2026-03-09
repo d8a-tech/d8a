@@ -38,6 +38,7 @@ var ProtocolInterfaces = struct {
 	EventPreviousPageTitle          schema.Interface
 	EventNextPageTitle              schema.Interface
 	EventParamsPageViewID           schema.Interface
+	EventParamsGoalID               schema.Interface
 	EventParamsSearchKeyword        schema.Interface
 	EventParamsSearchCategory       schema.Interface
 	EventParamsSearchCount          schema.Interface
@@ -164,6 +165,10 @@ var ProtocolInterfaces = struct {
 	EventParamsPageViewID: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_page_view_id",
 		Field: &arrow.Field{Name: "params_page_view_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsGoalID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_goal_id",
+		Field: &arrow.Field{Name: "params_goal_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamsSearchKeyword: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_search_keyword",

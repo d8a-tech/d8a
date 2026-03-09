@@ -46,6 +46,7 @@ var eventColumns = []schema.EventColumn{
 	eventDownloadURLColumn,
 	eventSearchTermColumn,
 	eventParamsPageViewIDColumn,
+	eventParamsGoalIDColumn,
 	eventParamsCategoryColumn,
 	eventParamsActionColumn,
 	eventParamsValueColumn,
@@ -183,6 +184,20 @@ var eventParamsPageViewIDColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnDocs(
 		"Page View ID",
 		"The page view identifier, extracted from the pv_id query parameter.",
+	),
+)
+
+var eventParamsGoalIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsGoalID.ID,
+	ProtocolInterfaces.EventParamsGoalID.Field,
+	"idgoal",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsGoalID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Goal ID",
+		"The goal identifier, extracted from the idgoal query parameter.",
 	),
 )
 
