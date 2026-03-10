@@ -4,6 +4,8 @@ FROM gcr.io/distroless/base as distroless
 
 FROM golang:${GO_VERSION}-bookworm AS compile
 
+ARG VERSION=dev
+
 USER root
 
 RUN mkdir -p /src/app
@@ -23,6 +25,7 @@ ENV GOCACHE=/root/.cache/go-build
 RUN mkdir -p /root/.cache/go-build
 
 RUN --mount=type=cache,target="/root/.cache/go-build",rw CGO_ENABLED=0 go build \
+    -ldflags "-s -w -X github.com/d8a-tech/d8a/pkg/cmd.version=${VERSION}" \
     -o /home/go/app ./main.go
 
 
@@ -47,4 +50,3 @@ COPY --from=compile --chown=1000:1000 /storage /storage
 ENTRYPOINT ["/bin/app"]
 
 CMD ["server"]
-
