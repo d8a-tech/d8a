@@ -21,48 +21,49 @@ const (
 
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
-	EventCustomVariables            schema.Interface
-	EventCustomDimensions           schema.Interface
-	SessionCustomVariables          schema.Interface
-	SessionCustomDimensions         schema.Interface
-	EventLinkURL                    schema.Interface
-	EventDownloadURL                schema.Interface
-	EventSearchTerm                 schema.Interface
-	EventParamsCategory             schema.Interface
-	EventParamsAction               schema.Interface
-	EventParamsValue                schema.Interface
-	EventParamsContentInteraction   schema.Interface
-	EventParamsContentName          schema.Interface
-	EventParamsContentPiece         schema.Interface
-	EventParamsContentTarget        schema.Interface
-	EventEcommercePurchaseRevenue   schema.Interface
-	EventEcommerceShippingValue     schema.Interface
-	EventEcommerceSubtotalValue     schema.Interface
-	EventEcommerceTaxValue          schema.Interface
-	EventEcommerceDiscountValue     schema.Interface
-	EventEcommerceOrderID           schema.Interface
-	EventEcommerceItems             schema.Interface
-	EventParamsProductPrice         schema.Interface
-	EventParamsProductSKU           schema.Interface
-	EventParamsProductName          schema.Interface
-	EventParamsProductCategory1     schema.Interface
-	EventParamsProductCategory2     schema.Interface
-	EventParamsProductCategory3     schema.Interface
-	EventParamsProductCategory4     schema.Interface
-	EventParamsProductCategory5     schema.Interface
-	EventPreviousPageLocation       schema.Interface
-	EventNextPageLocation           schema.Interface
-	EventPreviousPageTitle          schema.Interface
-	EventNextPageTitle              schema.Interface
-	EventParamsPageViewID           schema.Interface
-	EventParamsGoalID               schema.Interface
-	EventParamsSearchKeyword        schema.Interface
-	EventParamsSearchCategory       schema.Interface
-	EventParamsSearchCount          schema.Interface
-	SessionTotalGoalConversions     schema.Interface
-	SessionTotalContentImpressions  schema.Interface
-	SessionTotalContentInteractions schema.Interface
-	SessionReturningUser            schema.Interface
+	EventCustomVariables             schema.Interface
+	EventCustomDimensions            schema.Interface
+	SessionCustomVariables           schema.Interface
+	SessionCustomDimensions          schema.Interface
+	EventLinkURL                     schema.Interface
+	EventDownloadURL                 schema.Interface
+	EventSearchTerm                  schema.Interface
+	EventParamsCategory              schema.Interface
+	EventParamsAction                schema.Interface
+	EventParamsValue                 schema.Interface
+	EventParamsContentInteraction    schema.Interface
+	EventParamsContentName           schema.Interface
+	EventParamsContentPiece          schema.Interface
+	EventParamsContentTarget         schema.Interface
+	EventEcommercePurchaseRevenue    schema.Interface
+	EventEcommerceShippingValue      schema.Interface
+	EventEcommerceSubtotalValue      schema.Interface
+	EventEcommerceTaxValue           schema.Interface
+	EventEcommerceDiscountValue      schema.Interface
+	EventEcommerceOrderID            schema.Interface
+	EventEcommerceItems              schema.Interface
+	EventEcommerceItemsTotalQuantity schema.Interface
+	EventParamsProductPrice          schema.Interface
+	EventParamsProductSKU            schema.Interface
+	EventParamsProductName           schema.Interface
+	EventParamsProductCategory1      schema.Interface
+	EventParamsProductCategory2      schema.Interface
+	EventParamsProductCategory3      schema.Interface
+	EventParamsProductCategory4      schema.Interface
+	EventParamsProductCategory5      schema.Interface
+	EventPreviousPageLocation        schema.Interface
+	EventNextPageLocation            schema.Interface
+	EventPreviousPageTitle           schema.Interface
+	EventNextPageTitle               schema.Interface
+	EventParamsPageViewID            schema.Interface
+	EventParamsGoalID                schema.Interface
+	EventParamsSearchKeyword         schema.Interface
+	EventParamsSearchCategory        schema.Interface
+	EventParamsSearchCount           schema.Interface
+	SessionTotalGoalConversions      schema.Interface
+	SessionTotalContentImpressions   schema.Interface
+	SessionTotalContentInteractions  schema.Interface
+	SessionReturningUser             schema.Interface
 }{
 	EventCustomVariables: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/custom_variables",
@@ -161,6 +162,10 @@ var ProtocolInterfaces = struct {
 				arrow.Field{Name: ecommerceQuantity, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
 			)),
 		},
+	},
+	EventEcommerceItemsTotalQuantity: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_items_total_quantity",
+		Field: &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventParamsProductPrice: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_product_price",

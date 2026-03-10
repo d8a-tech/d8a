@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
+	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -564,6 +565,58 @@ func TestMatomoProductColumns(t *testing.T) {
 				columntests.EnsureQueryParam(0, "ec_items", `[]`),
 			},
 		},
+		{
+			name:      "EventEcommerceItemsTotalQuantity_MultiItem",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(
+					0,
+					"ec_items",
+					`[["SKU-1","Item 1","Category 1",12.34,2],["SKU-2","Item 2","Category 2",56.78,3]]`,
+				),
+			},
+			fieldName:   ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name,
+			expected:    int64(5),
+			description: "Sums quantity values across all ecommerce_items rows",
+		},
+		{
+			name:      "EventEcommerceItemsTotalQuantity_DefaultQuantityContributes",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(
+					0,
+					"ec_items",
+					`[["SKU-1","Item 1","Category 1",12.34],["SKU-2","Item 2","Category 2",56.78,2]]`,
+				),
+			},
+			fieldName:   ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name,
+			expected:    int64(3),
+			description: "Default quantity of 1 contributes when tuple quantity is omitted",
+		},
+		{
+			name:        "EventEcommerceItemsTotalQuantity_AbsentEcItems",
+			buildHits:   buildPageViewHit,
+			fieldName:   ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name,
+			expected:    int64(0),
+			description: "Returns 0 when ec_items parameter is absent",
+		},
+		{
+			name:      "EventEcommerceColumns_CoexistOnOrderHit",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "ec_id", "ORD-COEXIST-1"),
+				columntests.EnsureQueryParam(
+					0,
+					"ec_items",
+					`[["SKU-1","Item 1","Category 1",12.34,2],["SKU-2","Item 2","Category 2",56.78,1]]`,
+				),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name,
+			assertValue: func(t *testing.T, actual any) {
+				require.Equal(t, int64(3), actual)
+			},
+			description: "Order ID, ecommerce_items and total quantity are emitted together on same hit",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -590,6 +643,43 @@ func TestMatomoProductColumns(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	hit := columntests.TestHitOne()
+	hit.EventName = pageViewEventType
+
+	columntests.ColumnTestCase(
+		t,
+		columntests.TestHits{hit},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			require.NoError(t, closeErr)
+			require.NotEmpty(t, whd.WriteCalls)
+			require.NotEmpty(t, whd.WriteCalls[0].Records)
+
+			record := whd.WriteCalls[0].Records[0]
+			assert.Equal(t, "ORD-12345", record[ProtocolInterfaces.EventEcommerceOrderID.Field.Name])
+
+			items, ok := record[ProtocolInterfaces.EventEcommerceItems.Field.Name].([]map[string]any)
+			require.True(t, ok)
+			require.Len(t, items, 2)
+			assert.Equal(t, "SKU-1", items[0][ecommerceSKU])
+			assert.Equal(t, float64(2), items[0][ecommerceQuantity])
+			assert.Equal(t, "SKU-2", items[1][ecommerceSKU])
+			assert.Equal(t, float64(1), items[1][ecommerceQuantity])
+
+			assert.Equal(t, int64(3), record[ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name])
+		},
+		proto,
+		columntests.EnsureQueryParam(0, "v", "2"),
+		columntests.EnsureQueryParam(0, "ec_id", "ORD-12345"),
+		columntests.EnsureQueryParam(
+			0,
+			"ec_items",
+			`[["SKU-1","Item 1","Category 1",12.34,2],["SKU-2","Item 2","Category 2",56.78,1]]`,
+		),
+	)
 }
 
 func TestMatomoProductColumns_EcommerceItemsMalformed(t *testing.T) {
@@ -919,6 +1009,44 @@ func TestParseEcommerceItemCategory(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.expected, result, tc.description)
+		})
+	}
+}
+
+func TestEventEcommerceItemsTotalQuantityColumn_SkipsMalformedRows(t *testing.T) {
+	testCases := []struct {
+		name     string
+		items    any
+		expected int64
+	}{
+		{
+			name: "SkipsMalformedRows",
+			items: []any{
+				"not-a-map",
+				map[string]any{ecommerceQuantity: "2"},
+				map[string]any{ecommerceQuantity: 1.0},
+				123,
+				map[string]any{ecommerceQuantity: 4.0},
+			},
+			expected: int64(5),
+		},
+		{
+			name:     "NonSliceItemsReturnsZero",
+			items:    "unexpected",
+			expected: int64(0),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			event := &schema.Event{Values: map[string]any{ProtocolInterfaces.EventEcommerceItems.Field.Name: tc.items}}
+
+			require.NotPanics(t, func() {
+				err := eventEcommerceItemsTotalQuantityColumn.Write(event)
+				require.NoError(t, err)
+			})
+
+			assert.Equal(t, tc.expected, event.Values[ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name])
 		})
 	}
 }

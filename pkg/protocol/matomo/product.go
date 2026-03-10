@@ -99,6 +99,42 @@ var eventEcommerceItemsColumn = columns.NewSimpleEventColumn(
 	),
 )
 
+var eventEcommerceItemsTotalQuantityColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.ID,
+	ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		items := event.Values[ProtocolInterfaces.EventEcommerceItems.Field.Name]
+		if items == nil {
+			return int64(0), nil
+		}
+
+		totalQuantity := int64(0)
+		for _, itemMap := range asEcommerceItemRows(items) {
+
+			quantityValue, ok := itemMap[ecommerceQuantity]
+			if !ok {
+				continue
+			}
+
+			quantity, ok := asInt64Quantity(quantityValue)
+			if !ok {
+				continue
+			}
+
+			totalQuantity += quantity
+		}
+
+		return totalQuantity, nil
+	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Items Total Quantity",
+		"The total quantity of ecommerce items, calculated by summing quantity values from ecommerce_items.",
+	),
+	columns.WithEventColumnDependsOn(
+		schema.DependsOnEntry{Interface: ProtocolInterfaces.EventEcommerceItems.ID},
+	),
+)
+
 var eventParamsProductPriceColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsProductPrice.ID,
 	ProtocolInterfaces.EventParamsProductPrice.Field,
@@ -395,4 +431,47 @@ func parseEcommerceItemCategory(raw any) [5]any {
 	}
 
 	return result
+}
+
+func asInt64Quantity(raw any) (int64, bool) {
+	switch value := raw.(type) {
+	case float64:
+		return int64(value), true
+	case float32:
+		return int64(value), true
+	case int:
+		return int64(value), true
+	case int8:
+		return int64(value), true
+	case int16:
+		return int64(value), true
+	case int32:
+		return int64(value), true
+	case int64:
+		return value, true
+	default:
+		return 0, false
+	}
+}
+
+func asEcommerceItemRows(raw any) []map[string]any {
+	if typedRows, ok := raw.([]map[string]any); ok {
+		return typedRows
+	}
+
+	rowsAsAny, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+
+	rows := make([]map[string]any, 0, len(rowsAsAny))
+	for _, row := range rowsAsAny {
+		rowMap, ok := row.(map[string]any)
+		if !ok {
+			continue
+		}
+		rows = append(rows, rowMap)
+	}
+
+	return rows
 }
