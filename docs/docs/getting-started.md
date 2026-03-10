@@ -62,9 +62,9 @@ services:
     volumes:
       - clickhouse-data:/var/lib/clickhouse
     environment:
-      - WAREHOUSE_CLICKHOUSE_DB=d8a
-      - WAREHOUSE_CLICKHOUSE_USER=default
-      - WAREHOUSE_CLICKHOUSE_PASSWORD=verySecuredD8aDatabase
+      - CLICKHOUSE_DB=d8a
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=verySecuredD8aDatabase
     networks:
       - d8a-network
 
