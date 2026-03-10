@@ -46,3 +46,6 @@ spool/
 tmp/
 config.dev2.yaml
 .memsearch
+
+# goreleaser
+dist/
