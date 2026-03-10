@@ -58,6 +58,7 @@ var eventColumns = []schema.EventColumn{
 	eventParamsSearchCategoryColumn,
 	eventParamsSearchCountColumn,
 	eventCustomVariablesColumn,
+	eventCustomDimensionsColumn,
 	eventEcommercePurchaseRevenueColumn,
 	eventEcommerceShippingValueColumn,
 	eventEcommerceSubtotalValueColumn,
@@ -113,6 +114,7 @@ var sessionColumns = []schema.SessionColumn{
 	sessionTotalFileDownloadsColumn,
 	sessionUniqueFileDownloadsColumn,
 	sessionCustomVariablesColumn,
+	sessionCustomDimensionsColumn,
 }
 
 var sseColumns = []schema.SessionScopedEventColumn{
