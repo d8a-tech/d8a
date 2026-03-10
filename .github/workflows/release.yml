@@ -17,18 +17,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create Release
-        uses: actions/github-script@v7
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          script: |
-            const { data: release } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: context.ref.replace('refs/tags/', ''),
-              name: context.ref.replace('refs/tags/', ''),
-              generate_release_notes: true,
-              draft: false,
-              prerelease: context.ref.includes('alpha') || context.ref.includes('beta') || context.ref.includes('rc')
-            });
-            console.log(`Created release ${release.html_url}`);
+          go-version-file: go.mod
 
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
