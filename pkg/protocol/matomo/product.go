@@ -437,16 +437,6 @@ func asInt64Quantity(raw any) (int64, bool) {
 	switch value := raw.(type) {
 	case float64:
 		return int64(value), true
-	case float32:
-		return int64(value), true
-	case int:
-		return int64(value), true
-	case int8:
-		return int64(value), true
-	case int16:
-		return int64(value), true
-	case int32:
-		return int64(value), true
 	case int64:
 		return value, true
 	default:

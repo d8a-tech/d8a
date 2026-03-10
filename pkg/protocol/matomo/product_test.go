@@ -344,26 +344,6 @@ func TestMatomoProductColumns(t *testing.T) {
 					ecommerceQuantity:  2.0,
 				},
 			},
-			assertValue: func(t *testing.T, actual any) {
-				expected := []any{
-					map[string]any{
-						ecommerceSKU:       "SKU-1",
-						ecommerceName:      "Item 1",
-						ecommerceCategory1: "Category 1",
-						ecommercePrice:     12.34,
-						ecommerceQuantity:  2.0,
-					},
-				}
-
-				rows, ok := actual.([]map[string]any)
-				require.True(t, ok)
-				actualRows := make([]any, 0, len(rows))
-				for _, row := range rows {
-					actualRows = append(actualRows, row)
-				}
-
-				assert.Equal(t, expected, actualRows)
-			},
 			description: "One ec_items tuple maps to one nested ecommerce item row",
 		},
 		{
@@ -393,33 +373,6 @@ func TestMatomoProductColumns(t *testing.T) {
 					ecommerceQuantity:  3.0,
 				},
 			},
-			assertValue: func(t *testing.T, actual any) {
-				expected := []any{
-					map[string]any{
-						ecommerceSKU:       "SKU-1",
-						ecommerceName:      "Item 1",
-						ecommerceCategory1: "Category 1",
-						ecommercePrice:     12.34,
-						ecommerceQuantity:  2.0,
-					},
-					map[string]any{
-						ecommerceSKU:       "SKU-2",
-						ecommerceName:      "Item 2",
-						ecommerceCategory1: "Category 2",
-						ecommercePrice:     56.78,
-						ecommerceQuantity:  3.0,
-					},
-				}
-
-				rows, ok := actual.([]map[string]any)
-				require.True(t, ok)
-				actualRows := make([]any, 0, len(rows))
-				for _, row := range rows {
-					actualRows = append(actualRows, row)
-				}
-
-				assert.Equal(t, expected, actualRows)
-			},
 			description: "Multiple ec_items tuples map to multiple nested rows",
 		},
 		{
@@ -437,26 +390,6 @@ func TestMatomoProductColumns(t *testing.T) {
 					ecommercePrice:     12.34,
 					ecommerceQuantity:  2.0,
 				},
-			},
-			assertValue: func(t *testing.T, actual any) {
-				expected := []any{
-					map[string]any{
-						ecommerceSKU:       "SKU-1",
-						ecommerceName:      "Item 1",
-						ecommerceCategory1: "Category 1",
-						ecommercePrice:     12.34,
-						ecommerceQuantity:  2.0,
-					},
-				}
-
-				rows, ok := actual.([]map[string]any)
-				require.True(t, ok)
-				actualRows := make([]any, 0, len(rows))
-				for _, row := range rows {
-					actualRows = append(actualRows, row)
-				}
-
-				assert.Equal(t, expected, actualRows)
 			},
 			description: "String category maps only to category_1 in nested row",
 		},
@@ -484,30 +417,6 @@ func TestMatomoProductColumns(t *testing.T) {
 					ecommerceQuantity:  2.0,
 				},
 			},
-			assertValue: func(t *testing.T, actual any) {
-				expected := []any{
-					map[string]any{
-						ecommerceSKU:       "SKU-1",
-						ecommerceName:      "Item 1",
-						ecommerceCategory1: "Cat1",
-						ecommerceCategory2: "Cat2",
-						ecommerceCategory3: "Cat3",
-						ecommerceCategory4: "Cat4",
-						ecommerceCategory5: "Cat5",
-						ecommercePrice:     12.34,
-						ecommerceQuantity:  2.0,
-					},
-				}
-
-				rows, ok := actual.([]map[string]any)
-				require.True(t, ok)
-				actualRows := make([]any, 0, len(rows))
-				for _, row := range rows {
-					actualRows = append(actualRows, row)
-				}
-
-				assert.Equal(t, expected, actualRows)
-			},
 			description: "Array category maps to category_1 through category_5",
 		},
 		{
@@ -526,26 +435,6 @@ func TestMatomoProductColumns(t *testing.T) {
 					ecommerceQuantity:  1.0,
 				},
 			},
-			assertValue: func(t *testing.T, actual any) {
-				expected := []any{
-					map[string]any{
-						ecommerceSKU:       "SKU-1",
-						ecommerceName:      "",
-						ecommerceCategory1: "",
-						ecommercePrice:     0.0,
-						ecommerceQuantity:  1.0,
-					},
-				}
-
-				rows, ok := actual.([]map[string]any)
-				require.True(t, ok)
-				actualRows := make([]any, 0, len(rows))
-				for _, row := range rows {
-					actualRows = append(actualRows, row)
-				}
-
-				assert.Equal(t, expected, actualRows)
-			},
 			description: "Missing optional tuple values default to empty name/category and 0/1 numbers",
 		},
 		{
@@ -559,7 +448,7 @@ func TestMatomoProductColumns(t *testing.T) {
 			name:        "EventEcommerceItems_EmptyArray",
 			buildHits:   buildPageViewHit,
 			fieldName:   ProtocolInterfaces.EventEcommerceItems.Field.Name,
-			expected:    []map[string]any{},
+			expected:    []any{},
 			description: "Returns empty non-nil array when ec_items is explicit empty JSON array",
 			cfg: []columntests.CaseConfigFunc{
 				columntests.EnsureQueryParam(0, "ec_items", `[]`),
@@ -636,13 +525,28 @@ func TestMatomoProductColumns(t *testing.T) {
 						return
 					}
 
-					assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
+					actualValue := normalizeEcommerceItemsTestValue(record[tc.fieldName])
+					assert.Equal(t, tc.expected, actualValue, tc.description)
 				},
 				proto,
 				append(tc.cfg, columntests.EnsureQueryParam(0, "v", "2"))...,
 			)
 		})
 	}
+}
+
+func normalizeEcommerceItemsTestValue(actual any) any {
+	rows, ok := actual.([]map[string]any)
+	if !ok {
+		return actual
+	}
+
+	actualRows := make([]any, 0, len(rows))
+	for _, row := range rows {
+		actualRows = append(actualRows, row)
+	}
+
+	return actualRows
 }
 
 func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {

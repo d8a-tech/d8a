@@ -11,6 +11,59 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+var eventCustomDimensionsColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventCustomDimensions.ID,
+	ProtocolInterfaces.EventCustomDimensions.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		parsed := parseCustomDimensions(event.BoundHit.MustParsedRequest().QueryParams)
+		return customDimensionsToAny(parsed), nil
+	},
+	columns.WithEventColumnDocs(
+		"Custom Dimensions",
+		"Matomo custom dimensions from query parameters like dimension1, dimension2, and so on.",
+	),
+)
+
+var sessionCustomDimensionsColumn = columns.NewSimpleSessionColumn(
+	ProtocolInterfaces.SessionCustomDimensions.ID,
+	ProtocolInterfaces.SessionCustomDimensions.Field,
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
+		mergedBySlot := make(map[int64]string)
+
+		for _, event := range session.Events {
+			for _, dimension := range parseCustomDimensions(event.BoundHit.MustParsedRequest().QueryParams) {
+				mergedBySlot[dimension.slot] = dimension.value
+			}
+		}
+
+		if len(mergedBySlot) == 0 {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		slots := make([]int64, 0, len(mergedBySlot))
+		for slot := range mergedBySlot {
+			slots = append(slots, slot)
+		}
+		sort.Slice(slots, func(i, j int) bool {
+			return slots[i] < slots[j]
+		})
+
+		dimensions := make([]customDimension, 0, len(slots))
+		for _, slot := range slots {
+			dimensions = append(dimensions, customDimension{
+				slot:  slot,
+				value: mergedBySlot[slot],
+			})
+		}
+
+		return customDimensionsToAny(dimensions), nil
+	},
+	columns.WithSessionColumnDocs(
+		"Session Custom Dimensions",
+		"Merged Matomo custom dimensions from query parameters like dimension1, dimension2, and so on across session events.",
+	),
+)
+
 func repeatedSlotValueField(name string) *arrow.Field {
 	return &arrow.Field{
 		Name: name,
@@ -86,56 +139,3 @@ func customDimensionsToAny(dimensions []customDimension) []any {
 
 	return out
 }
-
-var eventCustomDimensionsColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventCustomDimensions.ID,
-	ProtocolInterfaces.EventCustomDimensions.Field,
-	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-		parsed := parseCustomDimensions(event.BoundHit.MustParsedRequest().QueryParams)
-		return customDimensionsToAny(parsed), nil
-	},
-	columns.WithEventColumnDocs(
-		"Custom Dimensions",
-		"Matomo custom dimensions from query parameters like dimension1, dimension2, and so on.",
-	),
-)
-
-var sessionCustomDimensionsColumn = columns.NewSimpleSessionColumn(
-	ProtocolInterfaces.SessionCustomDimensions.ID,
-	ProtocolInterfaces.SessionCustomDimensions.Field,
-	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-		mergedBySlot := make(map[int64]string)
-
-		for _, event := range session.Events {
-			for _, dimension := range parseCustomDimensions(event.BoundHit.MustParsedRequest().QueryParams) {
-				mergedBySlot[dimension.slot] = dimension.value
-			}
-		}
-
-		if len(mergedBySlot) == 0 {
-			return nil, nil //nolint:nilnil // optional field
-		}
-
-		slots := make([]int64, 0, len(mergedBySlot))
-		for slot := range mergedBySlot {
-			slots = append(slots, slot)
-		}
-		sort.Slice(slots, func(i, j int) bool {
-			return slots[i] < slots[j]
-		})
-
-		dimensions := make([]customDimension, 0, len(slots))
-		for _, slot := range slots {
-			dimensions = append(dimensions, customDimension{
-				slot:  slot,
-				value: mergedBySlot[slot],
-			})
-		}
-
-		return customDimensionsToAny(dimensions), nil
-	},
-	columns.WithSessionColumnDocs(
-		"Session Custom Dimensions",
-		"Merged Matomo custom dimensions from query parameters like dimension1, dimension2, and so on across session events.",
-	),
-)
