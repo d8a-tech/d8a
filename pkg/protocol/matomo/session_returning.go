@@ -23,6 +23,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Returning User",
-		"Returning user indicator derived from Matomo _idn on the first event in the session. Set to 1 when _idn=0, otherwise 0.",
+		"Returning user indicator derived from Matomo _idn on the first event in the session. "+
+			"Set to 1 when _idn=0, otherwise 0.",
 	),
 )

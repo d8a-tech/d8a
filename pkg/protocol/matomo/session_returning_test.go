@@ -56,7 +56,8 @@ func TestMatomoSessionReturningUserColumn(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfgs := append(tc.cfg, columntests.EnsureQueryParam(0, "v", "2"))
+			cfgs := append([]columntests.CaseConfigFunc{}, tc.cfg...)
+			cfgs = append(cfgs, columntests.EnsureQueryParam(0, "v", "2"))
 			if len(tc.hits) > 1 {
 				cfgs = append(cfgs, columntests.EnsureQueryParam(1, "v", "2"))
 			}
