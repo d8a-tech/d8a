@@ -47,6 +47,7 @@ var ProtocolInterfaces = struct {
 	SessionTotalGoalConversions     schema.Interface
 	SessionTotalContentImpressions  schema.Interface
 	SessionTotalContentInteractions schema.Interface
+	SessionReturningUser            schema.Interface
 }{
 	EventCustomVariables: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/custom_variables",
@@ -203,5 +204,9 @@ var ProtocolInterfaces = struct {
 	SessionTotalContentInteractions: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/session/total_content_interactions",
 		Field: &arrow.Field{Name: "session_total_content_interactions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionReturningUser: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/session/returning_user",
+		Field: &arrow.Field{Name: "session_returning_user", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 }
