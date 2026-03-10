@@ -81,7 +81,7 @@ func startTelemetry(itemName, telemetryURL string) {
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	app := &cli.Command{
 		Name:  "d8a",
-		Usage: "D8a.tech - GA4-compatible analytics platform",
+		Usage: "d8a.tech - warehouse-native analytics",
 		Action: func(context.Context, *cli.Command) error {
 			return nil
 		},
