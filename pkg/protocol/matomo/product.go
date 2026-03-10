@@ -2,6 +2,7 @@ package matomo
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -59,6 +60,20 @@ var eventEcommerceDiscountValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnDocs(
 		"Ecommerce Discount Value",
 		"The discount offered for the ecommerce order, extracted from the ec_dt query parameter.",
+	),
+)
+
+var eventEcommerceOrderIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventEcommerceOrderID.ID,
+	ProtocolInterfaces.EventEcommerceOrderID.Field,
+	"ec_id",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventEcommerceOrderID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Ecommerce Order ID",
+		"The order ID for the ecommerce order, extracted from the ec_id query parameter.",
 	),
 )
 
@@ -201,4 +216,151 @@ func parseProductCategories(raw string) []string {
 	}
 
 	return []string{raw}
+}
+
+func parseEcommerceItems(raw string) ([]map[string]any, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	var items []any
+	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+		return nil, fmt.Errorf("parsing ec_items JSON: %w", err)
+	}
+
+	var result []map[string]any
+	for _, item := range items {
+		row := itemToRow(item)
+		if row != nil {
+			result = append(result, row)
+		}
+	}
+
+	return result, nil
+}
+
+func itemToRow(item any) map[string]any {
+	itemArray, ok := item.([]any)
+	if !ok || len(itemArray) == 0 {
+		return nil
+	}
+
+	sku := coerceSKU(itemArray[0])
+	if sku == "" {
+		return nil
+	}
+
+	row := map[string]any{
+		ecommerceSKU: sku,
+	}
+
+	// Slot 1: name
+	row[ecommerceName] = getStringOrDefault(getItemSlot(itemArray, 1), "")
+
+	// Slot 2: category
+	addCategoriesToRow(row, getItemSlot(itemArray, 2))
+
+	// Slot 3: price
+	row[ecommercePrice] = getFloat64OrDefault(getItemSlot(itemArray, 3), 0.0)
+
+	// Slot 4: quantity
+	row[ecommerceQuantity] = getFloat64OrDefault(getItemSlot(itemArray, 4), 1.0)
+
+	return row
+}
+
+func coerceSKU(val any) string {
+	if strVal, ok := val.(string); ok {
+		return strVal
+	}
+
+	switch v := val.(type) {
+	case float64:
+		return fmt.Sprintf("%g", v)
+	case bool:
+		return fmt.Sprintf("%v", v)
+	}
+
+	return ""
+}
+
+func getItemSlot(itemArray []any, index int) any {
+	if index < len(itemArray) {
+		return itemArray[index]
+	}
+	return nil
+}
+
+func getStringOrDefault(val any, def string) string {
+	if val == nil {
+		return def
+	}
+
+	if str, ok := val.(string); ok {
+		return str
+	}
+
+	return def
+}
+
+func getFloat64OrDefault(val any, def float64) float64 {
+	if val == nil {
+		return def
+	}
+
+	if num, ok := val.(float64); ok {
+		return num
+	}
+
+	return def
+}
+
+func addCategoriesToRow(row map[string]any, val any) {
+	if val == nil {
+		return
+	}
+
+	categories := parseEcommerceItemCategory(val)
+	if categories[0] != nil {
+		row[ecommerceCategory1] = categories[0]
+	}
+	if categories[1] != nil {
+		row[ecommerceCategory2] = categories[1]
+	}
+	if categories[2] != nil {
+		row[ecommerceCategory3] = categories[2]
+	}
+	if categories[3] != nil {
+		row[ecommerceCategory4] = categories[3]
+	}
+	if categories[4] != nil {
+		row[ecommerceCategory5] = categories[4]
+	}
+}
+
+func parseEcommerceItemCategory(raw any) [5]any {
+	var result [5]any
+
+	// Try parsing as string first
+	if strVal, ok := raw.(string); ok {
+		if strVal != "" {
+			result[0] = strVal
+		}
+		return result
+	}
+
+	// Try parsing as array
+	if arr, ok := raw.([]any); ok {
+		for i, v := range arr {
+			if i >= 5 {
+				break
+			}
+			if str, ok := v.(string); ok && str != "" {
+				result[i] = str //nolint:gosec // array bounds are checked above
+			}
+		}
+		return result
+	}
+
+	return result
 }

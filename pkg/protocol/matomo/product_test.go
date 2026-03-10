@@ -311,6 +311,21 @@ func TestMatomoProductColumns(t *testing.T) {
 			expected:    nil,
 			description: "Returns nil when _pkc parameter is absent",
 		},
+		{
+			name:        "EventEcommerceOrderID_Valid",
+			buildHits:   buildPageViewHit,
+			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "ec_id", "ORD-12345")},
+			fieldName:   "ecommerce_order_id",
+			expected:    "ORD-12345",
+			description: "Valid ecommerce order ID via ec_id query parameter",
+		},
+		{
+			name:        "EventEcommerceOrderID_Absent",
+			buildHits:   buildPageViewHit,
+			fieldName:   "ecommerce_order_id",
+			expected:    nil,
+			description: "Returns nil when ec_id parameter is absent",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -330,6 +345,286 @@ func TestMatomoProductColumns(t *testing.T) {
 				proto,
 				append(tc.cfg, columntests.EnsureQueryParam(0, "v", "2"))...,
 			)
+		})
+	}
+}
+
+func TestParseEcommerceItems(t *testing.T) {
+	type testCase struct {
+		name        string
+		raw         string
+		expected    []map[string]any
+		expectError bool
+		description string
+	}
+
+	testCases := []testCase{
+		{
+			name: "ValidSingleItem",
+			raw:  `[["SKU123", "Product Name", "Category", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Parses single item tuple correctly",
+		},
+		{
+			name: "ValidMultipleItems",
+			raw:  `[["SKU1", "Product 1", "Cat1", 10.0, 1], ["SKU2", "Product 2", "Cat2", 20.0, 3]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU1",
+					ecommerceName:      "Product 1",
+					ecommerceCategory1: "Cat1",
+					ecommercePrice:     10.0,
+					ecommerceQuantity:  1.0,
+				},
+				{
+					ecommerceSKU:       "SKU2",
+					ecommerceName:      "Product 2",
+					ecommerceCategory1: "Cat2",
+					ecommercePrice:     20.0,
+					ecommerceQuantity:  3.0,
+				},
+			},
+			expectError: false,
+			description: "Parses multiple items correctly",
+		},
+		{
+			name: "DefaultMissingName",
+			raw:  `[["SKU123", null, "Category", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Defaults missing name to empty string",
+		},
+		{
+			name: "DefaultMissingPrice",
+			raw:  `[["SKU123", "Product Name", "Category", null, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     0.0,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Defaults missing price to 0",
+		},
+		{
+			name: "DefaultMissingQuantity",
+			raw:  `[["SKU123", "Product Name", "Category", 19.99, null]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  1.0,
+				},
+			},
+			expectError: false,
+			description: "Defaults missing quantity to 1",
+		},
+		{
+			name: "CategoryStringOnly",
+			raw:  `[["SKU123", "Product Name", "SingleCategory", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "SingleCategory",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "String category maps to category_1 only",
+		},
+		{
+			name: "CategoryArrayMultipleSlots",
+			raw:  `[["SKU123", "Product Name", ["Cat1", "Cat2", "Cat3", "Cat4", "Cat5"], 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "Cat1",
+					ecommerceCategory2: "Cat2",
+					ecommerceCategory3: "Cat3",
+					ecommerceCategory4: "Cat4",
+					ecommerceCategory5: "Cat5",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Array category maps to all category slots",
+		},
+		{
+			name: "CategoryArrayWithOverflow",
+			raw:  `[["SKU123", "Product Name", ["Cat1", "Cat2", "Cat3", "Cat4", "Cat5", "Extra"], 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "Cat1",
+					ecommerceCategory2: "Cat2",
+					ecommerceCategory3: "Cat3",
+					ecommerceCategory4: "Cat4",
+					ecommerceCategory5: "Cat5",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Array category ignores values after slot 5",
+		},
+		{
+			name:        "InvalidJSON",
+			raw:         `invalid json`,
+			expected:    nil,
+			expectError: true,
+			description: "Invalid JSON returns error",
+		},
+		{
+			name:        "EmptyString",
+			raw:         ``,
+			expected:    nil,
+			expectError: false,
+			description: "Empty input returns nil",
+		},
+		{
+			name: "SkipsNonArrayItems",
+			raw:  `["not array", ["SKU123", "Product", "Category", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Skips non-array items",
+		},
+		{
+			name: "SkipsMissingSkuSlot",
+			raw:  `[["SKU123", "Product", "Category", 19.99, 2], [null, "NoSKU", "Category", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Skips items with missing/empty SKU",
+		},
+		{
+			name: "NumericSkuCoercion",
+			raw:  `[[123.45, "Product", "Category", 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:       "123.45",
+					ecommerceName:      "Product",
+					ecommerceCategory1: "Category",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			expectError: false,
+			description: "Coerces numeric SKU to string",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			result, err := parseEcommerceItems(tc.raw)
+
+			// then
+			if tc.expectError {
+				assert.Error(t, err, tc.description)
+			} else {
+				assert.NoError(t, err, tc.description)
+				assert.Equal(t, tc.expected, result, tc.description)
+			}
+		})
+	}
+}
+
+func TestParseEcommerceItemCategory(t *testing.T) {
+	type testCase struct {
+		name        string
+		raw         any
+		expected    [5]any
+		description string
+	}
+
+	testCases := []testCase{
+		{
+			name:        "StringCategory",
+			raw:         "SingleCategory",
+			expected:    [5]any{"SingleCategory", nil, nil, nil, nil},
+			description: "String category populates only category_1",
+		},
+		{
+			name:        "ArrayCategory",
+			raw:         []any{"Cat1", "Cat2", "Cat3", "Cat4", "Cat5"},
+			expected:    [5]any{"Cat1", "Cat2", "Cat3", "Cat4", "Cat5"},
+			description: "Array category populates all five slots",
+		},
+		{
+			name:        "ArrayWithOverflow",
+			raw:         []any{"Cat1", "Cat2", "Cat3", "Cat4", "Cat5", "Extra", "More"},
+			expected:    [5]any{"Cat1", "Cat2", "Cat3", "Cat4", "Cat5"},
+			description: "Array category ignores values after slot 5",
+		},
+		{
+			name:        "EmptyString",
+			raw:         "",
+			expected:    [5]any{nil, nil, nil, nil, nil},
+			description: "Empty string leaves all slots nil",
+		},
+		{
+			name:        "ArrayWithNulls",
+			raw:         []any{"Cat1", nil, "Cat3"},
+			expected:    [5]any{"Cat1", nil, "Cat3", nil, nil},
+			description: "Array with null/empty values passes through",
+		},
+		{
+			name:        "EmptyArray",
+			raw:         []any{},
+			expected:    [5]any{nil, nil, nil, nil, nil},
+			description: "Empty array leaves all slots nil",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			result := parseEcommerceItemCategory(tc.raw)
+
+			// then
+			assert.Equal(t, tc.expected, result, tc.description)
 		})
 	}
 }

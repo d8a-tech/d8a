@@ -6,6 +6,19 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
+// Ecommerce item child field names for centralized reuse in parser and tests.
+const (
+	ecommerceSKU       = "sku"
+	ecommerceName      = "name"
+	ecommerceCategory1 = "category_1"
+	ecommerceCategory2 = "category_2"
+	ecommerceCategory3 = "category_3"
+	ecommerceCategory4 = "category_4"
+	ecommerceCategory5 = "category_5"
+	ecommercePrice     = "price"
+	ecommerceQuantity  = "quantity"
+)
+
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
 	EventCustomVariables            schema.Interface
@@ -27,6 +40,7 @@ var ProtocolInterfaces = struct {
 	EventEcommerceSubtotalValue     schema.Interface
 	EventEcommerceTaxValue          schema.Interface
 	EventEcommerceDiscountValue     schema.Interface
+	EventEcommerceOrderID           schema.Interface
 	EventParamsProductPrice         schema.Interface
 	EventParamsProductSKU           schema.Interface
 	EventParamsProductName          schema.Interface
@@ -124,6 +138,10 @@ var ProtocolInterfaces = struct {
 	EventEcommerceDiscountValue: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/ecommerce_discount_value",
 		Field: &arrow.Field{Name: "ecommerce_discount_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventEcommerceOrderID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/ecommerce_order_id",
+		Field: &arrow.Field{Name: "ecommerce_order_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamsProductPrice: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
