@@ -90,6 +90,7 @@ func buildWorkerRuntime(
 			sessionWriter,
 			sessions.WithSpoolDir(filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")),
 			sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
+			sessions.WithLvl2FlushInterval(cmd.Duration(storageSpoolLvl2FlushIntervalFlag.Name)),
 		)
 		if err != nil {
 			cleanup()

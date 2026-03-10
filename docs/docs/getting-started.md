@@ -47,6 +47,56 @@ EOF
 This configuration sets up d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session timeout. If you'd like to use a different warehouse, please check the [warehouses](/articles/warehouses) article.
 :::
 
+<details>
+<summary>Optional: Configure the files warehouse (CSV on local filesystem)</summary>
+
+Use this option when you want d8a to write CSV files directly to a host directory (no database required).
+
+1. Update `config.yaml`:
+
+```yaml
+storage:
+  bolt_directory: /tmp/storage
+  queue_directory: /tmp/storage/d8a-queue
+  spool_enabled: true
+  spool_directory: /tmp/spool
+
+sessions:
+  timeout: 5s
+
+warehouse:
+  driver: files
+  table: events
+  files:
+    format: csv
+    storage: filesystem
+    filesystem:
+      path: /out
+    max_segment_age: 2s
+    seal_check_interval: 1s
+
+protocol: ga4
+```
+
+2. For the `d8a` service in `docker-compose.yml`, mount only the destination directory to the host:
+
+```yaml
+services:
+  d8a:
+    image: ghcr.io/d8a-tech/d8a:latest
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "8080:8080"
+    command: server --config /config.yaml
+    volumes:
+      - ./config.yaml:/config.yaml:ro
+      - ./out:/out
+```
+
+This keeps queue/spool paths internal to the container while persisting exported CSV files to `./out` on the host. For full driver details, see the [files warehouse driver guide](/articles/warehouses/files).
+
+</details>
+
 ## Step 2: Create a docker compose file
 
 ```bash

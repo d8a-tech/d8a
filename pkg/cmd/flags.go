@@ -449,6 +449,13 @@ var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   1000,
 }
 
+var storageSpoolLvl2FlushIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "storage-spool-lvl2-flush-interval",
+	Usage:   "Flush interval for the spool's level-2 buffer to the child warehouse writer.",
+	Sources: defaultSourceChain("STORAGE_SPOOL_LVL2_FLUSH_INTERVAL", "storage.spool_lvl2_flush_interval"),
+	Value:   1 * time.Minute,
+}
+
 var protocolFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "protocol",
 	Usage:   "Protocol to use for tracking requests. Valid values are 'ga4', 'd8a', 'matomo'.",
@@ -564,6 +571,7 @@ func getServerFlags() []cli.Flag {
 			storageSpoolEnabledFlag,
 			storageSpoolDirectoryFlag,
 			storageSpoolWriteChanBufferFlag,
+			storageSpoolLvl2FlushIntervalFlag,
 			telemetryURLFlag,
 			filtersFieldsFlag,
 			filtersConditionsFlag,
