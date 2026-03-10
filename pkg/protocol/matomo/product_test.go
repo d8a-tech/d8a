@@ -24,6 +24,7 @@ func TestMatomoProductColumns(t *testing.T) {
 		cfg         []columntests.CaseConfigFunc
 		fieldName   string
 		expected    any
+		assertValue func(t *testing.T, actual any)
 		description string
 	}
 
@@ -326,6 +327,243 @@ func TestMatomoProductColumns(t *testing.T) {
 			expected:    nil,
 			description: "Returns nil when ec_id parameter is absent",
 		},
+		{
+			name:      "EventEcommerceItems_OneItem",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "ec_items", `[["SKU-1","Item 1","Category 1",12.34,2]]`),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected: []any{
+				map[string]any{
+					ecommerceSKU:       "SKU-1",
+					ecommerceName:      "Item 1",
+					ecommerceCategory1: "Category 1",
+					ecommercePrice:     12.34,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			assertValue: func(t *testing.T, actual any) {
+				expected := []any{
+					map[string]any{
+						ecommerceSKU:       "SKU-1",
+						ecommerceName:      "Item 1",
+						ecommerceCategory1: "Category 1",
+						ecommercePrice:     12.34,
+						ecommerceQuantity:  2.0,
+					},
+				}
+
+				rows, ok := actual.([]map[string]any)
+				require.True(t, ok)
+				actualRows := make([]any, 0, len(rows))
+				for _, row := range rows {
+					actualRows = append(actualRows, row)
+				}
+
+				assert.Equal(t, expected, actualRows)
+			},
+			description: "One ec_items tuple maps to one nested ecommerce item row",
+		},
+		{
+			name:      "EventEcommerceItems_MultiItem",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(
+					0,
+					"ec_items",
+					`[["SKU-1","Item 1","Category 1",12.34,2],["SKU-2","Item 2","Category 2",56.78,3]]`,
+				),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected: []any{
+				map[string]any{
+					ecommerceSKU:       "SKU-1",
+					ecommerceName:      "Item 1",
+					ecommerceCategory1: "Category 1",
+					ecommercePrice:     12.34,
+					ecommerceQuantity:  2.0,
+				},
+				map[string]any{
+					ecommerceSKU:       "SKU-2",
+					ecommerceName:      "Item 2",
+					ecommerceCategory1: "Category 2",
+					ecommercePrice:     56.78,
+					ecommerceQuantity:  3.0,
+				},
+			},
+			assertValue: func(t *testing.T, actual any) {
+				expected := []any{
+					map[string]any{
+						ecommerceSKU:       "SKU-1",
+						ecommerceName:      "Item 1",
+						ecommerceCategory1: "Category 1",
+						ecommercePrice:     12.34,
+						ecommerceQuantity:  2.0,
+					},
+					map[string]any{
+						ecommerceSKU:       "SKU-2",
+						ecommerceName:      "Item 2",
+						ecommerceCategory1: "Category 2",
+						ecommercePrice:     56.78,
+						ecommerceQuantity:  3.0,
+					},
+				}
+
+				rows, ok := actual.([]map[string]any)
+				require.True(t, ok)
+				actualRows := make([]any, 0, len(rows))
+				for _, row := range rows {
+					actualRows = append(actualRows, row)
+				}
+
+				assert.Equal(t, expected, actualRows)
+			},
+			description: "Multiple ec_items tuples map to multiple nested rows",
+		},
+		{
+			name:      "EventEcommerceItems_CategoryString",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "ec_items", `[["SKU-1","Item 1","Category 1",12.34,2]]`),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected: []any{
+				map[string]any{
+					ecommerceSKU:       "SKU-1",
+					ecommerceName:      "Item 1",
+					ecommerceCategory1: "Category 1",
+					ecommercePrice:     12.34,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			assertValue: func(t *testing.T, actual any) {
+				expected := []any{
+					map[string]any{
+						ecommerceSKU:       "SKU-1",
+						ecommerceName:      "Item 1",
+						ecommerceCategory1: "Category 1",
+						ecommercePrice:     12.34,
+						ecommerceQuantity:  2.0,
+					},
+				}
+
+				rows, ok := actual.([]map[string]any)
+				require.True(t, ok)
+				actualRows := make([]any, 0, len(rows))
+				for _, row := range rows {
+					actualRows = append(actualRows, row)
+				}
+
+				assert.Equal(t, expected, actualRows)
+			},
+			description: "String category maps only to category_1 in nested row",
+		},
+		{
+			name:      "EventEcommerceItems_CategoryArray",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(
+					0,
+					"ec_items",
+					`[["SKU-1","Item 1",["Cat1","Cat2","Cat3","Cat4","Cat5","Ignored"],12.34,2]]`,
+				),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected: []any{
+				map[string]any{
+					ecommerceSKU:       "SKU-1",
+					ecommerceName:      "Item 1",
+					ecommerceCategory1: "Cat1",
+					ecommerceCategory2: "Cat2",
+					ecommerceCategory3: "Cat3",
+					ecommerceCategory4: "Cat4",
+					ecommerceCategory5: "Cat5",
+					ecommercePrice:     12.34,
+					ecommerceQuantity:  2.0,
+				},
+			},
+			assertValue: func(t *testing.T, actual any) {
+				expected := []any{
+					map[string]any{
+						ecommerceSKU:       "SKU-1",
+						ecommerceName:      "Item 1",
+						ecommerceCategory1: "Cat1",
+						ecommerceCategory2: "Cat2",
+						ecommerceCategory3: "Cat3",
+						ecommerceCategory4: "Cat4",
+						ecommerceCategory5: "Cat5",
+						ecommercePrice:     12.34,
+						ecommerceQuantity:  2.0,
+					},
+				}
+
+				rows, ok := actual.([]map[string]any)
+				require.True(t, ok)
+				actualRows := make([]any, 0, len(rows))
+				for _, row := range rows {
+					actualRows = append(actualRows, row)
+				}
+
+				assert.Equal(t, expected, actualRows)
+			},
+			description: "Array category maps to category_1 through category_5",
+		},
+		{
+			name:      "EventEcommerceItems_DefaultOptionalTupleValues",
+			buildHits: buildPageViewHit,
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "ec_items", `[["SKU-1"]]`),
+			},
+			fieldName: ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected: []any{
+				map[string]any{
+					ecommerceSKU:       "SKU-1",
+					ecommerceName:      "",
+					ecommerceCategory1: "",
+					ecommercePrice:     0.0,
+					ecommerceQuantity:  1.0,
+				},
+			},
+			assertValue: func(t *testing.T, actual any) {
+				expected := []any{
+					map[string]any{
+						ecommerceSKU:       "SKU-1",
+						ecommerceName:      "",
+						ecommerceCategory1: "",
+						ecommercePrice:     0.0,
+						ecommerceQuantity:  1.0,
+					},
+				}
+
+				rows, ok := actual.([]map[string]any)
+				require.True(t, ok)
+				actualRows := make([]any, 0, len(rows))
+				for _, row := range rows {
+					actualRows = append(actualRows, row)
+				}
+
+				assert.Equal(t, expected, actualRows)
+			},
+			description: "Missing optional tuple values default to empty name/category and 0/1 numbers",
+		},
+		{
+			name:        "EventEcommerceItems_Absent",
+			buildHits:   buildPageViewHit,
+			fieldName:   ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected:    nil,
+			description: "Returns nil when ec_items parameter is absent",
+		},
+		{
+			name:        "EventEcommerceItems_EmptyArray",
+			buildHits:   buildPageViewHit,
+			fieldName:   ProtocolInterfaces.EventEcommerceItems.Field.Name,
+			expected:    []map[string]any{},
+			description: "Returns empty non-nil array when ec_items is explicit empty JSON array",
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "ec_items", `[]`),
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -340,6 +578,11 @@ func TestMatomoProductColumns(t *testing.T) {
 					require.NotEmpty(t, whd.WriteCalls, "expected at least one warehouse write call")
 					require.NotEmpty(t, whd.WriteCalls[0].Records, "expected at least one record written")
 					record := whd.WriteCalls[0].Records[0]
+					if tc.assertValue != nil {
+						tc.assertValue(t, record[tc.fieldName])
+						return
+					}
+
 					assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 				},
 				proto,
@@ -347,6 +590,23 @@ func TestMatomoProductColumns(t *testing.T) {
 			)
 		})
 	}
+}
+
+func TestMatomoProductColumns_EcommerceItemsMalformed(t *testing.T) {
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	hit := columntests.TestHitOne()
+	hit.EventName = pageViewEventType
+
+	columntests.ColumnTestCase(
+		t,
+		columntests.TestHits{hit},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			assert.True(t, closeErr != nil || len(whd.WriteCalls) == 0)
+		},
+		proto,
+		columntests.EnsureQueryParam(0, "v", "2"),
+		columntests.EnsureQueryParam(0, "ec_items", `invalid json`),
+	)
 }
 
 func TestParseEcommerceItems(t *testing.T) {
@@ -446,14 +706,15 @@ func TestParseEcommerceItems(t *testing.T) {
 			raw:  `[["SKU123", "Product Name", null, 19.99, 2]]`,
 			expected: []map[string]any{
 				{
-					ecommerceSKU:      "SKU123",
-					ecommerceName:     "Product Name",
-					ecommercePrice:    19.99,
-					ecommerceQuantity: 2.0,
+					ecommerceSKU:       "SKU123",
+					ecommerceName:      "Product Name",
+					ecommerceCategory1: "",
+					ecommercePrice:     19.99,
+					ecommerceQuantity:  2.0,
 				},
 			},
 			expectError: false,
-			description: "Defaults missing category to empty (no category fields in row)",
+			description: "Defaults missing category to empty string",
 		},
 		{
 			name: "CategoryStringOnly",
@@ -521,6 +782,13 @@ func TestParseEcommerceItems(t *testing.T) {
 			expected:    nil,
 			expectError: false,
 			description: "Empty input returns nil",
+		},
+		{
+			name:        "EmptyJSONArray",
+			raw:         `[]`,
+			expected:    []map[string]any{},
+			expectError: false,
+			description: "Empty JSON array returns empty non-nil slice",
 		},
 		{
 			name: "SkipsNonArrayItems",

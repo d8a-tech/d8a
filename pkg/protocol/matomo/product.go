@@ -77,6 +77,28 @@ var eventEcommerceOrderIDColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
+var eventEcommerceItemsColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventEcommerceItems.ID,
+	ProtocolInterfaces.EventEcommerceItems.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		raw := event.BoundHit.MustParsedRequest().QueryParams.Get("ec_items")
+		if raw == "" {
+			return nil, nil //nolint:nilnil // optional field
+		}
+
+		items, err := parseEcommerceItems(raw)
+		if err != nil {
+			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to parse ec_items: %s", err))
+		}
+
+		return items, nil
+	},
+	columns.WithEventColumnDocs(
+		"Ecommerce Items",
+		"An array of ecommerce item snapshots extracted from the ec_items query parameter.",
+	),
+)
+
 var eventParamsProductPriceColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsProductPrice.ID,
 	ProtocolInterfaces.EventParamsProductPrice.Field,
@@ -228,7 +250,7 @@ func parseEcommerceItems(raw string) ([]map[string]any, error) {
 		return nil, fmt.Errorf("parsing ec_items JSON: %w", err)
 	}
 
-	var result []map[string]any
+	result := make([]map[string]any, 0)
 	for _, item := range items {
 		row := itemToRow(item)
 		if row != nil {
@@ -316,11 +338,8 @@ func getFloat64OrDefault(val any, def float64) float64 {
 }
 
 func addCategoriesToRow(row map[string]any, val any) {
-	if val == nil {
-		return
-	}
-
 	categories := parseEcommerceItemCategory(val)
+	row[ecommerceCategory1] = ""
 	if categories[0] != nil {
 		row[ecommerceCategory1] = categories[0]
 	}

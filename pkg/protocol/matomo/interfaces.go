@@ -41,6 +41,7 @@ var ProtocolInterfaces = struct {
 	EventEcommerceTaxValue          schema.Interface
 	EventEcommerceDiscountValue     schema.Interface
 	EventEcommerceOrderID           schema.Interface
+	EventEcommerceItems             schema.Interface
 	EventParamsProductPrice         schema.Interface
 	EventParamsProductSKU           schema.Interface
 	EventParamsProductName          schema.Interface
@@ -142,6 +143,24 @@ var ProtocolInterfaces = struct {
 	EventEcommerceOrderID: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/ecommerce_order_id",
 		Field: &arrow.Field{Name: "ecommerce_order_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventEcommerceItems: schema.Interface{
+		ID: "matomo.protocols.d8a.tech/event/ecommerce_items",
+		Field: &arrow.Field{
+			Nullable: true,
+			Name:     "ecommerce_items",
+			Type: arrow.ListOf(arrow.StructOf(
+				arrow.Field{Name: ecommerceSKU, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceName, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceCategory1, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceCategory2, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceCategory3, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceCategory4, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommerceCategory5, Type: arrow.BinaryTypes.String, Nullable: true},
+				arrow.Field{Name: ecommercePrice, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+				arrow.Field{Name: ecommerceQuantity, Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+			)),
+		},
 	},
 	EventParamsProductPrice: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_product_price",

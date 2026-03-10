@@ -65,6 +65,7 @@ var eventColumns = []schema.EventColumn{
 	eventEcommerceTaxValueColumn,
 	eventEcommerceDiscountValueColumn,
 	eventEcommerceOrderIDColumn,
+	eventEcommerceItemsColumn,
 	eventParamsProductPriceColumn,
 	eventParamsProductSKUColumn,
 	eventParamsProductNameColumn,
