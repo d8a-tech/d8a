@@ -6,6 +6,8 @@ builds:
   - id: d8a
     main: .
     binary: d8a
+    ldflags:
+      - -s -w -X github.com/d8a-tech/d8a/pkg/cmd.version={{ .Version }}
     env:
       - CGO_ENABLED=0
     goos:

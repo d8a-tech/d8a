@@ -43,16 +43,12 @@ jobs:
             type=sha
             type=raw,value=latest
 
-      - name: Override version.go with tag version
+      - name: Compute release version
+        id: release_version
         run: |
           VERSION="${{ github.ref_name }}"
-          # Strip 'v' prefix if present
           VERSION="${VERSION#v}"
-          cat > pkg/cmd/version.go <<EOF
-          package cmd
-
-          const version = "$VERSION"
-          EOF
+          echo "value=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -64,6 +60,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             GO_VERSION=1.25
-            VERSION=${{ github.ref_name }}
+            VERSION=${{ steps.release_version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
