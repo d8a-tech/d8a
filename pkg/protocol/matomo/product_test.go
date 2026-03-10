@@ -442,6 +442,20 @@ func TestParseEcommerceItems(t *testing.T) {
 			description: "Defaults missing quantity to 1",
 		},
 		{
+			name: "DefaultMissingCategory",
+			raw:  `[["SKU123", "Product Name", null, 19.99, 2]]`,
+			expected: []map[string]any{
+				{
+					ecommerceSKU:      "SKU123",
+					ecommerceName:     "Product Name",
+					ecommercePrice:    19.99,
+					ecommerceQuantity: 2.0,
+				},
+			},
+			expectError: false,
+			description: "Defaults missing category to empty (no category fields in row)",
+		},
+		{
 			name: "CategoryStringOnly",
 			raw:  `[["SKU123", "Product Name", "SingleCategory", 19.99, 2]]`,
 			expected: []map[string]any{
@@ -615,6 +629,18 @@ func TestParseEcommerceItemCategory(t *testing.T) {
 			raw:         []any{},
 			expected:    [5]any{nil, nil, nil, nil, nil},
 			description: "Empty array leaves all slots nil",
+		},
+		{
+			name:        "MissingCategory",
+			raw:         nil,
+			expected:    [5]any{nil, nil, nil, nil, nil},
+			description: "Missing/nil category leaves all slots nil",
+		},
+		{
+			name:        "StringSlice",
+			raw:         []string{"Cat1", "Cat2", "Cat3"},
+			expected:    [5]any{"Cat1", "Cat2", "Cat3", nil, nil},
+			description: "String slice category populates correct slots",
 		},
 	}
 

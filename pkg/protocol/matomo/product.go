@@ -349,7 +349,7 @@ func parseEcommerceItemCategory(raw any) [5]any {
 		return result
 	}
 
-	// Try parsing as array
+	// Try parsing as []any array
 	if arr, ok := raw.([]any); ok {
 		for i, v := range arr {
 			if i >= 5 {
@@ -357,6 +357,19 @@ func parseEcommerceItemCategory(raw any) [5]any {
 			}
 			if str, ok := v.(string); ok && str != "" {
 				result[i] = str //nolint:gosec // array bounds are checked above
+			}
+		}
+		return result
+	}
+
+	// Try parsing as []string array (decoded string slice)
+	if arrStr, ok := raw.([]string); ok {
+		for i, v := range arrStr {
+			if i >= 5 {
+				break
+			}
+			if v != "" {
+				result[i] = v //nolint:gosec // array bounds are checked above
 			}
 		}
 		return result
