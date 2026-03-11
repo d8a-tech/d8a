@@ -6,7 +6,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'd8a.tech - Documentation',
-  tagline: 'd8a (Divine Data) is an open-source clickstream analytics that\'s fully compatible with GA4 tracking protocols.',
+  tagline: 'Own your analytics with d8a: open-source clickstream analytics compatible with GA4 and Matomo.',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -84,6 +84,11 @@ const config: Config = {
           sidebarId: 'defaultSidebar',
           position: 'left',
           label: 'Documentation',
+        },
+        {
+          href: 'https://d8a.tech/',
+          label: 'Website',
+          position: 'right',
         },
         {
           href: 'https://github.com/d8a-tech/d8a',
