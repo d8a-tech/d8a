@@ -16,7 +16,8 @@ import (
 )
 
 type matomoProtocol struct {
-	extractor protocol.PropertyIDExtractor
+	extractor              protocol.PropertyIDExtractor
+	extraTrackingEndpoints []string
 }
 
 func (p *matomoProtocol) ID() string {
@@ -58,12 +59,19 @@ func (p *matomoProtocol) Hits(fhCtx *fasthttp.RequestCtx, request *hits.ParsedRe
 }
 
 func (p *matomoProtocol) Endpoints() []protocol.ProtocolEndpoint {
-	return []protocol.ProtocolEndpoint{
-		{
+	paths := make([]string, 0, 1+len(p.extraTrackingEndpoints))
+	paths = append(paths, "/matomo.php")
+	paths = append(paths, p.extraTrackingEndpoints...)
+
+	endpoints := make([]protocol.ProtocolEndpoint, 0, len(paths))
+	for _, trackingPath := range uniqueTrackingEndpoints(paths) {
+		endpoints = append(endpoints, protocol.ProtocolEndpoint{
 			Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
-			Path:    "/matomo.php",
-		},
+			Path:    trackingPath,
+		})
 	}
+
+	return endpoints
 }
 
 func (p *matomoProtocol) Interfaces() any {
@@ -78,8 +86,48 @@ func (p *matomoProtocol) Columns() schema.Columns {
 	}
 }
 
-func NewMatomoProtocol(extractor protocol.PropertyIDExtractor) protocol.Protocol {
-	return &matomoProtocol{extractor: extractor}
+type MatomoProtocolOption func(*matomoProtocol)
+
+func WithExtraTrackingEndpoints(paths []string) MatomoProtocolOption {
+	return func(p *matomoProtocol) {
+		p.extraTrackingEndpoints = append([]string(nil), paths...)
+	}
+}
+
+func NewMatomoProtocol(extractor protocol.PropertyIDExtractor, opts ...MatomoProtocolOption) protocol.Protocol {
+	p := &matomoProtocol{extractor: extractor}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
+}
+
+func uniqueTrackingEndpoints(paths []string) []string {
+	seen := make(map[string]struct{}, len(paths))
+	unique := make([]string, 0, len(paths))
+	for _, rawPath := range paths {
+		path := normalizeTrackingEndpoint(rawPath)
+		if path == "" {
+			continue
+		}
+		if _, exists := seen[path]; exists {
+			continue
+		}
+		seen[path] = struct{}{}
+		unique = append(unique, path)
+	}
+	return unique
+}
+
+func normalizeTrackingEndpoint(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	return path
 }
 
 type fromIDSiteExtractor struct {
