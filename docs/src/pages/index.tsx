@@ -47,19 +47,19 @@ function QuickLinks() {
                 <Link to="/articles/warehouses">Warehouses</Link>
               </Heading>
               <p className={styles.cardDescription}>
-                Choose your data warehouse: BigQuery or ClickHouse. Configure
-                and deploy.
+                Choose your destination: BigQuery, ClickHouse, or CSV files on
+                S3, GCP (GCS), and filesystem.
               </p>
             </div>
           </div>
           <div className="col col--4">
             <div className={styles.linkCard}>
               <Heading as="h3" className={styles.cardTitle}>
-                <Link to="/articles/sources/ga4">GA4 Integration</Link>
+                <Link to="/articles/sources/matomo">Source Integrations</Link>
               </Heading>
               <p className={styles.cardDescription}>
-                Learn how to intercept and route GA4 events to your d8a
-                instance.
+                Connect GA4 and Matomo trackers to d8a with compatible source
+                ingestion endpoints.
               </p>
             </div>
           </div>
@@ -91,11 +91,11 @@ function Features() {
           <div className="col col--6">
             <div className={styles.featureItem}>
               <Heading as="h3" className={styles.featureTitle}>
-                🔌 GA4 Compatible
+                🔌 Source Compatibility
               </Heading>
               <p>
-                Use your existing GA4 tracking code without modification. A
-                drop-in replacement for Google Analytics with a reporting-ready
+                Ingest events using GA4, Matomo, or the native d8a protocol
+                for fully independent on-prem analytics with a reporting-ready
                 data schema.
               </p>
             </div>
@@ -103,9 +103,13 @@ function Features() {
           <div className="col col--6">
             <div className={styles.featureItem}>
               <Heading as="h3" className={styles.featureTitle}>
-                📊 Multiple Warehouses
+                📊 Multiple Destinations
               </Heading>
-              <p>Store data in BigQuery or ClickHouse warehouses.</p>
+              <p>
+                Deliver analytics data to BigQuery, ClickHouse, and other
+                warehouses like Snowflake and Redshift through CSV on
+                S3/MinIO, GCP (GCS), and filesystem.
+              </p>
             </div>
           </div>
           <div className="col col--6">
