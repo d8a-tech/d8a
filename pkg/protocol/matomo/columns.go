@@ -45,11 +45,14 @@ var eventColumns = []schema.EventColumn{
 	eventLinkURLColumn,
 	eventDownloadURLColumn,
 	eventSearchTermColumn,
+	eventMeasurementIDColumn,
 	eventParamsPageViewIDColumn,
 	eventParamsGoalIDColumn,
 	eventParamsCategoryColumn,
 	eventParamsActionColumn,
 	eventParamsValueColumn,
+	eventParamsMediaAssetIDColumn,
+	eventParamsMediaTypeColumn,
 	eventParamsContentInteractionColumn,
 	eventParamsContentNameColumn,
 	eventParamsContentPieceColumn,
@@ -243,5 +246,47 @@ var eventParamsValueColumn = columns.FromQueryParamEventColumn(
 	columns.WithEventColumnDocs(
 		"Value",
 		"The numeric value of the event, extracted from the e_v query parameter.",
+	),
+)
+
+var eventMeasurementIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventMeasurementID.ID,
+	ProtocolInterfaces.EventMeasurementID.Field,
+	"idsite",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventMeasurementID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Measurement ID",
+		"The Matomo measurement or tracking identifier, extracted from the idsite query parameter.",
+	),
+)
+
+var eventParamsMediaAssetIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsMediaAssetID.ID,
+	ProtocolInterfaces.EventParamsMediaAssetID.Field,
+	"ma_id",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsMediaAssetID.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Media Asset ID",
+		"The raw media asset identifier, extracted from the ma_id query parameter.",
+	),
+)
+
+var eventParamsMediaTypeColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsMediaType.ID,
+	ProtocolInterfaces.EventParamsMediaType.Field,
+	"ma_mt",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsMediaType.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Media Type",
+		"The raw media type or context, extracted from the ma_mt query parameter.",
 	),
 )

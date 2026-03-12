@@ -456,6 +456,12 @@ var protocolFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "ga4",
 }
 
+var protocolMatomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name:    "protocol-matomo-tracking-endpoints",
+	Usage:   "Additional Matomo tracking endpoint paths to accept besides /matomo.php. Example: /piwik.php, /tracking/matomo.php.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("PROTOCOL_MATOMO_TRACKING_ENDPOINTS", "protocol.matomo_tracking_endpoints"),
+}
+
 var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "telemetry-url",
 	Usage:   "Telemetry endpoint URL for sending usage events. Anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
@@ -548,6 +554,7 @@ func getServerFlags() []cli.Flag {
 			propertySettingsSplitByUserIDFlag,
 			propertySettingsSplitByCampaignFlag,
 			protocolFlag,
+			protocolMatomoTrackingEndpointsFlag,
 			propertySettingsSplitByTimeSinceFirstEventFlag,
 			propertySettingsSplitByMaxEventsFlag,
 			monitoringEnabledFlag,

@@ -28,9 +28,12 @@ var ProtocolInterfaces = struct {
 	EventLinkURL                     schema.Interface
 	EventDownloadURL                 schema.Interface
 	EventSearchTerm                  schema.Interface
+	EventMeasurementID               schema.Interface
 	EventParamsCategory              schema.Interface
 	EventParamsAction                schema.Interface
 	EventParamsValue                 schema.Interface
+	EventParamsMediaAssetID          schema.Interface
+	EventParamsMediaType             schema.Interface
 	EventParamsContentInteraction    schema.Interface
 	EventParamsContentName           schema.Interface
 	EventParamsContentPiece          schema.Interface
@@ -93,6 +96,10 @@ var ProtocolInterfaces = struct {
 		ID:    "matomo.protocols.d8a.tech/event/search_term",
 		Field: &arrow.Field{Name: "search_term", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
+	EventMeasurementID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/measurement_id",
+		Field: &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
 	EventParamsCategory: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_category",
 		Field: &arrow.Field{Name: "params_category", Type: arrow.BinaryTypes.String, Nullable: true},
@@ -104,6 +111,14 @@ var ProtocolInterfaces = struct {
 	EventParamsValue: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_value",
 		Field: &arrow.Field{Name: "params_value", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventParamsMediaAssetID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_media_asset_id",
+		Field: &arrow.Field{Name: "params_media_asset_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsMediaType: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_media_type",
+		Field: &arrow.Field{Name: "params_media_type", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamsContentInteraction: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_content_interaction",

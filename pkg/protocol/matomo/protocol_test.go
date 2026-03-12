@@ -261,3 +261,38 @@ func TestHits(t *testing.T) {
 		})
 	}
 }
+
+func TestEndpoints(t *testing.T) {
+	t.Run("default endpoint only", func(t *testing.T) {
+		proto := NewMatomoProtocol(&testPropertyIDExtractor{})
+
+		assert.Equal(t, []protocol.ProtocolEndpoint{
+			{
+				Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
+				Path:    "/matomo.php",
+			},
+		}, proto.Endpoints())
+	})
+
+	t.Run("adds normalized extra endpoints", func(t *testing.T) {
+		proto := NewMatomoProtocol(
+			&testPropertyIDExtractor{},
+			WithExtraTrackingEndpoints([]string{"piwik.php", "/track", " ", "/matomo.php", "track"}),
+		)
+
+		assert.Equal(t, []protocol.ProtocolEndpoint{
+			{
+				Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
+				Path:    "/matomo.php",
+			},
+			{
+				Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
+				Path:    "/piwik.php",
+			},
+			{
+				Methods: []string{fasthttp.MethodPost, fasthttp.MethodGet},
+				Path:    "/track",
+			},
+		}, proto.Endpoints())
+	})
+}

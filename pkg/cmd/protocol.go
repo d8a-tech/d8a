@@ -12,7 +12,10 @@ func protocols(cmd *cli.Command) []protocol.Protocol {
 	return []protocol.Protocol{
 		ga4.NewGA4Protocol(currencyConverter, propertySettings(cmd)),
 		d8a.NewD8AProtocol(currencyConverter, propertySettings(cmd)),
-		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(propertySettings(cmd))),
+		matomo.NewMatomoProtocol(
+			matomo.NewFromIDSiteExtractor(propertySettings(cmd)),
+			matomo.WithExtraTrackingEndpoints(cmd.StringSlice(protocolMatomoTrackingEndpointsFlag.Name)),
+		),
 	}
 }
 
