@@ -536,6 +536,14 @@ func TestMatomoProductColumns(t *testing.T) {
 }
 
 func normalizeEcommerceItemsTestValue(actual any) any {
+	rowsAsAny, ok := actual.([]any)
+	if ok {
+		actualRows := make([]any, 0, len(rowsAsAny))
+		actualRows = append(actualRows, rowsAsAny...)
+
+		return actualRows
+	}
+
 	rows, ok := actual.([]map[string]any)
 	if !ok {
 		return actual
@@ -565,13 +573,19 @@ func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
 			record := whd.WriteCalls[0].Records[0]
 			assert.Equal(t, "ORD-12345", record[ProtocolInterfaces.EventEcommerceOrderID.Field.Name])
 
-			items, ok := record[ProtocolInterfaces.EventEcommerceItems.Field.Name].([]map[string]any)
+			itemsAny, ok := record[ProtocolInterfaces.EventEcommerceItems.Field.Name].([]any)
 			require.True(t, ok)
-			require.Len(t, items, 2)
-			assert.Equal(t, "SKU-1", items[0][ecommerceSKU])
-			assert.Equal(t, float64(2), items[0][ecommerceQuantity])
-			assert.Equal(t, "SKU-2", items[1][ecommerceSKU])
-			assert.Equal(t, float64(1), items[1][ecommerceQuantity])
+			require.Len(t, itemsAny, 2)
+
+			item1, ok := itemsAny[0].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "SKU-1", item1[ecommerceSKU])
+			assert.Equal(t, float64(2), item1[ecommerceQuantity])
+
+			item2, ok := itemsAny[1].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "SKU-2", item2[ecommerceSKU])
+			assert.Equal(t, float64(1), item2[ecommerceQuantity])
 
 			assert.Equal(t, int64(3), record[ProtocolInterfaces.EventEcommerceItemsTotalQuantity.Field.Name])
 		},

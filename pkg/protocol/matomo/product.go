@@ -91,7 +91,7 @@ var eventEcommerceItemsColumn = columns.NewSimpleEventColumn(
 			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to parse ec_items: %s", err))
 		}
 
-		return items, nil
+		return ecommerceRowsToAny(items), nil
 	},
 	columns.WithEventColumnDocs(
 		"Ecommerce Items",
@@ -464,4 +464,17 @@ func asEcommerceItemRows(raw any) []map[string]any {
 	}
 
 	return rows
+}
+
+func ecommerceRowsToAny(rows []map[string]any) []any {
+	if rows == nil {
+		return nil
+	}
+
+	out := make([]any, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row)
+	}
+
+	return out
 }
