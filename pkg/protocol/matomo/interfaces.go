@@ -21,6 +21,9 @@ const (
 
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
+	EventMeasurementID               schema.Interface
+	EventParamsCategory              schema.Interface
+	EventParamsAction                schema.Interface
 	EventCustomVariables             schema.Interface
 	EventCustomDimensions            schema.Interface
 	SessionCustomVariables           schema.Interface
@@ -28,9 +31,6 @@ var ProtocolInterfaces = struct {
 	EventLinkURL                     schema.Interface
 	EventDownloadURL                 schema.Interface
 	EventSearchTerm                  schema.Interface
-	EventMeasurementID               schema.Interface
-	EventParamsCategory              schema.Interface
-	EventParamsAction                schema.Interface
 	EventParamsValue                 schema.Interface
 	EventParamsMediaAssetID          schema.Interface
 	EventParamsMediaType             schema.Interface
@@ -38,14 +38,7 @@ var ProtocolInterfaces = struct {
 	EventParamsContentName           schema.Interface
 	EventParamsContentPiece          schema.Interface
 	EventParamsContentTarget         schema.Interface
-	EventEcommercePurchaseRevenue    schema.Interface
-	EventEcommerceShippingValue      schema.Interface
-	EventEcommerceSubtotalValue      schema.Interface
-	EventEcommerceTaxValue           schema.Interface
-	EventEcommerceDiscountValue      schema.Interface
-	EventEcommerceOrderID            schema.Interface
-	EventEcommerceItems              schema.Interface
-	EventEcommerceItemsTotalQuantity schema.Interface
+	EventNextPageTitle               schema.Interface
 	EventParamsProductPrice          schema.Interface
 	EventParamsProductSKU            schema.Interface
 	EventParamsProductName           schema.Interface
@@ -54,20 +47,39 @@ var ProtocolInterfaces = struct {
 	EventParamsProductCategory3      schema.Interface
 	EventParamsProductCategory4      schema.Interface
 	EventParamsProductCategory5      schema.Interface
-	EventPreviousPageLocation        schema.Interface
-	EventNextPageLocation            schema.Interface
-	EventPreviousPageTitle           schema.Interface
-	EventNextPageTitle               schema.Interface
 	EventParamsPageViewID            schema.Interface
 	EventParamsGoalID                schema.Interface
 	EventParamsSearchKeyword         schema.Interface
 	EventParamsSearchCategory        schema.Interface
 	EventParamsSearchCount           schema.Interface
+	EventEcommercePurchaseRevenue    schema.Interface
+	EventEcommerceShippingValue      schema.Interface
+	EventEcommerceSubtotalValue      schema.Interface
+	EventEcommerceTaxValue           schema.Interface
+	EventEcommerceDiscountValue      schema.Interface
+	EventEcommerceOrderID            schema.Interface
+	EventEcommerceItems              schema.Interface
+	EventEcommerceItemsTotalQuantity schema.Interface
+	EventPreviousPageLocation        schema.Interface
+	EventNextPageLocation            schema.Interface
+	EventPreviousPageTitle           schema.Interface
 	SessionTotalGoalConversions      schema.Interface
 	SessionTotalContentImpressions   schema.Interface
 	SessionTotalContentInteractions  schema.Interface
 	SessionReturningUser             schema.Interface
 }{
+	EventMeasurementID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/measurement_id",
+		Field: &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsCategory: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_category",
+		Field: &arrow.Field{Name: "params_category", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsAction: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_action",
+		Field: &arrow.Field{Name: "params_action", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
 	EventCustomVariables: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/custom_variables",
 		Field: repeatedNameValueField("custom_variables"),
@@ -85,28 +97,16 @@ var ProtocolInterfaces = struct {
 		Field: repeatedSlotValueField("session_custom_dimensions"),
 	},
 	EventLinkURL: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/link_url",
-		Field: &arrow.Field{Name: "link_url", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID:    "matomo.protocols.d8a.tech/event/params_link_url",
+		Field: &arrow.Field{Name: "params_link_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventDownloadURL: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/download_url",
-		Field: &arrow.Field{Name: "download_url", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID:    "matomo.protocols.d8a.tech/event/params_download_url",
+		Field: &arrow.Field{Name: "params_download_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventSearchTerm: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/search_term",
-		Field: &arrow.Field{Name: "search_term", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventMeasurementID: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/measurement_id",
-		Field: &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsCategory: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_category",
-		Field: &arrow.Field{Name: "params_category", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsAction: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_action",
-		Field: &arrow.Field{Name: "params_action", Type: arrow.BinaryTypes.String, Nullable: true},
+		ID:    "matomo.protocols.d8a.tech/event/params_search_term",
+		Field: &arrow.Field{Name: "params_search_term", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamsValue: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_value",
@@ -135,6 +135,60 @@ var ProtocolInterfaces = struct {
 	EventParamsContentTarget: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_content_target",
 		Field: &arrow.Field{Name: "params_content_target", Type: arrow.BinaryTypes.String, Nullable: true},
+	}, EventNextPageTitle: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/next_page_title",
+		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	}, EventParamsProductPrice: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
+		Field: &arrow.Field{Name: "params_product_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
+	},
+	EventParamsProductSKU: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_sku",
+		Field: &arrow.Field{Name: "params_product_sku", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductName: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_name",
+		Field: &arrow.Field{Name: "params_product_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory1: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_1",
+		Field: &arrow.Field{Name: "params_product_category_1", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory2: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_2",
+		Field: &arrow.Field{Name: "params_product_category_2", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory3: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_3",
+		Field: &arrow.Field{Name: "params_product_category_3", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory4: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_4",
+		Field: &arrow.Field{Name: "params_product_category_4", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsProductCategory5: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_product_category_5",
+		Field: &arrow.Field{Name: "params_product_category_5", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsPageViewID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_page_view_id",
+		Field: &arrow.Field{Name: "params_page_view_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsGoalID: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_goal_id",
+		Field: &arrow.Field{Name: "params_goal_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsSearchKeyword: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_search_keyword",
+		Field: &arrow.Field{Name: "params_search_keyword", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsSearchCategory: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_search_category",
+		Field: &arrow.Field{Name: "params_search_category", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventParamsSearchCount: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_search_count",
+		Field: &arrow.Field{Name: "params_search_count", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	EventEcommercePurchaseRevenue: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/ecommerce_purchase_revenue",
@@ -182,38 +236,7 @@ var ProtocolInterfaces = struct {
 		ID:    "matomo.protocols.d8a.tech/event/ecommerce_items_total_quantity",
 		Field: &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
-	EventParamsProductPrice: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
-		Field: &arrow.Field{Name: "params_product_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-	},
-	EventParamsProductSKU: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_sku",
-		Field: &arrow.Field{Name: "params_product_sku", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductName: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_name",
-		Field: &arrow.Field{Name: "params_product_name", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductCategory1: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_category_1",
-		Field: &arrow.Field{Name: "params_product_category_1", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductCategory2: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_category_2",
-		Field: &arrow.Field{Name: "params_product_category_2", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductCategory3: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_category_3",
-		Field: &arrow.Field{Name: "params_product_category_3", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductCategory4: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_category_4",
-		Field: &arrow.Field{Name: "params_product_category_4", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsProductCategory5: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_product_category_5",
-		Field: &arrow.Field{Name: "params_product_category_5", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
+
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",
 		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
@@ -226,30 +249,7 @@ var ProtocolInterfaces = struct {
 		ID:    "matomo.protocols.d8a.tech/event/previous_page_title",
 		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventNextPageTitle: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/next_page_title",
-		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsPageViewID: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_page_view_id",
-		Field: &arrow.Field{Name: "params_page_view_id", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsGoalID: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_goal_id",
-		Field: &arrow.Field{Name: "params_goal_id", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsSearchKeyword: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_search_keyword",
-		Field: &arrow.Field{Name: "params_search_keyword", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsSearchCategory: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_search_category",
-		Field: &arrow.Field{Name: "params_search_category", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventParamsSearchCount: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/params_search_count",
-		Field: &arrow.Field{Name: "params_search_count", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
+
 	SessionTotalGoalConversions: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/session/total_goal_conversions",
 		Field: &arrow.Field{Name: "session_total_goal_conversions", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
