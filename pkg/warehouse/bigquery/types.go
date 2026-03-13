@@ -212,6 +212,10 @@ func (m *bigQueryArrayTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowType
 		Schema:    elementType.Schema,
 		FormatFunc: func(_ SpecificBigQueryType) func(i any, m arrow.Metadata) (any, error) {
 			return func(i any, metadata arrow.Metadata) (any, error) {
+				if i == nil {
+					return []any{}, nil
+				}
+
 				slice, ok := i.([]any)
 				if !ok {
 					return nil, fmt.Errorf("expected []any for array, got %T", i)

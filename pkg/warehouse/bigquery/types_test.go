@@ -771,6 +771,22 @@ func TestFormatFunction(t *testing.T) {
 			input:    []any{int64(1), nil, int64(3)},
 			expected: []any{int64(1), nil, int64(3)},
 		},
+		{
+			name: "collection nil input coerces to empty array",
+			bqType: func() SpecificBigQueryType {
+				m := NewFieldTypeMapper()
+				bt, err := m.ArrowToWarehouse(
+					warehouse.ArrowType{
+						ArrowDataType: arrow.ListOf(arrow.PrimitiveTypes.Int64),
+						Nullable:      true,
+					},
+				)
+				require.NoError(t, err)
+				return bt
+			}(),
+			input:    nil,
+			expected: []any{},
+		},
 	}
 
 	for _, tc := range testCases {
