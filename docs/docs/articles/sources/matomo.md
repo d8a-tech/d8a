@@ -85,7 +85,7 @@ Use this when you want to keep Matomo tracker API calls in your site, but send d
       g = d.createElement('script'),
       s = d.getElementsByTagName('script')[0];
     g.async = true;
-    g.src = 'https://matomo.example.com/matomo.js';
+    g.src = 'https://cdn.jsdelivr.net/gh/matomo-org/matomo@5.8.0/js/piwik.min.js';
     s.parentNode.insertBefore(g, s);
   })();
 </script>

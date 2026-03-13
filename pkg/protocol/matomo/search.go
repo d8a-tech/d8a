@@ -1,6 +1,25 @@
 package matomo
 
-import "github.com/d8a-tech/d8a/pkg/columns"
+import (
+	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/schema"
+)
+
+var eventSearchTermColumn = columns.NewSimpleEventColumn(
+	ProtocolInterfaces.EventSearchTerm.ID,
+	ProtocolInterfaces.EventSearchTerm.Field,
+	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+		v := event.BoundHit.MustParsedRequest().QueryParams.Get("search")
+		if v == "" {
+			return nil, nil //nolint:nilnil // optional field
+		}
+		return v, nil
+	},
+	columns.WithEventColumnDocs(
+		"Search Term",
+		"The keyword used in a site search, extracted from the search query parameter.",
+	),
+)
 
 var eventParamsSearchKeywordColumn = columns.FromQueryParamEventColumn(
 	ProtocolInterfaces.EventParamsSearchKeyword.ID,

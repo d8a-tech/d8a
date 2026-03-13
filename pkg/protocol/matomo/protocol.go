@@ -220,7 +220,7 @@ func deriveEventName(params url.Values) string {
 		return contentImpressionType
 	}
 	if params.Get("e_c") != "" && params.Get("e_a") != "" {
-		return "event"
+		return customEventType
 	}
 	return pageViewEventType
 }

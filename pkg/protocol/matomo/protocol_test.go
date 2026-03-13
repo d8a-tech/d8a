@@ -59,7 +59,7 @@ func TestHits(t *testing.T) {
 			method:        "POST",
 			body:          "",
 			expectedHits:  1,
-			expectedEvent: "event",
+			expectedEvent: "custom_event",
 		},
 		{
 			name: "single_post_site_search",

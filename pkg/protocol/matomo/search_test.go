@@ -37,6 +37,29 @@ func TestMatomoSearchColumns(t *testing.T) {
 
 	testCases := []testCase{
 		{
+			name:        "EventParamsSearchTerm_Valid",
+			buildHits:   single(buildPageViewHit),
+			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "search", "d8a docs")},
+			fieldName:   "params_search_term",
+			expected:    "d8a docs",
+			description: "Valid site-search term via search query parameter",
+		},
+		{
+			name:        "EventParamsSearchTerm_Empty",
+			buildHits:   single(buildPageViewHit),
+			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "search", "")},
+			fieldName:   "params_search_term",
+			expected:    nil,
+			description: "Returns nil when search parameter is empty",
+		},
+		{
+			name:        "EventParamsSearchTerm_Absent",
+			buildHits:   single(buildPageViewHit),
+			fieldName:   "params_search_term",
+			expected:    nil,
+			description: "Returns nil when search parameter is absent",
+		},
+		{
 			name:        "EventParamsSearchKeyword_Valid",
 			buildHits:   single(buildPageViewHit),
 			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "search", "d8a docs")},
