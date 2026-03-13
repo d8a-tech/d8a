@@ -352,11 +352,23 @@ func NewFromRefererExactMatchCondition(
 	exactMatch string, smt func(qp url.Values) SessionSourceMediumTerm,
 ) refererCondition {
 	return func(cleanedReferer string, qp url.Values) (SessionSourceMediumTerm, bool) {
-		if cleanedReferer == exactMatch {
+		if matchesHostOrSubdomain(cleanedReferer, exactMatch) {
 			return smt(qp), true
 		}
 		return SessionSourceMediumTerm{}, false
 	}
+}
+
+func matchesHostOrSubdomain(host, pattern string) bool {
+	if host == pattern {
+		return true
+	}
+
+	if strings.Contains(pattern, "/") {
+		return false
+	}
+
+	return strings.HasSuffix(host, "."+pattern)
 }
 
 // NewSearchEngineSourceMediumTermDetector returns a new source medium term detector for search engines.

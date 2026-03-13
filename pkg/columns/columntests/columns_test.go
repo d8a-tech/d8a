@@ -532,6 +532,20 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_SearchGoogle",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "https://search.google.com/search?q=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("google"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_IlseNL",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
@@ -578,6 +592,20 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
 				EnsureQueryParam(0, "dr", "https://www.linkedin.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("linkedin"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_LinkedInAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.linkedin.android"),
 			},
 			expected: map[string][]*string{
 				TestHitOne().ID: {
