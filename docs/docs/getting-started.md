@@ -2,6 +2,9 @@
 sidebar_position: 1
 ---
 
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Getting started
 
 Welcome to Divine Data (d8a)! This guide will help you get up and running with d8a, an open-source clickstream analytics platform that's fully compatible with GA4 tracking protocols.
@@ -10,15 +13,34 @@ Welcome to Divine Data (d8a)! This guide will help you get up and running with d
 You can start with our [free cloud option](https://d8a.tech/pricing/). Visit **[the signup page](https://app.d8a.tech)** to create an account. After setting up your account, you can proceed directly to step 4.
 :::
 
-Prerequisites:
+<Tabs groupId="setup-mode">
+  <TabItem value="docker-clickhouse" label="Docker + ClickHouse" default>
 
-- Unix shell (Linux, macOS, WSL, etc.)
-- Docker installed with the `docker compose` command
-- Basic Unix knowledge (creating files, directories, etc.)
+  Prerequisites:
+
+  * Basic Unix knowledge (creating files, directories, etc.)
+  * Unix shell (Linux, macOS, WSL, etc.)
+  * Docker installed with the `docker compose` command
+  
+  </TabItem>
+  <TabItem value="binary-csv" label="Local binary + CSV files">
+
+Prerequisites:
+  Prerequisites:
+  
+  * Basic Unix knowledge (creating files, directories, etc.)
+  * Unix shell (Linux, macOS, WSL, etc.)
+  * `curl` and `tar` installed locally
+  
+  </TabItem>
+</Tabs>
 
 ## Step 1: Create a configuration file
 
 First, create a config file (you can learn more about the configuration options in the [configuration reference](/articles/config)):
+
+<Tabs groupId="setup-mode">
+  <TabItem value="docker-clickhouse" label="Docker + ClickHouse" default>
 
 ```bash
 cat > config.yaml <<EOF
@@ -43,11 +65,44 @@ protocol: ga4 # Set to 'd8a' when using the d8a web tracker and the /d/c endpoin
 EOF
 ```
 
+  </TabItem>
+  <TabItem value="binary-csv" label="Local binary + CSV files">
+
+```bash
+cat > config.yaml <<EOF
+storage:
+  bolt_directory: ./state/bolt
+  queue_directory: ./state/queue
+  spool_enabled: true
+  spool_directory: ./state/spool
+
+sessions:
+  timeout: 10s # Adjust this after the testing phase to a production value
+
+warehouse:
+  driver: files
+  files:
+    format: csv
+    storage: filesystem
+    max_segment_age: 1m
+    filesystem:
+      path: ./csv-out
+
+protocol: ga4 # Set to 'd8a' when using the d8a web tracker and the /d/c endpoint
+EOF
+```
+
+  </TabItem>
+</Tabs>
+
 :::note
-This configuration sets up d8a to use ClickHouse as the warehouse, writes data to the `/storage` directory, and uses a 10-second session timeout. If you'd like to use a different warehouse, please check the [warehouses](/articles/warehouses) article.
+If you'd like to use a different storage, please check the [warehouses](/articles/warehouses) article.
 :::
 
-## Step 2: Create a docker compose file
+## Step 2: Prepare the runtime
+
+<Tabs groupId="setup-mode">
+  <TabItem value="docker-clickhouse" label="Docker + ClickHouse" default>
 
 ```bash
 cat > docker-compose.yml <<EOF
@@ -93,20 +148,81 @@ volumes:
 EOF
 ```
 
+  </TabItem>
+  <TabItem value="binary-csv" label="Local binary + CSV files">
+
+```bash
+# Resolve latest release version
+LATEST_URL=$(curl -fsSL -o /dev/null -w '%{url_effective}' https://github.com/d8a-tech/d8a/releases/latest)
+VERSION=${LATEST_URL##*/}
+
+# Detect local platform
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+case "$ARCH" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  *) echo "Unsupported architecture: $ARCH"; exit 1 ;;
+esac
+
+case "$OS" in
+  linux|darwin) ;;
+  *) echo "Unsupported operating system: $OS"; exit 1 ;;
+esac
+
+# Prepare local directories
+mkdir -p ./state/bolt ./state/queue ./state/spool ./csv-out ./tmp
+
+# Download and unpack d8a
+curl -L "https://github.com/d8a-tech/d8a/releases/download/${VERSION}/d8a_${VERSION#v}_${OS}_${ARCH}.tar.gz" -o ./tmp/d8a.tar.gz
+tar -xzf ./tmp/d8a.tar.gz -C ./tmp
+chmod +x ./tmp/d8a
+```
+
+  </TabItem>
+</Tabs>
+
 ## Step 3: Start the application
 
-Finally, start the containers:
+Finally, start d8a:
+
+<Tabs groupId="setup-mode">
+  <TabItem value="docker-clickhouse" label="Docker + ClickHouse" default>
 
 ```bash
 docker compose up -d
 docker compose logs -f
 ```
 
+
 Your d8a instance should be available at `http://localhost:8080`. You may now send a test tracking request to your d8a instance:
 
 ```bash
 curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=page_view&cid=ag9" -X POST
 ```
+
+Wait about 10 seconds and then check your clickhouse for saved session.
+
+  </TabItem>
+  <TabItem value="binary-csv" label="Local binary + CSV files">
+
+```bash
+./tmp/d8a server --config config.yaml
+```
+
+
+Your d8a instance should be available at `http://localhost:8080`. You may now send a test tracking request to your d8a instance:
+
+```bash
+curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=page_view&cid=ag9" -X POST
+```
+
+Wait about two minutes and then check `./csv-out` for generated CSV files.
+
+  </TabItem>
+</Tabs>
+
 
 Your d8a server setup is now complete. If you'd like to hook up a domain and use SSL, you need a reverse proxy like Nginx. You can find resources for setting up reverse proxies in the [Nginx documentation](https://nginx.org/en/docs/beginners_guide.html) or [Apache HTTP Server documentation](https://httpd.apache.org/docs/2.4/howto/reverse_proxy.html).
 
@@ -122,5 +238,6 @@ After completing all the steps:
 
 - Verify that events are being received by your d8a instance in the warehouse of your choice
 - For BigQuery, you can copy the official [Looker Studio dashboard](https://lookerstudio.google.com/u/0/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9)
+- For the local CSV option, review the generated files in `./csv-out`
 - For the files warehouse driver, review the [files warehouse driver guide](/articles/warehouses/files) for upload destination options (S3/MinIO, GCS, or local filesystem)
 - Review the [database schema](/articles/database-schema) to understand the data structure

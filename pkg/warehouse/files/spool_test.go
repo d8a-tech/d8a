@@ -913,11 +913,45 @@ func TestSpoolDriver_RemoteKeyFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	// then - verify remote key format
-	// Pattern: table=<tableEsc>/schema=<fp>/dt=<YYYY>/<MM>/<DD>/<unixSeconds>_<uuid>.csv
-	pattern := `^table=my_table/schema=[a-f0-9]+/dt=\d{4}/\d{2}/\d{2}/\d+_[a-f0-9\-]+\.csv$`
+	// Pattern: table=<tableEsc>/schema=<fp>/y=<YYYY>/m=<MM>/d=<DD>/<unixSeconds>_<uuid>.csv
+	pattern := `^table=my_table/schema=[a-f0-9]+/y=\d{4}/m=\d{2}/d=\d{2}/\d+_[a-f0-9\-]+\.csv$`
 	matched, err := regexp.MatchString(pattern, capturedRemoteKey)
 	require.NoError(t, err)
 	assert.True(t, matched, "Remote key should match pattern, got: %s", capturedRemoteKey)
+}
+
+// TestSpoolDriver_FilesystemUploaderUsesNestedOutputPath tests filesystem uploads preserve the rendered path.
+func TestSpoolDriver_FilesystemUploaderUsesNestedOutputPath(t *testing.T) {
+	// given
+	spoolDir := t.TempDir()
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	driver := NewSpoolDriver(context.Background(), uploader, NewCSVFormat(), spoolDir, withManualCycle())
+
+	schema := arrow.NewSchema([]arrow.Field{{Name: "id", Type: arrow.PrimitiveTypes.Int64}}, nil)
+
+	require.NoError(t, driver.Write(context.Background(), "events", schema, []map[string]any{{"id": int64(1)}}))
+
+	// when
+	err = driver.runFlushCycle(context.Background(), true)
+
+	// then
+	require.NoError(t, err)
+	fingerprint := schemaFingerprint(schema)
+	matches, globErr := filepath.Glob(filepath.Join(
+		destDir,
+		"table=events",
+		"schema="+fingerprint,
+		"y=*",
+		"m=*",
+		"d=*",
+		"*.csv",
+	))
+	require.NoError(t, globErr)
+	require.Len(t, matches, 1)
+	assert.FileExists(t, matches[0])
 }
 
 // TestSpoolDriver_Timer_Deterministic tests timer-based flush using deterministic ticker injection.

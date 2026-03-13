@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -64,8 +65,19 @@ func NewFilesystemUploader(destDir string) (Uploader, error) {
 }
 
 func (u *filesystemUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
-	filename := filepath.Base(remoteKey)
-	destPath := filepath.Join(u.destDir, filename)
+	_ = ctx
+
+	relPath := filepath.Clean(filepath.FromSlash(remoteKey))
+	if relPath == "." || filepath.IsAbs(relPath) || relPath == ".." ||
+		strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("invalid filesystem destination key: %s", remoteKey)
+	}
+
+	destPath := filepath.Join(u.destDir, relPath)
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o750); err != nil {
+		return fmt.Errorf("creating destination directory: %w", err)
+	}
+
 	if err := u.renameFn(localPath, destPath); err != nil {
 		var linkErr *os.LinkError
 		if errors.As(err, &linkErr) && errors.Is(linkErr.Err, syscall.EXDEV) {
