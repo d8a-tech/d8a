@@ -157,10 +157,53 @@ func TestFilesystemUploader_Upload_Success(t *testing.T) {
 	assert.Error(t, err)
 	assert.True(t, os.IsNotExist(err))
 	// Verify the file exists at destination
-	destFilePath := filepath.Join(destDir, filepath.Base(testRemoteKey))
+	destFilePath := filepath.Join(destDir, filepath.FromSlash(testRemoteKey))
 	data, err := os.ReadFile(destFilePath)
 	assert.NoError(t, err)
 	assert.Equal(t, testContent, data)
+}
+
+func TestFilesystemUploader_Upload_CreatesNestedDestinationDirs(t *testing.T) {
+	// given
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+	srcPath := filepath.Join(srcDir, "segment.csv")
+	testContent := []byte("test data")
+	require.NoError(t, os.WriteFile(srcPath, testContent, 0o644))
+
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	remoteKey := "table=events/schema=abc123/y=2026/m=03/d=13/segment.csv"
+
+	// when
+	err = uploader.Upload(context.Background(), srcPath, remoteKey)
+
+	// then
+	require.NoError(t, err)
+	destPath := filepath.Join(destDir, filepath.FromSlash(remoteKey))
+	data, err := os.ReadFile(destPath)
+	require.NoError(t, err)
+	assert.Equal(t, testContent, data)
+}
+
+func TestFilesystemUploader_Upload_RejectsPathTraversalRemoteKey(t *testing.T) {
+	// given
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+	srcPath := filepath.Join(srcDir, "segment.csv")
+	require.NoError(t, os.WriteFile(srcPath, []byte("test data"), 0o644))
+
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	// when
+	err = uploader.Upload(context.Background(), srcPath, "../segment.csv")
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid filesystem destination key")
+	assert.FileExists(t, srcPath)
 }
 
 func TestFilesystemUploader_Upload_NonExistentFile(t *testing.T) {
@@ -203,7 +246,7 @@ func TestFilesystemUploader_Upload_CrossDevice_CopyFallback(t *testing.T) {
 	require.NoError(t, err)
 
 	// Destination file should exist with correct content
-	destPath := filepath.Join(destDir, filepath.Base(testRemoteKey))
+	destPath := filepath.Join(destDir, filepath.FromSlash(testRemoteKey))
 	data, err := os.ReadFile(destPath)
 	require.NoError(t, err)
 	assert.Equal(t, testContent, data)

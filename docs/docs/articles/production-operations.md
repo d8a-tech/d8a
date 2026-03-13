@@ -1,5 +1,14 @@
 # Production operations
 
+## Deployment options
+
+Today, d8a documents two practical deployment shapes:
+
+- **Single-node Docker Compose**: the simplest way to run d8a with ClickHouse on one machine. See the [Getting started guide](/getting-started).
+- **Split processes on your own infrastructure**: run `d8a receiver` and `d8a worker` separately, which is the recommended base for more production-oriented setups.
+
+If you build and maintain other deployment options such as Helm charts, Kubernetes manifests, or Terraform-based examples, contributions are very welcome.
+
 ## HA
 
 D8A supports running the HTTP receiver and the background worker separately, allowing HA setups.

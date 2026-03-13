@@ -195,7 +195,7 @@ func NewSpoolDriver(
 	// Parse path template: use default if not set via option
 	tmplStr := sd.pathTemplateStr
 	if tmplStr == "" {
-		tmplStr = "table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/{{.DayPadded}}/" +
+		tmplStr = "table={{.Table}}/schema={{.Schema}}/y={{.Year}}/m={{.MonthPadded}}/d={{.DayPadded}}/" +
 			"{{.SegmentID}}.{{.Extension}}"
 	}
 	tmpl, err := parsePathTemplate(tmplStr)
