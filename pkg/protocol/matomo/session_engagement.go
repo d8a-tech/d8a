@@ -92,16 +92,16 @@ var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
 	[]string{outlinkEventType},
 	[]*arrow.Field{
-		ProtocolInterfaces.EventLinkURL.Field,
+		ProtocolInterfaces.EventParamsLinkURL.Field,
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface: ProtocolInterfaces.EventLinkURL.ID,
+			Interface: ProtocolInterfaces.EventParamsLinkURL.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
 		"Unique Outbound Clicks",
-		fmt.Sprintf("The unique number of outbound link clicks (event name: %s) in the session. Deduplicated by %s.", outlinkEventType, ProtocolInterfaces.EventLinkURL.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of outbound link clicks (event name: %s) in the session. Deduplicated by %s.", outlinkEventType, ProtocolInterfaces.EventParamsLinkURL.Field.Name), //nolint:lll // description
 	),
 )
 
@@ -122,16 +122,16 @@ var sessionUniqueSiteSearchesColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueSiteSearches.Field,
 	[]string{siteSearchEventType},
 	[]*arrow.Field{
-		ProtocolInterfaces.EventSearchTerm.Field,
+		ProtocolInterfaces.EventParamsSearchTerm.Field,
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface: ProtocolInterfaces.EventSearchTerm.ID,
+			Interface: ProtocolInterfaces.EventParamsSearchTerm.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
 		"Unique Site Searches",
-		fmt.Sprintf("The unique number of site searches (event name: %s) in the session. Deduplicated by %s.", siteSearchEventType, ProtocolInterfaces.EventSearchTerm.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of site searches (event name: %s) in the session. Deduplicated by %s.", siteSearchEventType, ProtocolInterfaces.EventParamsSearchTerm.Field.Name), //nolint:lll // description
 	),
 )
 
@@ -191,15 +191,15 @@ var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueFileDownloads.Field,
 	[]string{downloadEventType},
 	[]*arrow.Field{
-		ProtocolInterfaces.EventDownloadURL.Field,
+		ProtocolInterfaces.EventParamsDownloadURL.Field,
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
-			Interface: ProtocolInterfaces.EventDownloadURL.ID,
+			Interface: ProtocolInterfaces.EventParamsDownloadURL.ID,
 		},
 	),
 	columns.WithSessionColumnDocs(
 		"Unique File Downloads",
-		fmt.Sprintf("The unique number of file downloads (event name: %s) in the session. Deduplicated by %s.", downloadEventType, ProtocolInterfaces.EventDownloadURL.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of file downloads (event name: %s) in the session. Deduplicated by %s.", downloadEventType, ProtocolInterfaces.EventParamsDownloadURL.Field.Name), //nolint:lll // description
 	),
 )

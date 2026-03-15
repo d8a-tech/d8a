@@ -28,21 +28,21 @@ func TestMatomoEventParamsColumns(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:      "EventMeasurementID_Valid",
+			name:      "EventSiteID_Valid",
 			cfg:       []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "idsite", "42")},
-			fieldName: "measurement_id",
+			fieldName: "params_site_id",
 			expected:  "42",
 		},
 		{
-			name:      "EventMeasurementID_Empty",
+			name:      "EventSiteID_Empty",
 			cfg:       []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "idsite", "")},
-			fieldName: "measurement_id",
+			fieldName: "params_site_id",
 			expected:  nil,
 		},
 		{
-			name:      "EventMeasurementID_Absent",
+			name:      "EventSiteID_Absent",
 			cfg:       []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "idsite", "")},
-			fieldName: "measurement_id",
+			fieldName: "params_site_id",
 			expected:  nil,
 		},
 		{

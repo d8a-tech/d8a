@@ -46,7 +46,7 @@ var eventColumns = []schema.EventColumn{
 	eventLinkURLColumn,
 	eventDownloadURLColumn,
 	eventSearchTermColumn,
-	eventMeasurementIDColumn,
+	eventParamsSiteIDColumn,
 	eventParamsPageViewIDColumn,
 	eventParamsGoalIDColumn,
 	eventParamsCategoryColumn,

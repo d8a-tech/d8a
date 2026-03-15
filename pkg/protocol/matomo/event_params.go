@@ -69,16 +69,16 @@ var eventParamsValueColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var eventMeasurementIDColumn = columns.FromQueryParamEventColumn(
-	ProtocolInterfaces.EventMeasurementID.ID,
-	ProtocolInterfaces.EventMeasurementID.Field,
+var eventParamsSiteIDColumn = columns.FromQueryParamEventColumn(
+	ProtocolInterfaces.EventParamsSiteId.ID,
+	ProtocolInterfaces.EventParamsSiteId.Field,
 	"idsite",
 	columns.WithEventColumnRequired(false),
 	columns.WithEventColumnCast(
-		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventMeasurementID.ID)),
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventParamsSiteId.ID)),
 	),
 	columns.WithEventColumnDocs(
-		"Measurement ID",
-		"The Matomo measurement or tracking identifier, extracted from the idsite query parameter.",
+		"Site ID",
+		"The Matomo website id tracking identifier, extracted from the idsite query parameter.",
 	),
 )
