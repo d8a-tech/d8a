@@ -33,7 +33,7 @@ func PropertyNameColumn(psr properties.SettingsRegistry) schema.EventColumn {
 		},
 		columns.WithEventColumnDocs(
 			"Property Name",
-			"The name of the property that sent this event.", // nolint:lll // it's a description
+			"The name of the property that sent this event, used for display and reporting purposes, mapped from configuration, not tracked directly from the event data.", // nolint:lll // it's a description
 		),
 	)
 }

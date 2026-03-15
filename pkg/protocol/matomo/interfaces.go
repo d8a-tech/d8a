@@ -21,16 +21,14 @@ const (
 
 // ProtocolInterfaces are the columns specific to the Matomo protocol.
 var ProtocolInterfaces = struct {
-	EventMeasurementID               schema.Interface
+	EventParamsSiteId                schema.Interface
+	EventParamsPageViewID            schema.Interface
+	EventParamsGoalID                schema.Interface
 	EventParamsCategory              schema.Interface
 	EventParamsAction                schema.Interface
-	EventCustomVariables             schema.Interface
-	EventCustomDimensions            schema.Interface
-	SessionCustomVariables           schema.Interface
-	SessionCustomDimensions          schema.Interface
-	EventLinkURL                     schema.Interface
-	EventDownloadURL                 schema.Interface
-	EventSearchTerm                  schema.Interface
+	EventParamsLinkURL               schema.Interface
+	EventParamsDownloadURL           schema.Interface
+	EventParamsSearchTerm            schema.Interface
 	EventParamsValue                 schema.Interface
 	EventParamsMediaAssetID          schema.Interface
 	EventParamsMediaType             schema.Interface
@@ -38,7 +36,6 @@ var ProtocolInterfaces = struct {
 	EventParamsContentName           schema.Interface
 	EventParamsContentPiece          schema.Interface
 	EventParamsContentTarget         schema.Interface
-	EventNextPageTitle               schema.Interface
 	EventParamsProductPrice          schema.Interface
 	EventParamsProductSKU            schema.Interface
 	EventParamsProductName           schema.Interface
@@ -47,11 +44,13 @@ var ProtocolInterfaces = struct {
 	EventParamsProductCategory3      schema.Interface
 	EventParamsProductCategory4      schema.Interface
 	EventParamsProductCategory5      schema.Interface
-	EventParamsPageViewID            schema.Interface
-	EventParamsGoalID                schema.Interface
 	EventParamsSearchKeyword         schema.Interface
 	EventParamsSearchCategory        schema.Interface
 	EventParamsSearchCount           schema.Interface
+	EventCustomVariables             schema.Interface
+	EventCustomDimensions            schema.Interface
+	SessionCustomVariables           schema.Interface
+	SessionCustomDimensions          schema.Interface
 	EventEcommercePurchaseRevenue    schema.Interface
 	EventEcommerceShippingValue      schema.Interface
 	EventEcommerceSubtotalValue      schema.Interface
@@ -60,17 +59,18 @@ var ProtocolInterfaces = struct {
 	EventEcommerceOrderID            schema.Interface
 	EventEcommerceItems              schema.Interface
 	EventEcommerceItemsTotalQuantity schema.Interface
-	EventPreviousPageLocation        schema.Interface
 	EventNextPageLocation            schema.Interface
+	EventNextPageTitle               schema.Interface
+	EventPreviousPageLocation        schema.Interface
 	EventPreviousPageTitle           schema.Interface
 	SessionTotalGoalConversions      schema.Interface
 	SessionTotalContentImpressions   schema.Interface
 	SessionTotalContentInteractions  schema.Interface
 	SessionReturningUser             schema.Interface
 }{
-	EventMeasurementID: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/measurement_id",
-		Field: &arrow.Field{Name: "measurement_id", Type: arrow.BinaryTypes.String, Nullable: true},
+	EventParamsSiteId: schema.Interface{
+		ID:    "matomo.protocols.d8a.tech/event/params_site_id",
+		Field: &arrow.Field{Name: "params_site_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	EventParamsCategory: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_category",
@@ -96,15 +96,15 @@ var ProtocolInterfaces = struct {
 		ID:    "matomo.protocols.d8a.tech/session/session_custom_dimensions",
 		Field: repeatedSlotValueField("session_custom_dimensions"),
 	},
-	EventLinkURL: schema.Interface{
+	EventParamsLinkURL: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_link_url",
 		Field: &arrow.Field{Name: "params_link_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventDownloadURL: schema.Interface{
+	EventParamsDownloadURL: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_download_url",
 		Field: &arrow.Field{Name: "params_download_url", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
-	EventSearchTerm: schema.Interface{
+	EventParamsSearchTerm: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_search_term",
 		Field: &arrow.Field{Name: "params_search_term", Type: arrow.BinaryTypes.String, Nullable: true},
 	},

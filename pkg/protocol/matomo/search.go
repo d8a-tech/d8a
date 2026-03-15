@@ -6,8 +6,8 @@ import (
 )
 
 var eventSearchTermColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventSearchTerm.ID,
-	ProtocolInterfaces.EventSearchTerm.Field,
+	ProtocolInterfaces.EventParamsSearchTerm.ID,
+	ProtocolInterfaces.EventParamsSearchTerm.Field,
 	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		v := event.BoundHit.MustParsedRequest().QueryParams.Get("search")
 		if v == "" {

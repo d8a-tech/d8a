@@ -6,8 +6,8 @@ import (
 )
 
 var eventLinkURLColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventLinkURL.ID,
-	ProtocolInterfaces.EventLinkURL.Field,
+	ProtocolInterfaces.EventParamsLinkURL.ID,
+	ProtocolInterfaces.EventParamsLinkURL.Field,
 	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		v := event.BoundHit.MustParsedRequest().QueryParams.Get("link")
 		if v == "" {
@@ -22,8 +22,8 @@ var eventLinkURLColumn = columns.NewSimpleEventColumn(
 )
 
 var eventDownloadURLColumn = columns.NewSimpleEventColumn(
-	ProtocolInterfaces.EventDownloadURL.ID,
-	ProtocolInterfaces.EventDownloadURL.Field,
+	ProtocolInterfaces.EventParamsDownloadURL.ID,
+	ProtocolInterfaces.EventParamsDownloadURL.Field,
 	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		v := event.BoundHit.MustParsedRequest().QueryParams.Get("download")
 		if v == "" {
