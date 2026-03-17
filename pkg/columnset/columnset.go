@@ -12,8 +12,9 @@ import (
 
 // columnSetConfig holds the configuration for column set initialization.
 type columnSetConfig struct {
-	geoColumns    []schema.EventColumn
-	deviceColumns []schema.EventColumn
+	geoColumns            []schema.EventColumn
+	deviceColumns         []schema.EventColumn
+	customColumnsRegistry schema.ColumnsRegistry
 }
 
 // ColumnSetOption is a function that modifies columnSetConfig.
@@ -56,6 +57,13 @@ func WithDeviceDetectionColumns(cols []schema.EventColumn) ColumnSetOption {
 	}
 }
 
+// WithCustomColumnsRegistry returns a ColumnSetOption that sets a custom columns registry.
+func WithCustomColumnsRegistry(reg schema.ColumnsRegistry) ColumnSetOption {
+	return func(cfg *columnSetConfig) {
+		cfg.customColumnsRegistry = reg
+	}
+}
+
 // DefaultColumnRegistry returns a default column registry for the tracker API.
 func DefaultColumnRegistry(
 	theProtocol protocol.Protocol,
@@ -72,7 +80,7 @@ func DefaultColumnRegistry(
 	injectedColumns = append(injectedColumns, cfg.geoColumns...)
 	injectedColumns = append(injectedColumns, cfg.deviceColumns...)
 
-	return schema.NewColumnsMerger([]schema.ColumnsRegistry{
+	registries := []schema.ColumnsRegistry{
 		schema.NewStaticColumnsRegistry(
 			map[string]schema.Columns{},
 			schema.NewColumns(sessionColumns(), eventColumns(psr), sessionScopedEventColumns()),
@@ -85,7 +93,13 @@ func DefaultColumnRegistry(
 			map[string]schema.Columns{},
 			schema.NewColumns([]schema.SessionColumn{}, injectedColumns, []schema.SessionScopedEventColumn{}),
 		),
-	})
+	}
+
+	if cfg.customColumnsRegistry != nil {
+		registries = append(registries, cfg.customColumnsRegistry)
+	}
+
+	return schema.NewColumnsMerger(registries)
 }
 
 func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
