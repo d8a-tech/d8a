@@ -484,7 +484,7 @@ var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 type unusedConfigSourcer struct{}
 
 func (u *unusedConfigSourcer) SourceURI() string {
-	return "/tmp/d8a_filters_conditions_unused.yaml"
+	return "./tmp/d8a_filters_conditions_unused.yaml"
 }
 
 var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
