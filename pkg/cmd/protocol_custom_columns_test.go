@@ -1,10 +1,11 @@
-package properties
+package cmd
 
 import (
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +27,7 @@ protocol:
 	require.NoError(t, err)
 
 	// when
-	parsed, err := ParseProtocolCustomColumnsConfig(configPath)
+	parsed, err := parseProtocolCustomColumnsConfig(configPath)
 
 	// then
 	require.NoError(t, err)
@@ -39,28 +40,28 @@ protocol:
 	assert.Equal(t, "m_var", parsed.MatomoCustomVariables[0].Name)
 }
 
-func TestCustomColumnNormalizer_Normalize(t *testing.T) {
+func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	// given
-	normalizer := NewCustomColumnNormalizer(NewCustomColumnValidator())
+	normalizer := newProtocolCustomColumnNormalizer(newProtocolCustomColumnValidator())
 
 	// when
-	columns, err := normalizer.Normalize(ProtocolCustomColumnsConfig{
-		GA4Params: []GA4ParamShortcutConfig{{
+	columns, err := normalizer.Normalize(protocolCustomColumnsConfig{
+		GA4Params: []ga4ParamShortcutConfig{{
 			Name: "ga_param",
 		}},
-		MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+		MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 			Slot: 2,
 			Name: "m_dim_event",
 		}, {
 			Slot:  8,
 			Name:  "m_dim_session",
-			Scope: CustomColumnScopeSession,
+			Scope: properties.CustomColumnScopeSession,
 		}},
-		MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+		MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 			Name: "m_var_event",
 		}, {
 			Name:  "m_var_session",
-			Scope: CustomColumnScopeSession,
+			Scope: properties.CustomColumnScopeSession,
 		}},
 	})
 
@@ -68,12 +69,12 @@ func TestCustomColumnNormalizer_Normalize(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, columns, 5)
 
-	assert.Equal(t, CustomColumnConfig{
+	assert.Equal(t, properties.CustomColumnConfig{
 		Name:      "ga_param",
-		Scope:     CustomColumnScopeEvent,
-		Type:      CustomColumnTypeString,
+		Scope:     properties.CustomColumnScopeEvent,
+		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
-		Implementation: NestedLookupConfig{
+		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -82,12 +83,12 @@ func TestCustomColumnNormalizer_Normalize(t *testing.T) {
 		},
 	}, columns[0])
 
-	assert.Equal(t, CustomColumnConfig{
+	assert.Equal(t, properties.CustomColumnConfig{
 		Name:      "m_dim_event",
-		Scope:     CustomColumnScopeEvent,
-		Type:      CustomColumnTypeString,
+		Scope:     properties.CustomColumnScopeEvent,
+		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions")},
-		Implementation: NestedLookupConfig{
+		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions"),
 			SourceField:       "custom_dimensions",
 			MatchField:        "slot",
@@ -96,27 +97,27 @@ func TestCustomColumnNormalizer_Normalize(t *testing.T) {
 		},
 	}, columns[1])
 
-	assert.Equal(t, CustomColumnConfig{
+	assert.Equal(t, properties.CustomColumnConfig{
 		Name:      "m_dim_session",
-		Scope:     CustomColumnScopeSession,
-		Type:      CustomColumnTypeString,
+		Scope:     properties.CustomColumnScopeSession,
+		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions")},
-		Implementation: NestedLookupConfig{
+		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions"),
 			SourceField:       "session_custom_dimensions",
 			MatchField:        "slot",
 			MatchEquals:       int64(8),
 			ValueField:        "value",
-			Pick:              NestedLookupPickStrategyLastNonNull,
+			Pick:              properties.NestedLookupPickStrategyLastNonNull,
 		},
 	}, columns[2])
 
-	assert.Equal(t, CustomColumnConfig{
+	assert.Equal(t, properties.CustomColumnConfig{
 		Name:      "m_var_event",
-		Scope:     CustomColumnScopeEvent,
-		Type:      CustomColumnTypeString,
+		Scope:     properties.CustomColumnScopeEvent,
+		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables")},
-		Implementation: NestedLookupConfig{
+		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables"),
 			SourceField:       "custom_variables",
 			MatchField:        "name",
@@ -125,69 +126,69 @@ func TestCustomColumnNormalizer_Normalize(t *testing.T) {
 		},
 	}, columns[3])
 
-	assert.Equal(t, CustomColumnConfig{
+	assert.Equal(t, properties.CustomColumnConfig{
 		Name:      "m_var_session",
-		Scope:     CustomColumnScopeSession,
-		Type:      CustomColumnTypeString,
+		Scope:     properties.CustomColumnScopeSession,
+		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables")},
-		Implementation: NestedLookupConfig{
+		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 			SourceField:       "session_custom_variables",
 			MatchField:        "name",
 			MatchEquals:       "m_var_session",
 			ValueField:        "value",
-			Pick:              NestedLookupPickStrategyLastNonNull,
+			Pick:              properties.NestedLookupPickStrategyLastNonNull,
 		},
 	}, columns[4])
 }
 
-func TestCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
+func TestShortcutCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 	tests := []struct {
 		name      string
-		shortcuts ProtocolCustomColumnsConfig
+		shortcuts protocolCustomColumnsConfig
 		errPart   string
 	}{
 		{
 			name: "missing ga4 name",
-			shortcuts: ProtocolCustomColumnsConfig{
-				GA4Params: []GA4ParamShortcutConfig{{}},
+			shortcuts: protocolCustomColumnsConfig{
+				GA4Params: []ga4ParamShortcutConfig{{}},
 			},
 			errPart: "protocol.ga4_params[0].name is required",
 		},
 		{
 			name: "invalid ga4 scope",
-			shortcuts: ProtocolCustomColumnsConfig{
-				GA4Params: []GA4ParamShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				GA4Params: []ga4ParamShortcutConfig{{
 					Name:  "x",
-					Scope: CustomColumnScopeSession,
+					Scope: properties.CustomColumnScopeSession,
 				}},
 			},
 			errPart: "protocol.ga4_params[0].scope must be \"event\"",
 		},
 		{
 			name: "invalid type",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
-					Type: CustomColumnType("unknown"),
+					Type: properties.CustomColumnType("unknown"),
 				}},
 			},
 			errPart: "protocol.matomo_custom_variables[0].type has invalid value \"unknown\"",
 		},
 		{
 			name: "ga4 bool rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				GA4Params: []GA4ParamShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				GA4Params: []ga4ParamShortcutConfig{{
 					Name: "x",
-					Type: CustomColumnTypeBool,
+					Type: properties.CustomColumnTypeBool,
 				}},
 			},
 			errPart: "protocol.ga4_params[0].type \"bool\" is unsupported",
 		},
 		{
 			name: "missing matomo dimension slot",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 				}},
 			},
@@ -195,22 +196,22 @@ func TestCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 		},
 		{
 			name: "invalid matomo dimension scope",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name:  "x",
 					Slot:  1,
-					Scope: CustomColumnScopeSessionScopedEvent,
+					Scope: properties.CustomColumnScopeSessionScopedEvent,
 				}},
 			},
 			errPart: "protocol.matomo_custom_dimensions[0].scope has invalid value \"session_scoped_event\"",
 		},
 		{
 			name: "duplicate name across groups",
-			shortcuts: ProtocolCustomColumnsConfig{
-				GA4Params: []GA4ParamShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				GA4Params: []ga4ParamShortcutConfig{{
 					Name: "shared",
 				}},
-				MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "shared",
 				}},
 			},
@@ -218,70 +219,70 @@ func TestCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 		},
 		{
 			name: "matomo dimension int64 rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
-					Type: CustomColumnTypeInt64,
+					Type: properties.CustomColumnTypeInt64,
 				}},
 			},
 			errPart: "protocol.matomo_custom_dimensions[0].type \"int64\" is unsupported",
 		},
 		{
 			name: "matomo dimension float64 rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
-					Type: CustomColumnTypeFloat64,
+					Type: properties.CustomColumnTypeFloat64,
 				}},
 			},
 			errPart: "protocol.matomo_custom_dimensions[0].type \"float64\" is unsupported",
 		},
 		{
 			name: "matomo dimension bool rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomDimensions: []MatomoCustomDimensionShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
-					Type: CustomColumnTypeBool,
+					Type: properties.CustomColumnTypeBool,
 				}},
 			},
 			errPart: "protocol.matomo_custom_dimensions[0].type \"bool\" is unsupported",
 		},
 		{
 			name: "matomo variable int64 rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
-					Type: CustomColumnTypeInt64,
+					Type: properties.CustomColumnTypeInt64,
 				}},
 			},
 			errPart: "protocol.matomo_custom_variables[0].type \"int64\" is unsupported",
 		},
 		{
 			name: "matomo variable float64 rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
-					Type: CustomColumnTypeFloat64,
+					Type: properties.CustomColumnTypeFloat64,
 				}},
 			},
 			errPart: "protocol.matomo_custom_variables[0].type \"float64\" is unsupported",
 		},
 		{
 			name: "matomo variable bool rejected",
-			shortcuts: ProtocolCustomColumnsConfig{
-				MatomoCustomVariables: []MatomoCustomVariableShortcutConfig{{
+			shortcuts: protocolCustomColumnsConfig{
+				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
-					Type: CustomColumnTypeBool,
+					Type: properties.CustomColumnTypeBool,
 				}},
 			},
 			errPart: "protocol.matomo_custom_variables[0].type \"bool\" is unsupported",
 		},
 	}
 
-	normalizer := NewCustomColumnNormalizer(NewCustomColumnValidator())
+	normalizer := newProtocolCustomColumnNormalizer(newProtocolCustomColumnValidator())
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// when
@@ -292,4 +293,42 @@ func TestCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.errPart)
 		})
 	}
+}
+
+func TestLoadProtocolCustomColumns_AppendsFlagJSONToYAML(t *testing.T) {
+	// given
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	err := os.WriteFile(configPath, []byte(`
+protocol:
+  ga4_params:
+    - name: from_yaml
+`), 0o600)
+	require.NoError(t, err)
+
+	oldConfigFile := configFile
+	configFile = configPath
+	t.Cleanup(func() {
+		configFile = oldConfigFile
+	})
+
+	command := staticProtocolCustomColumnsSource{values: map[string][]string{
+		protocolGA4ParamsFlag.Name: []string{`{"name":"from_flag"}`},
+	}}
+
+	// when
+	columns, err := loadProtocolCustomColumns(command)
+
+	// then
+	require.NoError(t, err)
+	assert.Len(t, columns, 2)
+	assert.Equal(t, "from_yaml", columns[0].Name)
+	assert.Equal(t, "from_flag", columns[1].Name)
+}
+
+type staticProtocolCustomColumnsSource struct {
+	values map[string][]string
+}
+
+func (s staticProtocolCustomColumnsSource) StringSlice(name string) []string {
+	return s.values[name]
 }

@@ -431,22 +431,12 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 					return &filtersConfig
 				}(),
 				CustomColumns: func() []properties.CustomColumnConfig {
-					if _, err := os.Stat(configFile); err == nil {
-						protocolConfig, parseErr := properties.ParseProtocolCustomColumnsConfig(configFile)
-						if parseErr != nil {
-							logrus.Panicf("failed to parse protocol custom columns config: %v", parseErr)
-						}
-
-						normalizer := properties.NewCustomColumnNormalizer(properties.NewCustomColumnValidator())
-						customColumns, normalizeErr := normalizer.Normalize(protocolConfig)
-						if normalizeErr != nil {
-							logrus.Panicf("failed to normalize protocol custom columns config: %v", normalizeErr)
-						}
-
-						return customColumns
+					customColumns, loadErr := loadProtocolCustomColumns(cmd)
+					if loadErr != nil {
+						logrus.Panicf("failed to load protocol custom columns config: %v", loadErr)
 					}
 
-					return []properties.CustomColumnConfig{}
+					return customColumns
 				}(),
 			},
 		),

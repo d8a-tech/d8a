@@ -462,6 +462,54 @@ var protocolMatomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceF
 	Sources: defaultSourceChain("PROTOCOL_MATOMO_TRACKING_ENDPOINTS", "protocol.matomo_tracking_endpoints"),
 }
 
+var protocolGA4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "protocol-ga4-params",
+	Usage: "Array of GA4 parameter shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
+		"'name' (string, required), 'scope' (event; optional, defaults to event), 'type' (string/int64/float64; optional, defaults to string). " +
+		"Example: `{\"name\":\"campaign_id\",\"type\":\"string\"}`. " +
+		"Can be set via CLI flag, environment variable (PROTOCOL_GA4_PARAMS), or YAML config (protocol.ga4_params). " +
+		"Entries from flag/env are appended to YAML entries.",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("PROTOCOL_GA4_PARAMS")
+			return &f
+		}(),
+		yaml.YAML("protocol.ga4_params", &unusedConfigSourcer{}),
+	),
+}
+
+var protocolMatomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "protocol-matomo-custom-dimensions",
+	Usage: "Array of Matomo custom dimension shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
+		"'slot' (integer, required), 'name' (string, required), 'scope' (event/session; optional, defaults to event), 'type' (string only; optional, defaults to string). " +
+		"Example: `{\"slot\":3,\"name\":\"plan_tier\"}`. " +
+		"Can be set via CLI flag, environment variable (PROTOCOL_MATOMO_CUSTOM_DIMENSIONS), or YAML config (protocol.matomo_custom_dimensions). " +
+		"Entries from flag/env are appended to YAML entries.",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_DIMENSIONS")
+			return &f
+		}(),
+		yaml.YAML("protocol.matomo_custom_dimensions", &unusedConfigSourcer{}),
+	),
+}
+
+var protocolMatomoCustomVariablesFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "protocol-matomo-custom-variables",
+	Usage: "Array of Matomo custom variable shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
+		"'name' (string, required), 'scope' (event/session; optional, defaults to event), 'type' (string only; optional, defaults to string). " +
+		"Example: `{\"name\":\"ab_test_group\"}`. " +
+		"Can be set via CLI flag, environment variable (PROTOCOL_MATOMO_CUSTOM_VARIABLES), or YAML config (protocol.matomo_custom_variables). " +
+		"Entries from flag/env are appended to YAML entries.",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_VARIABLES")
+			return &f
+		}(),
+		yaml.YAML("protocol.matomo_custom_variables", &unusedConfigSourcer{}),
+	),
+}
+
 var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "telemetry-url",
 	Usage:   "Telemetry endpoint URL for sending usage events. Anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
@@ -555,6 +603,9 @@ func getServerFlags() []cli.Flag {
 			propertySettingsSplitByCampaignFlag,
 			protocolFlag,
 			protocolMatomoTrackingEndpointsFlag,
+			protocolGA4ParamsFlag,
+			protocolMatomoCustomDimensionsFlag,
+			protocolMatomoCustomVariablesFlag,
 			propertySettingsSplitByTimeSinceFirstEventFlag,
 			propertySettingsSplitByMaxEventsFlag,
 			monitoringEnabledFlag,
