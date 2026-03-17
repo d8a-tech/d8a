@@ -91,18 +91,25 @@ func newProtocolCustomColumnValidator() protocolCustomColumnValidator {
 
 func (v uniqueNameCustomColumnValidator) Validate(columns []properties.CustomColumnConfig) error {
 	names := make(map[string]struct{}, len(columns))
-	for _, column := range columns {
-		if _, exists := names[column.Name]; exists {
-			return fmt.Errorf("duplicate custom column output name %q", column.Name)
+	for idx := range columns {
+		name := columns[idx].Name
+		if _, exists := names[name]; exists {
+			return fmt.Errorf("duplicate custom column output name %q", name)
 		}
-		names[column.Name] = struct{}{}
+		names[name] = struct{}{}
 	}
 
 	return nil
 }
 
-func (n shortcutCustomColumnNormalizer) Normalize(shortcuts protocolCustomColumnsConfig) ([]properties.CustomColumnConfig, error) {
-	columns := make([]properties.CustomColumnConfig, 0, len(shortcuts.GA4Params)+len(shortcuts.MatomoCustomDimensions)+len(shortcuts.MatomoCustomVariables))
+func (n shortcutCustomColumnNormalizer) Normalize(
+	shortcuts protocolCustomColumnsConfig,
+) ([]properties.CustomColumnConfig, error) {
+	totalColumns := len(shortcuts.GA4Params) +
+		len(shortcuts.MatomoCustomDimensions) +
+		len(shortcuts.MatomoCustomVariables)
+
+	columns := make([]properties.CustomColumnConfig, 0, totalColumns)
 
 	for idx, entry := range shortcuts.GA4Params {
 		column, err := normalizeGA4ParamShortcut(entry, idx)
@@ -201,7 +208,11 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 
 	scope := defaultScope(entry.Scope)
 	if scope != properties.CustomColumnScopeEvent {
-		return properties.CustomColumnConfig{}, fmt.Errorf("%s.scope must be %q for GA4 params", pathPrefix, properties.CustomColumnScopeEvent)
+		return properties.CustomColumnConfig{}, fmt.Errorf(
+			"%s.scope must be %q for GA4 params",
+			pathPrefix,
+			properties.CustomColumnScopeEvent,
+		)
 	}
 
 	columnType := defaultType(entry.Type)
@@ -209,7 +220,11 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 		return properties.CustomColumnConfig{}, err
 	}
 	if columnType == properties.CustomColumnTypeBool {
-		return properties.CustomColumnConfig{}, fmt.Errorf("%s.type %q is unsupported for protocol.ga4_params", pathPrefix, columnType)
+		return properties.CustomColumnConfig{}, fmt.Errorf(
+			"%s.type %q is unsupported for protocol.ga4_params",
+			pathPrefix,
+			columnType,
+		)
 	}
 
 	valueField := "value_string"
@@ -232,7 +247,10 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 	}, nil
 }
 
-func normalizeMatomoCustomDimensionShortcut(entry matomoCustomDimensionShortcutConfig, idx int) (properties.CustomColumnConfig, error) {
+func normalizeMatomoCustomDimensionShortcut(
+	entry matomoCustomDimensionShortcutConfig,
+	idx int,
+) (properties.CustomColumnConfig, error) {
 	pathPrefix := fmt.Sprintf("protocol.matomo_custom_dimensions[%d]", idx)
 	if entry.Name == "" {
 		return properties.CustomColumnConfig{}, fmt.Errorf("%s.name is required", pathPrefix)
@@ -247,7 +265,13 @@ func normalizeMatomoCustomDimensionShortcut(entry matomoCustomDimensionShortcutC
 		return properties.CustomColumnConfig{}, err
 	}
 	if columnType != properties.CustomColumnTypeString {
-		return properties.CustomColumnConfig{}, fmt.Errorf("%s.type %q is unsupported; Matomo custom dimensions can only use type %q (value field is always a string)", pathPrefix, columnType, properties.CustomColumnTypeString)
+		return properties.CustomColumnConfig{}, fmt.Errorf(
+			"%s.type %q is unsupported; Matomo custom dimensions can only use type %q "+
+				"(value field is always a string)",
+			pathPrefix,
+			columnType,
+			properties.CustomColumnTypeString,
+		)
 	}
 
 	implementation := properties.NestedLookupConfig{
@@ -256,7 +280,12 @@ func normalizeMatomoCustomDimensionShortcut(entry matomoCustomDimensionShortcutC
 		ValueField:  "value",
 	}
 
-	dependsOnID, sourceField, err := matomoLookupByScope(pathPrefix+".scope", scope, "custom_dimensions", "session_custom_dimensions")
+	dependsOnID, sourceField, err := matomoLookupByScope(
+		pathPrefix+".scope",
+		scope,
+		"custom_dimensions",
+		"session_custom_dimensions",
+	)
 	if err != nil {
 		return properties.CustomColumnConfig{}, err
 	}
@@ -275,7 +304,10 @@ func normalizeMatomoCustomDimensionShortcut(entry matomoCustomDimensionShortcutC
 	}, nil
 }
 
-func normalizeMatomoCustomVariableShortcut(entry matomoCustomVariableShortcutConfig, idx int) (properties.CustomColumnConfig, error) {
+func normalizeMatomoCustomVariableShortcut(
+	entry matomoCustomVariableShortcutConfig,
+	idx int,
+) (properties.CustomColumnConfig, error) {
 	pathPrefix := fmt.Sprintf("protocol.matomo_custom_variables[%d]", idx)
 	if entry.Name == "" {
 		return properties.CustomColumnConfig{}, fmt.Errorf("%s.name is required", pathPrefix)
@@ -287,10 +319,21 @@ func normalizeMatomoCustomVariableShortcut(entry matomoCustomVariableShortcutCon
 		return properties.CustomColumnConfig{}, err
 	}
 	if columnType != properties.CustomColumnTypeString {
-		return properties.CustomColumnConfig{}, fmt.Errorf("%s.type %q is unsupported; Matomo custom variables can only use type %q (value field is always a string)", pathPrefix, columnType, properties.CustomColumnTypeString)
+		return properties.CustomColumnConfig{}, fmt.Errorf(
+			"%s.type %q is unsupported; Matomo custom variables can only use type %q "+
+				"(value field is always a string)",
+			pathPrefix,
+			columnType,
+			properties.CustomColumnTypeString,
+		)
 	}
 
-	dependsOnID, sourceField, err := matomoLookupByScope(pathPrefix+".scope", scope, "custom_variables", "session_custom_variables")
+	dependsOnID, sourceField, err := matomoLookupByScope(
+		pathPrefix+".scope",
+		scope,
+		"custom_variables",
+		"session_custom_variables",
+	)
 	if err != nil {
 		return properties.CustomColumnConfig{}, err
 	}
@@ -315,7 +358,12 @@ func normalizeMatomoCustomVariableShortcut(entry matomoCustomVariableShortcutCon
 	}, nil
 }
 
-func matomoLookupByScope(path string, scope properties.CustomColumnScope, eventSourceField, sessionSourceField string) (schema.InterfaceID, string, error) {
+func matomoLookupByScope(
+	path string,
+	scope properties.CustomColumnScope,
+	eventSourceField string,
+	sessionSourceField string,
+) (schema.InterfaceID, string, error) {
 	switch scope {
 	case properties.CustomColumnScopeEvent:
 		if eventSourceField == "custom_dimensions" {
@@ -348,7 +396,10 @@ func defaultType(columnType properties.CustomColumnType) properties.CustomColumn
 
 func validateType(path string, columnType properties.CustomColumnType) error {
 	switch columnType {
-	case properties.CustomColumnTypeString, properties.CustomColumnTypeInt64, properties.CustomColumnTypeFloat64, properties.CustomColumnTypeBool:
+	case properties.CustomColumnTypeString,
+		properties.CustomColumnTypeInt64,
+		properties.CustomColumnTypeFloat64,
+		properties.CustomColumnTypeBool:
 		return nil
 	default:
 		return fmt.Errorf("%s has invalid value %q", path, columnType)

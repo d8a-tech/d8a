@@ -98,10 +98,14 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[1])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:      "m_dim_session",
-		Scope:     properties.CustomColumnScopeSession,
-		Type:      properties.CustomColumnTypeString,
-		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions")},
+		Name:  "m_dim_session",
+		Scope: properties.CustomColumnScopeSession,
+		Type:  properties.CustomColumnTypeString,
+		DependsOn: schema.DependsOnEntry{
+			Interface: schema.InterfaceID(
+				"matomo.protocols.d8a.tech/session/session_custom_dimensions",
+			),
+		},
 		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions"),
 			SourceField:       "session_custom_dimensions",
@@ -127,10 +131,14 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[3])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:      "m_var_session",
-		Scope:     properties.CustomColumnScopeSession,
-		Type:      properties.CustomColumnTypeString,
-		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables")},
+		Name:  "m_var_session",
+		Scope: properties.CustomColumnScopeSession,
+		Type:  properties.CustomColumnTypeString,
+		DependsOn: schema.DependsOnEntry{
+			Interface: schema.InterfaceID(
+				"matomo.protocols.d8a.tech/session/session_custom_variables",
+			),
+		},
 		Implementation: properties.NestedLookupConfig{
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 			SourceField:       "session_custom_variables",
@@ -312,7 +320,7 @@ protocol:
 	})
 
 	command := staticProtocolCustomColumnsSource{values: map[string][]string{
-		protocolGA4ParamsFlag.Name: []string{`{"name":"from_flag"}`},
+		protocolGA4ParamsFlag.Name: {`{"name":"from_flag"}`},
 	}}
 
 	// when
