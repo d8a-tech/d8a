@@ -18,6 +18,7 @@ func validEventDefinition() properties.CustomColumnConfig {
 			"ga4.protocols.d8a.tech/event/params",
 		)},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -29,7 +30,7 @@ func validEventDefinition() properties.CustomColumnConfig {
 
 func TestFactoryBuild_EventColumnSuccess(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := validEventDefinition()
 	event := &schema.Event{Values: map[string]any{
 		"params": []any{
@@ -54,13 +55,14 @@ func TestFactoryBuild_EventColumnSuccess(t *testing.T) {
 
 func TestFactoryBuild_EventColumnInvalidSource(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:      "ga_invalid",
 		Scope:     properties.CustomColumnScopeEvent,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -82,7 +84,7 @@ func TestFactoryBuild_EventColumnInvalidSource(t *testing.T) {
 
 func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:  "matomo_dimension_3",
 		Scope: properties.CustomColumnScopeSession,
@@ -91,6 +93,7 @@ func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 			"matomo.protocols.d8a.tech/event/custom_dimensions",
 		)},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions"),
 			SourceField:       "custom_dimensions",
 			MatchField:        "slot",
@@ -122,13 +125,14 @@ func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 
 func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:      "matomo_invalid",
 		Scope:     properties.CustomColumnScopeSession,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions"),
 			SourceField:       "custom_dimensions",
 			MatchField:        "slot",
@@ -158,7 +162,7 @@ func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 
 func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:  "session_plan_active",
 		Scope: properties.CustomColumnScopeSessionScopedEvent,
@@ -167,6 +171,7 @@ func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
 			"matomo.protocols.d8a.tech/session/session_custom_variables",
 		)},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeSession,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 			SourceField:       "session_custom_variables",
 			MatchField:        "name",
@@ -200,13 +205,14 @@ func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
 
 func TestFactoryBuild_SessionScopedEventColumnInvalidSource(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:      "event_bad",
 		Scope:     properties.CustomColumnScopeSessionScopedEvent,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -239,6 +245,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 			Type:      properties.CustomColumnTypeString,
 			DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 			Implementation: properties.NestedLookupConfig{
+				SourceScope:       properties.NestedLookupSourceScopeEvent,
 				SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 				SourceField:       "params",
 				MatchField:        "name",
@@ -254,6 +261,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 				"matomo.protocols.d8a.tech/session/session_custom_variables",
 			)},
 			Implementation: properties.NestedLookupConfig{
+				SourceScope:       properties.NestedLookupSourceScopeSession,
 				SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 				SourceField:       "session_custom_variables",
 				MatchField:        "name",
@@ -268,6 +276,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 			Type:      properties.CustomColumnTypeString,
 			DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 			Implementation: properties.NestedLookupConfig{
+				SourceScope:       properties.NestedLookupSourceScopeEvent,
 				SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 				SourceField:       "params",
 				MatchField:        "name",
@@ -289,7 +298,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 
 func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	base := validEventDefinition()
 
 	tests := []struct {
@@ -350,9 +359,11 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 		{
 			name: "unsupported source interface",
 			mutate: func(def *properties.CustomColumnConfig) {
-				def.Implementation.SourceInterfaceID = "unknown.protocols.d8a.tech/event/source"
+				def.Scope = properties.CustomColumnScopeSessionScopedEvent
+				def.Implementation.SourceScope = ""
+				def.Implementation.SourceInterfaceID = "unknown.protocols.d8a.tech/source"
 			},
-			errSubstr: "unsupported custom column implementation source interface",
+			errSubstr: "cannot infer source scope from implementation.source_interface_id",
 		},
 		{
 			name: "unsupported pick strategy",
@@ -380,7 +391,7 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 
 func TestFactoryBuild_UsesSourceInterfaceOverDependsOnNaming(t *testing.T) {
 	// given
-	f := NewFactory(nil, nil)
+	f := NewFactory()
 	def := properties.CustomColumnConfig{
 		Name:  "session_plan_active",
 		Scope: properties.CustomColumnScopeSessionScopedEvent,
@@ -389,6 +400,7 @@ func TestFactoryBuild_UsesSourceInterfaceOverDependsOnNaming(t *testing.T) {
 			"matomo.protocols.d8a.tech/event/custom_variables",
 		)},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeSession,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 			SourceField:       "session_custom_variables",
 			MatchField:        "name",

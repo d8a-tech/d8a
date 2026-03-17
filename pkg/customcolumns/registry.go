@@ -19,7 +19,7 @@ type registry struct {
 // NewRegistry creates a runtime custom-column registry.
 func NewRegistry(factory Factory) Registry {
 	if factory == nil {
-		factory = NewFactory(nil, nil)
+		factory = NewFactory()
 	}
 
 	return &registry{factory: factory}

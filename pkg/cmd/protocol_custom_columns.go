@@ -238,6 +238,7 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 		Type:      columnType,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -275,6 +276,7 @@ func normalizeMatomoCustomDimensionShortcut(
 	}
 
 	implementation := properties.NestedLookupConfig{
+		SourceScope: properties.NestedLookupSourceScopeEvent,
 		MatchField:  "slot",
 		MatchEquals: entry.Slot,
 		ValueField:  "value",
@@ -291,6 +293,9 @@ func normalizeMatomoCustomDimensionShortcut(
 	}
 	implementation.SourceInterfaceID = dependsOnID
 	implementation.SourceField = sourceField
+	if scope == properties.CustomColumnScopeSession {
+		implementation.SourceScope = properties.NestedLookupSourceScopeSession
+	}
 	if scope != properties.CustomColumnScopeEvent {
 		implementation.Pick = properties.NestedLookupPickStrategyLastNonNull
 	}
@@ -339,11 +344,15 @@ func normalizeMatomoCustomVariableShortcut(
 	}
 
 	implementation := properties.NestedLookupConfig{
+		SourceScope:       properties.NestedLookupSourceScopeEvent,
 		SourceInterfaceID: dependsOnID,
 		SourceField:       sourceField,
 		MatchField:        "name",
 		MatchEquals:       entry.Name,
 		ValueField:        "value",
+	}
+	if scope == properties.CustomColumnScopeSession {
+		implementation.SourceScope = properties.NestedLookupSourceScopeSession
 	}
 	if scope != properties.CustomColumnScopeEvent {
 		implementation.Pick = properties.NestedLookupPickStrategyLastNonNull

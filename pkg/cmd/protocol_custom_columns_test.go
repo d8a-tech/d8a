@@ -75,6 +75,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
 			SourceField:       "params",
 			MatchField:        "name",
@@ -89,6 +90,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions"),
 			SourceField:       "custom_dimensions",
 			MatchField:        "slot",
@@ -107,6 +109,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 			),
 		},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeSession,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions"),
 			SourceField:       "session_custom_dimensions",
 			MatchField:        "slot",
@@ -122,6 +125,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables")},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables"),
 			SourceField:       "custom_variables",
 			MatchField:        "name",
@@ -140,6 +144,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 			),
 		},
 		Implementation: properties.NestedLookupConfig{
+			SourceScope:       properties.NestedLookupSourceScopeSession,
 			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
 			SourceField:       "session_custom_variables",
 			MatchField:        "name",

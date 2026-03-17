@@ -30,8 +30,17 @@ const (
 	NestedLookupPickStrategyLastNonNull NestedLookupPickStrategy = "last_non_null"
 )
 
+// NestedLookupSourceScope defines where the source records are read from.
+type NestedLookupSourceScope string
+
+const (
+	NestedLookupSourceScopeEvent   NestedLookupSourceScope = "event"
+	NestedLookupSourceScopeSession NestedLookupSourceScope = "session"
+)
+
 // NestedLookupConfig stores normalized nested source lookup details.
 type NestedLookupConfig struct {
+	SourceScope       NestedLookupSourceScope
 	SourceInterfaceID schema.InterfaceID
 	SourceField       string
 	MatchField        string

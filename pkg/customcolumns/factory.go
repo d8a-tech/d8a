@@ -3,11 +3,13 @@ package customcolumns
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
+	"github.com/sirupsen/logrus"
 )
 
 // Factory builds runtime columns from one normalized definition.
@@ -22,26 +24,7 @@ type BuiltColumn struct {
 	SessionScopedEvent schema.SessionScopedEventColumn
 }
 
-// RepeatedRecordReader reads repeated nested rows from a value.
-type RepeatedRecordReader interface {
-	Read(value any) ([]map[string]any, error)
-}
-
-// PickStrategy picks one value from candidate values.
-type PickStrategy interface {
-	Pick(values []any) (any, bool)
-}
-
-// CastRegistry maps custom output types to runtime casts.
-type CastRegistry interface {
-	Cast(columnType properties.CustomColumnType, value any) (any, schema.D8AColumnWriteError)
-}
-
-type factory struct {
-	reader RepeatedRecordReader
-	picker PickStrategy
-	casts  CastRegistry
-}
+type factory struct{}
 
 type noValueMarker struct{}
 
@@ -55,19 +38,8 @@ const (
 var noValue = noValueMarker{}
 
 // NewFactory creates a factory for normalized nested-lookup custom columns.
-func NewFactory(reader RepeatedRecordReader, casts CastRegistry) Factory {
-	if reader == nil {
-		reader = defaultRepeatedRecordReader{}
-	}
-	if casts == nil {
-		casts = defaultCastRegistry{}
-	}
-
-	return &factory{
-		reader: reader,
-		picker: lastNonNullPickStrategy{},
-		casts:  casts,
-	}
+func NewFactory() Factory {
+	return &factory{}
 }
 
 func (f *factory) Build(def *properties.CustomColumnConfig) (BuiltColumn, error) {
@@ -144,7 +116,7 @@ func (f *factory) buildSessionColumn(
 				return nil, getErr
 			}
 
-			picked, ok := f.picker.Pick(values)
+			picked, ok := pickLastNonNull(values)
 			if !ok {
 				return noValue, nil
 			}
@@ -253,7 +225,7 @@ func (f *factory) collectSessionValues(
 }
 
 func (f *factory) pickNested(def *properties.CustomColumnConfig, value any) (any, schema.D8AColumnWriteError) {
-	rows, err := f.reader.Read(value)
+	rows, err := readRepeatedRecords(value)
 	if err != nil {
 		return nil, schema.NewBrokenEventError(fmt.Sprintf("read repeated records: %s", err))
 	}
@@ -286,7 +258,7 @@ func (f *factory) cast(columnType properties.CustomColumnType, value any) (any, 
 		return nilValue(), nil
 	}
 
-	casted, err := f.casts.Cast(columnType, value)
+	casted, err := castValue(columnType, value)
 	if err != nil {
 		return nil, err
 	}
@@ -301,15 +273,13 @@ func (f *factory) cast(columnType properties.CustomColumnType, value any) (any, 
 func (f *factory) pickByConfig(strategy properties.NestedLookupPickStrategy, values []any) (any, bool) {
 	switch strategy {
 	case "", properties.NestedLookupPickStrategyLastNonNull:
-		return f.picker.Pick(values)
+		return pickLastNonNull(values)
 	default:
 		return nil, false
 	}
 }
 
-type defaultRepeatedRecordReader struct{}
-
-func (defaultRepeatedRecordReader) Read(value any) ([]map[string]any, error) {
+func readRepeatedRecords(value any) ([]map[string]any, error) {
 	if value == nil || isNoValue(value) {
 		return nil, nil
 	}
@@ -332,9 +302,7 @@ func (defaultRepeatedRecordReader) Read(value any) ([]map[string]any, error) {
 	}
 }
 
-type lastNonNullPickStrategy struct{}
-
-func (lastNonNullPickStrategy) Pick(values []any) (any, bool) {
+func pickLastNonNull(values []any) (any, bool) {
 	for i := len(values) - 1; i >= 0; i-- {
 		if values[i] != nil {
 			return values[i], true
@@ -344,9 +312,7 @@ func (lastNonNullPickStrategy) Pick(values []any) (any, bool) {
 	return nil, false
 }
 
-type defaultCastRegistry struct{}
-
-func (defaultCastRegistry) Cast(columnType properties.CustomColumnType, value any) (any, schema.D8AColumnWriteError) {
+func castValue(columnType properties.CustomColumnType, value any) (any, schema.D8AColumnWriteError) {
 	if value == nil || isNoValue(value) {
 		return noValue, nil
 	}
@@ -358,11 +324,7 @@ func (defaultCastRegistry) Cast(columnType properties.CustomColumnType, value an
 		switch typed := value.(type) {
 		case int64:
 			return typed, nil
-		case int:
-			return int64(typed), nil
 		case float64:
-			return int64(typed), nil
-		case float32:
 			return int64(typed), nil
 		case string:
 			if typed == "" {
@@ -380,11 +342,7 @@ func (defaultCastRegistry) Cast(columnType properties.CustomColumnType, value an
 		switch typed := value.(type) {
 		case float64:
 			return typed, nil
-		case float32:
-			return float64(typed), nil
 		case int64:
-			return float64(typed), nil
-		case int:
 			return float64(typed), nil
 		case string:
 			if typed == "" {
@@ -490,26 +448,48 @@ func validateDefinition(def *properties.CustomColumnConfig) error {
 }
 
 func resolveSourceScope(def *properties.CustomColumnConfig) (sourceScope, error) {
+	if def.Implementation.SourceScope != "" {
+		switch def.Implementation.SourceScope {
+		case properties.NestedLookupSourceScopeEvent:
+			return sourceScopeEvent, nil
+		case properties.NestedLookupSourceScopeSession:
+			return sourceScopeSession, nil
+		default:
+			return 0, fmt.Errorf(
+				"unsupported custom column implementation.source_scope %q",
+				def.Implementation.SourceScope,
+			)
+		}
+	}
+
+	if def.Scope == properties.CustomColumnScopeEvent {
+		return sourceScopeEvent, nil
+	}
+	if def.Scope == properties.CustomColumnScopeSession {
+		return sourceScopeSession, nil
+	}
+
 	sourceID := def.Implementation.SourceInterfaceID
 	if sourceID == "" {
 		sourceID = def.DependsOn.Interface
 	}
 
 	if sourceID == "" {
-		return 0, fmt.Errorf("custom column implementation.source_interface_id is required")
+		return 0, fmt.Errorf("custom column implementation.source_scope or implementation.source_interface_id is required")
 	}
 
-	switch sourceID {
-	case
-		schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
-		schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions"),
-		schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables"):
-		return sourceScopeEvent, nil
-	case
-		schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions"),
-		schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"):
+	logrus.Warnf(
+		"custom column %q uses deprecated implementation.source_interface_id fallback; set implementation.source_scope instead",
+		def.Name,
+	)
+
+	source := string(sourceID)
+	if strings.Contains(source, "/session/") {
 		return sourceScopeSession, nil
-	default:
-		return 0, fmt.Errorf("unsupported custom column implementation source interface %q", sourceID)
 	}
+	if strings.Contains(source, "/event/") {
+		return sourceScopeEvent, nil
+	}
+
+	return 0, fmt.Errorf("cannot infer source scope from implementation.source_interface_id %q", sourceID)
 }
