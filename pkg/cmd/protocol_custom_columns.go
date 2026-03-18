@@ -293,7 +293,7 @@ func normalizeMatomoCustomDimensionShortcut(
 	}
 	implementation.SourceInterfaceID = dependsOnID
 	implementation.SourceField = sourceField
-	if scope == properties.CustomColumnScopeSession {
+	if dependsOnID == schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_dimensions") {
 		implementation.SourceScope = properties.NestedLookupSourceScopeSession
 	}
 	if scope != properties.CustomColumnScopeEvent {
@@ -351,7 +351,7 @@ func normalizeMatomoCustomVariableShortcut(
 		MatchEquals:       entry.Name,
 		ValueField:        "value",
 	}
-	if scope == properties.CustomColumnScopeSession {
+	if dependsOnID == schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables") {
 		implementation.SourceScope = properties.NestedLookupSourceScopeSession
 	}
 	if scope != properties.CustomColumnScopeEvent {

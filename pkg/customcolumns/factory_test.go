@@ -160,79 +160,6 @@ func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 	assert.Contains(t, writeErr.Error(), "read repeated records")
 }
 
-func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
-	// given
-	f := NewFactory()
-	def := properties.CustomColumnConfig{
-		Name:  "session_plan_active",
-		Scope: properties.CustomColumnScopeSessionScopedEvent,
-		Type:  properties.CustomColumnTypeBool,
-		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID(
-			"ga4.protocols.d8a.tech/event/params",
-		)},
-		Implementation: properties.NestedLookupConfig{
-			SourceScope:       properties.NestedLookupSourceScopeEvent,
-			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
-			SourceField:       "params",
-			MatchField:        "name",
-			MatchEquals:       "plan_active",
-			ValueField:        "value_string",
-			Pick:              properties.NestedLookupPickStrategyLastNonNull,
-		},
-	}
-	session := &schema.Session{
-		Values: map[string]any{},
-		Events: []*schema.Event{
-			{Values: map[string]any{"params": []any{map[string]any{"name": "plan_active", "value_string": "true"}}}},
-			{Values: map[string]any{"params": []any{map[string]any{"name": "plan_active", "value_string": "false"}}}},
-		},
-	}
-
-	// when
-	built, err := f.Build(&def)
-	require.NoError(t, err)
-	writeErr0 := built.SessionScopedEvent.Write(session, 0)
-	writeErr1 := built.SessionScopedEvent.Write(session, 1)
-
-	// then
-	require.NoError(t, writeErr0)
-	require.NoError(t, writeErr1)
-	assert.Equal(t, true, session.Events[0].Values["session_plan_active"])
-	assert.Equal(t, false, session.Events[1].Values["session_plan_active"])
-}
-
-func TestFactoryBuild_SessionScopedEventColumnInvalidSource(t *testing.T) {
-	// given
-	f := NewFactory()
-	def := properties.CustomColumnConfig{
-		Name:      "event_bad",
-		Scope:     properties.CustomColumnScopeSessionScopedEvent,
-		Type:      properties.CustomColumnTypeString,
-		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
-		Implementation: properties.NestedLookupConfig{
-			SourceScope:       properties.NestedLookupSourceScopeEvent,
-			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
-			SourceField:       "params",
-			MatchField:        "name",
-			MatchEquals:       "x",
-			ValueField:        "value_string",
-		},
-	}
-	session := &schema.Session{
-		Values: map[string]any{},
-		Events: []*schema.Event{{Values: map[string]any{"params": 123}}},
-	}
-
-	// when
-	built, err := f.Build(&def)
-	require.NoError(t, err)
-	writeErr := built.SessionScopedEvent.Write(session, 0)
-
-	// then
-	require.Error(t, writeErr)
-	assert.Contains(t, writeErr.Error(), "read repeated records")
-}
-
 func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 	// given
 	r := NewRegistry(nil)
@@ -268,20 +195,6 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 				Pick:              properties.NestedLookupPickStrategyLastNonNull,
 			},
 		},
-		{
-			Name:      "sse",
-			Scope:     properties.CustomColumnScopeSessionScopedEvent,
-			Type:      properties.CustomColumnTypeString,
-			DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
-			Implementation: properties.NestedLookupConfig{
-				SourceScope:       properties.NestedLookupSourceScopeEvent,
-				SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
-				SourceField:       "params",
-				MatchField:        "name",
-				MatchEquals:       "sse",
-				ValueField:        "value_string",
-			},
-		},
 	}
 
 	// when
@@ -291,7 +204,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, cols.Event, 1)
 	assert.Len(t, cols.Session, 1)
-	assert.Len(t, cols.SessionScopedEvent, 1)
+	assert.Empty(t, cols.SessionScopedEvent)
 }
 
 func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
@@ -355,30 +268,34 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 			errSubstr: "value_field is required",
 		},
 		{
-			name: "unsupported source interface",
+			name: "unsupported source scope for session",
 			mutate: func(def *properties.CustomColumnConfig) {
 				def.Scope = properties.CustomColumnScopeSession
-				def.Implementation.SourceScope = ""
-				def.Implementation.SourceInterfaceID = "unknown.protocols.d8a.tech/source"
+				def.Implementation.SourceScope = properties.NestedLookupSourceScope("profile")
 			},
-			errSubstr: "cannot infer source scope from implementation.source_interface_id",
+			errSubstr: "unsupported custom column implementation.source_scope",
 		},
 		{
 			name: "unsupported pick strategy",
 			mutate: func(def *properties.CustomColumnConfig) {
+				def.Scope = properties.CustomColumnScopeSession
 				def.Implementation.Pick = properties.NestedLookupPickStrategy("first")
 			},
 			errSubstr: "unsupported pick strategy",
 		},
 		{
-			name: "session scoped event cannot read session custom column",
+			name: "event scope cannot use pick",
+			mutate: func(def *properties.CustomColumnConfig) {
+				def.Implementation.Pick = properties.NestedLookupPickStrategyLastNonNull
+			},
+			errSubstr: "event custom columns cannot use implementation.pick",
+		},
+		{
+			name: "session scoped event is unsupported",
 			mutate: func(def *properties.CustomColumnConfig) {
 				def.Scope = properties.CustomColumnScopeSessionScopedEvent
-				def.Implementation.SourceScope = properties.NestedLookupSourceScopeSession
-				def.Implementation.SourceInterfaceID = "customcolumns.d8a.tech/session/base_col"
-				def.DependsOn.Interface = "customcolumns.d8a.tech/session/base_col"
 			},
-			errSubstr: "cannot use session custom columns as source",
+			errSubstr: "is not supported by nested lookup custom columns",
 		},
 	}
 
@@ -397,23 +314,21 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 	}
 }
 
-func TestFactoryBuild_SessionScopedEventRejectsSessionSourceScope(t *testing.T) {
+func TestFactoryBuild_SessionScopedEventIsUnsupported(t *testing.T) {
 	// given
 	f := NewFactory()
 	def := properties.CustomColumnConfig{
-		Name:  "session_plan_active",
-		Scope: properties.CustomColumnScopeSessionScopedEvent,
-		Type:  properties.CustomColumnTypeString,
-		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID(
-			"matomo.protocols.d8a.tech/session/session_custom_variables",
-		)},
+		Name:      "session_plan_active",
+		Scope:     properties.CustomColumnScopeSessionScopedEvent,
+		Type:      properties.CustomColumnTypeString,
+		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
 		Implementation: properties.NestedLookupConfig{
-			SourceScope:       properties.NestedLookupSourceScopeSession,
-			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
-			SourceField:       "session_custom_variables",
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
+			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
+			SourceField:       "params",
 			MatchField:        "name",
 			MatchEquals:       "plan_active",
-			ValueField:        "value",
+			ValueField:        "value_string",
 			Pick:              properties.NestedLookupPickStrategyLastNonNull,
 		},
 	}
@@ -422,5 +337,5 @@ func TestFactoryBuild_SessionScopedEventRejectsSessionSourceScope(t *testing.T) 
 
 	// then
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot use source_scope=session")
+	assert.Contains(t, err.Error(), "is not supported by nested lookup custom columns")
 }

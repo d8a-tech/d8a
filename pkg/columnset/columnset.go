@@ -14,7 +14,7 @@ import (
 type columnSetConfig struct {
 	geoColumns            []schema.EventColumn
 	deviceColumns         []schema.EventColumn
-	customColumnsRegistry schema.ColumnsRegistry
+	customColumnsRegistry []schema.ColumnsRegistry
 }
 
 // ColumnSetOption is a function that modifies columnSetConfig.
@@ -60,7 +60,10 @@ func WithDeviceDetectionColumns(cols []schema.EventColumn) ColumnSetOption {
 // WithCustomColumnsRegistry returns a ColumnSetOption that sets a custom columns registry.
 func WithCustomColumnsRegistry(reg schema.ColumnsRegistry) ColumnSetOption {
 	return func(cfg *columnSetConfig) {
-		cfg.customColumnsRegistry = reg
+		if reg == nil {
+			return
+		}
+		cfg.customColumnsRegistry = append(cfg.customColumnsRegistry, reg)
 	}
 }
 
@@ -95,8 +98,8 @@ func DefaultColumnRegistry(
 		),
 	}
 
-	if cfg.customColumnsRegistry != nil {
-		registries = append(registries, cfg.customColumnsRegistry)
+	if len(cfg.customColumnsRegistry) > 0 {
+		registries = append(registries, cfg.customColumnsRegistry...)
 	}
 
 	return schema.NewColumnsMerger(registries)

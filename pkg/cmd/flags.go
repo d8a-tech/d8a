@@ -477,7 +477,6 @@ var protocolGA4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 			f := cli.EnvVars("PROTOCOL_GA4_PARAMS")
 			return &f
 		}(),
-		yaml.YAML("protocol.ga4_params", &unusedConfigSourcer{}),
 	),
 }
 
@@ -498,7 +497,6 @@ var protocolMatomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFl
 			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_DIMENSIONS")
 			return &f
 		}(),
-		yaml.YAML("protocol.matomo_custom_dimensions", &unusedConfigSourcer{}),
 	),
 }
 
@@ -518,7 +516,6 @@ var protocolMatomoCustomVariablesFlag *cli.StringSliceFlag = &cli.StringSliceFla
 			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_VARIABLES")
 			return &f
 		}(),
-		yaml.YAML("protocol.matomo_custom_variables", &unusedConfigSourcer{}),
 	),
 }
 

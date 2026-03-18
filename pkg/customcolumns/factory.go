@@ -3,13 +3,11 @@ package customcolumns
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/sirupsen/logrus"
 )
 
 // Factory builds runtime columns from one normalized definition.
@@ -59,10 +57,11 @@ func (f *factory) Build(def *properties.CustomColumnConfig) (BuiltColumn, error)
 		return f.buildEventColumn(def, field, ifID)
 	case properties.CustomColumnScopeSession:
 		return f.buildSessionColumn(def, field, ifID)
-	case properties.CustomColumnScopeSessionScopedEvent:
-		return f.buildSessionScopedEventColumn(def, field, ifID)
 	default:
-		return BuiltColumn{}, fmt.Errorf("unsupported custom column scope %q", def.Scope)
+		return BuiltColumn{}, fmt.Errorf(
+			"custom column scope %q is not supported by nested lookup custom columns",
+			def.Scope,
+		)
 	}
 }
 
@@ -124,40 +123,6 @@ func (f *factory) buildSessionColumn(
 	)
 
 	return BuiltColumn{Session: col}, nil
-}
-
-func (f *factory) buildSessionScopedEventColumn(
-	def *properties.CustomColumnConfig,
-	field *arrow.Field,
-	ifID schema.InterfaceID,
-) (BuiltColumn, error) {
-	col := columns.NewSimpleSessionScopedEventColumn(
-		ifID,
-		field,
-		func(session *schema.Session, i int) (any, schema.D8AColumnWriteError) {
-			if i < 0 || i >= len(session.Events) {
-				return noValue, nil
-			}
-
-			value, ok := session.Events[i].Values[def.Implementation.SourceField]
-			if !ok {
-				return noValue, nil
-			}
-
-			picked, pickErr := f.pickNested(def, value)
-			if pickErr != nil {
-				return nil, pickErr
-			}
-
-			return picked, nil
-		},
-		columns.WithSessionScopedEventColumnDependsOn(def.DependsOn),
-		columns.WithSessionScopedEventColumnCast(ifID, func(value any) (any, schema.D8AColumnWriteError) {
-			return f.cast(def.Type, value)
-		}),
-	)
-
-	return BuiltColumn{SessionScopedEvent: col}, nil
 }
 
 func (f *factory) collectSessionValues(
@@ -305,8 +270,6 @@ func castValue(columnType properties.CustomColumnType, value any) (any, schema.D
 		return columns.StrNilIfErrorOrEmpty(columns.CastToString(""))(value)
 	case properties.CustomColumnTypeInt64:
 		switch typed := value.(type) {
-		case int64:
-			return typed, nil
 		case float64:
 			return int64(typed), nil
 		case string:
@@ -325,8 +288,6 @@ func castValue(columnType properties.CustomColumnType, value any) (any, schema.D
 		switch typed := value.(type) {
 		case float64:
 			return typed, nil
-		case int64:
-			return float64(typed), nil
 		case string:
 			if typed == "" {
 				return noValue, nil
@@ -403,9 +364,11 @@ func validateDefinition(def *properties.CustomColumnConfig) error {
 
 	switch def.Scope {
 	case properties.CustomColumnScopeEvent,
-		properties.CustomColumnScopeSession,
-		properties.CustomColumnScopeSessionScopedEvent:
+		properties.CustomColumnScopeSession:
 	default:
+		if def.Scope == properties.CustomColumnScopeSessionScopedEvent {
+			return fmt.Errorf("custom column scope %q is not supported by nested lookup custom columns", def.Scope)
+		}
 		return fmt.Errorf("unsupported custom column scope %q", def.Scope)
 	}
 
@@ -418,16 +381,16 @@ func validateDefinition(def *properties.CustomColumnConfig) error {
 		return fmt.Errorf("unsupported custom column type %q", def.Type)
 	}
 
-	if def.Scope == properties.CustomColumnScopeSessionScopedEvent &&
-		isSessionCustomColumnSource(def) {
-		return fmt.Errorf(
-			"session_scoped_event custom columns cannot use session custom columns as source",
-		)
-	}
+	if def.Scope == properties.CustomColumnScopeEvent {
+		switch def.Implementation.SourceScope {
+		case "", properties.NestedLookupSourceScopeEvent:
+		default:
+			return fmt.Errorf("event custom columns cannot use source_scope=%q", def.Implementation.SourceScope)
+		}
 
-	if def.Scope == properties.CustomColumnScopeSessionScopedEvent &&
-		def.Implementation.SourceScope == properties.NestedLookupSourceScopeSession {
-		return fmt.Errorf("session_scoped_event custom columns cannot use source_scope=session")
+		if def.Implementation.Pick != "" {
+			return fmt.Errorf("event custom columns cannot use implementation.pick")
+		}
 	}
 
 	if def.Scope == properties.CustomColumnScopeSession {
@@ -445,51 +408,15 @@ func validateDefinition(def *properties.CustomColumnConfig) error {
 }
 
 func resolveSessionSourceScope(def *properties.CustomColumnConfig) (sourceScope, error) {
-	if def.Implementation.SourceScope != "" {
-		switch def.Implementation.SourceScope {
-		case properties.NestedLookupSourceScopeEvent:
-			return sourceScopeEvent, nil
-		case properties.NestedLookupSourceScopeSession:
-			return sourceScopeSession, nil
-		default:
-			return 0, fmt.Errorf(
-				"unsupported custom column implementation.source_scope %q",
-				def.Implementation.SourceScope,
-			)
-		}
-	}
-
-	sourceID := def.Implementation.SourceInterfaceID
-	if sourceID == "" {
-		sourceID = def.DependsOn.Interface
-	}
-
-	if sourceID == "" {
+	switch def.Implementation.SourceScope {
+	case "", properties.NestedLookupSourceScopeEvent:
 		return sourceScopeEvent, nil
-	}
-
-	logrus.Warnf(
-		"custom column %q uses deprecated implementation.source_interface_id fallback; "+
-			"set implementation.source_scope instead",
-		def.Name,
-	)
-
-	source := string(sourceID)
-	if strings.Contains(source, "/session/") {
+	case properties.NestedLookupSourceScopeSession:
 		return sourceScopeSession, nil
+	default:
+		return 0, fmt.Errorf(
+			"unsupported custom column implementation.source_scope %q",
+			def.Implementation.SourceScope,
+		)
 	}
-	if strings.Contains(source, "/event/") {
-		return sourceScopeEvent, nil
-	}
-
-	return 0, fmt.Errorf("cannot infer source scope from implementation.source_interface_id %q", sourceID)
-}
-
-func isSessionCustomColumnSource(def *properties.CustomColumnConfig) bool {
-	sourceID := def.Implementation.SourceInterfaceID
-	if sourceID == "" {
-		sourceID = def.DependsOn.Interface
-	}
-
-	return strings.HasPrefix(string(sourceID), "customcolumns.d8a.tech/session/")
 }
