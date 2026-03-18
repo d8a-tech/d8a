@@ -10,11 +10,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// Factory builds runtime columns from one normalized definition.
-type Factory interface {
-	Build(def *properties.CustomColumnConfig) (BuiltColumn, error)
-}
-
 // BuiltColumn holds a single built column in one of the supported scopes.
 type BuiltColumn struct {
 	Event              schema.EventColumn
@@ -22,7 +17,10 @@ type BuiltColumn struct {
 	SessionScopedEvent schema.SessionScopedEventColumn
 }
 
-type factory struct{}
+// ColumnBuilder builds runtime columns from normalized custom column configs.
+type ColumnBuilder interface {
+	Build(defs []*properties.CustomColumnConfig) ([]BuiltColumn, error)
+}
 
 type noValueMarker struct{}
 
@@ -35,97 +33,147 @@ const (
 
 var noValue = noValueMarker{}
 
-// NewFactory creates a factory for normalized nested-lookup custom columns.
-func NewFactory() Factory {
-	return &factory{}
+type multiColumnBuilder struct {
+	subBuilders []ColumnBuilder
 }
 
-func (f *factory) Build(def *properties.CustomColumnConfig) (BuiltColumn, error) {
-	if err := validateDefinition(def); err != nil {
-		return BuiltColumn{}, err
+// NewMultiColumnBuilder creates a builder that runs all sub-builders.
+func NewMultiColumnBuilder(subBuilders ...ColumnBuilder) ColumnBuilder {
+	builders := make([]ColumnBuilder, 0, len(subBuilders))
+	for i := range subBuilders {
+		if subBuilders[i] == nil {
+			continue
+		}
+		builders = append(builders, subBuilders[i])
 	}
 
-	field, err := arrowField(def.Name, def.Type)
-	if err != nil {
-		return BuiltColumn{}, err
+	return &multiColumnBuilder{subBuilders: builders}
+}
+
+func (b *multiColumnBuilder) Build(defs []*properties.CustomColumnConfig) ([]BuiltColumn, error) {
+	for i := range defs {
+		def := defs[i]
+		if def == nil {
+			return nil, fmt.Errorf("build custom column at index %d: definition is nil", i)
+		}
+
+		if err := validateDefinition(def); err != nil {
+			return nil, fmt.Errorf("build custom column %q at index %d: %w", def.Name, i, err)
+		}
 	}
 
-	ifID := interfaceID(def)
+	built := make([]BuiltColumn, 0)
 
-	switch def.Scope {
-	case properties.CustomColumnScopeEvent:
-		return f.buildEventColumn(def, field, ifID)
-	case properties.CustomColumnScopeSession:
-		return f.buildSessionColumn(def, field, ifID)
-	default:
-		return BuiltColumn{}, fmt.Errorf(
-			"custom column scope %q is not supported by nested lookup custom columns",
-			def.Scope,
+	for i := range b.subBuilders {
+		columns, err := b.subBuilders[i].Build(defs)
+		if err != nil {
+			return nil, err
+		}
+		built = append(built, columns...)
+	}
+
+	return built, nil
+}
+
+type eventColumnBuilder struct{}
+
+// NewEventColumnBuilder creates a builder for event-scoped custom columns.
+func NewEventColumnBuilder() ColumnBuilder {
+	return &eventColumnBuilder{}
+}
+
+func (b *eventColumnBuilder) Build(defs []*properties.CustomColumnConfig) ([]BuiltColumn, error) {
+	built := make([]BuiltColumn, 0, len(defs))
+
+	for i := range defs {
+		def := defs[i]
+		if def == nil || def.Scope != properties.CustomColumnScopeEvent {
+			continue
+		}
+
+		field, err := arrowField(def.Name, def.Type)
+		if err != nil {
+			return nil, fmt.Errorf("build custom column %q at index %d: %w", def.Name, i, err)
+		}
+
+		col := columns.NewSimpleEventColumn(
+			interfaceID(def),
+			field,
+			func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+				value, ok := event.Values[def.Implementation.SourceField]
+				if !ok {
+					return noValue, nil
+				}
+
+				picked, pickErr := pickNested(def, value)
+				if pickErr != nil {
+					return nil, pickErr
+				}
+
+				return picked, nil
+			},
+			columns.WithEventColumnDependsOn(def.DependsOn),
+			columns.WithEventColumnCast(func(value any) (any, schema.D8AColumnWriteError) {
+				return cast(def.Type, value)
+			}),
 		)
+
+		built = append(built, BuiltColumn{Event: col})
 	}
+
+	return built, nil
 }
 
-func (f *factory) buildEventColumn(
-	def *properties.CustomColumnConfig,
-	field *arrow.Field,
-	ifID schema.InterfaceID,
-) (BuiltColumn, error) {
-	col := columns.NewSimpleEventColumn(
-		ifID,
-		field,
-		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-			value, ok := event.Values[def.Implementation.SourceField]
-			if !ok {
-				return noValue, nil
-			}
+type sessionColumnBuilder struct{}
 
-			picked, pickErr := f.pickNested(def, value)
-			if pickErr != nil {
-				return nil, pickErr
-			}
-
-			return picked, nil
-		},
-		columns.WithEventColumnDependsOn(def.DependsOn),
-		columns.WithEventColumnCast(func(value any) (any, schema.D8AColumnWriteError) {
-			return f.cast(def.Type, value)
-		}),
-	)
-
-	return BuiltColumn{Event: col}, nil
+// NewSessionColumnBuilder creates a builder for session-scoped custom columns.
+func NewSessionColumnBuilder() ColumnBuilder {
+	return &sessionColumnBuilder{}
 }
 
-func (f *factory) buildSessionColumn(
-	def *properties.CustomColumnConfig,
-	field *arrow.Field,
-	ifID schema.InterfaceID,
-) (BuiltColumn, error) {
-	col := columns.NewSimpleSessionColumn(
-		ifID,
-		field,
-		func(session *schema.Session) (any, schema.D8AColumnWriteError) {
-			values, getErr := f.collectSessionValues(def, session)
-			if getErr != nil {
-				return nil, getErr
-			}
+func (b *sessionColumnBuilder) Build(defs []*properties.CustomColumnConfig) ([]BuiltColumn, error) {
+	built := make([]BuiltColumn, 0, len(defs))
 
-			picked, ok := pickLastNonNull(values)
-			if !ok {
-				return noValue, nil
-			}
+	for i := range defs {
+		def := defs[i]
+		if def == nil || def.Scope != properties.CustomColumnScopeSession {
+			continue
+		}
 
-			return picked, nil
-		},
-		columns.WithSessionColumnDependsOn(def.DependsOn),
-		columns.WithSessionColumnCast(func(value any) (any, schema.D8AColumnWriteError) {
-			return f.cast(def.Type, value)
-		}),
-	)
+		field, err := arrowField(def.Name, def.Type)
+		if err != nil {
+			return nil, fmt.Errorf("build custom column %q at index %d: %w", def.Name, i, err)
+		}
 
-	return BuiltColumn{Session: col}, nil
+		col := columns.NewSimpleSessionColumn(
+			interfaceID(def),
+			field,
+			func(session *schema.Session) (any, schema.D8AColumnWriteError) {
+				values, getErr := collectSessionValues(def, session)
+				if getErr != nil {
+					return nil, getErr
+				}
+
+				picked, ok := pickLastNonNull(values)
+				if !ok {
+					return noValue, nil
+				}
+
+				return picked, nil
+			},
+			columns.WithSessionColumnDependsOn(def.DependsOn),
+			columns.WithSessionColumnCast(func(value any) (any, schema.D8AColumnWriteError) {
+				return cast(def.Type, value)
+			}),
+		)
+
+		built = append(built, BuiltColumn{Session: col})
+	}
+
+	return built, nil
 }
 
-func (f *factory) collectSessionValues(
+func collectSessionValues(
 	def *properties.CustomColumnConfig,
 	session *schema.Session,
 ) ([]any, schema.D8AColumnWriteError) {
@@ -140,9 +188,9 @@ func (f *factory) collectSessionValues(
 			return []any{}, nil
 		}
 
-		picked, err := f.pickNested(def, value)
-		if err != nil {
-			return nil, err
+		picked, pickErr := pickNested(def, value)
+		if pickErr != nil {
+			return nil, pickErr
 		}
 		if isNoValue(picked) {
 			return []any{}, nil
@@ -158,9 +206,9 @@ func (f *factory) collectSessionValues(
 			continue
 		}
 
-		picked, err := f.pickNested(def, value)
-		if err != nil {
-			return nil, err
+		picked, pickErr := pickNested(def, value)
+		if pickErr != nil {
+			return nil, pickErr
 		}
 		if isNoValue(picked) {
 			continue
@@ -172,7 +220,7 @@ func (f *factory) collectSessionValues(
 	return values, nil
 }
 
-func (f *factory) pickNested(def *properties.CustomColumnConfig, value any) (any, schema.D8AColumnWriteError) {
+func pickNested(def *properties.CustomColumnConfig, value any) (any, schema.D8AColumnWriteError) {
 	rows, err := readRepeatedRecords(value)
 	if err != nil {
 		return nil, schema.NewBrokenEventError(fmt.Sprintf("read repeated records: %s", err))
@@ -185,15 +233,15 @@ func (f *factory) pickNested(def *properties.CustomColumnConfig, value any) (any
 			continue
 		}
 
-		val, ok := row[def.Implementation.ValueField]
+		picked, ok := row[def.Implementation.ValueField]
 		if !ok {
 			continue
 		}
 
-		candidates = append(candidates, val)
+		candidates = append(candidates, picked)
 	}
 
-	picked, ok := f.pickByConfig(def.Implementation.Pick, candidates)
+	picked, ok := pickByConfig(def.Implementation.Pick, candidates)
 	if !ok {
 		return noValue, nil
 	}
@@ -201,7 +249,7 @@ func (f *factory) pickNested(def *properties.CustomColumnConfig, value any) (any
 	return picked, nil
 }
 
-func (f *factory) cast(columnType properties.CustomColumnType, value any) (any, schema.D8AColumnWriteError) {
+func cast(columnType properties.CustomColumnType, value any) (any, schema.D8AColumnWriteError) {
 	if isNoValue(value) {
 		return nilValue(), nil
 	}
@@ -218,7 +266,7 @@ func (f *factory) cast(columnType properties.CustomColumnType, value any) (any, 
 	return casted, nil
 }
 
-func (f *factory) pickByConfig(strategy properties.NestedLookupPickStrategy, values []any) (any, bool) {
+func pickByConfig(strategy properties.NestedLookupPickStrategy, values []any) (any, bool) {
 	switch strategy {
 	case "", properties.NestedLookupPickStrategyLastNonNull:
 		return pickLastNonNull(values)

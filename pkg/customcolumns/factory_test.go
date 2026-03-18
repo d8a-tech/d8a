@@ -30,7 +30,7 @@ func validEventDefinition() properties.CustomColumnConfig {
 
 func TestFactoryBuild_EventColumnSuccess(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	def := validEventDefinition()
 	event := &schema.Event{Values: map[string]any{
 		"params": []any{
@@ -42,7 +42,7 @@ func TestFactoryBuild_EventColumnSuccess(t *testing.T) {
 	}}
 
 	// when
-	built, err := f.Build(&def)
+	built, err := buildOne(t, f, &def)
 	require.NoError(t, err)
 	writeErr := built.Event.Write(event)
 
@@ -55,7 +55,7 @@ func TestFactoryBuild_EventColumnSuccess(t *testing.T) {
 
 func TestFactoryBuild_EventColumnInvalidSource(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	def := properties.CustomColumnConfig{
 		Name:      "ga_invalid",
 		Scope:     properties.CustomColumnScopeEvent,
@@ -73,7 +73,7 @@ func TestFactoryBuild_EventColumnInvalidSource(t *testing.T) {
 	event := &schema.Event{Values: map[string]any{"params": "not-repeated"}}
 
 	// when
-	built, err := f.Build(&def)
+	built, err := buildOne(t, f, &def)
 	require.NoError(t, err)
 	writeErr := built.Event.Write(event)
 
@@ -84,7 +84,7 @@ func TestFactoryBuild_EventColumnInvalidSource(t *testing.T) {
 
 func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	def := properties.CustomColumnConfig{
 		Name:  "matomo_dimension_3",
 		Scope: properties.CustomColumnScopeSession,
@@ -114,7 +114,7 @@ func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 	}
 
 	// when
-	built, err := f.Build(&def)
+	built, err := buildOne(t, f, &def)
 	require.NoError(t, err)
 	writeErr := built.Session.Write(session)
 
@@ -125,7 +125,7 @@ func TestFactoryBuild_SessionColumnSuccess(t *testing.T) {
 
 func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	def := properties.CustomColumnConfig{
 		Name:      "matomo_invalid",
 		Scope:     properties.CustomColumnScopeSession,
@@ -151,7 +151,7 @@ func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 	}
 
 	// when
-	built, err := f.Build(&def)
+	built, err := buildOne(t, f, &def)
 	require.NoError(t, err)
 	writeErr := built.Session.Write(session)
 
@@ -209,7 +209,7 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 
 func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	base := validEventDefinition()
 
 	tests := []struct {
@@ -305,7 +305,7 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 			tt.mutate(&def)
 
 			// when
-			_, err := f.Build(&def)
+			_, err := f.Build([]*properties.CustomColumnConfig{&def})
 
 			// then
 			require.Error(t, err)
@@ -316,7 +316,7 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 
 func TestFactoryBuild_SessionScopedEventIsUnsupported(t *testing.T) {
 	// given
-	f := NewFactory()
+	f := NewMultiColumnBuilder(NewEventColumnBuilder(), NewSessionColumnBuilder())
 	def := properties.CustomColumnConfig{
 		Name:      "session_plan_active",
 		Scope:     properties.CustomColumnScopeSessionScopedEvent,
@@ -333,9 +333,21 @@ func TestFactoryBuild_SessionScopedEventIsUnsupported(t *testing.T) {
 		},
 	}
 	// when
-	_, err := f.Build(&def)
+	_, err := f.Build([]*properties.CustomColumnConfig{&def})
 
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "is not supported by nested lookup custom columns")
+}
+
+func buildOne(t *testing.T, b ColumnBuilder, def *properties.CustomColumnConfig) (BuiltColumn, error) {
+	t.Helper()
+
+	built, err := b.Build([]*properties.CustomColumnConfig{def})
+	if err != nil {
+		return BuiltColumn{}, err
+	}
+	require.Len(t, built, 1)
+
+	return built[0], nil
 }
