@@ -469,7 +469,8 @@ func resolveSessionSourceScope(def *properties.CustomColumnConfig) (sourceScope,
 	}
 
 	logrus.Warnf(
-		"custom column %q uses deprecated implementation.source_interface_id fallback; set implementation.source_scope instead",
+		"custom column %q uses deprecated implementation.source_interface_id fallback; "+
+			"set implementation.source_scope instead",
 		def.Name,
 	)
 
