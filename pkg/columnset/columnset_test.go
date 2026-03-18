@@ -37,7 +37,7 @@ func TestDefaultColumnRegistry_WithCustomColumnsRegistry_GA4EventColumn(t *testi
 	registry := DefaultColumnRegistry(
 		ga4.NewGA4Protocol(currency.NewDummyConverter(1), psr),
 		psr,
-		WithCustomColumnsRegistry(customcolumns.NewPropertyCustomColumnsRegistry(psr, customcolumns.NewRegistry())),
+		WithCustomColumnsRegistry(customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder())),
 	)
 
 	// when
@@ -75,7 +75,7 @@ func TestDefaultColumnRegistry_WithCustomColumnsRegistry_MatomoSessionColumn(t *
 	registry := DefaultColumnRegistry(
 		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(psr)),
 		psr,
-		WithCustomColumnsRegistry(customcolumns.NewPropertyCustomColumnsRegistry(psr, customcolumns.NewRegistry())),
+		WithCustomColumnsRegistry(customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder())),
 	)
 
 	// when

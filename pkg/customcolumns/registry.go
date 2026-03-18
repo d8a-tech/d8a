@@ -7,21 +7,21 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// Registry builds runtime columns from normalized custom column configs.
-type Registry interface {
+// Builder builds runtime columns from normalized custom column configs.
+type Builder interface {
 	BuildAll(defs []properties.CustomColumnConfig) (schema.Columns, error)
 }
 
-type registry struct {
+type builder struct {
 	factory Factory
 }
 
-// RegistryOption configures the custom-column registry.
-type RegistryOption func(*registry)
+// BuilderOption configures the custom-column builder.
+type BuilderOption func(*builder)
 
 // WithFactory overrides the factory used to build custom columns.
-func WithFactory(factory Factory) RegistryOption {
-	return func(r *registry) {
+func WithFactory(factory Factory) BuilderOption {
+	return func(r *builder) {
 		if factory == nil {
 			return
 		}
@@ -29,10 +29,9 @@ func WithFactory(factory Factory) RegistryOption {
 	}
 }
 
-// NewRegistry creates a runtime custom-column registry.
-
-func NewRegistry(opts ...RegistryOption) Registry {
-	r := &registry{factory: NewFactory()}
+// NewBuilder creates a runtime custom-column builder.
+func NewBuilder(opts ...BuilderOption) Builder {
+	r := &builder{factory: NewFactory()}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -40,7 +39,7 @@ func NewRegistry(opts ...RegistryOption) Registry {
 	return r
 }
 
-func (r *registry) BuildAll(defs []properties.CustomColumnConfig) (schema.Columns, error) {
+func (r *builder) BuildAll(defs []properties.CustomColumnConfig) (schema.Columns, error) {
 	built := schema.Columns{}
 
 	for i := range defs {
@@ -62,4 +61,9 @@ func (r *registry) BuildAll(defs []properties.CustomColumnConfig) (schema.Column
 	}
 
 	return built, nil
+}
+
+// NewRegistry is kept for backward compatibility.
+func NewRegistry(opts ...BuilderOption) Builder {
+	return NewBuilder(opts...)
 }

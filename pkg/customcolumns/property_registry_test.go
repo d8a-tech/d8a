@@ -9,12 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPropertyCustomColumnsRegistryGet_NoCustomColumnsReturnsEmpty(t *testing.T) {
+func TestCustomColumnsPropertySettingsRegistryGet_NoCustomColumnsReturnsEmpty(t *testing.T) {
 	// given
 	psr := properties.NewStaticSettingsRegistry([]properties.Settings{}, properties.WithDefaultConfig(&properties.Settings{
 		PropertyID: "property-1",
 	}))
-	r := NewPropertyCustomColumnsRegistry(psr, nil)
+	r := NewCustomColumnsPropertySettingsRegistry(psr, nil)
 
 	// when
 	cols, err := r.Get("property-1")
@@ -26,10 +26,10 @@ func TestPropertyCustomColumnsRegistryGet_NoCustomColumnsReturnsEmpty(t *testing
 	assert.Empty(t, cols.SessionScopedEvent)
 }
 
-func TestPropertyCustomColumnsRegistryGet_PropertyLookupErrorIncludesContext(t *testing.T) {
+func TestCustomColumnsPropertySettingsRegistryGet_PropertyLookupErrorIncludesContext(t *testing.T) {
 	// given
 	psr := properties.NewStaticSettingsRegistry([]properties.Settings{})
-	r := NewPropertyCustomColumnsRegistry(psr, nil)
+	r := NewCustomColumnsPropertySettingsRegistry(psr, nil)
 
 	// when
 	_, err := r.Get("missing-property")
@@ -39,7 +39,7 @@ func TestPropertyCustomColumnsRegistryGet_PropertyLookupErrorIncludesContext(t *
 	assert.Contains(t, err.Error(), "get settings for property \"missing-property\"")
 }
 
-func TestPropertyCustomColumnsRegistryGet_BuildErrorIncludesContext(t *testing.T) {
+func TestCustomColumnsPropertySettingsRegistryGet_BuildErrorIncludesContext(t *testing.T) {
 	// given
 	psr := properties.NewStaticSettingsRegistry([]properties.Settings{}, properties.WithDefaultConfig(&properties.Settings{
 		PropertyID: "property-1",
@@ -47,7 +47,7 @@ func TestPropertyCustomColumnsRegistryGet_BuildErrorIncludesContext(t *testing.T
 			Name: "broken",
 		}},
 	}))
-	r := NewPropertyCustomColumnsRegistry(psr, nil)
+	r := NewCustomColumnsPropertySettingsRegistry(psr, nil)
 
 	// when
 	_, err := r.Get("property-1")
@@ -57,7 +57,7 @@ func TestPropertyCustomColumnsRegistryGet_BuildErrorIncludesContext(t *testing.T
 	assert.Contains(t, err.Error(), "build custom columns for property \"property-1\"")
 }
 
-func TestPropertyCustomColumnsRegistryGet_BuildsConfiguredColumns(t *testing.T) {
+func TestCustomColumnsPropertySettingsRegistryGet_BuildsConfiguredColumns(t *testing.T) {
 	// given
 	psr := properties.NewStaticSettingsRegistry([]properties.Settings{}, properties.WithDefaultConfig(&properties.Settings{
 		PropertyID: "property-1",
@@ -97,7 +97,7 @@ func TestPropertyCustomColumnsRegistryGet_BuildsConfiguredColumns(t *testing.T) 
 			},
 		},
 	}))
-	r := NewPropertyCustomColumnsRegistry(psr, NewRegistry())
+	r := NewCustomColumnsPropertySettingsRegistry(psr, NewBuilder())
 
 	// when
 	cols, err := r.Get("property-1")

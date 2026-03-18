@@ -162,7 +162,7 @@ func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 
 func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 	// given
-	r := NewRegistry()
+	r := NewBuilder()
 	defs := []properties.CustomColumnConfig{
 		{
 			Name:      "ev",
