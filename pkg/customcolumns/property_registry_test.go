@@ -97,7 +97,7 @@ func TestPropertyCustomColumnsRegistryGet_BuildsConfiguredColumns(t *testing.T) 
 			},
 		},
 	}))
-	r := NewPropertyCustomColumnsRegistry(psr, NewRegistry(nil))
+	r := NewPropertyCustomColumnsRegistry(psr, NewRegistry())
 
 	// when
 	cols, err := r.Get("property-1")

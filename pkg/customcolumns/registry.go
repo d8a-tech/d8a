@@ -16,13 +16,28 @@ type registry struct {
 	factory Factory
 }
 
+// RegistryOption configures the custom-column registry.
+type RegistryOption func(*registry)
+
+// WithFactory overrides the factory used to build custom columns.
+func WithFactory(factory Factory) RegistryOption {
+	return func(r *registry) {
+		if factory == nil {
+			return
+		}
+		r.factory = factory
+	}
+}
+
 // NewRegistry creates a runtime custom-column registry.
-func NewRegistry(factory Factory) Registry {
-	if factory == nil {
-		factory = NewFactory()
+
+func NewRegistry(opts ...RegistryOption) Registry {
+	r := &registry{factory: NewFactory()}
+	for _, opt := range opts {
+		opt(r)
 	}
 
-	return &registry{factory: factory}
+	return r
 }
 
 func (r *registry) BuildAll(defs []properties.CustomColumnConfig) (schema.Columns, error) {

@@ -16,7 +16,7 @@ type PropertyCustomColumnsRegistry struct {
 // NewPropertyCustomColumnsRegistry creates a per-property custom columns registry.
 func NewPropertyCustomColumnsRegistry(psr properties.SettingsRegistry, builder Registry) schema.ColumnsRegistry {
 	if builder == nil {
-		builder = NewRegistry(nil)
+		builder = NewRegistry()
 	}
 
 	return &PropertyCustomColumnsRegistry{

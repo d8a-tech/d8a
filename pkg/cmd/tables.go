@@ -78,7 +78,7 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 		}
 
 		opts = append(opts, columnset.WithCustomColumnsRegistry(
-			customcolumns.NewPropertyCustomColumnsRegistry(psr, customcolumns.NewRegistry(nil)),
+			customcolumns.NewPropertyCustomColumnsRegistry(psr, customcolumns.NewRegistry()),
 		))
 
 		cr = columnset.DefaultColumnRegistry(
