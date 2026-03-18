@@ -9,20 +9,15 @@ Flattening nested parameters allows extracting values from protocol-specific rep
 ```yaml
 ga4:
   params:
-    - name: campaign_id
-      type: string
+    - name: campaign_id # writes to params_campaign_id
 
 matomo:
   custom_dimensions:
     - slot: 3
-      name: plan_tier
-      column_name: plan_tier_custom
-      scope: event
+      name: plan_tier # writes to custom_dimension_plan_tier
 
   custom_variables:
-    - name: ab_test_group
-      column_name: ab_group_custom
-      scope: session
+    - name: ab_test_group # writes to custom_variable_ab_test_group
 ```
 
 ### Inline flags (CLI/environment variables)
@@ -54,9 +49,9 @@ Use `ga4.params` to build event-scoped columns from GA4 `params` entries (`ep.*`
 
 Each entry supports:
 - **name**: Parameter key to match (required)
-- **column_name**: Output column name override (optional)
-- **scope**: `event` (optional; defaults to `event`)
-- **type**: `string`, `int64`, or `float64` (optional; defaults to `string`)
+- **column_name**: Output column name override (optional). If set, this value is used as the output column name.
+- **scope**: `event` (optional; defaults to `event`). GA4 params support only event scope.
+- **type**: `string`, `int64`, or `float64` (optional; defaults to `string`). This controls value casting and source value field selection.
 
 Default output name: `params_<name>`
 
@@ -77,9 +72,9 @@ Use `matomo.custom_dimensions` to build columns from Matomo `dimensionN` values.
 Each entry supports:
 - **slot**: Dimension slot number (required)
 - **name**: Dimension name label (required)
-- **column_name**: Output column name override (optional)
-- **scope**: `event` or `session` (optional; defaults to `event`)
-- **type**: `string` (optional; defaults to `string`)
+- **column_name**: Output column name override (optional). If set, this value is used as the output column name.
+- **scope**: `event` or `session` (optional; defaults to `event`). This controls whether the value is read per event or resolved on session scope.
+- **type**: `string` (optional; defaults to `string`). Matomo custom dimensions currently support only string values.
 
 Default output name: `custom_dimension_<name>`
 
@@ -100,9 +95,9 @@ Use `matomo.custom_variables` to build columns from Matomo custom variables (`cv
 
 Each entry supports:
 - **name**: Custom variable key to match (required)
-- **column_name**: Output column name override (optional)
-- **scope**: `event` or `session` (optional; defaults to `event`)
-- **type**: `string` (optional; defaults to `string`)
+- **column_name**: Output column name override (optional). If set, this value is used as the output column name.
+- **scope**: `event` or `session` (optional; defaults to `event`). This controls whether the value is read per event or resolved on session scope.
+- **type**: `string` (optional; defaults to `string`). Matomo custom variables currently support only string values.
 
 Default output name: `custom_variable_<name>`
 
