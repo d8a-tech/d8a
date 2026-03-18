@@ -169,12 +169,12 @@ func loadProtocolCustomColumns(cmd protocolCustomColumnsSource) ([]properties.Cu
 }
 
 type protocolCustomColumnsSource interface {
-	StringSlice(name string) []string
+	String(name string) string
 }
 
 func appendJSONShortcutEntries(shortcuts *protocolCustomColumnsConfig, cmd protocolCustomColumnsSource) {
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(ga4ParamsFlag.Name),
+		cmd.String(ga4ParamsFlag.Name),
 		"ga4-params",
 		func(entry ga4ParamShortcutConfig) {
 			shortcuts.GA4.Params = append(shortcuts.GA4.Params, entry)
@@ -182,7 +182,7 @@ func appendJSONShortcutEntries(shortcuts *protocolCustomColumnsConfig, cmd proto
 	)
 
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(matomoCustomDimensionsFlag.Name),
+		cmd.String(matomoCustomDimensionsFlag.Name),
 		"matomo-custom-dimensions",
 		func(entry matomoCustomDimensionShortcutConfig) {
 			shortcuts.Matomo.CustomDimensions = append(shortcuts.Matomo.CustomDimensions, entry)
@@ -190,7 +190,7 @@ func appendJSONShortcutEntries(shortcuts *protocolCustomColumnsConfig, cmd proto
 	)
 
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(matomoCustomVariablesFlag.Name),
+		cmd.String(matomoCustomVariablesFlag.Name),
 		"matomo-custom-variables",
 		func(entry matomoCustomVariableShortcutConfig) {
 			shortcuts.Matomo.CustomVariables = append(shortcuts.Matomo.CustomVariables, entry)
@@ -198,14 +198,19 @@ func appendJSONShortcutEntries(shortcuts *protocolCustomColumnsConfig, cmd proto
 	)
 }
 
-func decodeAndAppendJSONEntries[T any](entries []string, flagName string, appendFn func(T)) {
-	for _, entryJSON := range entries {
-		var entry T
-		if err := json.Unmarshal([]byte(entryJSON), &entry); err != nil {
-			logrus.Warnf("skipping invalid JSON %s entry %q: %v", flagName, entryJSON, err)
-			continue
-		}
-		appendFn(entry)
+func decodeAndAppendJSONEntries[T any](entriesJSON, flagName string, appendFn func(T)) {
+	if entriesJSON == "" {
+		return
+	}
+
+	var entries []T
+	if err := json.Unmarshal([]byte(entriesJSON), &entries); err != nil {
+		logrus.Warnf("skipping invalid JSON array for %s: %v", flagName, err)
+		return
+	}
+
+	for i := range entries {
+		appendFn(entries[i])
 	}
 }
 

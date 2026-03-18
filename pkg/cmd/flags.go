@@ -462,10 +462,10 @@ var matomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Sources: defaultSourceChain("MATOMO_TRACKING_ENDPOINTS", "matomo.tracking_endpoints"),
 }
 
-var ga4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+var ga4ParamsFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "ga4-params",
 	Usage: "GA4 shortcut entries for flattening nested event params into custom columns. " +
-		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
 		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
@@ -475,10 +475,10 @@ var ga4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	),
 }
 
-var matomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+var matomoCustomDimensionsFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "matomo-custom-dimensions",
 	Usage: "Matomo custom dimension shortcut entries for flattening nested values into custom columns. " +
-		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
 		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
@@ -488,10 +488,10 @@ var matomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	),
 }
 
-var matomoCustomVariablesFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+var matomoCustomVariablesFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "matomo-custom-variables",
 	Usage: "Matomo custom variable shortcut entries for flattening nested values into custom columns. " +
-		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
 		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {

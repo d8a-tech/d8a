@@ -342,7 +342,7 @@ ga4:
 	})
 
 	command := staticProtocolCustomColumnsSource{values: map[string][]string{
-		ga4ParamsFlag.Name: {`{"name":"from_flag"}`},
+		ga4ParamsFlag.Name: {`[{"name":"from_flag"}]`},
 	}}
 
 	// when
@@ -359,6 +359,11 @@ type staticProtocolCustomColumnsSource struct {
 	values map[string][]string
 }
 
-func (s staticProtocolCustomColumnsSource) StringSlice(name string) []string {
-	return s.values[name]
+func (s staticProtocolCustomColumnsSource) String(name string) string {
+	values := s.values[name]
+	if len(values) == 0 {
+		return ""
+	}
+
+	return values[0]
 }

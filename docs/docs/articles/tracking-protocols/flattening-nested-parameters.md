@@ -23,17 +23,17 @@ matomo:
 ### Inline flags (CLI/environment variables)
 
 ```bash
-export GA4_PARAMS='{"name":"campaign_id","type":"string"}'
-export MATOMO_CUSTOM_DIMENSIONS='{"slot":3,"name":"plan_tier","column_name":"plan_tier_custom","scope":"event"}'
-export MATOMO_CUSTOM_VARIABLES='{"name":"ab_test_group","column_name":"ab_group_custom","scope":"session"}'
+export GA4_PARAMS='[{"name":"campaign_id","type":"string"}]'
+export MATOMO_CUSTOM_DIMENSIONS='[{"slot":3,"name":"plan_tier","column_name":"plan_tier_custom","scope":"event"}]'
+export MATOMO_CUSTOM_VARIABLES='[{"name":"ab_test_group","column_name":"ab_group_custom","scope":"session"}]'
 ```
 
 Or via CLI:
 
 ```bash
 ./d8a run \
-  --ga4-params '{"name":"campaign_id","type":"string"}' \
-  --matomo-custom-dimensions '{"slot":3,"name":"plan_tier","scope":"event"}'
+  --ga4-params '[{"name":"campaign_id","type":"string"}]' \
+  --matomo-custom-dimensions '[{"slot":3,"name":"plan_tier","scope":"event"}]'
 ```
 
 ### Precedence rules
