@@ -37,6 +37,19 @@ type multiColumnBuilder struct {
 	subBuilders []ColumnBuilder
 }
 
+// NewBuilder creates the default runtime custom-column builder.
+func NewBuilder() ColumnBuilder {
+	return NewMultiColumnBuilder(
+		NewEventColumnBuilder(),
+		NewSessionColumnBuilder(),
+	)
+}
+
+// NewRegistry is kept for backward compatibility.
+func NewRegistry() ColumnBuilder {
+	return NewBuilder()
+}
+
 // NewMultiColumnBuilder creates a builder that runs all sub-builders.
 func NewMultiColumnBuilder(subBuilders ...ColumnBuilder) ColumnBuilder {
 	builders := make([]ColumnBuilder, 0, len(subBuilders))

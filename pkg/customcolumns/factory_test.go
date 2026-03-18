@@ -160,7 +160,7 @@ func TestFactoryBuild_SessionColumnInvalidSource(t *testing.T) {
 	assert.Contains(t, writeErr.Error(), "read repeated records")
 }
 
-func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
+func TestBuilderBuild_GroupsColumnsByScope(t *testing.T) {
 	// given
 	r := NewBuilder()
 	defs := []properties.CustomColumnConfig{
@@ -197,11 +197,30 @@ func TestRegistryBuildAll_GroupsColumnsByScope(t *testing.T) {
 		},
 	}
 
+	defPtrs := make([]*properties.CustomColumnConfig, 0, len(defs))
+	for i := range defs {
+		defPtrs = append(defPtrs, &defs[i])
+	}
+
 	// when
-	cols, err := r.BuildAll(defs)
+	built, err := r.Build(defPtrs)
 
 	// then
 	require.NoError(t, err)
+
+	cols := schema.Columns{}
+	for i := range built {
+		if built[i].Event != nil {
+			cols.Event = append(cols.Event, built[i].Event)
+		}
+		if built[i].Session != nil {
+			cols.Session = append(cols.Session, built[i].Session)
+		}
+		if built[i].SessionScopedEvent != nil {
+			cols.SessionScopedEvent = append(cols.SessionScopedEvent, built[i].SessionScopedEvent)
+		}
+	}
+
 	assert.Len(t, cols.Event, 1)
 	assert.Len(t, cols.Session, 1)
 	assert.Empty(t, cols.SessionScopedEvent)

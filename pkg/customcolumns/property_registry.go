@@ -10,11 +10,14 @@ import (
 // CustomColumnsPropertySettingsRegistry resolves and builds custom columns per property.
 type CustomColumnsPropertySettingsRegistry struct {
 	SettingsRegistry properties.SettingsRegistry
-	Builder          Builder
+	Builder          ColumnBuilder
 }
 
 // NewCustomColumnsPropertySettingsRegistry creates a per-property custom columns registry.
-func NewCustomColumnsPropertySettingsRegistry(psr properties.SettingsRegistry, builder Builder) schema.ColumnsRegistry {
+func NewCustomColumnsPropertySettingsRegistry(
+	psr properties.SettingsRegistry,
+	builder ColumnBuilder,
+) schema.ColumnsRegistry {
 	if builder == nil {
 		builder = NewBuilder()
 	}
@@ -26,7 +29,7 @@ func NewCustomColumnsPropertySettingsRegistry(psr properties.SettingsRegistry, b
 }
 
 // NewPropertyCustomColumnsRegistry is kept for backward compatibility.
-func NewPropertyCustomColumnsRegistry(psr properties.SettingsRegistry, builder Builder) schema.ColumnsRegistry {
+func NewPropertyCustomColumnsRegistry(psr properties.SettingsRegistry, builder ColumnBuilder) schema.ColumnsRegistry {
 	return NewCustomColumnsPropertySettingsRegistry(psr, builder)
 }
 
@@ -37,9 +40,29 @@ func (r *CustomColumnsPropertySettingsRegistry) Get(propertyID string) (schema.C
 		return schema.Columns{}, fmt.Errorf("get settings for property %q: %w", propertyID, err)
 	}
 
-	columns, err := r.Builder.BuildAll(settings.CustomColumnsSafe())
+	defs := settings.CustomColumnsSafe()
+	defPtrs := make([]*properties.CustomColumnConfig, 0, len(defs))
+	for i := range defs {
+		defPtrs = append(defPtrs, &defs[i])
+	}
+
+	builtColumns, err := r.Builder.Build(defPtrs)
 	if err != nil {
 		return schema.Columns{}, fmt.Errorf("build custom columns for property %q: %w", propertyID, err)
+	}
+
+	columns := schema.Columns{}
+	for i := range builtColumns {
+		column := builtColumns[i]
+		if column.Event != nil {
+			columns.Event = append(columns.Event, column.Event)
+		}
+		if column.Session != nil {
+			columns.Session = append(columns.Session, column.Session)
+		}
+		if column.SessionScopedEvent != nil {
+			columns.SessionScopedEvent = append(columns.SessionScopedEvent, column.SessionScopedEvent)
+		}
 	}
 
 	return columns, nil
