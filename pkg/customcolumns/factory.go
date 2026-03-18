@@ -439,6 +439,13 @@ func validateDefinition(def *properties.CustomColumnConfig) error {
 		return err
 	}
 
+	if def.Scope == properties.CustomColumnScopeSessionScopedEvent &&
+		isSessionCustomColumnSource(def) {
+		return fmt.Errorf(
+			"session_scoped_event custom columns cannot use session custom columns as source",
+		)
+	}
+
 	switch def.Implementation.Pick {
 	case "", properties.NestedLookupPickStrategyLastNonNull:
 		return nil
@@ -492,4 +499,13 @@ func resolveSourceScope(def *properties.CustomColumnConfig) (sourceScope, error)
 	}
 
 	return 0, fmt.Errorf("cannot infer source scope from implementation.source_interface_id %q", sourceID)
+}
+
+func isSessionCustomColumnSource(def *properties.CustomColumnConfig) bool {
+	sourceID := def.Implementation.SourceInterfaceID
+	if sourceID == "" {
+		sourceID = def.DependsOn.Interface
+	}
+
+	return strings.HasPrefix(string(sourceID), "customcolumns.d8a.tech/session/")
 }

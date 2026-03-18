@@ -372,6 +372,16 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 			},
 			errSubstr: "unsupported pick strategy",
 		},
+		{
+			name: "session scoped event cannot read session custom column",
+			mutate: func(def *properties.CustomColumnConfig) {
+				def.Scope = properties.CustomColumnScopeSessionScopedEvent
+				def.Implementation.SourceScope = properties.NestedLookupSourceScopeSession
+				def.Implementation.SourceInterfaceID = "customcolumns.d8a.tech/session/base_col"
+				def.DependsOn.Interface = "customcolumns.d8a.tech/session/base_col"
+			},
+			errSubstr: "cannot use session custom columns as source",
+		},
 	}
 
 	for _, tt := range tests {
