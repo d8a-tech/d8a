@@ -26,22 +26,25 @@ type matomoCustomColumnsConfig struct {
 }
 
 type ga4ParamShortcutConfig struct {
-	Name  string                       `yaml:"name" json:"name"`
-	Scope properties.CustomColumnScope `yaml:"scope" json:"scope"`
-	Type  properties.CustomColumnType  `yaml:"type" json:"type"`
+	Name       string                       `yaml:"name" json:"name"`
+	ColumnName string                       `yaml:"column_name" json:"column_name"`
+	Scope      properties.CustomColumnScope `yaml:"scope" json:"scope"`
+	Type       properties.CustomColumnType  `yaml:"type" json:"type"`
 }
 
 type matomoCustomDimensionShortcutConfig struct {
-	Slot  int64                        `yaml:"slot" json:"slot"`
-	Name  string                       `yaml:"name" json:"name"`
-	Scope properties.CustomColumnScope `yaml:"scope" json:"scope"`
-	Type  properties.CustomColumnType  `yaml:"type" json:"type"`
+	Slot       int64                        `yaml:"slot" json:"slot"`
+	Name       string                       `yaml:"name" json:"name"`
+	ColumnName string                       `yaml:"column_name" json:"column_name"`
+	Scope      properties.CustomColumnScope `yaml:"scope" json:"scope"`
+	Type       properties.CustomColumnType  `yaml:"type" json:"type"`
 }
 
 type matomoCustomVariableShortcutConfig struct {
-	Name  string                       `yaml:"name" json:"name"`
-	Scope properties.CustomColumnScope `yaml:"scope" json:"scope"`
-	Type  properties.CustomColumnType  `yaml:"type" json:"type"`
+	Name       string                       `yaml:"name" json:"name"`
+	ColumnName string                       `yaml:"column_name" json:"column_name"`
+	Scope      properties.CustomColumnScope `yaml:"scope" json:"scope"`
+	Type       properties.CustomColumnType  `yaml:"type" json:"type"`
 }
 
 type protocolCustomColumnsParser interface {
@@ -239,7 +242,7 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 	}
 
 	return properties.CustomColumnConfig{
-		Name:      entry.Name,
+		Name:      defaultOutputColumnName(entry.ColumnName, "params_", entry.Name),
 		Scope:     scope,
 		Type:      columnType,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
@@ -307,7 +310,7 @@ func normalizeMatomoCustomDimensionShortcut(
 	}
 
 	return properties.CustomColumnConfig{
-		Name:           entry.Name,
+		Name:           defaultOutputColumnName(entry.ColumnName, "custom_dimension_", entry.Name),
 		Scope:          scope,
 		Type:           columnType,
 		DependsOn:      schema.DependsOnEntry{Interface: dependsOnID},
@@ -365,7 +368,7 @@ func normalizeMatomoCustomVariableShortcut(
 	}
 
 	return properties.CustomColumnConfig{
-		Name:           entry.Name,
+		Name:           defaultOutputColumnName(entry.ColumnName, "custom_variable_", entry.Name),
 		Scope:          scope,
 		Type:           columnType,
 		DependsOn:      schema.DependsOnEntry{Interface: dependsOnID},
@@ -419,4 +422,12 @@ func validateType(path string, columnType properties.CustomColumnType) error {
 	default:
 		return fmt.Errorf("%s has invalid value %q", path, columnType)
 	}
+}
+
+func defaultOutputColumnName(columnName, prefix, sourceName string) string {
+	if columnName != "" {
+		return columnName
+	}
+
+	return prefix + sourceName
 }

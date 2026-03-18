@@ -48,19 +48,22 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	// when
 	columns, err := normalizer.Normalize(protocolCustomColumnsConfig{
 		GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{
-			Name: "ga_param",
+			Name:       "ga_param",
+			ColumnName: "ga_param_override",
 		}}},
 		Matomo: matomoCustomColumnsConfig{
 			CustomDimensions: []matomoCustomDimensionShortcutConfig{{
-				Slot: 2,
-				Name: "m_dim_event",
+				Slot:       2,
+				Name:       "m_dim_event",
+				ColumnName: "m_dim_event_override",
 			}, {
 				Slot:  8,
 				Name:  "m_dim_session",
 				Scope: properties.CustomColumnScopeSession,
 			}},
 			CustomVariables: []matomoCustomVariableShortcutConfig{{
-				Name: "m_var_event",
+				Name:       "m_var_event",
+				ColumnName: "m_var_event_override",
 			}, {
 				Name:  "m_var_session",
 				Scope: properties.CustomColumnScopeSession,
@@ -73,7 +76,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	require.Len(t, columns, 5)
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:      "ga_param",
+		Name:      "ga_param_override",
 		Scope:     properties.CustomColumnScopeEvent,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("ga4.protocols.d8a.tech/event/params")},
@@ -88,7 +91,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[0])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:      "m_dim_event",
+		Name:      "m_dim_event_override",
 		Scope:     properties.CustomColumnScopeEvent,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_dimensions")},
@@ -103,7 +106,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[1])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:  "m_dim_session",
+		Name:  "custom_dimension_m_dim_session",
 		Scope: properties.CustomColumnScopeSession,
 		Type:  properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{
@@ -123,7 +126,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[2])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:      "m_var_event",
+		Name:      "m_var_event_override",
 		Scope:     properties.CustomColumnScopeEvent,
 		Type:      properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID("matomo.protocols.d8a.tech/event/custom_variables")},
@@ -138,7 +141,7 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 	}, columns[3])
 
 	assert.Equal(t, properties.CustomColumnConfig{
-		Name:  "m_var_session",
+		Name:  "custom_variable_m_var_session",
 		Scope: properties.CustomColumnScopeSession,
 		Type:  properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{
@@ -222,12 +225,27 @@ func TestShortcutCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 			errPart: "matomo.custom_dimensions[0].scope has invalid value \"session_scoped_event\"",
 		},
 		{
+			name: "missing matomo dimension name",
+			shortcuts: protocolCustomColumnsConfig{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
+					Slot: 1,
+				}}},
+			},
+			errPart: "matomo.custom_dimensions[0].name is required",
+		},
+		{
 			name: "duplicate name across groups",
 			shortcuts: protocolCustomColumnsConfig{
-				GA4:    ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{Name: "shared"}}},
-				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{Name: "shared"}}},
+				GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{
+					Name:       "shared",
+					ColumnName: "shared_output",
+				}}},
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{
+					Name:       "shared",
+					ColumnName: "shared_output",
+				}}},
 			},
-			errPart: "duplicate custom column output name \"shared\"",
+			errPart: "duplicate custom column output name \"shared_output\"",
 		},
 		{
 			name: "matomo dimension int64 rejected",
@@ -333,8 +351,8 @@ ga4:
 	// then
 	require.NoError(t, err)
 	assert.Len(t, columns, 2)
-	assert.Equal(t, "from_yaml", columns[0].Name)
-	assert.Equal(t, "from_flag", columns[1].Name)
+	assert.Equal(t, "params_from_yaml", columns[0].Name)
+	assert.Equal(t, "params_from_flag", columns[1].Name)
 }
 
 type staticProtocolCustomColumnsSource struct {

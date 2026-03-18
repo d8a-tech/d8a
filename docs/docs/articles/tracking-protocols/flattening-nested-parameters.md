@@ -16,10 +16,12 @@ matomo:
   custom_dimensions:
     - slot: 3
       name: plan_tier
+      column_name: plan_tier_custom
       scope: event
 
   custom_variables:
     - name: ab_test_group
+      column_name: ab_group_custom
       scope: session
 ```
 
@@ -27,8 +29,8 @@ matomo:
 
 ```bash
 export GA4_PARAMS='{"name":"campaign_id","type":"string"}'
-export MATOMO_CUSTOM_DIMENSIONS='{"slot":3,"name":"plan_tier","scope":"event"}'
-export MATOMO_CUSTOM_VARIABLES='{"name":"ab_test_group","scope":"session"}'
+export MATOMO_CUSTOM_DIMENSIONS='{"slot":3,"name":"plan_tier","column_name":"plan_tier_custom","scope":"event"}'
+export MATOMO_CUSTOM_VARIABLES='{"name":"ab_test_group","column_name":"ab_group_custom","scope":"session"}'
 ```
 
 Or via CLI:
@@ -51,9 +53,12 @@ When both YAML and inline flags are provided:
 Use `ga4.params` to build event-scoped columns from GA4 `params` entries (`ep.*` and `epn.*`).
 
 Each entry supports:
-- **name**: Output column name (required)
+- **name**: Parameter key to match (required)
+- **column_name**: Output column name override (optional)
 - **scope**: `event` (optional; defaults to `event`)
 - **type**: `string`, `int64`, or `float64` (optional; defaults to `string`)
+
+Default output name: `params_<name>`
 
 Example:
 
@@ -62,6 +67,7 @@ ga4:
   params:
     - name: campaign_id
       type: string
+      # output column: params_campaign_id
 ```
 
 ## Matomo: Custom dimensions shortcuts
@@ -70,9 +76,12 @@ Use `matomo.custom_dimensions` to build columns from Matomo `dimensionN` values.
 
 Each entry supports:
 - **slot**: Dimension slot number (required)
-- **name**: Output column name (required)
+- **name**: Dimension name label (required)
+- **column_name**: Output column name override (optional)
 - **scope**: `event` or `session` (optional; defaults to `event`)
 - **type**: `string` (optional; defaults to `string`)
+
+Default output name: `custom_dimension_<name>`
 
 Example:
 
@@ -82,6 +91,7 @@ matomo:
     - slot: 3
       name: plan_tier
       scope: session
+      # output column: custom_dimension_plan_tier
 ```
 
 ## Matomo: Custom variables shortcuts
@@ -90,8 +100,11 @@ Use `matomo.custom_variables` to build columns from Matomo custom variables (`cv
 
 Each entry supports:
 - **name**: Custom variable key to match (required)
+- **column_name**: Output column name override (optional)
 - **scope**: `event` or `session` (optional; defaults to `event`)
 - **type**: `string` (optional; defaults to `string`)
+
+Default output name: `custom_variable_<name>`
 
 Example:
 
@@ -100,6 +113,7 @@ matomo:
   custom_variables:
     - name: ab_test_group
       scope: event
+      # output column: custom_variable_ab_test_group
 ```
 
 ## Related configuration
