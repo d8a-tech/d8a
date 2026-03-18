@@ -430,6 +430,14 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 
 					return &filtersConfig
 				}(),
+				CustomColumns: func() []properties.CustomColumnConfig {
+					customColumns, loadErr := loadProtocolCustomColumns(cmd)
+					if loadErr != nil {
+						logrus.Panicf("failed to load protocol custom columns config: %v", loadErr)
+					}
+
+					return customColumns
+				}(),
 			},
 		),
 	)

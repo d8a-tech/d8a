@@ -14,7 +14,7 @@ func protocols(cmd *cli.Command) []protocol.Protocol {
 		d8a.NewD8AProtocol(currencyConverter, propertySettings(cmd)),
 		matomo.NewMatomoProtocol(
 			matomo.NewFromIDSiteExtractor(propertySettings(cmd)),
-			matomo.WithExtraTrackingEndpoints(cmd.StringSlice(protocolMatomoTrackingEndpointsFlag.Name)),
+			matomo.WithExtraTrackingEndpoints(cmd.StringSlice(matomoTrackingEndpointsFlag.Name)),
 		),
 	}
 }

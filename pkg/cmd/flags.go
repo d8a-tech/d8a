@@ -456,10 +456,49 @@ var protocolFlag *cli.StringFlag = &cli.StringFlag{
 	Value:   "ga4",
 }
 
-var protocolMatomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
-	Name:    "protocol-matomo-tracking-endpoints",
+var matomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name:    "matomo-tracking-endpoints",
 	Usage:   "Additional Matomo tracking endpoint paths to accept besides /matomo.php. Example: /piwik.php, /tracking/matomo.php.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("PROTOCOL_MATOMO_TRACKING_ENDPOINTS", "protocol.matomo_tracking_endpoints"),
+	Sources: defaultSourceChain("MATOMO_TRACKING_ENDPOINTS", "matomo.tracking_endpoints"),
+}
+
+var ga4ParamsFlag *cli.StringFlag = &cli.StringFlag{
+	Name: "ga4-params",
+	Usage: "GA4 shortcut entries for flattening nested event params into custom columns. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("GA4_PARAMS")
+			return &f
+		}(),
+	),
+}
+
+var matomoCustomDimensionsFlag *cli.StringFlag = &cli.StringFlag{
+	Name: "matomo-custom-dimensions",
+	Usage: "Matomo custom dimension shortcut entries for flattening nested values into custom columns. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("MATOMO_CUSTOM_DIMENSIONS")
+			return &f
+		}(),
+	),
+}
+
+var matomoCustomVariablesFlag *cli.StringFlag = &cli.StringFlag{
+	Name: "matomo-custom-variables",
+	Usage: "Matomo custom variable shortcut entries for flattening nested values into custom columns. " +
+		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+	Sources: cli.NewValueSourceChain(
+		func() cli.ValueSource {
+			f := cli.EnvVars("MATOMO_CUSTOM_VARIABLES")
+			return &f
+		}(),
+	),
 }
 
 var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
@@ -484,7 +523,7 @@ var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 type unusedConfigSourcer struct{}
 
 func (u *unusedConfigSourcer) SourceURI() string {
-	return "/tmp/d8a_filters_conditions_unused.yaml"
+	return "./tmp/d8a_filters_conditions_unused.yaml"
 }
 
 var filtersConditionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
@@ -554,7 +593,10 @@ func getServerFlags() []cli.Flag {
 			propertySettingsSplitByUserIDFlag,
 			propertySettingsSplitByCampaignFlag,
 			protocolFlag,
-			protocolMatomoTrackingEndpointsFlag,
+			matomoTrackingEndpointsFlag,
+			ga4ParamsFlag,
+			matomoCustomDimensionsFlag,
+			matomoCustomVariablesFlag,
 			propertySettingsSplitByTimeSinceFirstEventFlag,
 			propertySettingsSplitByMaxEventsFlag,
 			monitoringEnabledFlag,

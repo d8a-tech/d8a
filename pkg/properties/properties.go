@@ -24,7 +24,8 @@ type Settings struct {
 	SessionJoinBySessionStamp bool
 	SessionJoinByUserID       bool
 
-	Filters *FiltersConfig
+	Filters       *FiltersConfig
+	CustomColumns []CustomColumnConfig
 }
 
 // FiltersSafe returns the filters configuration, ensuring it is never nil.
@@ -35,4 +36,14 @@ func (s Settings) FiltersSafe() FiltersConfig {
 		return FiltersConfig{}
 	}
 	return *s.Filters
+}
+
+// CustomColumnsSafe returns the custom columns configuration, ensuring it is never nil.
+//
+//nolint:gocritic // hugeParam: Settings receiver is expected to be passed by value as per API contract.
+func (s Settings) CustomColumnsSafe() []CustomColumnConfig {
+	if s.CustomColumns == nil {
+		return []CustomColumnConfig{}
+	}
+	return s.CustomColumns
 }

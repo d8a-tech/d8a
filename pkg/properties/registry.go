@@ -56,9 +56,10 @@ func WithDefaultConfig(settings *Settings) StaticSettingsRegistryOptions {
 func NewStaticSettingsRegistry(props []Settings, opts ...StaticSettingsRegistryOptions) SettingsRegistry {
 	tid := make(map[string]*Settings)
 	pid := make(map[string]*Settings)
-	for _, prop := range props {
-		tid[prop.PropertyMeasurementID] = &prop
-		pid[prop.PropertyID] = &prop
+	for i := range props {
+		prop := &props[i]
+		tid[prop.PropertyMeasurementID] = prop
+		pid[prop.PropertyID] = prop
 	}
 	s := &StaticSettingsRegistry{tid: tid, pid: pid}
 	for _, opt := range opts {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
+	"github.com/d8a-tech/d8a/pkg/customcolumns"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
@@ -33,7 +34,8 @@ var crLock = sync.Mutex{}
 var cr schema.ColumnsRegistry
 
 func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
-	settings, err := propertySettings(cmd).GetByPropertyID(cmd.String(propertyIDFlag.Name))
+	psr := propertySettings(cmd)
+	settings, err := psr.GetByPropertyID(cmd.String(propertyIDFlag.Name))
 	if err != nil {
 		logrus.Panicf("failed to get property settings: %v", err)
 	}
@@ -75,9 +77,13 @@ func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
 			logrus.Panicf("invalid device-detection-provider value: %s (must be 'dd2' or 'stub')", deviceProvider)
 		}
 
+		opts = append(opts, columnset.WithCustomColumnsRegistry(
+			customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder()),
+		))
+
 		cr = columnset.DefaultColumnRegistry(
 			protocol,
-			propertySettings(cmd),
+			psr,
 			opts...,
 		)
 	}
