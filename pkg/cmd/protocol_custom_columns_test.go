@@ -15,13 +15,14 @@ func TestParseProtocolCustomColumnsConfig(t *testing.T) {
 	// given
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	err := os.WriteFile(configPath, []byte(`
-protocol:
-  ga4_params:
+ga4:
+  params:
     - name: ga_param
-  matomo_custom_dimensions:
+matomo:
+  custom_dimensions:
     - slot: 3
       name: m_dim
-  matomo_custom_variables:
+  custom_variables:
     - name: m_var
 `), 0o600)
 	require.NoError(t, err)
@@ -31,13 +32,13 @@ protocol:
 
 	// then
 	require.NoError(t, err)
-	assert.Len(t, parsed.GA4Params, 1)
-	assert.Equal(t, "ga_param", parsed.GA4Params[0].Name)
-	assert.Len(t, parsed.MatomoCustomDimensions, 1)
-	assert.Equal(t, int64(3), parsed.MatomoCustomDimensions[0].Slot)
-	assert.Equal(t, "m_dim", parsed.MatomoCustomDimensions[0].Name)
-	assert.Len(t, parsed.MatomoCustomVariables, 1)
-	assert.Equal(t, "m_var", parsed.MatomoCustomVariables[0].Name)
+	assert.Len(t, parsed.GA4.Params, 1)
+	assert.Equal(t, "ga_param", parsed.GA4.Params[0].Name)
+	assert.Len(t, parsed.Matomo.CustomDimensions, 1)
+	assert.Equal(t, int64(3), parsed.Matomo.CustomDimensions[0].Slot)
+	assert.Equal(t, "m_dim", parsed.Matomo.CustomDimensions[0].Name)
+	assert.Len(t, parsed.Matomo.CustomVariables, 1)
+	assert.Equal(t, "m_var", parsed.Matomo.CustomVariables[0].Name)
 }
 
 func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
@@ -46,23 +47,25 @@ func TestShortcutCustomColumnNormalizer_Normalize(t *testing.T) {
 
 	// when
 	columns, err := normalizer.Normalize(protocolCustomColumnsConfig{
-		GA4Params: []ga4ParamShortcutConfig{{
+		GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{
 			Name: "ga_param",
-		}},
-		MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
-			Slot: 2,
-			Name: "m_dim_event",
-		}, {
-			Slot:  8,
-			Name:  "m_dim_session",
-			Scope: properties.CustomColumnScopeSession,
-		}},
-		MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
-			Name: "m_var_event",
-		}, {
-			Name:  "m_var_session",
-			Scope: properties.CustomColumnScopeSession,
-		}},
+		}}},
+		Matomo: matomoCustomColumnsConfig{
+			CustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Slot: 2,
+				Name: "m_dim_event",
+			}, {
+				Slot:  8,
+				Name:  "m_dim_session",
+				Scope: properties.CustomColumnScopeSession,
+			}},
+			CustomVariables: []matomoCustomVariableShortcutConfig{{
+				Name: "m_var_event",
+			}, {
+				Name:  "m_var_session",
+				Scope: properties.CustomColumnScopeSession,
+			}},
+		},
 	})
 
 	// then
@@ -164,134 +167,130 @@ func TestShortcutCustomColumnNormalizer_NormalizeValidation(t *testing.T) {
 		{
 			name: "missing ga4 name",
 			shortcuts: protocolCustomColumnsConfig{
-				GA4Params: []ga4ParamShortcutConfig{{}},
+				GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{}}},
 			},
-			errPart: "protocol.ga4_params[0].name is required",
+			errPart: "ga4.params[0].name is required",
 		},
 		{
 			name: "invalid ga4 scope",
 			shortcuts: protocolCustomColumnsConfig{
-				GA4Params: []ga4ParamShortcutConfig{{
+				GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{
 					Name:  "x",
 					Scope: properties.CustomColumnScopeSession,
-				}},
+				}}},
 			},
-			errPart: "protocol.ga4_params[0].scope must be \"event\"",
+			errPart: "ga4.params[0].scope must be \"event\"",
 		},
 		{
 			name: "invalid type",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
 					Type: properties.CustomColumnType("unknown"),
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_variables[0].type has invalid value \"unknown\"",
+			errPart: "matomo.custom_variables[0].type has invalid value \"unknown\"",
 		},
 		{
 			name: "ga4 bool rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				GA4Params: []ga4ParamShortcutConfig{{
+				GA4: ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{
 					Name: "x",
 					Type: properties.CustomColumnTypeBool,
-				}},
+				}}},
 			},
-			errPart: "protocol.ga4_params[0].type \"bool\" is unsupported",
+			errPart: "ga4.params[0].type \"bool\" is unsupported",
 		},
 		{
 			name: "missing matomo dimension slot",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_dimensions[0].slot is required",
+			errPart: "matomo.custom_dimensions[0].slot is required",
 		},
 		{
 			name: "invalid matomo dimension scope",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name:  "x",
 					Slot:  1,
 					Scope: properties.CustomColumnScopeSessionScopedEvent,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_dimensions[0].scope has invalid value \"session_scoped_event\"",
+			errPart: "matomo.custom_dimensions[0].scope has invalid value \"session_scoped_event\"",
 		},
 		{
 			name: "duplicate name across groups",
 			shortcuts: protocolCustomColumnsConfig{
-				GA4Params: []ga4ParamShortcutConfig{{
-					Name: "shared",
-				}},
-				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
-					Name: "shared",
-				}},
+				GA4:    ga4CustomColumnsConfig{Params: []ga4ParamShortcutConfig{{Name: "shared"}}},
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{Name: "shared"}}},
 			},
 			errPart: "duplicate custom column output name \"shared\"",
 		},
 		{
 			name: "matomo dimension int64 rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
 					Type: properties.CustomColumnTypeInt64,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_dimensions[0].type \"int64\" is unsupported",
+			errPart: "matomo.custom_dimensions[0].type \"int64\" is unsupported",
 		},
 		{
 			name: "matomo dimension float64 rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
 					Type: properties.CustomColumnTypeFloat64,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_dimensions[0].type \"float64\" is unsupported",
+			errPart: "matomo.custom_dimensions[0].type \"float64\" is unsupported",
 		},
 		{
 			name: "matomo dimension bool rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomDimensions: []matomoCustomDimensionShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomDimensions: []matomoCustomDimensionShortcutConfig{{
 					Name: "x",
 					Slot: 1,
 					Type: properties.CustomColumnTypeBool,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_dimensions[0].type \"bool\" is unsupported",
+			errPart: "matomo.custom_dimensions[0].type \"bool\" is unsupported",
 		},
 		{
 			name: "matomo variable int64 rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
 					Type: properties.CustomColumnTypeInt64,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_variables[0].type \"int64\" is unsupported",
+			errPart: "matomo.custom_variables[0].type \"int64\" is unsupported",
 		},
 		{
 			name: "matomo variable float64 rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
 					Type: properties.CustomColumnTypeFloat64,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_variables[0].type \"float64\" is unsupported",
+			errPart: "matomo.custom_variables[0].type \"float64\" is unsupported",
 		},
 		{
 			name: "matomo variable bool rejected",
 			shortcuts: protocolCustomColumnsConfig{
-				MatomoCustomVariables: []matomoCustomVariableShortcutConfig{{
+				Matomo: matomoCustomColumnsConfig{CustomVariables: []matomoCustomVariableShortcutConfig{{
 					Name: "x",
 					Type: properties.CustomColumnTypeBool,
-				}},
+				}}},
 			},
-			errPart: "protocol.matomo_custom_variables[0].type \"bool\" is unsupported",
+			errPart: "matomo.custom_variables[0].type \"bool\" is unsupported",
 		},
 	}
 
@@ -312,8 +311,8 @@ func TestLoadProtocolCustomColumns_AppendsFlagJSONToYAML(t *testing.T) {
 	// given
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	err := os.WriteFile(configPath, []byte(`
-protocol:
-  ga4_params:
+ga4:
+  params:
     - name: from_yaml
 `), 0o600)
 	require.NoError(t, err)
@@ -325,7 +324,7 @@ protocol:
 	})
 
 	command := staticProtocolCustomColumnsSource{values: map[string][]string{
-		protocolGA4ParamsFlag.Name: {`{"name":"from_flag"}`},
+		ga4ParamsFlag.Name: {`{"name":"from_flag"}`},
 	}}
 
 	// when

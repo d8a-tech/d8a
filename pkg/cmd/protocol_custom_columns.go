@@ -12,9 +12,17 @@ import (
 )
 
 type protocolCustomColumnsConfig struct {
-	GA4Params              []ga4ParamShortcutConfig              `yaml:"ga4_params"`
-	MatomoCustomDimensions []matomoCustomDimensionShortcutConfig `yaml:"matomo_custom_dimensions"`
-	MatomoCustomVariables  []matomoCustomVariableShortcutConfig  `yaml:"matomo_custom_variables"`
+	GA4    ga4CustomColumnsConfig    `yaml:"ga4"`
+	Matomo matomoCustomColumnsConfig `yaml:"matomo"`
+}
+
+type ga4CustomColumnsConfig struct {
+	Params []ga4ParamShortcutConfig `yaml:"params"`
+}
+
+type matomoCustomColumnsConfig struct {
+	CustomDimensions []matomoCustomDimensionShortcutConfig `yaml:"custom_dimensions"`
+	CustomVariables  []matomoCustomVariableShortcutConfig  `yaml:"custom_variables"`
 }
 
 type ga4ParamShortcutConfig struct {
@@ -57,14 +65,12 @@ func (p yamlProtocolCustomColumnsParser) Parse(configFilePath string) (protocolC
 		return protocolCustomColumnsConfig{}, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	var rawConfig struct {
-		Protocol protocolCustomColumnsConfig `yaml:"protocol"`
-	}
+	var rawConfig protocolCustomColumnsConfig
 	if err := yaml.Unmarshal(content, &rawConfig); err != nil {
 		return protocolCustomColumnsConfig{}, fmt.Errorf("failed to unmarshal YAML: %w", err)
 	}
 
-	return rawConfig.Protocol, nil
+	return rawConfig, nil
 }
 
 type protocolCustomColumnNormalizer interface {
@@ -105,13 +111,13 @@ func (v uniqueNameCustomColumnValidator) Validate(columns []properties.CustomCol
 func (n shortcutCustomColumnNormalizer) Normalize(
 	shortcuts protocolCustomColumnsConfig,
 ) ([]properties.CustomColumnConfig, error) {
-	totalColumns := len(shortcuts.GA4Params) +
-		len(shortcuts.MatomoCustomDimensions) +
-		len(shortcuts.MatomoCustomVariables)
+	totalColumns := len(shortcuts.GA4.Params) +
+		len(shortcuts.Matomo.CustomDimensions) +
+		len(shortcuts.Matomo.CustomVariables)
 
 	columns := make([]properties.CustomColumnConfig, 0, totalColumns)
 
-	for idx, entry := range shortcuts.GA4Params {
+	for idx, entry := range shortcuts.GA4.Params {
 		column, err := normalizeGA4ParamShortcut(entry, idx)
 		if err != nil {
 			return nil, err
@@ -119,7 +125,7 @@ func (n shortcutCustomColumnNormalizer) Normalize(
 		columns = append(columns, column)
 	}
 
-	for idx, entry := range shortcuts.MatomoCustomDimensions {
+	for idx, entry := range shortcuts.Matomo.CustomDimensions {
 		column, err := normalizeMatomoCustomDimensionShortcut(entry, idx)
 		if err != nil {
 			return nil, err
@@ -127,7 +133,7 @@ func (n shortcutCustomColumnNormalizer) Normalize(
 		columns = append(columns, column)
 	}
 
-	for idx, entry := range shortcuts.MatomoCustomVariables {
+	for idx, entry := range shortcuts.Matomo.CustomVariables {
 		column, err := normalizeMatomoCustomVariableShortcut(entry, idx)
 		if err != nil {
 			return nil, err
@@ -165,26 +171,26 @@ type protocolCustomColumnsSource interface {
 
 func appendJSONShortcutEntries(shortcuts *protocolCustomColumnsConfig, cmd protocolCustomColumnsSource) {
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(protocolGA4ParamsFlag.Name),
-		"protocol-ga4-params",
+		cmd.StringSlice(ga4ParamsFlag.Name),
+		"ga4-params",
 		func(entry ga4ParamShortcutConfig) {
-			shortcuts.GA4Params = append(shortcuts.GA4Params, entry)
+			shortcuts.GA4.Params = append(shortcuts.GA4.Params, entry)
 		},
 	)
 
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(protocolMatomoCustomDimensionsFlag.Name),
-		"protocol-matomo-custom-dimensions",
+		cmd.StringSlice(matomoCustomDimensionsFlag.Name),
+		"matomo-custom-dimensions",
 		func(entry matomoCustomDimensionShortcutConfig) {
-			shortcuts.MatomoCustomDimensions = append(shortcuts.MatomoCustomDimensions, entry)
+			shortcuts.Matomo.CustomDimensions = append(shortcuts.Matomo.CustomDimensions, entry)
 		},
 	)
 
 	decodeAndAppendJSONEntries(
-		cmd.StringSlice(protocolMatomoCustomVariablesFlag.Name),
-		"protocol-matomo-custom-variables",
+		cmd.StringSlice(matomoCustomVariablesFlag.Name),
+		"matomo-custom-variables",
 		func(entry matomoCustomVariableShortcutConfig) {
-			shortcuts.MatomoCustomVariables = append(shortcuts.MatomoCustomVariables, entry)
+			shortcuts.Matomo.CustomVariables = append(shortcuts.Matomo.CustomVariables, entry)
 		},
 	)
 }
@@ -201,7 +207,7 @@ func decodeAndAppendJSONEntries[T any](entries []string, flagName string, append
 }
 
 func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (properties.CustomColumnConfig, error) {
-	pathPrefix := fmt.Sprintf("protocol.ga4_params[%d]", idx)
+	pathPrefix := fmt.Sprintf("ga4.params[%d]", idx)
 	if entry.Name == "" {
 		return properties.CustomColumnConfig{}, fmt.Errorf("%s.name is required", pathPrefix)
 	}
@@ -221,7 +227,7 @@ func normalizeGA4ParamShortcut(entry ga4ParamShortcutConfig, idx int) (propertie
 	}
 	if columnType == properties.CustomColumnTypeBool {
 		return properties.CustomColumnConfig{}, fmt.Errorf(
-			"%s.type %q is unsupported for protocol.ga4_params",
+			"%s.type %q is unsupported for ga4.params",
 			pathPrefix,
 			columnType,
 		)
@@ -252,7 +258,7 @@ func normalizeMatomoCustomDimensionShortcut(
 	entry matomoCustomDimensionShortcutConfig,
 	idx int,
 ) (properties.CustomColumnConfig, error) {
-	pathPrefix := fmt.Sprintf("protocol.matomo_custom_dimensions[%d]", idx)
+	pathPrefix := fmt.Sprintf("matomo.custom_dimensions[%d]", idx)
 	if entry.Name == "" {
 		return properties.CustomColumnConfig{}, fmt.Errorf("%s.name is required", pathPrefix)
 	}
@@ -313,7 +319,7 @@ func normalizeMatomoCustomVariableShortcut(
 	entry matomoCustomVariableShortcutConfig,
 	idx int,
 ) (properties.CustomColumnConfig, error) {
-	pathPrefix := fmt.Sprintf("protocol.matomo_custom_variables[%d]", idx)
+	pathPrefix := fmt.Sprintf("matomo.custom_variables[%d]", idx)
 	if entry.Name == "" {
 		return properties.CustomColumnConfig{}, fmt.Errorf("%s.name is required", pathPrefix)
 	}
