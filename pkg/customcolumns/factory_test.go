@@ -168,26 +168,24 @@ func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
 		Scope: properties.CustomColumnScopeSessionScopedEvent,
 		Type:  properties.CustomColumnTypeBool,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID(
-			"matomo.protocols.d8a.tech/session/session_custom_variables",
+			"ga4.protocols.d8a.tech/event/params",
 		)},
 		Implementation: properties.NestedLookupConfig{
-			SourceScope:       properties.NestedLookupSourceScopeSession,
-			SourceInterfaceID: schema.InterfaceID("matomo.protocols.d8a.tech/session/session_custom_variables"),
-			SourceField:       "session_custom_variables",
+			SourceScope:       properties.NestedLookupSourceScopeEvent,
+			SourceInterfaceID: schema.InterfaceID("ga4.protocols.d8a.tech/event/params"),
+			SourceField:       "params",
 			MatchField:        "name",
 			MatchEquals:       "plan_active",
-			ValueField:        "value",
+			ValueField:        "value_string",
 			Pick:              properties.NestedLookupPickStrategyLastNonNull,
 		},
 	}
 	session := &schema.Session{
-		Values: map[string]any{
-			"session_custom_variables": []any{
-				map[string]any{"name": "plan_active"},
-				map[string]any{"name": "plan_active", "value": "true"},
-			},
+		Values: map[string]any{},
+		Events: []*schema.Event{
+			{Values: map[string]any{"params": []any{map[string]any{"name": "plan_active", "value_string": "true"}}}},
+			{Values: map[string]any{"params": []any{map[string]any{"name": "plan_active", "value_string": "false"}}}},
 		},
-		Events: []*schema.Event{{Values: map[string]any{}}, {Values: map[string]any{}}},
 	}
 
 	// when
@@ -200,7 +198,7 @@ func TestFactoryBuild_SessionScopedEventColumnSuccess(t *testing.T) {
 	require.NoError(t, writeErr0)
 	require.NoError(t, writeErr1)
 	assert.Equal(t, true, session.Events[0].Values["session_plan_active"])
-	assert.Equal(t, true, session.Events[1].Values["session_plan_active"])
+	assert.Equal(t, false, session.Events[1].Values["session_plan_active"])
 }
 
 func TestFactoryBuild_SessionScopedEventColumnInvalidSource(t *testing.T) {
@@ -359,7 +357,7 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 		{
 			name: "unsupported source interface",
 			mutate: func(def *properties.CustomColumnConfig) {
-				def.Scope = properties.CustomColumnScopeSessionScopedEvent
+				def.Scope = properties.CustomColumnScopeSession
 				def.Implementation.SourceScope = ""
 				def.Implementation.SourceInterfaceID = "unknown.protocols.d8a.tech/source"
 			},
@@ -399,7 +397,7 @@ func TestFactoryBuild_StartupValidationFailures(t *testing.T) {
 	}
 }
 
-func TestFactoryBuild_UsesSourceInterfaceOverDependsOnNaming(t *testing.T) {
+func TestFactoryBuild_SessionScopedEventRejectsSessionSourceScope(t *testing.T) {
 	// given
 	f := NewFactory()
 	def := properties.CustomColumnConfig{
@@ -407,7 +405,7 @@ func TestFactoryBuild_UsesSourceInterfaceOverDependsOnNaming(t *testing.T) {
 		Scope: properties.CustomColumnScopeSessionScopedEvent,
 		Type:  properties.CustomColumnTypeString,
 		DependsOn: schema.DependsOnEntry{Interface: schema.InterfaceID(
-			"matomo.protocols.d8a.tech/event/custom_variables",
+			"matomo.protocols.d8a.tech/session/session_custom_variables",
 		)},
 		Implementation: properties.NestedLookupConfig{
 			SourceScope:       properties.NestedLookupSourceScopeSession,
@@ -419,19 +417,10 @@ func TestFactoryBuild_UsesSourceInterfaceOverDependsOnNaming(t *testing.T) {
 			Pick:              properties.NestedLookupPickStrategyLastNonNull,
 		},
 	}
-	session := &schema.Session{
-		Values: map[string]any{
-			"session_custom_variables": []any{map[string]any{"name": "plan_active", "value": "gold"}},
-		},
-		Events: []*schema.Event{{Values: map[string]any{"session_custom_variables": []any{}}}},
-	}
-
 	// when
-	built, err := f.Build(&def)
-	require.NoError(t, err)
-	writeErr := built.SessionScopedEvent.Write(session, 0)
+	_, err := f.Build(&def)
 
 	// then
-	require.NoError(t, writeErr)
-	assert.Equal(t, "gold", session.Events[0].Values["session_plan_active"])
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot use source_scope=session")
 }
