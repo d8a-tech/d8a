@@ -464,14 +464,9 @@ var protocolMatomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceF
 
 var protocolGA4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "protocol-ga4-params",
-	Usage: "Array of GA4 parameter shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
-		"'name' (string, required), " +
-		"'scope' (event; optional, defaults to event), " +
-		"'type' (string/int64/float64; optional, defaults to string). " +
-		"Example: `{\"name\":\"campaign_id\",\"type\":\"string\"}`. " +
-		"Can be set via CLI flag, environment variable " +
-		"(PROTOCOL_GA4_PARAMS), or YAML config (protocol.ga4_params). " +
-		"Entries from flag/env are appended to YAML entries.",
+	Usage: "GA4 shortcut entries for flattening nested event params into custom columns. " +
+		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("PROTOCOL_GA4_PARAMS")
@@ -482,16 +477,9 @@ var protocolGA4ParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 
 var protocolMatomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "protocol-matomo-custom-dimensions",
-	Usage: "Array of Matomo custom dimension shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
-		"'slot' (integer, required), " +
-		"'name' (string, required), " +
-		"'scope' (event/session; optional, defaults to event), " +
-		"'type' (string only; optional, defaults to string). " +
-		"Example: `{\"slot\":3,\"name\":\"plan_tier\"}`. " +
-		"Can be set via CLI flag, environment variable " +
-		"(PROTOCOL_MATOMO_CUSTOM_DIMENSIONS), or YAML config " +
-		"(protocol.matomo_custom_dimensions). " +
-		"Entries from flag/env are appended to YAML entries.",
+	Usage: "Matomo custom dimension shortcut entries for flattening nested values into custom columns. " +
+		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_DIMENSIONS")
@@ -502,15 +490,9 @@ var protocolMatomoCustomDimensionsFlag *cli.StringSliceFlag = &cli.StringSliceFl
 
 var protocolMatomoCustomVariablesFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Name: "protocol-matomo-custom-variables",
-	Usage: "Array of Matomo custom variable shortcut entries for custom columns. Each entry is a JSON-encoded string with fields: " + //nolint:lll // it's a description
-		"'name' (string, required), " +
-		"'scope' (event/session; optional, defaults to event), " +
-		"'type' (string only; optional, defaults to string). " +
-		"Example: `{\"name\":\"ab_test_group\"}`. " +
-		"Can be set via CLI flag, environment variable " +
-		"(PROTOCOL_MATOMO_CUSTOM_VARIABLES), or YAML config " +
-		"(protocol.matomo_custom_variables). " +
-		"Entries from flag/env are appended to YAML entries.",
+	Usage: "Matomo custom variable shortcut entries for flattening nested values into custom columns. " +
+		"Each entry is a JSON string; values from flag/env append to YAML entries. " +
+		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("PROTOCOL_MATOMO_CUSTOM_VARIABLES")
