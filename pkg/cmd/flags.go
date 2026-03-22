@@ -108,6 +108,20 @@ var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   60 * time.Second,
 }
 
+var currencyDestinationDirectoryFlag *cli.StringFlag = &cli.StringFlag{
+	Name:    "currency-destination-directory",
+	Usage:   "Directory where downloaded currency rate snapshots are stored and reused across restarts. If no snapshot exists yet, converted currency columns will be null until a refresh succeeds.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("CURRENCY_DESTINATION_DIRECTORY", "currency.destination_directory"),
+	Value:   "./currency",
+}
+
+var currencyRefreshIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:    "currency-refresh-interval",
+	Usage:   "How often the application refreshes currency rate snapshots in the background. Set to 0 to disable background refreshes.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("CURRENCY_REFRESH_INTERVAL", "currency.refresh_interval"),
+	Value:   6 * time.Hour,
+}
+
 var deviceDetectionProviderFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "device-detector-provider",
 	Usage:   "Device detector provider (dd2 or stub)",
@@ -595,6 +609,8 @@ func getServerFlags() []cli.Flag {
 			dbipEnabled,
 			dbipDestinationDirectory,
 			dbipDownloadTimeoutFlag,
+			currencyDestinationDirectoryFlag,
+			currencyRefreshIntervalFlag,
 			deviceDetectionProviderFlag,
 			propertyIDFlag,
 			propertyNameFlag,

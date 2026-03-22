@@ -1,10 +1,35 @@
-// Package currency provides a currency conversion interface and implementation.
+// Package currency provides currency conversion interfaces and implementations.
 package currency
+
+import (
+	"context"
+	"errors"
+)
 
 // Converter is an interface that converts currency amounts between different ISO currencies.
 type Converter interface {
 	Convert(isoBaseCurrency string, isoQuoteCurrency string, amount float64) (float64, error)
 }
+
+// Runner starts background converter refresh work.
+type Runner interface {
+	Run(ctx context.Context)
+}
+
+// SnapshotStatus reports whether a usable snapshot is currently loaded.
+type SnapshotStatus interface {
+	HasSnapshot() bool
+}
+
+// ManagedConverter combines synchronous conversion with background refresh lifecycle.
+type ManagedConverter interface {
+	Converter
+	Runner
+	SnapshotStatus
+}
+
+// ErrUnavailable indicates that conversion data is currently unavailable.
+var ErrUnavailable = errors.New("currency conversion unavailable")
 
 type dummyConverter struct {
 	factor float64
@@ -69,6 +94,9 @@ func DoConversion(
 	}
 	converted, err := converter.Convert(baseCurrencyStr, quoteCurrency, baseValueFloat)
 	if err != nil {
+		if errors.Is(err, ErrUnavailable) {
+			return nil, nil // nolint:nilnil // unavailable conversion data should result in null column values
+		}
 		return nil, err
 	}
 	rounded := bankersRound(converted, 2)

@@ -5,22 +5,29 @@ import (
 	"fmt"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v3"
 )
 
-func migrate(ctx context.Context, cmd *cli.Command, propertyID string, whr warehouse.Registry) error {
+func migrate(
+	ctx context.Context,
+	cmd *cli.Command,
+	propertyID string,
+	whr warehouse.Registry,
+	converter currency.Converter,
+) error {
 	settings, err := propertySettings(cmd).GetByPropertyID(propertyID)
 	if err != nil {
 		return err
 	}
-	protocol := protocolByID(settings.ProtocolID, cmd)
+	protocol := protocolByID(settings.ProtocolID, cmd, converter)
 	if protocol == nil {
 		return fmt.Errorf("protocol %s not found", settings.ProtocolID)
 	}
-	columnData, err := columnsRegistry(cmd).Get(propertyID) // nolint:contextcheck // false positive
+	columnData, err := columnsRegistry(cmd, converter).Get(propertyID) // nolint:contextcheck // false positive
 	if err != nil {
 		return err
 	}

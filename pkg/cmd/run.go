@@ -34,14 +34,6 @@ func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 	return endFlags
 }
 
-var currencyConverter currency.Converter = func() currency.Converter {
-	converter, err := currency.NewFWAConverter(nil)
-	if err != nil {
-		logrus.Fatalf("failed to create currency converter: %v", err)
-	}
-	return converter
-}()
-
 func startTelemetry(itemName, telemetryURL string) {
 	if telemetryURL == "" {
 		return
@@ -122,11 +114,21 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					getServerFlags(),
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					protocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+					if ctx == nil {
+						ctx = context.Background()
+					}
+					converter, cleanup, err := buildCurrencyConverter(cmd)
+					if err != nil {
+						return err
+					}
+					converter.Run(ctx)
+					defer cleanup()
+
+					protocol := protocolByID(cmd.String(protocolFlag.Name), cmd, converter)
 					if protocol == nil {
 						return fmt.Errorf("protocol %s not found", cmd.String(protocolFlag.Name))
 					}
-					cr := columnsRegistry(cmd) // nolint:contextcheck // false positive
+					cr := columnsRegistry(cmd, converter) // nolint:contextcheck // false positive
 					columnData, err := cr.Get(cmd.String("property-id"))
 					if err != nil {
 						return err
@@ -169,6 +171,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						defer cancel()
 					}
 
+					converter, cleanup, err := buildCurrencyConverter(cmd)
+					if err != nil {
+						return err
+					}
+					converter.Run(ctx)
+					defer cleanup()
+
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {
@@ -176,7 +185,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						}
 					}()
 
-					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr); err != nil {
+					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr, converter); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
@@ -197,7 +206,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter)
 					if err != nil {
 						return err
 					}
@@ -220,7 +229,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					// Start server and handle its error
-					server := buildReceiverServer(cmd, serverStorage)
+					server := buildReceiverServer(cmd, serverStorage, converter)
 					serverErr := server.Run(ctx)
 					if serverErr != nil {
 						logrus.Errorf("server error: %v", serverErr)
@@ -244,6 +253,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						defer cancel()
 					}
 
+					converter, cleanup, err := buildCurrencyConverter(cmd)
+					if err != nil {
+						return err
+					}
+					converter.Run(ctx)
+					defer cleanup()
+
 					bs, err := bootstrap(ctx, cancel, "receiver", cmd)
 					if err != nil {
 						return err
@@ -261,7 +277,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					server := buildReceiverServer(cmd, serverStorage)
+					server := buildReceiverServer(cmd, serverStorage, converter)
 					return server.Run(ctx)
 				},
 			},
@@ -278,6 +294,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						ctx, cancel = context.WithCancel(context.Background())
 						defer cancel()
 					}
+
+					converter, cleanup, err := buildCurrencyConverter(cmd)
+					if err != nil {
+						return err
+					}
+					converter.Run(ctx)
+					defer cleanup()
 
 					bs, err := bootstrap(ctx, cancel, "worker", cmd)
 					if err != nil {
@@ -303,7 +326,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 						}
 					}()
 
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter)
 					if err != nil {
 						return err
 					}
@@ -336,13 +359,23 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					warehouseConfigFlags,
 				),
 				Action: func(_ context.Context, cmd *cli.Command) error {
+					converter, cleanup, err := buildCurrencyConverter(cmd)
+					if err != nil {
+						return err
+					}
+					if ctx == nil {
+						ctx = context.Background()
+					}
+					converter.Run(ctx)
+					defer cleanup()
+
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {
 							logrus.WithError(err).Error("failed to close warehouse registry")
 						}
 					}()
-					return migrate(ctx, cmd, cmd.String("property-id"), whr)
+					return migrate(ctx, cmd, cmd.String("property-id"), whr, converter)
 				},
 			},
 			{
@@ -368,8 +401,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 
 // buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.
 // For as long as we don't support multi-property, we return a single protocol.
-func buildReceiverServer(cmd *cli.Command, storage receiver.Storage) *receiver.Server {
-	currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd)
+func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter currency.Converter) *receiver.Server {
+	currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd, converter)
 	if currentProtocol == nil {
 		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
 	}

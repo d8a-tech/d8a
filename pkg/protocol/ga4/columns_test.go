@@ -2298,6 +2298,34 @@ func TestEventColumns(t *testing.T) {
 	}
 }
 
+func TestCurrencyColumnsWriteNullWhenRatesUnavailable(t *testing.T) {
+	// given
+	columntests.ColumnTestCase(
+		t,
+		columntests.TestHits{columntests.TestHitOne()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			record := whd.WriteCalls[0].Records[0]
+			assert.Nil(t, record["ecommerce_purchase_revenue_in_usd"])
+			assert.Nil(t, record["ecommerce_shipping_value_in_usd"])
+			assert.Nil(t, record["ecommerce_tax_value_in_usd"])
+		},
+		NewGA4Protocol(unavailableCurrencyConverter{}, properties.NewTestSettingRegistry()),
+		columntests.EnsureEventName(0, "purchase"),
+		columntests.EnsureQueryParam(0, "ep.currency", "EUR"),
+		columntests.EnsureQueryParam(0, "epn.value", "10.00"),
+		columntests.EnsureQueryParam(0, "epn.shipping", "3.00"),
+		columntests.EnsureQueryParam(0, "epn.tax", "2.00"),
+	)
+}
+
+type unavailableCurrencyConverter struct{}
+
+func (unavailableCurrencyConverter) Convert(_, _ string, _ float64) (float64, error) {
+	return 0, currency.ErrUnavailable
+}
+
 func TestSessionColumns(t *testing.T) {
 	// Test cases for session columns
 	var sessionColumnTestCases = []struct {

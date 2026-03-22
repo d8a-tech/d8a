@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/customcolumns"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -31,61 +33,69 @@ func getTableNames(cmd *cli.Command) tables {
 }
 
 var crLock = sync.Mutex{}
-var cr schema.ColumnsRegistry
+var cr map[string]schema.ColumnsRegistry
 
-func columnsRegistry(cmd *cli.Command) schema.ColumnsRegistry {
+func columnsRegistry(cmd *cli.Command, converter currency.Converter) schema.ColumnsRegistry {
 	psr := propertySettings(cmd)
 	settings, err := psr.GetByPropertyID(cmd.String(propertyIDFlag.Name))
 	if err != nil {
 		logrus.Panicf("failed to get property settings: %v", err)
 	}
-	protocol := protocolByID(settings.ProtocolID, cmd)
+	protocol := protocolByID(settings.ProtocolID, cmd, converter)
 	if protocol == nil {
 		logrus.Panicf("protocol %s not found", settings.ProtocolID)
 	}
 	crLock.Lock()
 	defer crLock.Unlock()
 	if cr == nil {
-		var opts []columnset.ColumnSetOption
-
-		if cmd.Bool(dbipEnabled.Name) {
-			geoColumns := dbip.GeoColumns(
-				dbip.NewExtensionBasedOCIDownloader(
-					dbip.OCIRegistryCreds{
-						Repo:       "ghcr.io/d8a-tech",
-						IgnoreCert: false,
-					},
-					".mmdb",
-				),
-				cmd.String(dbipDestinationDirectory.Name),
-				cmd.Duration(dbipDownloadTimeoutFlag.Name),
-				dbip.CacheConfig{
-					MaxEntries: 1024,
-					TTL:        30 * time.Second,
-				},
-			)
-			opts = append(opts, columnset.WithGeoIPColumns(geoColumns))
-		}
-
-		deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
-		switch deviceProvider {
-		case "dd2":
-			opts = append(opts, columnset.WithDeviceDetectionColumns(eventcolumns.DD2Columns()))
-		case "stub":
-			// Do nothing - use default stubs
-		default:
-			logrus.Panicf("invalid device-detection-provider value: %s (must be 'dd2' or 'stub')", deviceProvider)
-		}
-
-		opts = append(opts, columnset.WithCustomColumnsRegistry(
-			customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder()),
-		))
-
-		cr = columnset.DefaultColumnRegistry(
-			protocol,
-			psr,
-			opts...,
-		)
+		cr = make(map[string]schema.ColumnsRegistry)
 	}
-	return cr
+
+	cacheKey := settings.ProtocolID + ":" + fmt.Sprintf("%T", converter)
+	if registry, ok := cr[cacheKey]; ok {
+		return registry
+	}
+
+	var opts []columnset.ColumnSetOption
+
+	if cmd.Bool(dbipEnabled.Name) {
+		geoColumns := dbip.GeoColumns(
+			dbip.NewExtensionBasedOCIDownloader(
+				dbip.OCIRegistryCreds{
+					Repo:       "ghcr.io/d8a-tech",
+					IgnoreCert: false,
+				},
+				".mmdb",
+			),
+			cmd.String(dbipDestinationDirectory.Name),
+			cmd.Duration(dbipDownloadTimeoutFlag.Name),
+			dbip.CacheConfig{
+				MaxEntries: 1024,
+				TTL:        30 * time.Second,
+			},
+		)
+		opts = append(opts, columnset.WithGeoIPColumns(geoColumns))
+	}
+
+	deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
+	switch deviceProvider {
+	case "dd2":
+		opts = append(opts, columnset.WithDeviceDetectionColumns(eventcolumns.DD2Columns()))
+	case "stub":
+		// Do nothing - use default stubs
+	default:
+		logrus.Panicf("invalid device-detection-provider value: %s (must be 'dd2' or 'stub')", deviceProvider)
+	}
+
+	opts = append(opts, columnset.WithCustomColumnsRegistry(
+		customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder()),
+	))
+
+	registry := columnset.DefaultColumnRegistry(
+		protocol,
+		psr,
+		opts...,
+	)
+	cr[cacheKey] = registry
+	return registry
 }

@@ -1,153 +1,162 @@
 package currency
 
 import (
-	"bytes"
-	"fmt"
-	"io"
-	"net/http"
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
+type downloaderFunc func(context.Context) (*Snapshot, error)
 
-func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { // implements http.RoundTripper
-	return f(r)
+func (f downloaderFunc) Download(ctx context.Context) (*Snapshot, error) {
+	return f(ctx)
 }
 
-func newMockClient(fn roundTripFunc) *http.Client {
-	return &http.Client{Transport: fn}
-}
-
-func httpJSON(status int, body string) *http.Response {
-	return &http.Response{
-		StatusCode: status,
-		Body:       io.NopCloser(bytes.NewBufferString(body)),
-		Header:     make(http.Header),
-	}
-}
-
-func TestFWAConverter_Convert_ArrayDriven(t *testing.T) {
+func TestFWAConverter_LoadsLatestSnapshotFromStore(t *testing.T) {
 	// given
-	base := "usd"
-	jsURL := fmt.Sprintf("%s/%s.json", jsDelivrBase, base)
-	cfURL := fmt.Sprintf("%s/%s.json", cloudflareBase, base)
-
-	tests := []struct {
-		name      string
-		jsStatus  int
-		jsBody    string
-		jsErr     error
-		cfStatus  int
-		cfBody    string
-		cfErr     error
-		from      string
-		to        string
-		amount    float64
-		expectVal float64
-		expectErr bool
-	}{
-		{
-			name:      "same currency bypasses network and returns amount",
-			from:      "USD",
-			to:        "USD",
-			amount:    12.34,
-			expectVal: 12.34,
+	dir := t.TempDir()
+	store := NewFileStore(dir)
+	require.NoError(t, store.Append(&Snapshot{
+		CreatedAt: time.Date(2026, 3, 20, 9, 0, 0, 0, time.UTC),
+		Rates: map[string]map[string]float64{
+			"usd": {"eur": 0.9},
 		},
-		{
-			name:      "on-demand fetch from primary CDN succeeds",
-			jsStatus:  200,
-			jsBody:    `{"usd":{"eur":0.9,"gbp":0.8}}`,
-			from:      "USD",
-			to:        "EUR",
-			amount:    10,
-			expectVal: 9,
+	}))
+	require.NoError(t, store.Append(&Snapshot{
+		CreatedAt: time.Date(2026, 3, 21, 9, 0, 0, 0, time.UTC),
+		Rates: map[string]map[string]float64{
+			"usd": {"eur": 0.95},
 		},
-		{
-			name:      "primary fails, fallback succeeds",
-			jsStatus:  500,
-			jsBody:    "",
-			cfStatus:  200,
-			cfBody:    `{"usd":{"jpy":150}}`,
-			from:      "USD",
-			to:        "JPY",
-			amount:    2,
-			expectVal: 300,
-		},
-		{
-			name:      "rate not found in payload",
-			jsStatus:  200,
-			jsBody:    `{"usd":{"gbp":0.8}}`,
-			from:      "USD",
-			to:        "EUR",
-			amount:    10,
-			expectErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// when
-			convI, err := NewFWAConverter([]string{})
-			assert.NoError(t, err)
-			conv, ok := convI.(*FWAConverter)
-			if !ok {
-				t.Fatalf("unexpected converter type: %T", convI)
-			}
-			conv.httpClient = newMockClient(func(r *http.Request) (*http.Response, error) {
-				switch r.URL.String() {
-				case jsURL:
-					if tt.jsErr != nil {
-						return nil, tt.jsErr
-					}
-					if tt.jsStatus != 0 {
-						return httpJSON(tt.jsStatus, tt.jsBody), nil
-					}
-				case cfURL:
-					if tt.cfErr != nil {
-						return nil, tt.cfErr
-					}
-					if tt.cfStatus != 0 {
-						return httpJSON(tt.cfStatus, tt.cfBody), nil
-					}
-				}
-				return httpJSON(404, ""), nil
-			})
-
-			val, cErr := conv.Convert(tt.from, tt.to, tt.amount)
-
-			// responses are created and consumed per request; nothing to close here
-
-			// then
-			if tt.expectErr {
-				assert.Error(t, cErr)
-				return
-			}
-			assert.NoError(t, cErr)
-			assert.Equal(t, tt.expectVal, val)
-		})
-	}
-}
-
-func TestFWAConverter_FetchRates_MalformedPayload(t *testing.T) {
-	// given
-	base := "usd"
-	jsURL := fmt.Sprintf("%s/%s.json", jsDelivrBase, base)
-	convI, err := NewFWAConverter([]string{})
-	assert.NoError(t, err)
-	conv, ok := convI.(*FWAConverter)
-	assert.True(t, ok)
-	conv.httpClient = newMockClient(func(r *http.Request) (*http.Response, error) {
-		if r.URL.String() == jsURL {
-			return httpJSON(200, `{"usd":{"eur":"bad"}}`), nil
-		}
-		return httpJSON(404, ""), nil
-	})
+	}))
 
 	// when
-	_, ferr := conv.fetchRates(base)
+	converter, err := NewFWAConverter(nil, WithStore(store), WithInterval(IntervalNever))
 
 	// then
-	assert.Error(t, ferr)
+	require.NoError(t, err)
+	assert.True(t, converter.HasSnapshot())
+	value, err := converter.Convert("USD", "EUR", 10)
+	require.NoError(t, err)
+	assert.Equal(t, 9.5, value)
+}
+
+func TestFWAConverter_ConvertReturnsUnavailableWithoutSnapshot(t *testing.T) {
+	// given
+	converter, err := NewFWAConverter(nil, WithStore(NewFileStore(t.TempDir())), WithInterval(IntervalNever))
+	require.NoError(t, err)
+
+	// when
+	_, err = converter.Convert("USD", "EUR", 10)
+
+	// then
+	assert.ErrorIs(t, err, ErrUnavailable)
+	assert.False(t, converter.HasSnapshot())
+}
+
+func TestFWAConverter_RunRefreshesAndPersistsSnapshot(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	refreshDone := make(chan struct{}, 1)
+	converter, err := NewFWAConverter(
+		nil,
+		WithStore(NewFileStore(dir)),
+		WithInterval(10*time.Millisecond),
+		WithDownloader(downloaderFunc(func(context.Context) (*Snapshot, error) {
+			select {
+			case refreshDone <- struct{}{}:
+			default:
+			}
+			return &Snapshot{
+				CreatedAt: time.Date(2026, 3, 22, 8, 0, 0, 0, time.UTC),
+				Rates: map[string]map[string]float64{
+					"usd": {"eur": 0.91},
+				},
+			}, nil
+		})),
+	)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// when
+	converter.Run(ctx)
+
+	select {
+	case <-refreshDone:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("expected refresh to run")
+	}
+
+	// then
+	assert.Eventually(t, func() bool {
+		value, convErr := converter.Convert("USD", "EUR", 10)
+		return convErr == nil && value == 9.1
+	}, time.Second, 10*time.Millisecond)
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	assert.NotEmpty(t, entries)
+}
+
+func TestFWAConverter_RefreshFailureKeepsExistingSnapshot(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	store := NewFileStore(dir)
+	require.NoError(t, store.Append(&Snapshot{
+		CreatedAt: time.Date(2026, 3, 20, 9, 0, 0, 0, time.UTC),
+		Rates: map[string]map[string]float64{
+			"usd": {"eur": 0.8},
+		},
+	}))
+
+	converter, err := NewFWAConverter(
+		nil,
+		WithStore(store),
+		WithInterval(10*time.Millisecond),
+		WithDownloader(downloaderFunc(func(context.Context) (*Snapshot, error) {
+			return nil, errors.New("boom")
+		})),
+	)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// when
+	converter.Run(ctx)
+
+	// then
+	assert.Eventually(t, func() bool {
+		value, convErr := converter.Convert("USD", "EUR", 10)
+		return convErr == nil && value == 8
+	}, 300*time.Millisecond, 10*time.Millisecond)
+}
+
+func TestFileStoreLatestSkipsInvalidNewestSnapshot(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	store := NewFileStore(dir)
+	require.NoError(t, store.Append(&Snapshot{
+		CreatedAt: time.Date(2026, 3, 20, 9, 0, 0, 0, time.UTC),
+		Rates: map[string]map[string]float64{
+			"usd": {"eur": 0.8},
+		},
+	}))
+	invalidPath := filepath.Join(dir, "rates-99999999T999999.000000000Z.json")
+	require.NoError(t, os.WriteFile(invalidPath, []byte(`{"created_at":"2026-03-22T09:00:00Z","rates":{}}`), 0o600))
+
+	// when
+	snapshot, err := store.Latest()
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, snapshot)
+	assert.Equal(t, time.Date(2026, 3, 20, 9, 0, 0, 0, time.UTC), snapshot.CreatedAt)
 }
