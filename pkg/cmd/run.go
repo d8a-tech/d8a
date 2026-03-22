@@ -358,24 +358,21 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 					},
 					warehouseConfigFlags,
 				),
-				Action: func(_ context.Context, cmd *cli.Command) error {
+				Action: func(actionCtx context.Context, cmd *cli.Command) error {
 					converter, cleanup, err := buildCurrencyConverter(cmd)
 					if err != nil {
 						return err
 					}
-					if ctx == nil {
-						ctx = context.Background()
-					}
-					converter.Run(ctx)
+					converter.Run(actionCtx)
 					defer cleanup()
 
-					whr := warehouseRegistry(ctx, cmd)
+					whr := warehouseRegistry(actionCtx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {
 							logrus.WithError(err).Error("failed to close warehouse registry")
 						}
 					}()
-					return migrate(ctx, cmd, cmd.String("property-id"), whr, converter)
+					return migrate(actionCtx, cmd, cmd.String("property-id"), whr, converter)
 				},
 			},
 			{

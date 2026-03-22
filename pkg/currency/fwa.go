@@ -106,14 +106,6 @@ func WithInterval(interval time.Duration) fwaOption {
 	}
 }
 
-func WithHTTPClient(httpClient *http.Client) fwaOption {
-	return func(c *FWAConverter) {
-		if downloader, ok := c.downloader.(*apiDownloader); ok {
-			downloader.httpClient = httpClient
-		}
-	}
-}
-
 func NewAPIDownloader() Downloader {
 	return &apiDownloader{
 		httpClient: &http.Client{Timeout: 15 * time.Second},
