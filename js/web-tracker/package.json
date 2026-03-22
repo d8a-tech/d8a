@@ -45,6 +45,9 @@
     "format": "prettier . --check",
     "format:fix": "prettier . --write"
   },
+  "overrides": {
+    "flatted": "3.4.2"
+  },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/node": "^22.13.1",
