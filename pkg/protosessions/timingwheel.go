@@ -162,7 +162,10 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 			return fmt.Errorf("failed to rebase catch-up bucket: %w", err)
 		}
 		tw.startupBucketRebased = true
-		logrus.Infof("Skipping proto-session catch-up on startup, rebased timing wheel from bucket %d to %d", nextBucket, currentBucket)
+		logrus.WithFields(logrus.Fields{
+			"from_bucket": nextBucket,
+			"to_bucket":   currentBucket,
+		}).Info("Skipping proto-session catch-up on startup")
 		return nil
 	}
 	tw.startupBucketRebased = true
