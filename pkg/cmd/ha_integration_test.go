@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"slices"
 	"testing"
 	"time"
 
@@ -84,4 +85,18 @@ func TestReceiverWorkerQueue_ObjectStorage_MinIO(t *testing.T) {
 
 	require.NoError(t, app.Run(ctx, args))
 	require.Equal(t, []byte("hello"), consumed)
+}
+
+func TestGetServerFlags_IncludesSkipCatchUpFlag(t *testing.T) {
+	// given
+	flags := getServerFlags()
+
+	// when
+	names := make([]string, 0, len(flags))
+	for _, flag := range flags {
+		names = append(names, flag.Names()[0])
+	}
+
+	// then
+	require.True(t, slices.Contains(names, skipCatchUpFlag.Name))
 }
