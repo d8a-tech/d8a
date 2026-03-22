@@ -132,6 +132,7 @@ func buildWorkerRuntime(
 					),
 					serverStorage,
 					propertySettings(cmd),
+					protosessions.WithSkipCatchUpOnStartup(cmd.Bool(skipCatchUpFlag.Name)),
 				),
 			),
 		},

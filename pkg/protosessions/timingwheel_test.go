@@ -110,6 +110,55 @@ func TestTimingWheel_ErrorDoesNotAdvance(t *testing.T) {
 	assert.Equal(t, int64(1000), backend.nextBucket) // Should not advance
 }
 
+func TestTimingWheel_SkipCatchUpOnStartup_RebasesPersistedBucket(t *testing.T) {
+	// given
+	backend := &mockTickerBackend{
+		nextBucket: 1000,
+	}
+	processor := func(_ context.Context, _ int64) error {
+		t.Fatal("processor should not be called during startup rebase")
+		return nil
+	}
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.skipCatchUpOnStartup = true
+	tw.UpdateTime(time.Unix(1005, 0))
+
+	// when
+	err := tw.tick(context.Background())
+
+	// then
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1005), backend.nextBucket)
+	assert.True(t, tw.startupBucketRebased)
+}
+
+func TestTimingWheel_SkipCatchUpOnStartup_OnlyRebasesOnce(t *testing.T) {
+	// given
+	backend := &mockTickerBackend{
+		nextBucket: 1000,
+	}
+	var processedBucket int64 = -1
+	processor := func(_ context.Context, bucketNumber int64) error {
+		processedBucket = bucketNumber
+		return nil
+	}
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.skipCatchUpOnStartup = true
+	tw.UpdateTime(time.Unix(1005, 0))
+
+	// when
+	err := tw.tick(context.Background())
+	assert.NoError(t, err)
+
+	tw.UpdateTime(time.Unix(1006, 0))
+	err = tw.tick(context.Background())
+
+	// then
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1005), processedBucket)
+	assert.Equal(t, int64(1006), backend.nextBucket)
+}
+
 type mockTickerBackend struct {
 	nextBucket int64
 	err        error

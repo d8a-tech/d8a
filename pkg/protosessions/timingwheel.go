@@ -63,15 +63,17 @@ func (m PerBucketMutexes) Drop(bucketNumber int64) {
 
 // TimingWheel implements a timing wheel for scheduling protosession closures.
 type TimingWheel struct {
-	backend          TimingWheelStateBackend
-	tickInterval     time.Duration
-	processor        BucketProcessorFunc
-	currentTime      time.Time
-	firstUpdatedTime time.Time
-	stop             chan struct{}
-	stopped          chan struct{}
-	loopSleep        time.Duration
-	lock             PerBucketMutexes
+	backend              TimingWheelStateBackend
+	tickInterval         time.Duration
+	processor            BucketProcessorFunc
+	currentTime          time.Time
+	firstUpdatedTime     time.Time
+	skipCatchUpOnStartup bool
+	startupBucketRebased bool
+	stop                 chan struct{}
+	stopped              chan struct{}
+	loopSleep            time.Duration
+	lock                 PerBucketMutexes
 }
 
 // NewTimingWheel creates a timing wheel with the given tick interval.
@@ -155,6 +157,15 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	}
 
 	currentBucket := tw.BucketNumber(tw.currentTime)
+	if tw.skipCatchUpOnStartup && !tw.startupBucketRebased && nextBucket < currentBucket {
+		if err := tw.backend.SaveNextBucket(ctx, currentBucket); err != nil {
+			return fmt.Errorf("failed to rebase catch-up bucket: %w", err)
+		}
+		tw.startupBucketRebased = true
+		logrus.Infof("Skipping proto-session catch-up on startup, rebased timing wheel from bucket %d to %d", nextBucket, currentBucket)
+		return nil
+	}
+	tw.startupBucketRebased = true
 	tw.lock.Lock(currentBucket)
 	defer tw.lock.Drop(currentBucket)
 

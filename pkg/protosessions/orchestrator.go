@@ -24,6 +24,7 @@ type Orchestrator struct {
 	requeuer                        receiver.Storage
 	settingsRegistry                properties.SettingsRegistry
 	timingWheel                     *TimingWheel
+	skipCatchUpOnStartup            bool
 	evictionStrategy                EvictionStrategy
 	identifierIsolationGuardFactory IdentifierIsolationGuardFactory
 
@@ -202,6 +203,13 @@ func WithEvictionStrategy(
 ) OrchestratorOptionsFunc {
 	return func(o *Orchestrator) {
 		o.evictionStrategy = evictionStrategy
+	}
+}
+
+func WithSkipCatchUpOnStartup(skip bool) OrchestratorOptionsFunc {
+	return func(o *Orchestrator) {
+		o.skipCatchUpOnStartup = skip
+		o.timingWheel.skipCatchUpOnStartup = skip
 	}
 }
 

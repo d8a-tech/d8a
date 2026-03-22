@@ -66,6 +66,13 @@ var sessionsTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value:   30 * time.Minute,
 }
 
+var skipCatchUpFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:    "skip-catch-up",
+	Usage:   "When enabled, skips overdue proto-session closure catch-up on startup by rebasing the timing wheel to the current bucket instead of replaying persisted overdue buckets.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("SKIP_CATCH_UP", "startup.skip_catch_up"),
+	Value:   false,
+}
+
 var sessionsJoinBySessionStampFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "sessions-join-by-session-stamp",
 	Usage:   "When enabled, the system will merge proto-sessions that share the same session stamp identifier, even if they have different client IDs. This allows tracking user sessions across different devices or browsers when they share a common session identifier, enabling cross-device session continuity for authenticated or identified users.", //nolint:lll // it's a description
@@ -582,6 +589,7 @@ func getServerFlags() []cli.Flag {
 			receiverBatchTimeoutFlag,
 			receiverMaxHitKbytesFlag,
 			sessionsTimeoutFlag,
+			skipCatchUpFlag,
 			sessionsJoinBySessionStampFlag,
 			sessionsJoinByUserIDFlag,
 			dbipEnabled,
