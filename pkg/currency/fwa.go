@@ -213,6 +213,15 @@ func (c *FWAConverter) refreshLoop(ctx context.Context) {
 }
 
 func (c *FWAConverter) refresh(ctx context.Context) {
+	latestSnapshot, err := c.store.Latest()
+	if err == nil && time.Since(latestSnapshot.CreatedAt) < c.refreshEvery {
+		c.setSnapshot(latestSnapshot)
+		return
+	}
+	if err != nil && !errors.Is(err, ErrNoSnapshot) {
+		logrus.WithError(err).Warn("currency: failed to inspect local snapshots before refresh")
+	}
+
 	snapshot, err := c.downloader.Download(ctx)
 	if err != nil {
 		c.refreshCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "failure")))

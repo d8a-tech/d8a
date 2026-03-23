@@ -167,6 +167,54 @@ func TestFWAConverter_RunRefreshesImmediatelyWithoutSnapshot(t *testing.T) {
 	}, time.Second, 10*time.Millisecond)
 }
 
+func TestFWAConverter_RunSkipsDownloadWhenSnapshotIsFresh(t *testing.T) {
+	// given
+	store := NewFileStore(t.TempDir())
+	require.NoError(t, store.Append(&Snapshot{
+		CreatedAt: time.Now().UTC().Add(-30 * time.Second),
+		Rates: map[string]map[string]float64{
+			"usd": {"eur": 0.94},
+		},
+	}))
+
+	downloadCalled := make(chan struct{}, 1)
+	converter, err := NewFWAConverter(
+		nil,
+		WithStore(store),
+		WithInterval(time.Hour),
+		WithDownloader(downloaderFunc(func(context.Context) (*Snapshot, error) {
+			select {
+			case downloadCalled <- struct{}{}:
+			default:
+			}
+			return &Snapshot{
+				CreatedAt: time.Now().UTC(),
+				Rates: map[string]map[string]float64{
+					"usd": {"eur": 0.5},
+				},
+			}, nil
+		})),
+	)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// when
+	converter.Run(ctx)
+
+	// then
+	select {
+	case <-downloadCalled:
+		t.Fatal("expected fresh local snapshot to skip download")
+	case <-time.After(150 * time.Millisecond):
+	}
+
+	value, convErr := converter.Convert("USD", "EUR", 10)
+	require.NoError(t, convErr)
+	assert.InDelta(t, 9.4, value, 0.0001)
+}
+
 func TestFWAConverter_RefreshFailureKeepsExistingSnapshot(t *testing.T) {
 	// given
 	dir := t.TempDir()
