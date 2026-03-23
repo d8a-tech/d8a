@@ -4,8 +4,6 @@
 package ga4
 
 import (
-	"fmt"
-
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -24,7 +22,7 @@ func eventEcommercePurchaseRevenueInUSDColumn(converter currency.Converter) sche
 				event.Values[ProtocolInterfaces.EventEcommercePurchaseRevenue.Field.Name],
 			)
 			if err != nil {
-				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert purchase revenue to USD: %s", err))
+				return nil, schema.NewBrokenEventError(err.Error())
 			}
 			return conversion, nil
 		},
@@ -56,7 +54,7 @@ func eventEcommerceRefundValueInUSDColumn(converter currency.Converter) schema.E
 				event.Values[ProtocolInterfaces.EventEcommerceRefundValue.Field.Name],
 			)
 			if err != nil {
-				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert refund value to USD: %s", err))
+				return nil, schema.NewBrokenEventError(err.Error())
 			}
 			return conversion, nil
 		},
@@ -88,7 +86,7 @@ func eventEcommerceShippingValueInUSDColumn(converter currency.Converter) schema
 				event.Values[ProtocolInterfaces.EventEcommerceShippingValue.Field.Name],
 			)
 			if err != nil {
-				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert shipping value to USD: %s", err))
+				return nil, schema.NewBrokenEventError(err.Error())
 			}
 			return conversion, nil
 		},
@@ -133,7 +131,7 @@ func eventEcommerceTaxValueInUSDColumn(converter currency.Converter) schema.Even
 				event.Values[ProtocolInterfaces.EventEcommerceTaxValue.Field.Name],
 			)
 			if err != nil {
-				return nil, schema.NewRetryableError(fmt.Sprintf("failed to convert tax value to USD: %s", err))
+				return nil, schema.NewBrokenEventError(err.Error())
 			}
 			return conversion, nil
 		},

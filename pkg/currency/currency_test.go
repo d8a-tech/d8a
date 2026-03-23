@@ -77,3 +77,21 @@ func TestBankersRound(t *testing.T) {
 		})
 	}
 }
+
+func TestDoConversionReturnsNilWhenRatesUnavailable(t *testing.T) {
+	// given
+	converter := unavailableConverter{}
+
+	// when
+	result, err := DoConversion(converter, "EUR", ISOCurrencyUSD, 12.34)
+
+	// then
+	assert.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+type unavailableConverter struct{}
+
+func (unavailableConverter) Convert(_, _ string, _ float64) (float64, error) {
+	return 0, ErrUnavailable
+}

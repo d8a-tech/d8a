@@ -202,6 +202,36 @@ func TestItemsColumnTakeFromEvent(t *testing.T) {
 	)
 }
 
+func TestItemsColumnCurrencyUnavailableWritesNulls(t *testing.T) {
+	// given
+	columntests.ColumnTestCase(
+		t,
+		columntests.TestHits{columntests.TestHitOne()},
+		func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+			// when + then
+			require.NoError(t, closeErr)
+			record := whd.WriteCalls[0].Records[0]
+
+			assert.Nil(t, record["ecommerce_purchase_revenue_in_usd"])
+			items, ok := record["ecommerce_items"].([]any)
+			require.True(t, ok)
+			item, ok := items[0].(map[string]any)
+			require.True(t, ok)
+			assert.Nil(t, item["price_in_usd"])
+			assert.Nil(t, item["item_revenue_in_usd"])
+			assert.Nil(t, item["item_refund_in_usd"])
+		},
+		NewGA4Protocol(unavailableConverter{}, properties.NewTestSettingRegistry()),
+		columntests.EnsureEventName(0, "purchase"),
+		columntests.EnsureQueryParam(
+			0,
+			"pr1",
+			"idSKU_12345~pr10.01~qt3",
+		),
+		columntests.EnsureQueryParam(0, "ep.currency", "EUR"),
+	)
+}
+
 func TestItemsAggregatedEventParams(t *testing.T) {
 	type item struct {
 		itemID   string
@@ -502,4 +532,10 @@ func TestItemsAggregatedEventParams(t *testing.T) {
 			)
 		})
 	}
+}
+
+type unavailableConverter struct{}
+
+func (unavailableConverter) Convert(_, _ string, _ float64) (float64, error) {
+	return 0, currency.ErrUnavailable
 }

@@ -44,11 +44,6 @@ First, create a config file (you can learn more about the configuration options 
 
 ```bash
 cat > config.yaml <<EOF
-storage:
-  bolt_directory: /storage/
-  queue_directory: /storage/d8a-queue
-  spool_directory: /storage/spool
-
 sessions:
   timeout: 10s # Adjust this after the testing phase to a production value
 
@@ -75,6 +70,9 @@ storage:
   queue_directory: ./state/queue
   spool_enabled: true
   spool_directory: ./state/spool
+
+currency:
+  destination_directory: ./state/currency
 
 sessions:
   timeout: 10s # Adjust this after the testing phase to a production value

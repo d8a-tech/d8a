@@ -39,6 +39,7 @@ bolt.db
 bolt_kv.db
 queue/
 spool/
+/currency/
 .gomodcache/
 .gocache/
 
