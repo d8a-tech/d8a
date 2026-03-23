@@ -126,6 +126,47 @@ func TestFWAConverter_RunRefreshesAndPersistsSnapshot(t *testing.T) {
 	assert.NotEmpty(t, entries)
 }
 
+func TestFWAConverter_RunRefreshesImmediatelyWithoutSnapshot(t *testing.T) {
+	// given
+	refreshDone := make(chan struct{}, 1)
+	converter, err := NewFWAConverter(
+		nil,
+		WithStore(NewFileStore(t.TempDir())),
+		WithInterval(time.Hour),
+		WithDownloader(downloaderFunc(func(context.Context) (*Snapshot, error) {
+			select {
+			case refreshDone <- struct{}{}:
+			default:
+			}
+			return &Snapshot{
+				CreatedAt: time.Date(2026, 3, 23, 8, 0, 0, 0, time.UTC),
+				Rates: map[string]map[string]float64{
+					"usd": {"eur": 0.92},
+				},
+			}, nil
+		})),
+	)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// when
+	converter.Run(ctx)
+
+	// then
+	select {
+	case <-refreshDone:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("expected immediate refresh on startup")
+	}
+
+	assert.Eventually(t, func() bool {
+		value, convErr := converter.Convert("USD", "EUR", 10)
+		return convErr == nil && assert.InDelta(t, 9.2, value, 0.0001)
+	}, time.Second, 10*time.Millisecond)
+}
+
 func TestFWAConverter_RefreshFailureKeepsExistingSnapshot(t *testing.T) {
 	// given
 	dir := t.TempDir()

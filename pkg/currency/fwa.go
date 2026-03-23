@@ -142,7 +142,6 @@ func NewFWAConverter(initialBases []string, options ...fwaOption) (ManagedConver
 	snapshot, err := converter.store.Latest()
 	if err != nil {
 		if errors.Is(err, ErrNoSnapshot) {
-			logrus.Warn("currency: no local snapshot found, converted currency columns will be null until refresh succeeds")
 			return converter, nil
 		}
 		return nil, fmt.Errorf("load latest currency snapshot: %w", err)
@@ -198,6 +197,8 @@ func (c *FWAConverter) HasSnapshot() bool {
 }
 
 func (c *FWAConverter) refreshLoop(ctx context.Context) {
+	c.refresh(ctx)
+
 	ticker := time.NewTicker(c.refreshEvery)
 	defer ticker.Stop()
 
