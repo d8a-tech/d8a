@@ -6,11 +6,11 @@
 [![Docs](https://img.shields.io/badge/docs-d8a-1F7AE0.svg)](https://d8a-tech.github.io/d8a/getting-started)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
-Divine Data (d8a) is an open source clickstream. It uses GA4 tracking protocol, has clean schema, can be deployed anywhere, including your cloud or on-premises.
+Divine Data (d8a) is an open source, warehouse-native analytics platform. Compatible with GA4 and Matomo tracking protocols, and has its own native web tracker. Clean schema, can be deployed anywhere, including your cloud or on-premises.
 
 ## Highlights
 
-- **GA4 tracking protocol compatibility** - Seamlessly integrates with the Google Analytics 4 tracking protocol, allowing you to implement advanced web, server-side, or mobile tracking plans in just minutes
+- **GA4 & Matomo tracking protocol compatibility** - Seamlessly integrates with the Google Analytics 4 and Matomo tracking protocols, allowing you to implement advanced web, server-side, or mobile tracking plans in just minutes
 - **Flat data model for visualization** - Data is stored in a flat, analytics-ready format - perfect as a source for reporting and data warehouses, with even custom events stored in dedicated columns
 - **Open source codebase** - Transparent, auditable, and community-driven. Fork, contribute, or self-host as you wish
 - **Works alongside GA4** - Can run in parallel with GA4 for a smooth transition or as a reliable backup
