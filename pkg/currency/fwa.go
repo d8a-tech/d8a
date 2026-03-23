@@ -227,7 +227,7 @@ func (c *FWAConverter) refresh(ctx context.Context) {
 
 	c.setSnapshot(snapshot)
 	c.refreshCounter.Add(ctx, 1, metric.WithAttributes(attribute.String("result", "success")))
-	logrus.Info("currency: refreshed rates snapshot")
+	logrus.Debug("currency: refreshed rates snapshot")
 }
 
 func (c *FWAConverter) setSnapshot(snapshot *Snapshot) {
