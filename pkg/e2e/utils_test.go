@@ -764,7 +764,7 @@ func (b *testConfigBuilder) Build(t *testing.T) string {
 	configContent := b.buildYAML()
 
 	configPath := tmpDir + "/config.yaml"
-	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
@@ -997,8 +997,8 @@ func TestConfigBuilder(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to stat config file: %v", err)
 			}
-			if info.Mode().Perm() != 0o600 {
-				t.Errorf("config file permissions: got %o, want 0600", info.Mode().Perm())
+			if info.Mode().Perm() != 0o644 {
+				t.Errorf("config file permissions: got %o, want 0644", info.Mode().Perm())
 			}
 		})
 	}
