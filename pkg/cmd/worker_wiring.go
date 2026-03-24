@@ -8,6 +8,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/bolt"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/protosessions"
@@ -34,6 +35,7 @@ func buildWorkerRuntime(
 	serverStorage receiver.Storage,
 	whr warehouse.Registry,
 	converter currency.Converter,
+	geoProvider dbip.LookupProvider,
 ) (*WorkerRuntime, error) {
 	boltDBPath := filepath.Join(cmd.String(storageBoltDirectoryFlag.Name), "bolt.db")
 	boltDB, err := bbolt.Open(boltDBPath, 0o600, nil)
@@ -48,7 +50,7 @@ func buildWorkerRuntime(
 		return nil, fmt.Errorf("open bolt kv: %w", err)
 	}
 
-	cr := columnsRegistry(cmd, converter) // nolint:contextcheck // false positive
+	cr := columnsRegistry(cmd, converter, geoProvider) // nolint:contextcheck // false positive
 	layoutRegistry := schema.NewStaticLayoutRegistry(
 		map[string]schema.Layout{},
 		schema.NewEmbeddedSessionColumnsLayout(

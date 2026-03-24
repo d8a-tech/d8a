@@ -97,8 +97,8 @@ var airgappedFlag *cli.BoolFlag = &cli.BoolFlag{
 
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
-	Usage:   "When enabled, adds geolocation column implementations (city, country, etc.) using DB-IP database. On program startup, downloads the DB-IP database from the OCI registry (ghcr.io/d8a-tech). The database is cached locally and reused on subsequent runs if already present.", //nolint:lll // it's a description
-	Sources: defaultAirgappedBoolSourceChain("dbip-enabled", "DBIP_ENABLED", "dbip.enabled", false, false),
+	Usage:   "When enabled, geolocation columns use DB-IP lookups. If no local DB-IP dataset is available yet, geolocation values are null until a local file appears or a background refresh succeeds.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("DBIP_ENABLED", "dbip.enabled"),
 	Value:   false,
 }
 
@@ -111,9 +111,22 @@ var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 
 var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{
 	Name:    "dbip-download-timeout",
-	Usage:   "Maximum time to wait for downloading the DB-IP MaxMind database from the OCI registry during program startup. If the download exceeds this timeout, the program will fail to start with DBIP columns enabled.", //nolint:lll // it's a description
+	Usage:   "Maximum time to wait for a DB-IP background refresh download from OCI before the attempt is aborted.",
 	Sources: defaultSourceChain("DBIP_DOWNLOAD_TIMEOUT", "dbip.download_timeout"),
 	Value:   60 * time.Second,
+}
+
+var dbipRefreshIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
+	Name:  "dbip-refresh-interval",
+	Usage: "How often the application refreshes DB-IP data from OCI in the background. Set to 0 to disable remote refreshes and use only local DB files.", //nolint:lll // it's a description
+	Sources: defaultAirgappedDurationSourceChain(
+		"dbip-refresh-interval",
+		"DBIP_REFRESH_INTERVAL",
+		"dbip.refresh_interval",
+		0,
+		6*time.Hour,
+	),
+	Value: 6 * time.Hour,
 }
 
 var currencyDestinationDirectoryFlag *cli.StringFlag = &cli.StringFlag{
@@ -629,6 +642,7 @@ func getServerFlags() []cli.Flag {
 			dbipEnabled,
 			dbipDestinationDirectory,
 			dbipDownloadTimeoutFlag,
+			dbipRefreshIntervalFlag,
 			currencyDestinationDirectoryFlag,
 			currencyRefreshIntervalFlag,
 			deviceDetectionProviderFlag,

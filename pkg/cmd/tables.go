@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
@@ -35,7 +34,7 @@ func getTableNames(cmd *cli.Command) tables {
 var crLock = sync.Mutex{}
 var cr map[string]schema.ColumnsRegistry
 
-func columnsRegistry(cmd *cli.Command, converter currency.Converter) schema.ColumnsRegistry {
+func columnsRegistry(cmd *cli.Command, converter currency.Converter, geoProvider dbip.LookupProvider) schema.ColumnsRegistry {
 	psr := propertySettings(cmd)
 	settings, err := psr.GetByPropertyID(cmd.String(propertyIDFlag.Name))
 	if err != nil {
@@ -52,30 +51,13 @@ func columnsRegistry(cmd *cli.Command, converter currency.Converter) schema.Colu
 	}
 
 	cacheKey := settings.ProtocolID + ":" + fmt.Sprintf("%T", converter)
+	cacheKey += ":" + fmt.Sprintf("%p", geoProvider)
 	if registry, ok := cr[cacheKey]; ok {
 		return registry
 	}
 
 	var opts []columnset.ColumnSetOption
-
-	if cmd.Bool(dbipEnabled.Name) {
-		geoColumns := dbip.GeoColumns(
-			dbip.NewExtensionBasedOCIDownloader(
-				dbip.OCIRegistryCreds{
-					Repo:       "ghcr.io/d8a-tech",
-					IgnoreCert: false,
-				},
-				".mmdb",
-			),
-			cmd.String(dbipDestinationDirectory.Name),
-			cmd.Duration(dbipDownloadTimeoutFlag.Name),
-			dbip.CacheConfig{
-				MaxEntries: 1024,
-				TTL:        30 * time.Second,
-			},
-		)
-		opts = append(opts, columnset.WithGeoIPColumns(geoColumns))
-	}
+	opts = append(opts, columnset.WithGeoProvider(geoProvider))
 
 	deviceProvider := cmd.String(deviceDetectionProviderFlag.Name)
 	switch deviceProvider {

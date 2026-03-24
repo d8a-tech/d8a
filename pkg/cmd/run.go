@@ -136,11 +136,18 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					converter.Run(ctx)
 					defer cleanup()
 
+					geoProvider, geoCleanup, err := buildDBIPProvider(cmd)
+					if err != nil {
+						return err
+					}
+					geoProvider.Run(ctx)
+					defer geoCleanup()
+
 					protocol := protocolByID(cmd.String(protocolFlag.Name), cmd, converter)
 					if protocol == nil {
 						return fmt.Errorf("protocol %s not found", cmd.String(protocolFlag.Name))
 					}
-					cr := columnsRegistry(cmd, converter) // nolint:contextcheck // false positive
+					cr := columnsRegistry(cmd, converter, geoProvider) // nolint:contextcheck // false positive
 					columnData, err := cr.Get(cmd.String("property-id"))
 					if err != nil {
 						return err
@@ -191,6 +198,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					converter.Run(ctx)
 					defer cleanup()
 
+					geoProvider, geoCleanup, err := buildDBIPProvider(cmd)
+					if err != nil {
+						return err
+					}
+					geoProvider.Run(ctx)
+					defer geoCleanup()
+
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {
@@ -198,7 +212,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						}
 					}()
 
-					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr, converter); err != nil {
+					if err := migrate(ctx, cmd, cmd.String(propertyIDFlag.Name), whr, converter, geoProvider); err != nil {
 						return fmt.Errorf("failed to migrate: %w", err)
 					}
 
@@ -219,7 +233,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter, geoProvider)
 					if err != nil {
 						return err
 					}
@@ -274,6 +288,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					converter.Run(ctx)
 					defer cleanup()
 
+					geoProvider, geoCleanup, err := buildDBIPProvider(cmd)
+					if err != nil {
+						return err
+					}
+					geoProvider.Run(ctx)
+					defer geoCleanup()
+
 					bs, err := bootstrap(ctx, cancel, "receiver", cmd)
 					if err != nil {
 						return err
@@ -317,6 +338,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					converter.Run(ctx)
 					defer cleanup()
 
+					geoProvider, geoCleanup, err := buildDBIPProvider(cmd)
+					if err != nil {
+						return err
+					}
+					geoProvider.Run(ctx)
+					defer geoCleanup()
+
 					bs, err := bootstrap(ctx, cancel, "worker", cmd)
 					if err != nil {
 						return err
@@ -341,7 +369,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						}
 					}()
 
-					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter)
+					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter, geoProvider)
 					if err != nil {
 						return err
 					}
@@ -382,13 +410,20 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					converter.Run(actionCtx)
 					defer cleanup()
 
+					geoProvider, geoCleanup, err := buildDBIPProvider(cmd)
+					if err != nil {
+						return err
+					}
+					geoProvider.Run(actionCtx)
+					defer geoCleanup()
+
 					whr := warehouseRegistry(actionCtx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {
 							logrus.WithError(err).Error("failed to close warehouse registry")
 						}
 					}()
-					return migrate(actionCtx, cmd, cmd.String("property-id"), whr, converter)
+					return migrate(actionCtx, cmd, cmd.String("property-id"), whr, converter, geoProvider)
 				},
 			},
 			{
