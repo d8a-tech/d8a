@@ -764,7 +764,7 @@ func (b *testConfigBuilder) Build(t *testing.T) string {
 	configContent := b.buildYAML()
 
 	configPath := tmpDir + "/config.yaml"
-	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
