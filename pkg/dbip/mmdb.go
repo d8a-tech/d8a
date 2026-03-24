@@ -77,7 +77,7 @@ func (d *extensionBasedOCIDownloader) Download(
 	if existingMMDBPath != "" {
 		logrus.WithFields(logrus.Fields{
 			"path": existingMMDBPath,
-		}).Info("existing MMDB file found, skipping download")
+		}).Debug("existing MMDB file found, skipping download")
 		return existingMMDBPath, nil
 	}
 	logrus.WithFields(logrus.Fields{
@@ -117,7 +117,7 @@ func (d *extensionBasedOCIDownloader) Download(
 	}).Info("download completed and MMDB file saved")
 
 	if mmdbPath == "" {
-		return "", fmt.Errorf("no .mmdb file found in downloaded layers")
+		return "", fmt.Errorf("downloaded artifact does not contain an MMDB layer")
 	}
 
 	// Clean up old MMDB files after successful download
@@ -330,7 +330,7 @@ func (d *extensionBasedOCIDownloader) validate(
 	}
 
 	if mmdbPath == "" {
-		return ocispec.Descriptor{}, "", fmt.Errorf("no .mmdb file found in destination directory")
+		return remoteDesc, "", nil
 	}
 
 	return remoteDesc, mmdbPath, nil

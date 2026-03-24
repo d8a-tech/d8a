@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"compress/gzip"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/urfave/cli-altsrc/v3/yaml"
@@ -104,9 +102,9 @@ var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 
 var dbipDestinationDirectory *cli.StringFlag = &cli.StringFlag{
 	Name:    "dbip-destination-directory",
-	Usage:   "Directory where the DB-IP database files are stored after downloading from the OCI registry. If the database already exists at this location, the download is skipped. Defaults to a temporary directory if not specified.", //nolint:lll // it's a description
+	Usage:   "Directory where DB-IP database files are stored and reused across restarts. If the database already exists at this location, downloads are skipped until a newer remote version is available.", //nolint:lll // it's a description
 	Sources: defaultSourceChain("DBIP_DESTINATION_DIRECTORY", "dbip.destination_directory"),
-	Value:   filepath.Join(os.TempDir(), "dbip"),
+	Value:   "./dbip",
 }
 
 var dbipDownloadTimeoutFlag *cli.DurationFlag = &cli.DurationFlag{

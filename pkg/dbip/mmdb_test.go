@@ -98,3 +98,10 @@ func TestSelectBestMMDBFile(t *testing.T) {
 		})
 	}
 }
+
+func TestSelectBestMMDBFile_MissingDirectory_ReturnsNotExist(t *testing.T) {
+	_, err := selectBestMMDBFile(filepath.Join(t.TempDir(), "missing"), ".mmdb")
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}

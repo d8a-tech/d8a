@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"os"
 	"sync"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 )
 
 const (
-	defaultDestinationDir = "/tmp/dbip"
+	defaultDestinationDir = "./dbip"
 	defaultRefreshEvery   = 6 * time.Hour
 	localScanEvery        = 30 * time.Second
 	datasetArtifact       = "dbip-city-lite"
@@ -234,6 +235,9 @@ func (m *managedProvider) refreshFromRemote(ctx context.Context) {
 func (m *managedProvider) refreshFromLocal() {
 	path, err := selectBestMMDBFile(m.destinationDirectory, ".mmdb")
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return
+		}
 		logrus.WithError(err).Warn("dbip: failed to inspect local MMDB files")
 		return
 	}

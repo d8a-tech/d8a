@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"net/netip"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -109,4 +111,65 @@ func TestManagedLookupProvider_RunStartsOnlyOnce(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 	assert.Equal(t, int32(1), downloader.calls.Load())
 	require.NoError(t, provider.Close())
+}
+
+func TestManagedLookupProvider_MissingDirectory_IsSilentAndUnavailable(t *testing.T) {
+	downloader := &countingDownloader{err: errors.New("should not run")}
+	missingDir := filepath.Join(t.TempDir(), "missing")
+
+	provider := NewManagedLookupProvider(
+		WithEnabled(true),
+		WithDownloader(downloader),
+		WithRefreshInterval(IntervalNever),
+		WithDestination(missingDir),
+	)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	provider.Run(ctx)
+	time.Sleep(30 * time.Millisecond)
+	cancel()
+
+	assert.NoFileExists(t, filepath.Join(missingDir, "anything.mmdb"))
+	assert.Equal(t, int32(0), downloader.calls.Load())
+
+	_, err := provider.Lookup(netip.MustParseAddr("1.1.1.1"))
+	assert.ErrorIs(t, err, ErrUnavailable)
+	require.NoError(t, provider.Close())
+}
+
+func TestManagedLookupProvider_DefaultsToProjectDirectory(t *testing.T) {
+	provider := NewManagedLookupProvider()
+	managed, ok := provider.(*managedProvider)
+	require.True(t, ok)
+
+	assert.Equal(t, "./dbip", managed.destinationDirectory)
+	require.NoError(t, managed.Close())
+}
+
+func TestManagedLookupProvider_DestinationOverride(t *testing.T) {
+	customDir := filepath.Join(t.TempDir(), "dbip-custom")
+	provider := NewManagedLookupProvider(WithDestination(customDir))
+	managed, ok := provider.(*managedProvider)
+	require.True(t, ok)
+
+	assert.Equal(t, customDir, managed.destinationDirectory)
+	require.NoError(t, managed.Close())
+}
+
+func TestManagedLookupProvider_RefreshFromLocal_WhenDirectoryExistsAndEmpty(t *testing.T) {
+	localDir := t.TempDir()
+	provider := NewManagedLookupProvider(
+		WithDestination(localDir),
+		WithRefreshInterval(IntervalNever),
+	)
+	managed, ok := provider.(*managedProvider)
+	require.True(t, ok)
+
+	managed.refreshFromLocal()
+
+	_, statErr := os.Stat(localDir)
+	require.NoError(t, statErr)
+	_, lookupErr := managed.Lookup(netip.MustParseAddr("1.1.1.1"))
+	assert.ErrorIs(t, lookupErr, ErrUnavailable)
+	require.NoError(t, managed.Close())
 }
