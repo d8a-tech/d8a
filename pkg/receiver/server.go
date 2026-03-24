@@ -31,7 +31,8 @@ var (
 	hitCounter         metric.Int64Counter
 )
 
-const httpsOnHTTPListenerMessage = "received likely HTTPS/TLS traffic on the HTTP listener; D8A does not terminate TLS, put a reverse proxy in front"
+const httpsOnHTTPListenerMessage = "received likely HTTPS/TLS traffic on the HTTP listener; " +
+	"D8A does not terminate TLS, put a reverse proxy in front"
 
 func newFastHTTPServerLogger(logger *logrus.Logger) *fasthttpServerLogger {
 	if logger == nil {

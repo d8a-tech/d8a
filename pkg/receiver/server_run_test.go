@@ -15,7 +15,8 @@ func TestFastHTTPServerLogger_TLSHandshakeError(t *testing.T) {
 	logger.SetOutput(&output)
 
 	serverLogger := newFastHTTPServerLogger(logger)
-	message := "error when serving connection \"127.0.0.1:8080\"<->\"127.0.0.1:54124\": error when reading request headers: unsupported http request method \"\\x16\\x03\\x01\""
+	message := "error when serving connection \"127.0.0.1:8080\"<->\"127.0.0.1:54124\": " +
+		"error when reading request headers: unsupported http request method \"\\x16\\x03\\x01\""
 
 	// when
 	serverLogger.Printf("%s", message)
