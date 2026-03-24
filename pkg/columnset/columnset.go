@@ -43,7 +43,7 @@ func newDefaultColumnSetConfig() *columnSetConfig {
 func WithGeoProvider(provider dbip.LookupProvider) ColumnSetOption {
 	return func(cfg *columnSetConfig) {
 		if provider == nil {
-			return
+			panic("geo provider cannot be nil")
 		}
 		cfg.geoProvider = provider
 	}
