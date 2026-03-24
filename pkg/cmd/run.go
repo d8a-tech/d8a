@@ -404,6 +404,8 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 		},
 	}
 
+	app.Commands = append(app.Commands, localfetchCommands()...)
+
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
 		log.Fatal(err)
 	}

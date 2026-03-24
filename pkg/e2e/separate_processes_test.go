@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -15,36 +14,45 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 	const port = 17032
 
 	// given - setup
-	// Build binary once
-	binaryPath := buildBinary(t)
-	t.Cleanup(func() { _ = os.Remove(binaryPath) })
-
-	// Create shared temp directories (queue, storage)
-	queueDir, storageDir := buildSharedTempDirectories(t)
+	storageVolume := newDockerStorageVolume(t)
 
 	// Generate configs for receiver and worker
 	receiverConfigPath := newTestConfigBuilder().
 		WithPort(port).
-		WithQueueDirectory(queueDir).
-		WithStorageDirectory(storageDir).
+		WithQueueDirectory(dockerSharedStoragePath + "/queue").
+		WithStorageDirectory(dockerSharedStoragePath).
 		WithWarehouse("noop").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)
 
 	workerConfigPath := newTestConfigBuilder().
-		WithQueueDirectory(queueDir).
-		WithStorageDirectory(storageDir).
+		WithQueueDirectory(dockerSharedStoragePath + "/queue").
+		WithStorageDirectory(dockerSharedStoragePath).
 		WithWarehouse("noop").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)
 
 	// when - execution
 	// Start worker process in background
-	workerHandle, err := startProcessInBackground(t, binaryPath, "worker", "--debug", "--config", workerConfigPath)
+	workerHandle, err := startDockerProcessInBackground(
+		t,
+		defaultDockerRunOptions(
+			[]string{"worker", "--debug", "--config", workerConfigPath},
+			workerConfigPath,
+			withDockerStorageVolume(storageVolume),
+		),
+	)
 	require.NoError(t, err, "failed to start worker process")
 
 	// Start receiver process in background
-	receiverHandle, err := startProcessInBackground(t, binaryPath, "receiver", "--debug", "--config", receiverConfigPath)
+	receiverHandle, err := startDockerProcessInBackground(
+		t,
+		defaultDockerRunOptions(
+			[]string{"receiver", "--debug", "--config", receiverConfigPath},
+			receiverConfigPath,
+			withDockerStorageVolume(storageVolume),
+		),
+	)
 	require.NoError(t, err, "failed to start receiver process")
 
 	// Wait for receiver to be ready (healthz endpoint)

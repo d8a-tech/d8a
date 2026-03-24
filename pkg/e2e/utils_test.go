@@ -8,12 +8,21 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/sirupsen/logrus"
+)
+
+const dockerSharedStoragePath = "/storage"
+
+var (
+	dockerImageBuildOnce sync.Once
+	dockerImageName      string
+	dockerImageBuildErr  error
 )
 
 // LogCapture captures log lines from stdout/stderr
@@ -77,24 +86,226 @@ func (lc *LogCapture) waitFor(message string, timeout time.Duration) bool {
 	return false
 }
 
-// buildBinary builds the main binary to a temp location
-func buildBinary(t *testing.T) string {
-	tmpBinary, err := os.CreateTemp("", "d8a-test-*")
-	if err != nil {
-		t.Fatalf("failed to create temp binary file: %v", err)
+type dockerMount struct {
+	sourcePath string
+	targetPath string
+	readOnly   bool
+}
+
+type dockerRunOptions struct {
+	name          string
+	args          []string
+	mounts        []dockerMount
+	env           map[string]string
+	networkMode   string
+	storageVolume string
+}
+
+type dockerRunOption func(*dockerRunOptions)
+
+func mountSamePath(path string, readOnly bool) dockerMount {
+	return dockerMount{
+		sourcePath: path,
+		targetPath: path,
+		readOnly:   readOnly,
 	}
-	binaryPath := tmpBinary.Name()
-	if err := tmpBinary.Close(); err != nil {
-		t.Fatalf("failed to close temp binary file: %v", err)
+}
+
+func ensureDockerAvailable(t *testing.T) {
+	t.Helper()
+
+	if _, err := exec.LookPath("docker"); err != nil {
+		t.Skipf("docker is not installed: %v", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", binaryPath, "../..")
+	cmd := exec.Command("docker", "version", "--format", "{{.Server.Version}}")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("docker daemon is not available: %v (%s)", err, strings.TrimSpace(string(output)))
+	}
+}
+
+func dockerImage(t *testing.T) string {
+	t.Helper()
+
+	ensureDockerAvailable(t)
+
+	dockerImageBuildOnce.Do(func() {
+		dockerImageName = fmt.Sprintf("d8a-e2e:%d", time.Now().UnixNano())
+
+		cmd := exec.Command("docker", "build", "-t", dockerImageName, ".")
+		cmd = exec.Command("docker", "build", "--build-arg", "GO_BUILD_TAGS=e2e", "-t", dockerImageName, ".")
+		cmd.Dir = "../.."
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			dockerImageBuildErr = fmt.Errorf("failed to build docker image: %w\nOutput: %s", err, output)
+		}
+	})
+
+	if dockerImageBuildErr != nil {
+		t.Fatal(dockerImageBuildErr)
+	}
+
+	return dockerImageName
+}
+
+func uniqueDockerContainerName(t *testing.T) string {
+	t.Helper()
+
+	replacer := strings.NewReplacer("/", "-", "_", "-", " ", "-")
+	name := strings.ToLower(replacer.Replace(t.Name()))
+
+	return fmt.Sprintf("d8a-e2e-%s-%d", name, time.Now().UnixNano())
+}
+
+func createDockerVolume(t *testing.T) string {
+	t.Helper()
+
+	volumeName := uniqueDockerContainerName(t) + "-storage"
+	cmd := exec.Command("docker", "volume", "create", volumeName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		t.Fatalf("failed to build binary: %v\nOutput: %s", err, output)
+		t.Fatalf("failed to create docker volume: %v\nOutput: %s", err, output)
 	}
 
-	return binaryPath
+	t.Cleanup(func() {
+		cleanupCmd := exec.Command("docker", "volume", "rm", "-f", volumeName)
+		_, _ = cleanupCmd.CombinedOutput()
+	})
+
+	return volumeName
+}
+
+func newDockerStorageVolume(t *testing.T) string {
+	t.Helper()
+
+	return createDockerVolume(t)
+}
+
+func withDockerNetworkMode(networkMode string) dockerRunOption {
+	return func(options *dockerRunOptions) {
+		options.networkMode = networkMode
+	}
+}
+
+func withDockerStorageVolume(storageVolume string) dockerRunOption {
+	return func(options *dockerRunOptions) {
+		options.storageVolume = storageVolume
+	}
+}
+
+func withDockerEnv(key, value string) dockerRunOption {
+	return func(options *dockerRunOptions) {
+		if options.env == nil {
+			options.env = make(map[string]string)
+		}
+
+		options.env[key] = value
+	}
+}
+
+func applyDockerRunOptions(base dockerRunOptions, extraOptions ...dockerRunOption) dockerRunOptions {
+	for _, option := range extraOptions {
+		option(&base)
+	}
+
+	return base
+}
+
+func defaultDockerRunOptions(args []string, configPath string, extraOptions ...dockerRunOption) dockerRunOptions {
+	return applyDockerRunOptions(dockerRunOptions{
+		args: args,
+		mounts: []dockerMount{
+			mountSamePath(configPath, true),
+		},
+		networkMode: "host",
+	}, extraOptions...)
+}
+
+func defaultDockerServerRunOptions(configPath string, port int, extraOptions ...dockerRunOption) dockerRunOptions {
+	_ = port
+
+	return defaultDockerRunOptions([]string{"server", "--config", configPath}, configPath, extraOptions...)
+}
+
+func startDockerProcessInBackground(t *testing.T, options dockerRunOptions) (*processHandle, error) {
+	t.Helper()
+
+	imageName := dockerImage(t)
+	containerName := options.name
+	if containerName == "" {
+		containerName = uniqueDockerContainerName(t)
+	}
+
+	networkMode := options.networkMode
+	if networkMode == "" {
+		networkMode = "host"
+	}
+
+	args := []string{"run", "--rm", "--name", containerName, "--network", networkMode}
+
+	storageVolume := options.storageVolume
+	if storageVolume == "" {
+		storageVolume = newDockerStorageVolume(t)
+	}
+
+	args = append(args, "--mount", fmt.Sprintf("type=volume,src=%s,dst=%s", storageVolume, dockerSharedStoragePath))
+
+	mounts := dedupeDockerMounts(options.mounts)
+	for _, mount := range mounts {
+		mountArg := fmt.Sprintf("type=bind,src=%s,dst=%s", mount.sourcePath, mount.targetPath)
+		if mount.readOnly {
+			mountArg += ",readonly"
+		}
+
+		args = append(args, "--mount", mountArg)
+	}
+
+	if len(options.env) > 0 {
+		keys := make([]string, 0, len(options.env))
+		for key := range options.env {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+
+		for _, key := range keys {
+			args = append(args, "-e", fmt.Sprintf("%s=%s", key, options.env[key]))
+		}
+	}
+
+	args = append(args, imageName)
+	args = append(args, options.args...)
+
+	cmd := exec.Command("docker", args...)
+
+	handle, err := startCommandInBackground(t, cmd, func() {
+		cleanupCmd := exec.Command("docker", "rm", "-f", containerName)
+		_, _ = cleanupCmd.CombinedOutput()
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	handle.name = containerName
+
+	return handle, nil
+}
+
+func dedupeDockerMounts(mounts []dockerMount) []dockerMount {
+	unique := make([]dockerMount, 0, len(mounts))
+	seen := make(map[string]struct{}, len(mounts))
+
+	for _, mount := range mounts {
+		key := mount.sourcePath + "|" + mount.targetPath + "|" + fmt.Sprintf("%t", mount.readOnly)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		unique = append(unique, mount)
+	}
+
+	return unique
 }
 
 // createTempConfig creates a temporary config file for testing
@@ -120,8 +331,8 @@ telemetry:
   url: ""
 
 storage:
-  bolt_directory: %s/
-  queue_directory: %s/queue
+  bolt_directory: /storage/
+  queue_directory: /storage/queue
   spool_enabled: false
 
 server:
@@ -130,10 +341,10 @@ server:
 property:
   id: test-property
   name: Test Property
-`, tmpDir, tmpDir, port)
+`, port)
 
 	configPath := tmpDir + "/config.yaml"
-	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
@@ -184,6 +395,10 @@ func (g *GA4RequestGenerator) Hit(clientID, eventType, sessionStamp string) erro
 	}
 
 	return nil
+}
+
+func (g *GA4RequestGenerator) QueryString(clientID, eventType, sessionStamp string) string {
+	return g.buildParams(clientID, eventType, sessionStamp).Encode()
 }
 
 func (g *GA4RequestGenerator) buildParams( // nolint:funlen // it's a test helper
@@ -297,58 +512,12 @@ type runningServer struct {
 func withFullRunningServer(t *testing.T, f func(runningServer)) {
 	const port = 17031
 
-	// Build binary
-	binaryPath := buildBinary(t)
-	t.Cleanup(func() { _ = os.Remove(binaryPath) })
-
 	// Create config
 	configPath := createTempConfig(t, port)
-	t.Cleanup(func() {
-		// Clean up config and associated temp directories
-		dir := strings.TrimSuffix(configPath, "/config.yaml")
-		_ = os.RemoveAll(dir)
-	})
-
-	// Start server subprocess
-	cmd := exec.Command(binaryPath, "server", "--config", configPath)
-
-	// Set up log capture
-	logCapture := NewLogCapture()
-
-	stdoutPipe, err := cmd.StdoutPipe()
+	handle, err := startDockerProcessInBackground(t, defaultDockerServerRunOptions(configPath, port))
 	if err != nil {
-		t.Fatalf("failed to create stdout pipe: %v", err)
+		t.Fatalf("failed to start server container: %v", err)
 	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-
-	// Start capturing logs in background and pass through to stdout/stderr
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		logCapture.captureStream(stdoutPipe, os.Stdout)
-	}()
-	go func() {
-		defer wg.Done()
-		logCapture.captureStream(stderrPipe, os.Stderr)
-	}()
-
-	// Start the server
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start server: %v", err)
-	}
-
-	// Clean up: kill process and wait for log capture to finish
-	t.Cleanup(func() {
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
-		}
-		wg.Wait()
-	})
 
 	// Wait for server to be ready
 	if !waitForServerReady(port, 10*time.Second) {
@@ -358,7 +527,7 @@ func withFullRunningServer(t *testing.T, f func(runningServer)) {
 	// Run test
 	f(runningServer{
 		port: port,
-		logs: logCapture,
+		logs: handle.logs,
 	})
 }
 
@@ -383,13 +552,24 @@ func waitForServerReady(port int, timeout time.Duration) bool {
 // processHandle encapsulates the state of a running background process
 type processHandle struct {
 	cmd     *exec.Cmd
+	name    string
 	logs    *LogCapture
 	cleanup func()
 }
 
-// startProcessInBackground starts a process with log capture and cleanup registration
-func startProcessInBackground(t *testing.T, binaryPath string, args ...string) (*processHandle, error) {
-	cmd := exec.Command(binaryPath, args...)
+func (h *processHandle) dockerExec(args ...string) ([]byte, error) {
+	if h.name == "" {
+		return nil, fmt.Errorf("docker container name is not set")
+	}
+
+	commandArgs := append([]string{"exec", h.name}, args...)
+	cmd := exec.Command("docker", commandArgs...)
+
+	return cmd.CombinedOutput()
+}
+
+func startCommandInBackground(t *testing.T, cmd *exec.Cmd, stop func()) (*processHandle, error) {
+	t.Helper()
 
 	// Set up log capture
 	logCapture := NewLogCapture()
@@ -422,10 +602,13 @@ func startProcessInBackground(t *testing.T, binaryPath string, args ...string) (
 
 	// Create cleanup function
 	cleanup := func() {
-		if cmd.Process != nil {
+		if stop != nil {
+			stop()
+		} else if cmd.Process != nil {
 			_ = cmd.Process.Kill()
-			_ = cmd.Wait()
 		}
+
+		_ = cmd.Wait()
 		wg.Wait()
 	}
 
@@ -439,30 +622,6 @@ func startProcessInBackground(t *testing.T, binaryPath string, args ...string) (
 	}
 
 	return handle, nil
-}
-
-// buildSharedTempDirectories creates queue and storage directories for multi-process tests
-func buildSharedTempDirectories(t *testing.T) (queueDir, storageDir string) {
-	tmpDir, err := os.MkdirTemp("", "d8a-test-shared-*")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-
-	queueDir = tmpDir + "/queue"
-	if err := os.MkdirAll(queueDir, 0o755); err != nil {
-		t.Fatalf("failed to create queue dir: %v", err)
-	}
-
-	storageDir = tmpDir + "/storage"
-	if err := os.MkdirAll(storageDir, 0o755); err != nil {
-		t.Fatalf("failed to create storage dir: %v", err)
-	}
-
-	t.Cleanup(func() {
-		_ = os.RemoveAll(tmpDir)
-	})
-
-	return queueDir, storageDir
 }
 
 // testConfigBuilder builds YAML configuration files for multi-process tests
@@ -614,7 +773,7 @@ func (b *testConfigBuilder) Build(t *testing.T) string {
 	configContent := b.buildYAML()
 
 	configPath := tmpDir + "/config.yaml"
-	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
 		t.Fatalf("failed to write config file: %v", err)
 	}
 
@@ -857,30 +1016,41 @@ func TestConfigBuilder(t *testing.T) {
 // TestMultiProcessUtilities verifies that the multi-process utilities work correctly
 func TestMultiProcessUtilities(t *testing.T) {
 	// given
-	binaryPath := buildBinary(t)
-	t.Cleanup(func() { _ = os.Remove(binaryPath) })
-
-	queueDir, storageDir := buildSharedTempDirectories(t)
+	storageVolume := newDockerStorageVolume(t)
 
 	// Create minimal configs for receiver and worker using the builder
 	receiverConfigPath := newTestConfigBuilder().
 		WithPort(17999).
-		WithQueueDirectory(queueDir).
-		WithStorageDirectory(storageDir).
+		WithQueueDirectory(dockerSharedStoragePath + "/queue").
+		WithStorageDirectory(dockerSharedStoragePath).
 		Build(t)
 
 	workerConfigPath := newTestConfigBuilder().
-		WithQueueDirectory(queueDir).
-		WithStorageDirectory(storageDir).
+		WithQueueDirectory(dockerSharedStoragePath + "/queue").
+		WithStorageDirectory(dockerSharedStoragePath).
 		Build(t)
 
 	// when - start two processes in background
-	process1, err := startProcessInBackground(t, binaryPath, "receiver", "--config", receiverConfigPath)
+	process1, err := startDockerProcessInBackground(
+		t,
+		defaultDockerRunOptions(
+			[]string{"receiver", "--config", receiverConfigPath},
+			receiverConfigPath,
+			withDockerStorageVolume(storageVolume),
+		),
+	)
 	if err != nil {
 		t.Fatalf("failed to start process 1: %v", err)
 	}
 
-	process2, err := startProcessInBackground(t, binaryPath, "worker", "--config", workerConfigPath)
+	process2, err := startDockerProcessInBackground(
+		t,
+		defaultDockerRunOptions(
+			[]string{"worker", "--config", workerConfigPath},
+			workerConfigPath,
+			withDockerStorageVolume(storageVolume),
+		),
+	)
 	if err != nil {
 		t.Fatalf("failed to start process 2: %v", err)
 	}
@@ -922,14 +1092,6 @@ func TestMultiProcessUtilities(t *testing.T) {
 	}
 	if len(p2Lines) == 0 {
 		t.Error("process2 logs should not be empty")
-	}
-
-	// Verify directories exist
-	if _, err := os.Stat(queueDir); os.IsNotExist(err) {
-		t.Error("queue directory should exist")
-	}
-	if _, err := os.Stat(storageDir); os.IsNotExist(err) {
-		t.Error("storage directory should exist")
 	}
 
 	// Cleanup will be handled automatically by t.Cleanup()
