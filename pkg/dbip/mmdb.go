@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -37,32 +36,6 @@ type OCIRegistryCreds struct {
 	Repo     string
 
 	IgnoreCert bool
-}
-
-type onlyOnceDownloader struct {
-	downloader Downloader
-	path       string
-	err        error
-	once       sync.Once
-}
-
-// NewOnlyOnceDownloader creates a new OnlyOnceDownloader
-func NewOnlyOnceDownloader(downloader Downloader) Downloader {
-	return &onlyOnceDownloader{downloader: downloader}
-}
-
-// Download implements MMDBCityDatabaseDownloader
-func (d *onlyOnceDownloader) Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error) {
-	d.once.Do(func() {
-		path, err := d.downloader.Download(ctx, artifactName, tag, destinationDir)
-		if err != nil {
-			logrus.WithError(err).Error("failed to download artifact")
-			d.err = err
-			return
-		}
-		d.path = path
-	})
-	return d.path, d.err
 }
 
 // extensionBasedOCIDownloader implements MMDBCityDatabaseDownloader using OCI registry, downloading first file with
@@ -104,7 +77,7 @@ func (d *extensionBasedOCIDownloader) Download(
 	if existingMMDBPath != "" {
 		logrus.WithFields(logrus.Fields{
 			"path": existingMMDBPath,
-		}).Info("existing MMDB file found, skipping download")
+		}).Debug("existing MMDB file found, skipping download")
 		return existingMMDBPath, nil
 	}
 	logrus.WithFields(logrus.Fields{
@@ -144,7 +117,7 @@ func (d *extensionBasedOCIDownloader) Download(
 	}).Info("download completed and MMDB file saved")
 
 	if mmdbPath == "" {
-		return "", fmt.Errorf("no .mmdb file found in downloaded layers")
+		return "", fmt.Errorf("downloaded artifact does not contain an MMDB layer")
 	}
 
 	// Clean up old MMDB files after successful download
@@ -357,7 +330,7 @@ func (d *extensionBasedOCIDownloader) validate(
 	}
 
 	if mmdbPath == "" {
-		return ocispec.Descriptor{}, "", fmt.Errorf("no .mmdb file found in destination directory")
+		return remoteDesc, "", nil
 	}
 
 	return remoteDesc, mmdbPath, nil

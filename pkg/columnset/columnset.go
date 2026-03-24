@@ -2,8 +2,11 @@
 package columnset
 
 import (
+	"time"
+
 	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
 	"github.com/d8a-tech/d8a/pkg/columns/sessioncolumns"
+	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocolschema"
@@ -12,7 +15,7 @@ import (
 
 // columnSetConfig holds the configuration for column set initialization.
 type columnSetConfig struct {
-	geoColumns            []schema.EventColumn
+	geoProvider           dbip.LookupProvider
 	deviceColumns         []schema.EventColumn
 	customColumnsRegistry []schema.ColumnsRegistry
 }
@@ -23,14 +26,7 @@ type ColumnSetOption func(*columnSetConfig)
 // newDefaultColumnSetConfig returns a columnSetConfig initialized with stub implementations.
 func newDefaultColumnSetConfig() *columnSetConfig {
 	return &columnSetConfig{
-		geoColumns: []schema.EventColumn{
-			eventcolumns.GeoContinentStubColumn,
-			eventcolumns.GeoCountryStubColumn,
-			eventcolumns.GeoRegionStubColumn,
-			eventcolumns.GeoCityStubColumn,
-			eventcolumns.GeoSubContinentStubColumn,
-			eventcolumns.GeoMetroStubColumn,
-		},
+		geoProvider: dbip.NewUnavailableLookupProvider(),
 		deviceColumns: []schema.EventColumn{
 			eventcolumns.DeviceCategoryStubColumn,
 			eventcolumns.DeviceMobileBrandNameStubColumn,
@@ -43,10 +39,13 @@ func newDefaultColumnSetConfig() *columnSetConfig {
 	}
 }
 
-// WithGeoIPColumns returns a ColumnSetOption that sets the geo columns.
-func WithGeoIPColumns(cols []schema.EventColumn) ColumnSetOption {
+// WithGeoProvider returns a ColumnSetOption that sets the DBIP lookup provider.
+func WithGeoProvider(provider dbip.LookupProvider) ColumnSetOption {
 	return func(cfg *columnSetConfig) {
-		cfg.geoColumns = cols
+		if provider == nil {
+			panic("geo provider cannot be nil")
+		}
+		cfg.geoProvider = provider
 	}
 }
 
@@ -78,9 +77,17 @@ func DefaultColumnRegistry(
 		opt(cfg)
 	}
 
+	geoColumns := dbip.GeoColumns(
+		cfg.geoProvider,
+		dbip.CacheConfig{
+			MaxEntries: 1024,
+			TTL:        30 * time.Second,
+		},
+	)
+
 	// Merge geo and device columns into a single slice for the static registry
-	injectedColumns := make([]schema.EventColumn, 0, len(cfg.geoColumns)+len(cfg.deviceColumns))
-	injectedColumns = append(injectedColumns, cfg.geoColumns...)
+	injectedColumns := make([]schema.EventColumn, 0, len(geoColumns)+len(cfg.deviceColumns))
+	injectedColumns = append(injectedColumns, geoColumns...)
 	injectedColumns = append(injectedColumns, cfg.deviceColumns...)
 
 	registries := []schema.ColumnsRegistry{

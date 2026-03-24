@@ -1,7 +1,6 @@
 package dbip
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -100,60 +99,9 @@ func TestSelectBestMMDBFile(t *testing.T) {
 	}
 }
 
-// errorDownloader is a fake Downloader that always returns an error
-type errorDownloader struct {
-	err error
-}
+func TestSelectBestMMDBFile_MissingDirectory_ReturnsNotExist(t *testing.T) {
+	_, err := selectBestMMDBFile(filepath.Join(t.TempDir(), "missing"), ".mmdb")
 
-func (d *errorDownloader) Download(ctx context.Context, artifactName, tag, destinationDir string) (string, error) {
-	return "", d.err
-}
-
-func TestGeoColumns_DownloadFailsWithExistingFile_DoesNotPanic(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	existingMMDB := filepath.Join(tempDir, "dbip-city-lite-2025-12.mmdb")
-	err := os.WriteFile(existingMMDB, []byte("fake mmdb content"), 0o644)
-	require.NoError(t, err)
-
-	fakeDownloader := &errorDownloader{
-		err: assert.AnError,
-	}
-
-	// when + then - should not panic, should use existing file
-	assert.NotPanics(t, func() {
-		columns := GeoColumns(
-			fakeDownloader,
-			tempDir,
-			1, // short timeout
-			CacheConfig{
-				MaxEntries: 10,
-				TTL:        1,
-			},
-		)
-		assert.NotEmpty(t, columns)
-	})
-}
-
-func TestGeoColumns_DownloadFailsWithoutExistingFile_Panics(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	// No MMDB files in directory
-
-	fakeDownloader := &errorDownloader{
-		err: assert.AnError,
-	}
-
-	// when + then - should panic when no local file exists
-	assert.Panics(t, func() {
-		GeoColumns(
-			fakeDownloader,
-			tempDir,
-			1, // short timeout
-			CacheConfig{
-				MaxEntries: 10,
-				TTL:        1,
-			},
-		)
-	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }

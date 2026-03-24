@@ -6,6 +6,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ func migrate(
 	propertyID string,
 	whr warehouse.Registry,
 	converter currency.Converter,
+	geoProvider dbip.LookupProvider,
 ) error {
 	settings, err := propertySettings(cmd).GetByPropertyID(propertyID)
 	if err != nil {
@@ -27,7 +29,8 @@ func migrate(
 	if protocol == nil {
 		return fmt.Errorf("protocol %s not found", settings.ProtocolID)
 	}
-	columnData, err := columnsRegistry(cmd, converter).Get(propertyID) // nolint:contextcheck // false positive
+	columnRegistry := columnsRegistry(cmd, converter, geoProvider) // nolint:contextcheck // false positive
+	columnData, err := columnRegistry.Get(propertyID)
 	if err != nil {
 		return err
 	}

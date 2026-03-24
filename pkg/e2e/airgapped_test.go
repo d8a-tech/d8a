@@ -59,8 +59,8 @@ property:
 	require.True(t, handle.logs.waitFor("starting server", 10*time.Second), "server should become ready")
 	require.True(
 		t,
-		handle.logs.waitFor("airgapped mode sets 'dbip-enabled' to 'false'", 5*time.Second),
-		"dbip warning should be logged",
+		handle.logs.waitFor("airgapped mode sets 'dbip-refresh-interval' to '0'", 5*time.Second),
+		"dbip refresh warning should be logged",
 	)
 	require.True(
 		t,

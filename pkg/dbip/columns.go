@@ -2,7 +2,7 @@
 package dbip
 
 import (
-	"context"
+	"errors"
 	"fmt"
 	"net/netip"
 	"time"
@@ -15,16 +15,29 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// LookupResult stores normalized geolocation values extracted from DBIP.
+type LookupResult struct {
+	City      string
+	Country   string
+	Continent string
+	Region    string
+}
+
+// LookupProvider returns geolocation values for IP addresses.
+type LookupProvider interface {
+	Lookup(ip netip.Addr) (*LookupResult, error)
+}
+
 // GeoColumnFactory is a template for creating geo columns.
 type GeoColumnFactory struct {
-	mmdbPath    string
-	cache       *ristretto.Cache[string, *result]
+	provider    LookupProvider
+	cache       *ristretto.Cache[string, *LookupResult]
 	cacheConfig CacheConfig
 }
 
 // NewGeoColumnFactory creates a new GeoColumnTemplate.
-func NewGeoColumnFactory(mmdbPath string, cacheConfig CacheConfig) (*GeoColumnFactory, error) {
-	cache, err := ristretto.NewCache(&ristretto.Config[string, *result]{
+func NewGeoColumnFactory(provider LookupProvider, cacheConfig CacheConfig) (*GeoColumnFactory, error) {
+	cache, err := ristretto.NewCache(&ristretto.Config[string, *LookupResult]{
 		NumCounters: cacheConfig.MaxEntries * 10,
 		MaxCost:     cacheConfig.MaxEntries,
 		BufferItems: 64,
@@ -32,8 +45,11 @@ func NewGeoColumnFactory(mmdbPath string, cacheConfig CacheConfig) (*GeoColumnFa
 	if err != nil {
 		return nil, err
 	}
+	if provider == nil {
+		provider = NewUnavailableLookupProvider()
+	}
 	return &GeoColumnFactory{
-		mmdbPath:    mmdbPath,
+		provider:    provider,
 		cache:       cache,
 		cacheConfig: cacheConfig,
 	}, nil
@@ -45,7 +61,7 @@ const geoRecordMetadataKey = "geo_record"
 func (t *GeoColumnFactory) Column(
 	column schema.InterfaceID,
 	field *arrow.Field,
-	getValue func(event *schema.Event, record *result) (any, schema.D8AColumnWriteError),
+	getValue func(event *schema.Event, record *LookupResult) (any, schema.D8AColumnWriteError),
 	options ...columns.EventColumnOptions,
 ) schema.EventColumn {
 	return columns.NewSimpleEventColumn(
@@ -55,7 +71,7 @@ func (t *GeoColumnFactory) Column(
 			// Check if the value was computed for other column in this event
 			computedRecord, ok := event.Metadata[geoRecordMetadataKey]
 			if ok {
-				typedComputedRecord, ok := computedRecord.(*result)
+				typedComputedRecord, ok := computedRecord.(*LookupResult)
 				if ok {
 					return getValue(event, typedComputedRecord)
 				}
@@ -71,18 +87,16 @@ func (t *GeoColumnFactory) Column(
 				logrus.WithError(err).Warn("failed to parse IP address in dbip column")
 				return nil, nil //nolint:nilnil // nil is valid
 			}
-			db, err := GetMaxmindReader(t.mmdbPath)
+			record, err := t.provider.Lookup(ipAddress)
 			if err != nil {
-				return nil, schema.NewRetryableError(fmt.Sprintf("failed to get maxmind reader: %s", err))
-			}
-			var record result
-			err = db.Lookup(ipAddress).Decode(&record)
-			if err != nil {
+				if errors.Is(err, ErrUnavailable) {
+					return nil, nil //nolint:nilnil // nil is valid
+				}
 				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to lookup IP address in dbip column: %s", err))
 			}
-			event.Metadata[geoRecordMetadataKey] = &record
-			t.cache.SetWithTTL(event.BoundHit.MustParsedRequest().IP, &record, 1, t.cacheConfig.TTL)
-			return getValue(event, &record)
+			event.Metadata[geoRecordMetadataKey] = record
+			t.cache.SetWithTTL(event.BoundHit.MustParsedRequest().IP, record, 1, t.cacheConfig.TTL)
+			return getValue(event, record)
 		},
 		options...,
 	)
@@ -93,8 +107,8 @@ func CityColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoCity.ID,
 		columns.CoreInterfaces.GeoCity.Field,
-		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
-			return record.City.Names.English, nil
+		func(_ *schema.Event, record *LookupResult) (any, schema.D8AColumnWriteError) {
+			return record.City, nil
 		},
 		columns.WithEventColumnDocs(
 			"City (Provided by DBIP)",
@@ -108,8 +122,8 @@ func CountryColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoCountry.ID,
 		columns.CoreInterfaces.GeoCountry.Field,
-		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
-			return record.Country.Names.English, nil
+		func(_ *schema.Event, record *LookupResult) (any, schema.D8AColumnWriteError) {
+			return record.Country, nil
 		},
 		columns.WithEventColumnDocs(
 			"Country (Provided by DBIP)",
@@ -123,8 +137,8 @@ func ContinentColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoContinent.ID,
 		columns.CoreInterfaces.GeoContinent.Field,
-		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
-			return record.Continent.Names.English, nil
+		func(_ *schema.Event, record *LookupResult) (any, schema.D8AColumnWriteError) {
+			return record.Continent, nil
 		},
 		columns.WithEventColumnDocs(
 			"Continent (Provided by DBIP)",
@@ -138,11 +152,11 @@ func RegionColumn(t *GeoColumnFactory) schema.EventColumn {
 	return t.Column(
 		columns.CoreInterfaces.GeoRegion.ID,
 		columns.CoreInterfaces.GeoRegion.Field,
-		func(_ *schema.Event, record *result) (any, schema.D8AColumnWriteError) {
-			if len(record.Subdivisions) == 0 {
+		func(_ *schema.Event, record *LookupResult) (any, schema.D8AColumnWriteError) {
+			if record.Region == "" {
 				return nil, nil //nolint:nilnil // nil is valid
 			}
-			return record.Subdivisions[0].Names.English, nil
+			return record.Region, nil
 		},
 		columns.WithEventColumnDocs(
 			"Region (Provided by DBIP)",
@@ -157,47 +171,9 @@ type CacheConfig struct {
 	TTL        time.Duration
 }
 
-// GeoColumns creates a set of geo columns from a downloader.
-func GeoColumns(
-	downloader Downloader,
-	destinationDirectory string,
-	downloadTimeout time.Duration,
-	cacheConfig CacheConfig,
-) []schema.EventColumn {
-	if destinationDirectory == "" {
-		destinationDirectory = "/tmp"
-	}
-
-	// Check for existing local MMDB files before attempting download.
-	bestLocalMMDBPath, err := selectBestMMDBFile(destinationDirectory, ".mmdb")
-	if err != nil {
-		logrus.WithError(err).Warn("failed to scan for existing MMDB files, proceeding with download attempt")
-		bestLocalMMDBPath = ""
-	}
-
-	// Attempt to download/check for new version
-	ctx, cancel := context.WithTimeout(context.Background(), downloadTimeout)
-	defer cancel()
-	mmdbPath, err := downloader.Download(
-		ctx,
-		"dbip-city-lite",
-		"latest",
-		destinationDirectory,
-	)
-	if err != nil {
-		// If download/check failed but we have a local file, warn and use it
-		if bestLocalMMDBPath != "" {
-			logrus.WithError(err).WithFields(logrus.Fields{
-				"fallback_path": bestLocalMMDBPath,
-			}).Warn("failed to download/check MMDB city database, using existing local file")
-			mmdbPath = bestLocalMMDBPath
-		} else {
-			// No local file and download failed - fail startup
-			logrus.WithError(err).Panic("failed to download MMDB city database and no existing local file found")
-		}
-	}
-
-	t, err := NewGeoColumnFactory(mmdbPath, cacheConfig)
+// GeoColumns creates a set of geo columns backed by the provided lookup provider.
+func GeoColumns(provider LookupProvider, cacheConfig CacheConfig) []schema.EventColumn {
+	t, err := NewGeoColumnFactory(provider, cacheConfig)
 	if err != nil {
 		logrus.WithError(err).Panic("failed to create geo column template")
 	}
