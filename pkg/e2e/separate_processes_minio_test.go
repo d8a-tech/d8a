@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -28,9 +27,14 @@ func withMinIOContainer(
 	t *testing.T,
 	callback func(bucket *blob.Bucket, container *minio.MinioContainer),
 ) {
+	t.Helper()
+
 	ctx := context.Background()
 
-	minioContainer, err := minio.Run(ctx, "minio/minio:RELEASE.2024-01-16T16-07-38Z")
+	minioContainer, err := minio.Run(
+		ctx,
+		"minio/minio:RELEASE.2024-01-16T16-07-38Z",
+	)
 	require.NoError(t, err)
 
 	defer func() {
@@ -77,10 +81,6 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 
 	// given - setup
 	withMinIOContainer(t, func(_ *blob.Bucket, container *minio.MinioContainer) {
-		// Build binary once
-		binaryPath := buildBinary(t)
-		t.Cleanup(func() { _ = os.Remove(binaryPath) })
-
 		// Get connection string from MinIO container
 		ctx := context.Background()
 		connectionString, err := container.ConnectionString(ctx)
@@ -94,13 +94,12 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 		minioPort, err := strconv.Atoi(parts[1])
 		require.NoError(t, err)
 
-		// Create shared temp storage directory (for BoltDB)
-		_, storageDir := buildSharedTempDirectories(t)
+		storageVolume := newDockerStorageVolume(t)
 
 		// Generate configs for receiver and worker with objectstorage queue
 		receiverConfigPath := newTestConfigBuilder().
 			WithPort(port).
-			WithStorageDirectory(storageDir).
+			WithStorageDirectory(dockerSharedStoragePath).
 			WithWarehouse("noop").
 			WithSessionTimeout(2 * time.Second).
 			WithQueueBackend("objectstorage").
@@ -117,7 +116,7 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 			Build(t)
 
 		workerConfigPath := newTestConfigBuilder().
-			WithStorageDirectory(storageDir).
+			WithStorageDirectory(dockerSharedStoragePath).
 			WithWarehouse("noop").
 			WithSessionTimeout(2 * time.Second).
 			WithQueueBackend("objectstorage").
@@ -135,11 +134,25 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 
 		// when - execution
 		// Start worker process in background
-		workerHandle, err := startProcessInBackground(t, binaryPath, "worker", "--debug", "--config", workerConfigPath)
+		workerHandle, err := startDockerProcessInBackground(
+			t,
+			defaultDockerRunOptions(
+				[]string{"worker", "--debug", "--config", workerConfigPath},
+				workerConfigPath,
+				withDockerStorageVolume(storageVolume),
+			),
+		)
 		require.NoError(t, err, "failed to start worker process")
 
 		// Start receiver process in background
-		receiverHandle, err := startProcessInBackground(t, binaryPath, "receiver", "--config", receiverConfigPath)
+		receiverHandle, err := startDockerProcessInBackground(
+			t,
+			defaultDockerRunOptions(
+				[]string{"receiver", "--config", receiverConfigPath},
+				receiverConfigPath,
+				withDockerStorageVolume(storageVolume),
+			),
+		)
 		require.NoError(t, err, "failed to start receiver process")
 
 		// Wait for receiver to be ready (healthz endpoint)
