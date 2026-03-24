@@ -514,7 +514,7 @@ var ga4ParamsFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "ga4-params",
 	Usage: "GA4 shortcut entries for flattening nested event params into custom columns. " +
 		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
-		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+		"See [Flattening nested parameters](./database-schema/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("GA4_PARAMS")
@@ -527,7 +527,7 @@ var matomoCustomDimensionsFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "matomo-custom-dimensions",
 	Usage: "Matomo custom dimension shortcut entries for flattening nested values into custom columns. " +
 		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
-		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+		"See [Flattening nested parameters](./database-schema/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("MATOMO_CUSTOM_DIMENSIONS")
@@ -540,7 +540,7 @@ var matomoCustomVariablesFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "matomo-custom-variables",
 	Usage: "Matomo custom variable shortcut entries for flattening nested values into custom columns. " +
 		"Value is a JSON array string; entries from flag/env append to YAML entries. " +
-		"See [Flattening nested parameters](./tracking-protocols/flattening-nested-parameters.md).",
+		"See [Flattening nested parameters](./database-schema/flattening-nested-parameters.md).",
 	Sources: cli.NewValueSourceChain(
 		func() cli.ValueSource {
 			f := cli.EnvVars("MATOMO_CUSTOM_VARIABLES")
