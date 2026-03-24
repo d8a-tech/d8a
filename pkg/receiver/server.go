@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -29,6 +30,36 @@ var (
 	requestLatencyHist metric.Float64Histogram
 	hitCounter         metric.Int64Counter
 )
+
+const httpsOnHTTPListenerMessage = "received likely HTTPS/TLS traffic on the HTTP listener; D8A does not terminate TLS, put a reverse proxy in front"
+
+func newFastHTTPServerLogger(logger *logrus.Logger) *fasthttpServerLogger {
+	if logger == nil {
+		logger = logrus.StandardLogger()
+	}
+
+	return &fasthttpServerLogger{logger: logger}
+}
+
+type fasthttpServerLogger struct {
+	logger *logrus.Logger
+}
+
+func (l *fasthttpServerLogger) Printf(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if isLikelyHTTPSOnHTTPLog(msg) {
+		l.logger.Warn(httpsOnHTTPListenerMessage)
+		return
+	}
+
+	l.logger.Error(msg)
+}
+
+func isLikelyHTTPSOnHTTPLog(msg string) bool {
+	return strings.Contains(msg, "error when serving connection") &&
+		strings.Contains(msg, "error when reading request headers") &&
+		strings.Contains(msg, "unsupported http request method")
+}
 
 func init() {
 	meter := otel.GetMeterProvider().Meter("receiver")
@@ -209,8 +240,10 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 // Run starts the HTTP server and blocks until the context is cancelled or an error occurs
 func (s *Server) Run(ctx context.Context) error {
 	httpServer := &fasthttp.Server{
-		Handler: s.setupRouter(ctx).Handler,
-		Name:    "Tracker API",
+		Handler:               s.setupRouter(ctx).Handler,
+		Logger:                newFastHTTPServerLogger(logrus.StandardLogger()),
+		Name:                  "Tracker API",
+		SecureErrorLogMessage: true,
 	}
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})
