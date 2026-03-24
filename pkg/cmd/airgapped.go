@@ -96,23 +96,6 @@ func customAirgappedSourceChain(
 	return combined
 }
 
-func defaultAirgappedBoolSourceChain(
-	flagName, envVar, yamlPath string,
-	forcedValue, defaultValue bool,
-) cli.ValueSourceChain {
-	return customAirgappedSourceChain(
-		flagName,
-		yamlPath,
-		strconv.FormatBool(forcedValue),
-		strconv.FormatBool(defaultValue),
-		defaultSourceChain(envVar, yamlPath),
-		normalizeBoolValue,
-		func(cmd *cli.Command) string {
-			return normalizeBoolValue(strconv.FormatBool(cmd.Bool(flagName)))
-		},
-	)
-}
-
 func defaultAirgappedStringSourceChain(
 	flagName, envVar, yamlPath, forcedValue, defaultValue string,
 ) cli.ValueSourceChain {
@@ -257,15 +240,6 @@ func formatConfigValue(value string) string {
 	}
 
 	return value
-}
-
-func normalizeBoolValue(value string) string {
-	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
-	if err != nil {
-		return strings.TrimSpace(value)
-	}
-
-	return strconv.FormatBool(parsed)
 }
 
 func normalizeDurationValue(value string) string {

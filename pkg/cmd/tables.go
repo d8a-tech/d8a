@@ -34,7 +34,11 @@ func getTableNames(cmd *cli.Command) tables {
 var crLock = sync.Mutex{}
 var cr map[string]schema.ColumnsRegistry
 
-func columnsRegistry(cmd *cli.Command, converter currency.Converter, geoProvider dbip.LookupProvider) schema.ColumnsRegistry {
+func columnsRegistry(
+	cmd *cli.Command,
+	converter currency.Converter,
+	geoProvider dbip.LookupProvider,
+) schema.ColumnsRegistry {
 	psr := propertySettings(cmd)
 	settings, err := psr.GetByPropertyID(cmd.String(propertyIDFlag.Name))
 	if err != nil {

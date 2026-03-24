@@ -29,7 +29,8 @@ func migrate(
 	if protocol == nil {
 		return fmt.Errorf("protocol %s not found", settings.ProtocolID)
 	}
-	columnData, err := columnsRegistry(cmd, converter, geoProvider).Get(propertyID) // nolint:contextcheck // false positive
+	columnRegistry := columnsRegistry(cmd, converter, geoProvider) // nolint:contextcheck // false positive
+	columnData, err := columnRegistry.Get(propertyID)
 	if err != nil {
 		return err
 	}
