@@ -5,6 +5,7 @@ FROM gcr.io/distroless/base as distroless
 FROM golang:${GO_VERSION}-bookworm AS compile
 
 ARG VERSION=dev
+ARG GO_BUILD_TAGS=
 
 USER root
 
@@ -24,7 +25,8 @@ ENV GOCACHE=/root/.cache/go-build
 
 RUN mkdir -p /root/.cache/go-build
 
-RUN --mount=type=cache,target="/root/.cache/go-build",rw CGO_ENABLED=0 go build \
+RUN --mount=type=cache,target="/root/.cache/go-build",rw if [ -n "${GO_BUILD_TAGS}" ]; then BUILD_TAG_ARGS="-tags ${GO_BUILD_TAGS}"; fi && \
+    CGO_ENABLED=0 go build ${BUILD_TAG_ARGS} \
     -ldflags "-s -w -X github.com/d8a-tech/d8a/pkg/cmd.version=${VERSION}" \
     -o /home/go/app ./main.go
 

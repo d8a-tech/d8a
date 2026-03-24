@@ -87,10 +87,18 @@ var sessionsJoinByUserIDFlag *cli.BoolFlag = &cli.BoolFlag{
 	Value:   true,
 }
 
+var airgappedFlag *cli.BoolFlag = &cli.BoolFlag{
+	Name:        "airgapped",
+	Usage:       "Disable built-in outbound integrations by forcing local-safe defaults for selected features.",
+	Sources:     defaultSourceChain("AIRGAPPED", "airgapped"),
+	Value:       false,
+	Destination: &airgapped,
+}
+
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
 	Usage:   "When enabled, adds geolocation column implementations (city, country, etc.) using DB-IP database. On program startup, downloads the DB-IP database from the OCI registry (ghcr.io/d8a-tech). The database is cached locally and reused on subsequent runs if already present.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("DBIP_ENABLED", "dbip.enabled"),
+	Sources: defaultAirgappedBoolSourceChain("dbip-enabled", "DBIP_ENABLED", "dbip.enabled", false, false),
 	Value:   false,
 }
 
@@ -116,10 +124,16 @@ var currencyDestinationDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 }
 
 var currencyRefreshIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
-	Name:    "currency-refresh-interval",
-	Usage:   "How often the application refreshes currency rate snapshots in the background. Set to 0 to disable background refreshes.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("CURRENCY_REFRESH_INTERVAL", "currency.refresh_interval"),
-	Value:   6 * time.Hour,
+	Name:  "currency-refresh-interval",
+	Usage: "How often the application refreshes currency rate snapshots in the background. Set to 0 to disable background refreshes.", //nolint:lll // it's a description
+	Sources: defaultAirgappedDurationSourceChain(
+		"currency-refresh-interval",
+		"CURRENCY_REFRESH_INTERVAL",
+		"currency.refresh_interval",
+		0,
+		6*time.Hour,
+	),
+	Value: 6 * time.Hour,
 }
 
 var deviceDetectionProviderFlag *cli.StringFlag = &cli.StringFlag{
@@ -523,10 +537,16 @@ var matomoCustomVariablesFlag *cli.StringFlag = &cli.StringFlag{
 }
 
 var telemetryURLFlag *cli.StringFlag = &cli.StringFlag{
-	Name:    "telemetry-url",
-	Usage:   "Telemetry endpoint URL for sending usage events. Anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("TELEMETRY_URL", "telemetry.url"),
-	Value:   "https://global.t.d8a.tech/28b4fbc6-a4d0-49c4-883f-58314f83416e/g/collect",
+	Name:  "telemetry-url",
+	Usage: "Telemetry endpoint URL for sending usage events. Anonymous and non-invasive: collects only app version and runtime duration. Client ID (UUID) is generated per app start and not persisted, resetting on each restart. If empty, telemetry is disabled.", //nolint:lll // it's a description
+	Sources: defaultAirgappedStringSourceChain(
+		"telemetry-url",
+		"TELEMETRY_URL",
+		"telemetry.url",
+		"",
+		"https://global.t.d8a.tech/28b4fbc6-a4d0-49c4-883f-58314f83416e/g/collect",
+	),
+	Value: "https://global.t.d8a.tech/28b4fbc6-a4d0-49c4-883f-58314f83416e/g/collect",
 }
 
 var filtersFieldsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{

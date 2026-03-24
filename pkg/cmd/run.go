@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -70,7 +69,29 @@ func startTelemetry(itemName, telemetryURL string) {
 	)
 }
 
-func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
+func configureLogging(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	switch {
+	case cmd.Bool(traceFlag.Name):
+		logrus.SetLevel(logrus.TraceLevel)
+	case cmd.Bool(debugFlag.Name):
+		logrus.SetLevel(logrus.DebugLevel)
+	default:
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+	logrus.Infof("d8a.tech (version %s)", version)
+	return ctx, nil
+}
+
+func configDocsFlags() []cli.Flag {
+	return append([]cli.Flag{airgappedFlag}, getServerFlags()...)
+}
+
+func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
+	currentRunArgs = append([]string(nil), args...)
+	defer func() {
+		currentRunArgs = nil
+	}()
+
 	app := &cli.Command{
 		Name:  "d8a",
 		Usage: "d8a.tech - warehouse-native analytics",
@@ -81,24 +102,15 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 			debugFlag,
 			traceFlag,
 			configFlag,
+			airgappedFlag,
 		},
 		Version: version,
-		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
-			switch {
-			case cmd.Bool(traceFlag.Name):
-				logrus.SetLevel(logrus.TraceLevel)
-			case cmd.Bool(debugFlag.Name):
-				logrus.SetLevel(logrus.DebugLevel)
-			default:
-				logrus.SetLevel(logrus.InfoLevel)
-			}
-			logrus.Infof("d8a.tech (version %s)", version)
-			return ctx, nil
-		},
+		Before:  configureLogging,
 		Commands: []*cli.Command{
 			{
-				Name:  "columns",
-				Usage: "Display all the columns for given property ID",
+				Name:   "columns",
+				Usage:  "Display all the columns for given property ID",
+				Before: applyAirgappedOverridesBefore,
 				Flags: mergeFlags(
 					[]cli.Flag{
 						&cli.StringFlag{
@@ -157,9 +169,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				},
 			},
 			{
-				Name:  "server",
-				Usage: "Start D8A server. Full configuration reference: https://docs.d8a.tech/articles/config",
-				Flags: getServerFlags(),
+				Name:   "server",
+				Usage:  "Start D8A server. Full configuration reference: https://docs.d8a.tech/articles/config",
+				Before: applyAirgappedOverridesBefore,
+				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("server", cmd); err != nil {
 						return err
@@ -241,9 +254,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				},
 			},
 			{
-				Name:  "receiver",
-				Usage: "Start receiver-only mode (HTTP server; publishes to queue)",
-				Flags: getServerFlags(),
+				Name:   "receiver",
+				Usage:  "Start receiver-only mode (HTTP server; publishes to queue)",
+				Before: applyAirgappedOverridesBefore,
+				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("receiver", cmd); err != nil {
 						return err
@@ -282,9 +296,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				},
 			},
 			{
-				Name:  "worker",
-				Usage: "Start worker-only mode (consumes from queue; no HTTP server)",
-				Flags: getServerFlags(),
+				Name:   "worker",
+				Usage:  "Start worker-only mode (consumes from queue; no HTTP server)",
+				Before: applyAirgappedOverridesBefore,
+				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("worker", cmd); err != nil {
 						return err
@@ -344,8 +359,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				},
 			},
 			{
-				Name:  "migrate",
-				Usage: "Migrate given property to the new schema",
+				Name:   "migrate",
+				Usage:  "Migrate given property to the new schema",
+				Before: applyAirgappedOverridesBefore,
 				Flags: mergeFlags(
 					[]cli.Flag{
 						&cli.StringFlag{
@@ -379,8 +395,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				Name:  "config-docs",
 				Usage: "Generate configuration documentation from flags",
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					flags := getServerFlags()
-					output, err := generateConfigDocs(flags)
+					output, err := generateConfigDocs(configDocsFlags())
 					if err != nil {
 						return fmt.Errorf("failed to generate config docs: %w", err)
 					}
@@ -391,9 +406,13 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 		},
 	}
 
+	app.Commands = append(app.Commands, localfetchCommands()...)
+
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 // buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.
