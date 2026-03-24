@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"github.com/d8a-tech/d8a/pkg/cmd"
@@ -10,5 +11,7 @@ import (
 
 func main() {
 	ctx, cancelF := context.WithCancel(context.Background())
-	cmd.Run(ctx, cancelF, os.Args[1:])
+	if err := cmd.Run(ctx, cancelF, os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
 }

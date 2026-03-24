@@ -19,15 +19,11 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 	// Generate configs for receiver and worker
 	receiverConfigPath := newTestConfigBuilder().
 		WithPort(port).
-		WithQueueDirectory(dockerSharedStoragePath + "/queue").
-		WithStorageDirectory(dockerSharedStoragePath).
 		WithWarehouse("noop").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)
 
 	workerConfigPath := newTestConfigBuilder().
-		WithQueueDirectory(dockerSharedStoragePath + "/queue").
-		WithStorageDirectory(dockerSharedStoragePath).
 		WithWarehouse("noop").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)

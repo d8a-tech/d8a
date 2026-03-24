@@ -99,7 +99,6 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 		// Generate configs for receiver and worker with objectstorage queue
 		receiverConfigPath := newTestConfigBuilder().
 			WithPort(port).
-			WithStorageDirectory(dockerSharedStoragePath).
 			WithWarehouse("noop").
 			WithSessionTimeout(2 * time.Second).
 			WithQueueBackend("objectstorage").
@@ -116,7 +115,6 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 			Build(t)
 
 		workerConfigPath := newTestConfigBuilder().
-			WithStorageDirectory(dockerSharedStoragePath).
 			WithWarehouse("noop").
 			WithSessionTimeout(2 * time.Second).
 			WithQueueBackend("objectstorage").

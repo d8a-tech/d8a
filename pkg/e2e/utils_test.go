@@ -132,8 +132,7 @@ func dockerImage(t *testing.T) string {
 	dockerImageBuildOnce.Do(func() {
 		dockerImageName = fmt.Sprintf("d8a-e2e:%d", time.Now().UnixNano())
 
-		cmd := exec.Command("docker", "build", "-t", dockerImageName, ".")
-		cmd = exec.Command("docker", "build", "--build-arg", "GO_BUILD_TAGS=e2e", "-t", dockerImageName, ".")
+		cmd := exec.Command("docker", "build", "--build-arg", "GO_BUILD_TAGS=e2e", "-t", dockerImageName, ".")
 		cmd.Dir = "../.."
 
 		output, err := cmd.CombinedOutput()
@@ -194,41 +193,35 @@ func withDockerStorageVolume(storageVolume string) dockerRunOption {
 	}
 }
 
-func withDockerEnv(key, value string) dockerRunOption {
-	return func(options *dockerRunOptions) {
-		if options.env == nil {
-			options.env = make(map[string]string)
-		}
-
-		options.env[key] = value
-	}
-}
-
-func applyDockerRunOptions(base dockerRunOptions, extraOptions ...dockerRunOption) dockerRunOptions {
+func applyDockerRunOptions(base *dockerRunOptions, extraOptions ...dockerRunOption) dockerRunOptions {
 	for _, option := range extraOptions {
-		option(&base)
+		option(base)
 	}
 
-	return base
+	return *base
 }
 
-func defaultDockerRunOptions(args []string, configPath string, extraOptions ...dockerRunOption) dockerRunOptions {
-	return applyDockerRunOptions(dockerRunOptions{
+func defaultDockerRunOptions(args []string, configPath string, extraOptions ...dockerRunOption) *dockerRunOptions {
+	base := &dockerRunOptions{
 		args: args,
 		mounts: []dockerMount{
 			mountSamePath(configPath, true),
 		},
 		networkMode: "host",
-	}, extraOptions...)
+	}
+
+	configured := applyDockerRunOptions(base, extraOptions...)
+
+	return &configured
 }
 
-func defaultDockerServerRunOptions(configPath string, port int, extraOptions ...dockerRunOption) dockerRunOptions {
+func defaultDockerServerRunOptions(configPath string, port int, extraOptions ...dockerRunOption) *dockerRunOptions {
 	_ = port
 
 	return defaultDockerRunOptions([]string{"server", "--config", configPath}, configPath, extraOptions...)
 }
 
-func startDockerProcessInBackground(t *testing.T, options dockerRunOptions) (*processHandle, error) {
+func startDockerProcessInBackground(t *testing.T, options *dockerRunOptions) (*processHandle, error) {
 	t.Helper()
 
 	imageName := dockerImage(t)
@@ -331,8 +324,6 @@ telemetry:
   url: ""
 
 storage:
-  bolt_directory: /storage/
-  queue_directory: /storage/queue
   spool_enabled: false
 
 server:

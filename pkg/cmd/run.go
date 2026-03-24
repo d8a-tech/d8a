@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -83,7 +82,11 @@ func configureLogging(ctx context.Context, cmd *cli.Command) (context.Context, e
 	return ctx, nil
 }
 
-func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
+func configDocsFlags() []cli.Flag {
+	return append([]cli.Flag{airgappedFlag}, getServerFlags()...)
+}
+
+func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	currentRunArgs = append([]string(nil), args...)
 	defer func() {
 		currentRunArgs = nil
@@ -392,8 +395,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 				Name:  "config-docs",
 				Usage: "Generate configuration documentation from flags",
 				Action: func(_ context.Context, cmd *cli.Command) error {
-					flags := append([]cli.Flag{airgappedFlag}, getServerFlags()...)
-					output, err := generateConfigDocs(flags)
+					output, err := generateConfigDocs(configDocsFlags())
 					if err != nil {
 						return fmt.Errorf("failed to generate config docs: %w", err)
 					}
@@ -407,8 +409,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) { // nol
 	app.Commands = append(app.Commands, localfetchCommands()...)
 
 	if err := app.Run(ctx, append([]string{os.Args[0]}, args...)); err != nil {
-		log.Fatal(err)
+		return err
 	}
+
+	return nil
 }
 
 // buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.

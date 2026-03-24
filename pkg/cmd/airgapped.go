@@ -227,12 +227,7 @@ func isAirgappedModeEnabled() bool {
 	return parsed
 }
 
-func airgappedFlagValueFromArgs() (bool, bool) {
-	var (
-		value bool
-		found bool
-	)
-
+func airgappedFlagValueFromArgs() (value, found bool) {
 	for index := 0; index < len(currentRunArgs); index++ {
 		arg := currentRunArgs[index]
 

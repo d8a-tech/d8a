@@ -39,8 +39,6 @@ monitoring:
   enabled: false
 
 storage:
-  bolt_directory: %s/
-  queue_directory: %s/queue
   spool_enabled: false
 
 server:
@@ -49,7 +47,7 @@ server:
 property:
   id: test-property
   name: Test Property
-`, dockerSharedStoragePath, dockerSharedStoragePath, port)
+`, port)
 	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0o644))
 
 	handle, err := startDockerProcessInBackground(
