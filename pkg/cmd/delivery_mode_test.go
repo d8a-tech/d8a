@@ -268,6 +268,106 @@ func TestRunSubcommands_UseCombinedModeOverridesBeforeHook(t *testing.T) {
 	assert.Contains(t, string(runGoContent), "applyDeliveryModeOverridesBefore")
 }
 
+func TestDeliveryModeOverrides_SkipsUndefinedFlagsOnCommand(t *testing.T) {
+	// given
+	setDeliveryModeForTest(t, "")
+
+	unsetEnvForTest(t, "DELIVERY_MODE")
+	unsetEnvForTest(t, "RECEIVER_BATCHING_BACKEND")
+	unsetEnvForTest(t, "STORAGE_SPOOL_ENABLED")
+	unsetEnvForTest(t, "STORAGE_SPOOL_WRITE_CHAN_BUFFER")
+
+	configPath := writeConfigFile(t, `
+delivery:
+  mode: at_least_once
+receiver:
+  batching_backend: memory
+storage:
+  spool_enabled: false
+  spool_write_chan_buffer: 99
+`)
+	setConfigFileForTest(t, configPath)
+
+	args := []string{"migrate-test", "--property-id=test", "--config=" + configPath}
+	setCurrentRunArgsForTest(t, args)
+
+	// Command without receiver/storage flags that are normally overridden by delivery mode.
+	// This simulates the migrate command which doesn't expose those flags.
+	app := &cli.Command{
+		Name:   "migrate-test",
+		Before: applyDeliveryModeOverridesBefore,
+		Flags: mergeFlags(
+			[]cli.Flag{
+				configFlag,
+				&cli.StringFlag{
+					Name:     "property-id",
+					Required: true,
+				},
+			},
+			// Deliberately omit receiver/storage flags
+		),
+		Action: func(_ context.Context, _ *cli.Command) error {
+			return nil
+		},
+	}
+
+	// when / then
+	// Should not fail even though delivery-mode=at_least_once is enabled
+	// and the command doesn't have receiver-batching-backend or storage-spool-enabled flags
+	require.NoError(t, app.Run(context.Background(), args))
+}
+
+func TestDeliveryModeOverrides_AppliesWhenFlagsExist(t *testing.T) {
+	// given
+	setDeliveryModeForTest(t, "")
+
+	unsetEnvForTest(t, "DELIVERY_MODE")
+	unsetEnvForTest(t, "RECEIVER_BATCHING_BACKEND")
+	unsetEnvForTest(t, "STORAGE_SPOOL_ENABLED")
+	unsetEnvForTest(t, "STORAGE_SPOOL_WRITE_CHAN_BUFFER")
+
+	configPath := writeConfigFile(t, `
+delivery:
+  mode: at_least_once
+receiver:
+  batching_backend: memory
+storage:
+  spool_enabled: false
+  spool_write_chan_buffer: 99
+`)
+	setConfigFileForTest(t, configPath)
+
+	args := []string{"server-test", "--config=" + configPath}
+	setCurrentRunArgsForTest(t, args)
+
+	var observedReceiverBatchingBackend string
+	var observedStorageSpoolEnabled bool
+	var observedStorageSpoolWriteChanBuffer int
+
+	// Command with all receiver/storage flags. This simulates server/receiver/worker commands.
+	app := &cli.Command{
+		Name:   "server-test",
+		Before: applyDeliveryModeOverridesBefore,
+		Flags: mergeFlags(
+			[]cli.Flag{configFlag},
+			getServerFlags(),
+		),
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			// when
+			observedReceiverBatchingBackend = cmd.String(receiverBatchingBackendFlag.Name)
+			observedStorageSpoolEnabled = cmd.Bool(storageSpoolEnabledFlag.Name)
+			observedStorageSpoolWriteChanBuffer = cmd.Int(storageSpoolWriteChanBufferFlag.Name)
+			return nil
+		},
+	}
+
+	// then
+	require.NoError(t, app.Run(context.Background(), args))
+	assert.Equal(t, "filesystem", observedReceiverBatchingBackend)
+	assert.Equal(t, true, observedStorageSpoolEnabled)
+	assert.Equal(t, 0, observedStorageSpoolWriteChanBuffer)
+}
+
 func TestDeliveryModeOverrideSources_CanReadConfigValues(t *testing.T) {
 	// given
 	setDeliveryModeForTest(t, "")

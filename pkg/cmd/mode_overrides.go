@@ -90,6 +90,17 @@ func customModeSourceChain(
 	return combined
 }
 
+func flagExistsOnCommand(cmd *cli.Command, flagName string) bool {
+	for _, flag := range cmd.Flags {
+		for _, name := range flag.Names() {
+			if name == flagName {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func applyModeOverrides(
 	cmd *cli.Command,
 	enabled bool,
@@ -102,6 +113,11 @@ func applyModeOverrides(
 	}
 
 	for _, rule := range rules {
+		// skip rule if the flag is not defined on this command
+		if !flagExistsOnCommand(cmd, rule.flagName) {
+			continue
+		}
+
 		currentValue := rule.currentValue(cmd)
 		if currentValue != rule.forcedValue {
 			if err := cmd.Set(rule.flagName, rule.forcedValue); err != nil {
