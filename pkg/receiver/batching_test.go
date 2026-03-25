@@ -418,6 +418,36 @@ func TestFileBackend_AppendAccumulatesAcrossMultipleCalls(t *testing.T) {
 	assert.Equal(t, "batch-2", recovered[1].ID)
 }
 
+func TestFileBackend_AppendAccumulatesAcrossMultipleCalls_WithNewlineData(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	fb := NewFileBatchingBackend(FileBatchingBackendConfig{
+		Dir:           dir,
+		FlushFileName: "pending.json.gz",
+	})
+
+	h1 := hits.New()
+	h1.ID = "batch-newline-1"
+	h1.Metadata["note"] = "line1\nline2"
+	h1.Request.Body = []byte("first\nsecond")
+
+	h2 := hits.New()
+	h2.ID = "batch-newline-2"
+	h2.Request.QueryParams.Set("q", "alpha\nbeta")
+
+	// when
+	require.NoError(t, fb.Append([]*hits.Hit{h1}))
+	require.NoError(t, fb.Append([]*hits.Hit{h2}))
+
+	// then
+	recovered, err := readFlushFileForTest(fb)
+	require.NoError(t, err)
+	require.Len(t, recovered, 2)
+	assert.Equal(t, "line1\nline2", recovered[0].Metadata["note"])
+	assert.Equal(t, "first\nsecond", string(recovered[0].Request.Body))
+	assert.Equal(t, "alpha\nbeta", recovered[1].Request.QueryParams.Get("q"))
+}
+
 func TestBatchingStorage_FileBackend_PushFailurePropagates(t *testing.T) {
 	// given — file backend with a child that always fails
 	dir := t.TempDir()

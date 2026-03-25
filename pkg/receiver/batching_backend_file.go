@@ -1,13 +1,18 @@
 package receiver
 
 import (
+	"bytes"
 	"compress/gzip"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/sirupsen/logrus"
 )
 
@@ -18,7 +23,7 @@ type FileBatchingBackendConfig struct {
 }
 
 // NewFileBatchingBackend creates a BatchingBackend that durably stages hits to disk
-// using a single gzip-json encoded file.
+// using an append-only framed JSON file.
 func NewFileBatchingBackend(cfg FileBatchingBackendConfig) BatchingBackend {
 	return &fileBatchingBackend{cfg: cfg}
 }
@@ -37,17 +42,69 @@ func (f *fileBatchingBackend) Append(h []*hits.Hit) error {
 		return fmt.Errorf("creating backend dir: %w", err)
 	}
 
-	existing, err := f.readFlushFile()
+	path := f.flushFilePath()
+	//nolint:gosec // path derived from config, not user input
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
-		return fmt.Errorf("reading existing flush file: %w", err)
+		return fmt.Errorf("opening flush file for append: %w", err)
 	}
 
-	existing = append(existing, h...)
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			logrus.Errorf("closing flush file after append: %v", closeErr)
+		}
+	}()
 
-	if err := f.writeAtomically(existing); err != nil {
-		return fmt.Errorf("writing flush file: %w", err)
+	for _, hit := range h {
+		encodedHit, marshalErr := json.Marshal(hit)
+		if marshalErr != nil {
+			return fmt.Errorf("marshaling hit for append: %w", marshalErr)
+		}
+
+		if len(encodedHit) > int(^uint32(0)) {
+			return fmt.Errorf("encoded hit too large: %d bytes", len(encodedHit))
+		}
+
+		var sizeHeader [4]byte
+		binary.BigEndian.PutUint32(sizeHeader[:], util.SafeIntToUint32(len(encodedHit)))
+
+		if _, writeErr := file.Write(sizeHeader[:]); writeErr != nil {
+			return fmt.Errorf("writing framed hit size: %w", writeErr)
+		}
+
+		if _, writeErr := file.Write(encodedHit); writeErr != nil {
+			return fmt.Errorf("writing framed hit payload: %w", writeErr)
+		}
 	}
+
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("syncing appended flush file: %w", err)
+	}
+
 	return nil
+}
+
+func (f *fileBatchingBackend) readFlushFileLegacyGzip(file *os.File) ([]*hits.Hit, error) {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seeking flush file for legacy read: %w", err)
+	}
+
+	gz, err := gzip.NewReader(file)
+	if err != nil {
+		return nil, fmt.Errorf("creating gzip reader: %w", err)
+	}
+	defer func() {
+		if closeErr := gz.Close(); closeErr != nil {
+			logrus.Errorf("closing gzip reader: %v", closeErr)
+		}
+	}()
+
+	var result []*hits.Hit
+	if err := json.NewDecoder(gz).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decoding hits from legacy gzip flush file: %w", err)
+	}
+
+	return result, nil
 }
 
 // Flush implements BatchingBackend.
@@ -100,64 +157,61 @@ func (f *fileBatchingBackend) readFlushFile() ([]*hits.Hit, error) {
 		}
 	}()
 
-	gz, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, fmt.Errorf("creating gzip reader: %w", err)
+	header := make([]byte, 2)
+	n, err := file.Read(header)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("reading flush file header: %w", err)
 	}
-	defer func() {
-		if closeErr := gz.Close(); closeErr != nil {
-			logrus.Errorf("closing gzip reader: %v", closeErr)
-		}
-	}()
+	if n == 0 {
+		return nil, nil
+	}
 
-	var result []*hits.Hit
-	if err := json.NewDecoder(gz).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding hits from flush file: %w", err)
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seeking flush file: %w", err)
 	}
-	return result, nil
+
+	if n == 2 && bytes.Equal(header, []byte{0x1f, 0x8b}) {
+		return f.readFlushFileLegacyGzip(file)
+	}
+
+	return f.readFramedFlushFile(file)
 }
 
-func (f *fileBatchingBackend) writeAtomically(allHits []*hits.Hit) error {
-	path := f.flushFilePath()
+func (f *fileBatchingBackend) readFramedFlushFile(file *os.File) ([]*hits.Hit, error) {
+	result := make([]*hits.Hit, 0)
 
-	tmp, err := os.CreateTemp(f.cfg.Dir, "pending_hits_*.tmp")
-	if err != nil {
-		return fmt.Errorf("creating temp file: %w", err)
-	}
-	tmpPath := tmp.Name()
-
-	success := false
-	defer func() {
-		if !success {
-			if closeErr := tmp.Close(); closeErr != nil {
-				logrus.Debugf("closing temp flush file %q: %v", tmpPath, closeErr)
-			}
-			if removeErr := os.Remove(tmpPath); removeErr != nil && !os.IsNotExist(removeErr) {
-				logrus.Debugf("removing temp flush file %q: %v", tmpPath, removeErr)
-			}
+	var sizeHeader [4]byte
+	for {
+		_, err := io.ReadFull(file, sizeHeader[:])
+		if err == io.EOF {
+			return result, nil
 		}
-	}()
+		if err == io.ErrUnexpectedEOF {
+			return nil, fmt.Errorf("reading framed hit size: truncated header")
+		}
+		if err != nil {
+			return nil, fmt.Errorf("reading framed hit size: %w", err)
+		}
 
-	gz := gzip.NewWriter(tmp)
-	if err := json.NewEncoder(gz).Encode(allHits); err != nil {
-		return fmt.Errorf("encoding hits: %w", err)
-	}
-	if err := gz.Close(); err != nil {
-		return fmt.Errorf("closing gzip writer: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		return fmt.Errorf("syncing temp file: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("closing temp file: %w", err)
-	}
+		payloadSize := binary.BigEndian.Uint32(sizeHeader[:])
+		if payloadSize == 0 {
+			return nil, fmt.Errorf("reading framed hit payload: invalid zero size")
+		}
 
-	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("renaming temp file to flush file: %w", err)
-	}
+		payload := make([]byte, payloadSize)
+		if _, err := io.ReadFull(file, payload); err == io.ErrUnexpectedEOF || err == io.EOF {
+			return nil, fmt.Errorf("reading framed hit payload: truncated payload")
+		} else if err != nil {
+			return nil, fmt.Errorf("reading framed hit payload: %w", err)
+		}
 
-	success = true
-	return nil
+		var hit hits.Hit
+		if err := json.Unmarshal(payload, &hit); err != nil {
+			return nil, fmt.Errorf("decoding framed hit payload: %w", err)
+		}
+
+		result = append(result, &hit)
+	}
 }
 
 // readFlushFileForTest is only accessible from same-package tests via an adapter.
