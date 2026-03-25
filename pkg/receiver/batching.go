@@ -10,26 +10,55 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// BatchingBackend abstracts the persistence layer used by BatchingStorage
+// to stage hits before flushing them to the child storage.
+type BatchingBackend interface {
+	Append([]*hits.Hit) error
+	Flush(func([]*hits.Hit) error) error
+	Close() error
+}
+
+// BatchingOption configures a BatchingStorage instance.
+type BatchingOption func(*BatchingStorage)
+
+// WithBackend sets the backend used by BatchingStorage for staging hits.
+// When not provided, an in-memory backend is used.
+func WithBackend(backend BatchingBackend) BatchingOption {
+	return func(bs *BatchingStorage) {
+		bs.backend = backend
+	}
+}
+
 // BatchingStorage is a storage that batches hits and flushes them to a child storage.
 type BatchingStorage struct {
-	mu          sync.Mutex
-	buffer      []*hits.Hit
-	child       Storage
-	batchSize   int
-	timeout     time.Duration
-	flushTicker *time.Ticker
-	lastFlush   time.Time
-	done        chan struct{}
+	mu           sync.Mutex
+	backend      BatchingBackend
+	pendingCount int
+	child        Storage
+	batchSize    int
+	timeout      time.Duration
+	flushTicker  *time.Ticker
+	lastFlush    time.Time
+	done         chan struct{}
 }
 
 // NewBatchingStorage creates a new BatchingStorage instance.
-func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration) *BatchingStorage {
+func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration, opts ...BatchingOption) *BatchingStorage {
 	bs := &BatchingStorage{
 		child:     child,
 		batchSize: batchSize,
 		timeout:   timeout,
 		done:      make(chan struct{}),
 	}
+
+	for _, opt := range opts {
+		opt(bs)
+	}
+
+	if bs.backend == nil {
+		bs.backend = &memoryBatchingBackend{}
+	}
+
 	bs.flushTicker = time.NewTicker(timeout)
 	bs.lastFlush = time.Now()
 
@@ -51,14 +80,18 @@ func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration) *Ba
 	return bs
 }
 
-// Push implements the Storage interface
-func (bs *BatchingStorage) Push(hits []*hits.Hit) error {
+// Push implements the Storage interface.
+func (bs *BatchingStorage) Push(h []*hits.Hit) error {
 	bs.mu.Lock()
 	defer bs.mu.Unlock()
 
-	bs.buffer = append(bs.buffer, hits...)
+	if err := bs.backend.Append(h); err != nil {
+		return fmt.Errorf("appending hits to backend: %w", err)
+	}
 
-	if len(bs.buffer) >= bs.batchSize {
+	bs.pendingCount += len(h)
+
+	if bs.pendingCount >= bs.batchSize {
 		return bs.flushLocked()
 	}
 	return nil
@@ -73,20 +106,11 @@ func (bs *BatchingStorage) Flush() error {
 
 func (bs *BatchingStorage) flushLocked() error {
 	bs.lastFlush = time.Now()
-	if len(bs.buffer) == 0 {
-		return nil
+	if err := bs.backend.Flush(bs.child.Push); err != nil {
+		return fmt.Errorf("flushing batch: %w", err)
 	}
 
-	// Copy buffer to avoid mutation during send
-	toSend := make([]*hits.Hit, len(bs.buffer))
-	copy(toSend, bs.buffer)
-	bs.buffer = bs.buffer[:0]
-
-	if err := bs.child.Push(toSend); err != nil {
-		logrus.Errorf("storage push failed: %v", err)
-		return fmt.Errorf("failed to push data: %w", err)
-	}
-
+	bs.pendingCount = 0
 	return nil
 }
 
@@ -95,6 +119,9 @@ func (bs *BatchingStorage) Close() {
 	bs.flushTicker.Stop()
 	close(bs.done)
 	if err := bs.Flush(); err != nil {
-		logrus.Errorf("failed to flush batch: %v", err)
+		logrus.Errorf("failed to flush batch on close: %v", err)
+	}
+	if err := bs.backend.Close(); err != nil {
+		logrus.Errorf("failed to close batching backend: %v", err)
 	}
 }

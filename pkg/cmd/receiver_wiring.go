@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +14,12 @@ import (
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/urfave/cli/v3"
 )
+
+// newBatchingStorageFn and newFileBatchingBackendFn are constructor indirections
+// allowing tests to observe which backend option / constructor were used.
+var newBatchingStorageFn = receiver.NewBatchingStorage
+
+var newFileBatchingBackendFn = receiver.NewFileBatchingBackend
 
 func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worker.Publisher) receiver.Storage {
 	backend := strings.ToLower(cmd.String(queueBackendFlag.Name))
@@ -40,9 +47,25 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 
 	publisher = worker.NewMonitoringPublisher(publisher)
 
-	return receiver.NewBatchingStorage(
+	var opts []receiver.BatchingOption
+
+	batchingBackend := strings.ToLower(cmd.String(receiverBatchingBackendFlag.Name))
+	if batchingBackend == "filesystem" {
+		opts = append(opts, receiver.WithBackend(
+			newFileBatchingBackendFn(receiver.FileBatchingBackendConfig{
+				Dir: filepath.Join(
+					cmd.String(storageQueueDirectoryFlag.Name),
+					"receiver-batching",
+				),
+				FlushFileName: "pending_hits.json.gz",
+			}),
+		))
+	}
+
+	return newBatchingStorageFn(
 		storagepublisher.NewAdapter(encoding.GzipJSONEncoder, publisher),
 		cmd.Int(receiverBatchSizeFlag.Name),
 		cmd.Duration(receiverBatchTimeoutFlag.Name),
+		opts...,
 	)
 }

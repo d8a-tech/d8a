@@ -63,6 +63,16 @@ func validateHAFlags(mode string, cmd *cli.Command) error {
 		return fmt.Errorf("unsupported queue-backend: %s", backend)
 	}
 
+	batchingBackend := strings.ToLower(cmd.String(receiverBatchingBackendFlag.Name))
+	if batchingBackend == "filesystem" && (mode == "server" || mode == "receiver") {
+		if strings.TrimSpace(cmd.String(storageQueueDirectoryFlag.Name)) == "" {
+			return fmt.Errorf(
+				"%s is required when receiver-batching-backend=filesystem",
+				storageQueueDirectoryFlag.Name,
+			)
+		}
+	}
+
 	if mode == "worker" {
 		if strings.TrimSpace(cmd.String(storageBoltDirectoryFlag.Name)) == "" {
 			return fmt.Errorf("%s is required for worker mode", storageBoltDirectoryFlag.Name)
