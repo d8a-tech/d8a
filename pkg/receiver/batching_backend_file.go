@@ -1,11 +1,8 @@
 package receiver
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -84,29 +81,6 @@ func (f *fileBatchingBackend) Append(h []*hits.Hit) error {
 	return nil
 }
 
-func (f *fileBatchingBackend) readFlushFileLegacyGzip(file *os.File) ([]*hits.Hit, error) {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seeking flush file for legacy read: %w", err)
-	}
-
-	gz, err := gzip.NewReader(file)
-	if err != nil {
-		return nil, fmt.Errorf("creating gzip reader: %w", err)
-	}
-	defer func() {
-		if closeErr := gz.Close(); closeErr != nil {
-			logrus.Errorf("closing gzip reader: %v", closeErr)
-		}
-	}()
-
-	var result []*hits.Hit
-	if err := json.NewDecoder(gz).Decode(&result); err != nil {
-		return nil, fmt.Errorf("decoding hits from legacy gzip flush file: %w", err)
-	}
-
-	return result, nil
-}
-
 // Flush implements BatchingBackend.
 func (f *fileBatchingBackend) Flush(cb func([]*hits.Hit) error) error {
 	path := f.flushFilePath()
@@ -156,23 +130,6 @@ func (f *fileBatchingBackend) readFlushFile() ([]*hits.Hit, error) {
 			logrus.Errorf("closing flush file: %v", closeErr)
 		}
 	}()
-
-	header := make([]byte, 2)
-	n, err := file.Read(header)
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("reading flush file header: %w", err)
-	}
-	if n == 0 {
-		return nil, nil
-	}
-
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seeking flush file: %w", err)
-	}
-
-	if n == 2 && bytes.Equal(header, []byte{0x1f, 0x8b}) {
-		return f.readFlushFileLegacyGzip(file)
-	}
 
 	return f.readFramedFlushFile(file)
 }
