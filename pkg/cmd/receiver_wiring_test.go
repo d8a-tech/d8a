@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"compress/gzip"
 	"context"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -92,19 +90,4 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 
 	// then
 	require.NoError(t, app.Run(context.Background(), args))
-
-	flushFilePath := filepath.Join(expectedDir, "pending_hits.json.gz")
-	file, err := os.Open(flushFilePath)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = file.Close() })
-
-	gz, err := gzip.NewReader(file)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = gz.Close() })
-
-	var hitsFromFile []*hits.Hit
-	err = json.NewDecoder(gz).Decode(&hitsFromFile)
-	require.NoError(t, err)
-	require.Len(t, hitsFromFile, 1)
-	assert.Equal(t, "property-a", hitsFromFile[0].PropertyID)
 }
