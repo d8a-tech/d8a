@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,10 +34,48 @@ func (p *FilesystemDirectoryPublisher) Publish(task *Task) error {
 	if err != nil {
 		return fmt.Errorf("failed to serialize task: %w", err)
 	}
-	filename := fmt.Sprintf("%d.task", time.Now().UnixNano())
-	path := filepath.Join(p.dir, filename)
-	if err := os.WriteFile(path, data, 0o600); err != nil {
-		return fmt.Errorf("failed to write task file: %w", err)
+	timestamp := time.Now().UnixNano()
+	tmpFilename := fmt.Sprintf("%d.tmp", timestamp)
+	taskFilename := fmt.Sprintf("%d.task", timestamp)
+	tmpPath := filepath.Join(p.dir, tmpFilename)
+	taskPath := filepath.Join(p.dir, taskFilename)
+
+	//nolint:gosec // path is constructed from controlled directory
+	file, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return fmt.Errorf("failed to open temp task file: %w", err)
+	}
+
+	cleanupTmpFile := func() {
+		if removeErr := os.Remove(tmpPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			logrus.Warnf("failed to remove temp task file %s: %v", tmpFilename, removeErr)
+		}
+	}
+
+	if _, err := file.Write(data); err != nil {
+		if closeErr := file.Close(); closeErr != nil {
+			logrus.Warnf("failed to close temp task file %s: %v", tmpFilename, closeErr)
+		}
+		cleanupTmpFile()
+		return fmt.Errorf("failed to write temp task file: %w", err)
+	}
+
+	if err := file.Sync(); err != nil {
+		if closeErr := file.Close(); closeErr != nil {
+			logrus.Warnf("failed to close temp task file %s: %v", tmpFilename, closeErr)
+		}
+		cleanupTmpFile()
+		return fmt.Errorf("failed to sync temp task file: %w", err)
+	}
+
+	if err := file.Close(); err != nil {
+		cleanupTmpFile()
+		return fmt.Errorf("failed to close temp task file: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, taskPath); err != nil {
+		cleanupTmpFile()
+		return fmt.Errorf("failed to rename temp task file: %w", err)
 	}
 	return nil
 }
