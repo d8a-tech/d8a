@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"strings"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 )
@@ -121,12 +120,5 @@ func (r *staticDriverRegistry) Close() error {
 func NewStaticDriverRegistry(driver Driver) Registry {
 	return &staticDriverRegistry{
 		driver: driver,
-	}
-}
-
-// NewStaticBatchedDriverRegistry creates a new static driver registry that always returns the same driver.
-func NewStaticBatchedDriverRegistry(ctx context.Context, driver Driver) Registry {
-	return &staticDriverRegistry{
-		driver: NewBatchingDriver(ctx, driver, 5000, 1*time.Second),
 	}
 }
