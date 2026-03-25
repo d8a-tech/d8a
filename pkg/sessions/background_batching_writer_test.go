@@ -4,22 +4,87 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// --- test doubles ---
+
+type mockSpoolWriter struct {
+	mu         sync.Mutex
+	calls      []spoolWriteCall
+	writeErr   error
+	closeCalls int
+}
+
+type spoolWriteCall struct {
+	propID  string
+	payload []byte
+}
+
+func (m *mockSpoolWriter) Write(propID string, payload []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, spoolWriteCall{propID: propID, payload: append([]byte(nil), payload...)})
+	return m.writeErr
+}
+
+func (m *mockSpoolWriter) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.closeCalls++
+	return nil
+}
+
+func (m *mockSpoolWriter) getCalls() []spoolWriteCall {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]spoolWriteCall, len(m.calls))
+	copy(out, m.calls)
+	return out
+}
+
+func (m *mockSpoolWriter) getCloseCalls() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.closeCalls
+}
+
+type mockSpoolFailureStrategy struct {
+	mu    sync.Mutex
+	paths []string
+	err   error
+}
+
+func (m *mockSpoolFailureStrategy) OnExceededFailures(spoolPath string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.paths = append(m.paths, spoolPath)
+	return m.err
+}
+
+func (m *mockSpoolFailureStrategy) getPaths() []string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]string, len(m.paths))
+	copy(out, m.paths)
+	return out
+}
+
 // countingMockSessionWriter is a mock that fails a specific number of times before succeeding.
 // If failCount is negative, it always fails.
 type countingMockSessionWriter struct {
+	mu              sync.Mutex
 	writeCalls      [][]*schema.Session
 	failCount       int
 	currentFailures int
@@ -27,12 +92,22 @@ type countingMockSessionWriter struct {
 }
 
 func (m *countingMockSessionWriter) Write(sessions ...*schema.Session) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.writeCalls = append(m.writeCalls, sessions)
 	if m.alwaysFail || (m.failCount >= 0 && m.currentFailures < m.failCount) {
 		m.currentFailures++
 		return assert.AnError
 	}
 	return nil
+}
+
+func (m *countingMockSessionWriter) getWriteCalls() [][]*schema.Session {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([][]*schema.Session, len(m.writeCalls))
+	copy(out, m.writeCalls)
+	return out
 }
 
 // newTestSession creates a test session with a given property ID.
@@ -44,498 +119,643 @@ func newTestSession(propertyID string) *schema.Session {
 	return schema.NewSession([]*schema.Event{event})
 }
 
-func TestLvl1BatchesPerPropertyAndFlushesOnCount(t *testing.T) {
+// --- tests ---
+
+func TestWriteDelegatesToSpoolWriter(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
 
 	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
 		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(3),
-		WithLvl1MaxAge(10*time.Second), // Long enough to not trigger
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(10*time.Second), // Long enough to not trigger
-	)
-	require.NoError(t, err)
-	defer cleanup()
-
-	// when
-	// Write 5 sessions for property1 (should trigger flush at 3, then 2 remain)
-	sessions1 := []*schema.Session{
-		newTestSession("prop1"),
-		newTestSession("prop1"),
-		newTestSession("prop1"),
-	}
-	err = writer.Write(sessions1...)
-	require.NoError(t, err)
-
-	// Write 2 more (should trigger another flush)
-	sessions2 := []*schema.Session{
-		newTestSession("prop1"),
-		newTestSession("prop1"),
-	}
-	err = writer.Write(sessions2...)
-	require.NoError(t, err)
-
-	// Wait for spool file to exist and have content
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		fileInfo, err := os.Stat(spoolPath)
-		if err != nil {
-			return false
-		}
-		return fileInfo.Size() > 0
-	}, 500*time.Millisecond, 10*time.Millisecond, "spool file should contain data")
-}
-
-func TestLvl1FlushesOnAge(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1000), // High enough to not trigger
-		WithLvl1MaxAge(100*time.Millisecond),
-		WithLvl1SweepInterval(50*time.Millisecond),
-		WithLvl2FlushInterval(10*time.Second), // Long enough to not trigger
-	)
-	require.NoError(t, err)
-	defer cleanup()
-
-	// when
-	session := newTestSession("prop1")
-	err = writer.Write(session)
-	require.NoError(t, err)
-
-	// then
-	// Wait for age-based flush
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		fileInfo, err := os.Stat(spoolPath)
-		if err != nil {
-			return false
-		}
-		return fileInfo.Size() > 0
-	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should be created and contain data")
-}
-
-func TestLvl2FlushCallsChildWriterPerProperty(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1), // Flush immediately
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(200*time.Millisecond), // Short interval for testing
-	)
-	require.NoError(t, err)
-	defer cleanup()
-
-	// when
-	// Write sessions for two different properties
-	sessions1 := []*schema.Session{newTestSession("prop1")}
-	err = writer.Write(sessions1...)
-	require.NoError(t, err)
-
-	sessions2 := []*schema.Session{newTestSession("prop2")}
-	err = writer.Write(sessions2...)
-	require.NoError(t, err)
-
-	// then
-	// Wait for child writer to be called twice (once per property)
-	assert.Eventually(t, func() bool {
-		return len(mockWriter.writeCalls) >= 2
-	}, 500*time.Millisecond, 10*time.Millisecond, "child writer should be called at least twice")
-
-	// Verify each call contains sessions for only one property
-	propertyIDs := make(map[string]bool)
-	for _, call := range mockWriter.writeCalls {
-		require.Greater(t, len(call.sessions), 0, "each call should have at least one session")
-		propID := call.sessions[0].PropertyID
-		for _, sess := range call.sessions {
-			assert.Equal(t, propID, sess.PropertyID, "all sessions in a call should have the same property ID")
-		}
-		propertyIDs[propID] = true
-	}
-
-	assert.True(t, propertyIDs["prop1"], "prop1 should be flushed")
-	assert.True(t, propertyIDs["prop2"], "prop2 should be flushed")
-
-	// Spool files should be removed after successful flush
-	spoolPath1 := filepath.Join(tmpDir, "property_prop1.spool")
-	spoolPath2 := filepath.Join(tmpDir, "property_prop2.spool")
-	_, err1 := os.Stat(spoolPath1)
-	_, err2 := os.Stat(spoolPath2)
-	assert.True(t, os.IsNotExist(err1), "prop1 spool file should be removed after flush")
-	assert.True(t, os.IsNotExist(err2), "prop2 spool file should be removed after flush")
-}
-
-func TestLvl2FlushKeepsSpoolOnError(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{
-		writeError: assert.AnError, // Simulate error
-	}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1), // Flush immediately
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(200*time.Millisecond),
-	)
-	require.NoError(t, err)
-	defer cleanup()
-
-	// when
-	session := newTestSession("prop1")
-	err = writer.Write(session)
-	require.NoError(t, err)
-
-	// then
-	// Wait for spool file to exist after lvl1 flush
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return err == nil
-	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
-
-	// Wait for lvl2 flush interval to pass (200ms) plus some buffer
-	// The file should still exist since child writer always errors
-	assert.Eventually(t, func() bool {
-		// File should still exist after flush attempt
-		_, err := os.Stat(spoolPath)
-		return err == nil
-	}, 400*time.Millisecond, 10*time.Millisecond, "spool file should be kept on child writer error")
-}
-
-func TestCleanupFlushesLvl1ToLvl2AndStops(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1000), // High enough to not auto-flush
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(10*time.Second), // Long enough to not auto-flush
-	)
-	require.NoError(t, err)
-
-	// Write some sessions (will stay in lvl1)
-	sessions1 := []*schema.Session{
-		newTestSession("prop1"),
-		newTestSession("prop1"),
-	}
-	err = writer.Write(sessions1...)
-	require.NoError(t, err)
-
-	// Give the actor time to receive from writeChan and add to lvl1 (Write is fire-and-forget)
-	time.Sleep(100 * time.Millisecond)
-
-	// when
-	// Call cleanup (should flush lvl1 to lvl2, but NOT lvl2 to child)
-	cleanup()
-
-	// then
-	// Child writer should NOT be called during cleanup (we don't flush lvl2 to child)
-	assert.Equal(t, 0, len(mockWriter.writeCalls), "child writer should not be called during cleanup")
-
-	// Spool file should exist (lvl1 was flushed to lvl2)
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		fileInfo, err := os.Stat(spoolPath)
-		if err != nil {
-			return false
-		}
-		return fileInfo.Size() > 0
-	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should exist with lvl1 data flushed to lvl2")
-}
-
-func TestFramedRecordFormat(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1), // Flush immediately
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(200*time.Millisecond),
-	)
-	require.NoError(t, err)
-	defer cleanup()
-
-	// when
-	session := newTestSession("prop1")
-	err = writer.Write(session)
-	require.NoError(t, err)
-
-	// Wait for lvl1 flush and read spool file
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	var file *os.File
-	assert.Eventually(t, func() bool {
-		var err error
-		file, err = os.Open(spoolPath)
-		return err == nil
-	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should exist")
-	require.NoError(t, err)
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logrus.Errorf("failed to close test file: %v", closeErr)
-		}
-	}()
-
-	// Read header
-	header := make([]byte, 4)
-	n, err := file.Read(header)
-	require.NoError(t, err)
-	require.Equal(t, 4, n, "should read 4-byte header")
-
-	payloadLen := binary.LittleEndian.Uint32(header)
-
-	// Read payload
-	payload := make([]byte, payloadLen)
-	n, err = file.Read(payload)
-	require.NoError(t, err)
-	require.Equal(t, int(payloadLen), n, "should read full payload")
-
-	// Decode and verify
-	var decodedSessions []*schema.Session
-	err = encoding.GobDecoder(bytes.NewReader(payload), &decodedSessions)
-	require.NoError(t, err)
-	require.Len(t, decodedSessions, 1, "should decode one session")
-	assert.Equal(t, "prop1", decodedSessions[0].PropertyID, "decoded session should have correct property ID")
-}
-
-func TestMultiplePropertiesIndependentBatching(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	mockWriter := &mockSessionWriter{}
-	ctx := context.Background()
-
-	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
-		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(3),
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
 		WithLvl2FlushInterval(10*time.Second),
 	)
 	require.NoError(t, err)
 	defer cleanup()
 
 	// when
-	// Write 2 sessions for prop1 (should not flush)
-	sessions1 := []*schema.Session{
-		newTestSession("prop1"),
-		newTestSession("prop1"),
-	}
-	err = writer.Write(sessions1...)
-	require.NoError(t, err)
-
-	// Write 3 sessions for prop2 (should flush)
-	sessions2 := []*schema.Session{
-		newTestSession("prop2"),
-		newTestSession("prop2"),
-		newTestSession("prop2"),
-	}
-	err = writer.Write(sessions2...)
-	require.NoError(t, err)
+	sess1 := newTestSession("prop1")
+	sess2 := newTestSession("prop2")
+	err = writer.Write(sess1, sess2)
 
 	// then
-	// prop2 spool file should exist (flushed)
-	spoolPath2 := filepath.Join(tmpDir, "property_prop2.spool")
-	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath2)
-		return err == nil
-	}, 200*time.Millisecond, 10*time.Millisecond, "prop2 spool file should exist")
+	require.NoError(t, err)
 
-	// prop1 spool file should not exist yet (not flushed)
-	spoolPath1 := filepath.Join(tmpDir, "property_prop1.spool")
-	_, err = os.Stat(spoolPath1)
-	assert.True(t, os.IsNotExist(err), "prop1 spool file should not exist yet")
+	calls := sw.getCalls()
+	require.Len(t, calls, 2, "should delegate one call per property")
+
+	propIDs := map[string]bool{}
+	for _, c := range calls {
+		propIDs[c.propID] = true
+		assert.NotEmpty(t, c.payload, "payload should not be empty")
+	}
+	assert.True(t, propIDs["prop1"], "should have prop1 call")
+	assert.True(t, propIDs["prop2"], "should have prop2 call")
 }
 
-func TestSpoolDiscardAfterThreshold(t *testing.T) {
-	// given
-	testCases := []struct {
-		name            string
-		threshold       int
-		failCount       int
-		waitTime        time.Duration
-		expectDiscarded bool
-		expectCalls     int
-	}{
-		{
-			name:            "discard after threshold reached",
-			threshold:       2,
-			failCount:       3,                      // Fail more than threshold
-			waitTime:        500 * time.Millisecond, // Enough for 2+ flush attempts
-			expectDiscarded: true,
-			expectCalls:     2, // Should be called threshold times before discard
-		},
-		{
-			name:            "keep spool when failures below threshold",
-			threshold:       5,                      // Higher threshold
-			failCount:       -1,                     // Always fail (negative means always fail)
-			waitTime:        120 * time.Millisecond, // Only wait for ~2 attempts (below threshold of 5)
-			expectDiscarded: false,
-			expectCalls:     2, // Should be called at least 2 times but below threshold
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			tmpDir := t.TempDir()
-			mockWriter := &countingMockSessionWriter{
-				failCount:  tc.failCount,
-				alwaysFail: tc.failCount < 0,
-			}
-			ctx := context.Background()
-
-			writer, cleanup, err := NewBackgroundBatchingWriter(
-				ctx,
-				mockWriter,
-				WithSpoolDir(tmpDir),
-				WithLvl1MaxSessions(1), // Flush immediately
-				WithLvl1MaxAge(10*time.Second),
-				WithLvl1SweepInterval(100*time.Millisecond),
-				WithLvl2FlushInterval(50*time.Millisecond), // Fast retries
-				WithMaxConsecutiveChildWriteFailures(tc.threshold),
-			)
-			require.NoError(t, err)
-			defer cleanup()
-
-			// when
-			session := newTestSession("prop1")
-			err = writer.Write(session)
-			require.NoError(t, err)
-
-			// Wait for lvl1 flush to disk
-			spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-			require.Eventually(t, func() bool {
-				_, err := os.Stat(spoolPath)
-				return err == nil
-			}, 200*time.Millisecond, 10*time.Millisecond,
-				"spool file should exist after lvl1 flush")
-
-			// then
-			if tc.expectDiscarded {
-				// Wait for spool file to be discarded
-				assert.Eventually(t, func() bool {
-					_, err := os.Stat(spoolPath)
-					return os.IsNotExist(err)
-				}, tc.waitTime, 10*time.Millisecond, "spool file should be discarded after threshold")
-				assert.GreaterOrEqual(t, len(mockWriter.writeCalls), tc.expectCalls,
-					"child writer should be called at least threshold times")
-			} else {
-				// Wait a bit for flush attempts, but file should still exist
-				time.Sleep(tc.waitTime)
-				_, err = os.Stat(spoolPath)
-				assert.NoError(t, err, "spool file should still exist when failures below threshold")
-				assert.GreaterOrEqual(t, len(mockWriter.writeCalls), tc.expectCalls, "child writer should be called")
-			}
-		})
-	}
-}
-
-func TestSpoolFailureCounterResetOnSuccess(t *testing.T) {
+func TestWriteReturnsSpoolWriterError(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
-	// Mock that fails once, then succeeds
-	mockWriter := &countingMockSessionWriter{
-		failCount: 1, // Fail once, then succeed
-	}
-	ctx := context.Background()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{writeErr: fmt.Errorf("disk full")}
+	fs := &mockSpoolFailureStrategy{}
 
 	writer, cleanup, err := NewBackgroundBatchingWriter(
-		ctx,
-		mockWriter,
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
 		WithSpoolDir(tmpDir),
-		WithLvl1MaxSessions(1), // Flush immediately
-		WithLvl1MaxAge(10*time.Second),
-		WithLvl1SweepInterval(100*time.Millisecond),
-		WithLvl2FlushInterval(200*time.Millisecond), // Longer interval to control timing
-		WithMaxConsecutiveChildWriteFailures(2),     // Threshold higher than failCount
+		WithLvl2FlushInterval(10*time.Second),
 	)
 	require.NoError(t, err)
 	defer cleanup()
 
 	// when
-	session := newTestSession("prop1")
-	err = writer.Write(session)
-	require.NoError(t, err)
-
-	// Wait for lvl1 flush to disk
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return err == nil
-	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
-
-	// Wait for first lvl2 flush attempt (will fail)
-	assert.Eventually(t, func() bool {
-		return len(mockWriter.writeCalls) >= 1
-	}, 300*time.Millisecond, 10*time.Millisecond, "child writer should be called once (first failure)")
-
-	// Verify spool file still exists after first failure
-	_, err = os.Stat(spoolPath)
-	require.NoError(t, err, "spool file should exist after first failure")
-
-	// Wait for second lvl2 flush attempt (will succeed, resetting counter)
-	assert.Eventually(t, func() bool {
-		return len(mockWriter.writeCalls) >= 2
-	}, 300*time.Millisecond, 10*time.Millisecond, "child writer should be called twice")
+	err = writer.Write(newTestSession("prop1"))
 
 	// then
-	// Spool file should be removed after successful flush
+	assert.Error(t, err, "should return spool writer error")
+	assert.Contains(t, err.Error(), "disk full")
+}
+
+func TestNewBackgroundBatchingWriterRejectsNilDependencies(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	fs := &mockSpoolFailureStrategy{}
+	sw := &mockSpoolWriter{}
+
+	// when
+	_, _, errNilSpoolWriter := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		nil,
+		fs,
+		WithSpoolDir(tmpDir),
+	)
+
+	_, _, errNilFailureStrategy := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		nil,
+		WithSpoolDir(tmpDir),
+	)
+
+	// then
+	require.Error(t, errNilSpoolWriter)
+	assert.Contains(t, errNilSpoolWriter.Error(), "spool writer is required")
+	require.Error(t, errNilFailureStrategy)
+	assert.Contains(t, errNilFailureStrategy.Error(), "spool failure strategy is required")
+}
+
+func TestWriteRejectsAfterCleanup(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+	)
+	require.NoError(t, err)
+
+	cleanup()
+
+	// when
+	err = writer.Write(newTestSession("prop1"))
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "writer is stopped")
+	assert.Len(t, sw.getCalls(), 0)
+}
+
+func TestDirectSpoolWriterSyncsAndFrameFormat(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, err = encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, err)
+	payload := encodedBuf.Bytes()
+
+	// when
+	err = sw.Write("prop1", payload)
+
+	// then
+	require.NoError(t, err)
+
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	data, err := os.ReadFile(spoolPath)
+	require.NoError(t, err)
+
+	// Verify framed record format: 4-byte LE length + payload
+	require.True(t, len(data) >= 4, "should have at least 4-byte header")
+	payloadLen := binary.LittleEndian.Uint32(data[:4])
+	assert.Equal(t, uint32(len(payload)), payloadLen, "header should match payload length")
+	assert.Equal(t, payload, data[4:], "payload on disk should match written payload")
+
+	// Verify it decodes back correctly
+	var decoded []*schema.Session
+	err = encoding.GobDecoder(bytes.NewReader(data[4:]), &decoded)
+	require.NoError(t, err)
+	require.Len(t, decoded, 1)
+	assert.Equal(t, "prop1", decoded[0].PropertyID)
+}
+
+func TestDirectSpoolWriterRejectsWriteAfterClose(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+
+	require.NoError(t, sw.Close())
+
+	// when
+	err = sw.Write("prop1", []byte("payload"))
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "direct spool writer is stopped")
+}
+
+func TestDirectSpoolWriterPreservesFileOnChildFailure(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	fs := &mockSpoolFailureStrategy{}
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(50*time.Millisecond),
+		WithMaxConsecutiveChildWriteFailures(100), // High threshold so file persists
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when -- write session via direct spool
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, err = encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, err)
+	err = sw.Write("prop1", encodedBuf.Bytes())
+	require.NoError(t, err)
+
+	// then -- wait for at least one lvl2 flush attempt
+	assert.Eventually(t, func() bool {
+		return len(childWriter.getWriteCalls()) >= 1
+	}, 300*time.Millisecond, 10*time.Millisecond, "child writer should be called at least once")
+
+	// Spool file should still exist (child failed)
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	_, statErr := os.Stat(spoolPath)
+	assert.NoError(t, statErr, "spool file should still exist after child failure")
+
+	// File should be readable
+	data, readErr := os.ReadFile(spoolPath)
+	require.NoError(t, readErr)
+	assert.True(t, len(data) > 4, "spool file should contain framed record data")
+
+	// Verify sessions can be decoded from the file
+	_ = writer // keep reference
+}
+
+func TestQuarantineStrategyOnRepeatedFailures(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	fs := NewQuarantineSpoolStrategy()
+
+	_, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(50*time.Millisecond),
+		WithMaxConsecutiveChildWriteFailures(2),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when -- write session via direct spool
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, encErr := encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, encErr)
+	err = sw.Write("prop1", encodedBuf.Bytes())
+	require.NoError(t, err)
+
+	// then -- spool file should be quarantined (renamed), not deleted
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	quarantinePath := spoolPath + ".quarantine"
+
+	assert.Eventually(t, func() bool {
+		_, err := os.Stat(quarantinePath)
+		return err == nil
+	}, 500*time.Millisecond, 10*time.Millisecond, "quarantine file should exist")
+
+	_, err = os.Stat(spoolPath)
+	assert.True(t, os.IsNotExist(err), "original spool file should not exist")
+
+	// Quarantined file should be readable
+	data, err := os.ReadFile(quarantinePath)
+	require.NoError(t, err)
+	assert.True(t, len(data) > 4, "quarantined file should contain data")
+}
+
+func TestDeleteStrategyOnRepeatedFailures(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+
+	sw, err := NewBufferedSpoolWriter(tmpDir, 100,
+		WithBufferedLvl1MaxSessions(1),
+		WithBufferedLvl1MaxAge(10*time.Second),
+		WithBufferedLvl1SweepInterval(50*time.Millisecond),
+	)
+	require.NoError(t, err)
+	fs := NewDeleteSpoolStrategy()
+
+	_, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(50*time.Millisecond),
+		WithMaxConsecutiveChildWriteFailures(2),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when -- write session via buffered spool
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, encErr := encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, encErr)
+	err = sw.Write("prop1", encodedBuf.Bytes())
+	require.NoError(t, err)
+
+	// then -- wait for spool file to appear on disk (buffered flush)
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(spoolPath)
+		return err == nil
+	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
+
+	// Wait for spool file to be deleted (delete strategy)
 	assert.Eventually(t, func() bool {
 		_, err := os.Stat(spoolPath)
 		return os.IsNotExist(err)
-	}, 100*time.Millisecond, 10*time.Millisecond, "spool file should be removed after successful flush")
+	}, 500*time.Millisecond, 10*time.Millisecond, "spool file should be deleted after threshold")
 
-	// Write another session to verify counter was reset (should succeed immediately)
-	session2 := newTestSession("prop1")
-	err = writer.Write(session2)
+	// No quarantine file should exist
+	quarantinePath := spoolPath + ".quarantine"
+	_, err = os.Stat(quarantinePath)
+	assert.True(t, os.IsNotExist(err), "quarantine file should not exist with delete strategy")
+}
+
+func TestPreExistingSpoolFileIsReplayedOnLvl2Tick(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
+
+	// Pre-create a spool file with valid framed record
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, err := encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, err)
+	payload := encodedBuf.Bytes()
+
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	header := make([]byte, 4, 4+len(payload))
+	binary.LittleEndian.PutUint32(header, uint32(len(payload)))
+	err = os.WriteFile(spoolPath, append(header, payload...), 0o644)
 	require.NoError(t, err)
 
-	// Wait for lvl1 flush
-	spoolPath2 := filepath.Join(tmpDir, "property_prop1.spool")
-	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath2)
-		return err == nil
-	}, 200*time.Millisecond, 10*time.Millisecond, "new spool file should exist after lvl1 flush")
+	// when
+	_, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(50*time.Millisecond),
+	)
+	require.NoError(t, err)
+	defer cleanup()
 
-	// Wait for lvl2 flush (should succeed immediately since counter was reset)
+	// then -- child writer should be called with the pre-existing sessions
 	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath2)
+		calls := childWriter.getWriteCalls()
+		return len(calls) >= 1
+	}, 300*time.Millisecond, 10*time.Millisecond, "child writer should be called for pre-existing spool")
+
+	calls := childWriter.getWriteCalls()
+	require.GreaterOrEqual(t, len(calls), 1)
+	require.Len(t, calls[0], 1)
+	assert.Equal(t, "prop1", calls[0][0].PropertyID)
+
+	// Spool file should be removed after success
+	assert.Eventually(t, func() bool {
+		_, err := os.Stat(spoolPath)
 		return os.IsNotExist(err)
-	}, 300*time.Millisecond, 10*time.Millisecond, "new spool file should be removed immediately after successful flush")
+	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should be removed after successful flush")
+}
+
+func TestCleanupCallsSpoolWriterCloseAndDoesNotFlushLvl2(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
+
+	// Pre-create a spool file
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, err := encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, err)
+	payload := encodedBuf.Bytes()
+
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	header := make([]byte, 4, 4+len(payload))
+	binary.LittleEndian.PutUint32(header, uint32(len(payload)))
+	err = os.WriteFile(spoolPath, append(header, payload...), 0o644)
+	require.NoError(t, err)
+
+	_, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(10*time.Second), // Long interval so it doesn't trigger
+	)
+	require.NoError(t, err)
+
+	// when
+	cleanup()
+
+	// then
+	// SpoolWriter.Close() should be called
+	assert.Equal(t, 1, sw.getCloseCalls(), "spool writer Close should be called once")
+
+	// Child writer should NOT be called during cleanup
+	assert.Equal(t, 0, len(childWriter.getWriteCalls()), "child writer should not be called during cleanup")
+
+	// Spool file should still exist (no lvl2 flush to child on stop)
+	_, err = os.Stat(spoolPath)
+	assert.NoError(t, err, "spool file should still exist after cleanup")
+}
+
+func TestBufferedSpoolWriterFlushesToDiskOnCount(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewBufferedSpoolWriter(tmpDir, 100,
+		WithBufferedLvl1MaxSessions(2),
+		WithBufferedLvl1MaxAge(10*time.Second),
+		WithBufferedLvl1SweepInterval(50*time.Millisecond),
+	)
+	require.NoError(t, err)
+	defer func() { _ = sw.Close() }()
+
+	payload1 := []byte("payload1")
+	payload2 := []byte("payload2")
+
+	// when
+	err = sw.Write("prop1", payload1)
+	require.NoError(t, err)
+	err = sw.Write("prop1", payload2)
+	require.NoError(t, err)
+
+	// then -- spool file should exist on disk with both records
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	assert.Eventually(t, func() bool {
+		info, err := os.Stat(spoolPath)
+		if err != nil {
+			return false
+		}
+		return info.Size() > 0
+	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should exist after count flush")
+
+	// Verify framed records
+	data, err := os.ReadFile(spoolPath)
+	require.NoError(t, err)
+
+	// First record
+	require.True(t, len(data) >= 4)
+	len1 := binary.LittleEndian.Uint32(data[:4])
+	assert.Equal(t, uint32(len(payload1)), len1)
+	assert.Equal(t, payload1, data[4:4+len1])
+
+	// Second record
+	offset := 4 + len1
+	require.True(t, uint32(len(data)) >= offset+4)
+	len2 := binary.LittleEndian.Uint32(data[offset : offset+4])
+	assert.Equal(t, uint32(len(payload2)), len2)
+	assert.Equal(t, payload2, data[offset+4:offset+4+len2])
+}
+
+func TestBufferedSpoolWriterFlushesOnClose(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewBufferedSpoolWriter(tmpDir, 100,
+		WithBufferedLvl1MaxSessions(1000), // High threshold
+		WithBufferedLvl1MaxAge(10*time.Second),
+		WithBufferedLvl1SweepInterval(10*time.Second),
+	)
+	require.NoError(t, err)
+
+	payload := []byte("test-payload")
+	err = sw.Write("prop1", payload)
+	require.NoError(t, err)
+
+	// when
+	err = sw.Close()
+	require.NoError(t, err)
+
+	// then -- spool file should exist (flushed on close)
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	data, err := os.ReadFile(spoolPath)
+	require.NoError(t, err)
+	require.True(t, len(data) >= 4)
+	payloadLen := binary.LittleEndian.Uint32(data[:4])
+	assert.Equal(t, uint32(len(payload)), payloadLen)
+	assert.Equal(t, payload, data[4:4+payloadLen])
+}
+
+func TestBufferedSpoolWriterRejectsWriteAfterClose(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewBufferedSpoolWriter(tmpDir, 1)
+	require.NoError(t, err)
+
+	require.NoError(t, sw.Close())
+
+	// when
+	err = sw.Write("prop1", []byte("payload"))
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "buffered spool writer is stopped")
+}
+
+func TestLvl2FlushCallsChildWriterPerProperty(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &mockSessionWriter{}
+	sw, err := NewBufferedSpoolWriter(tmpDir, 100,
+		WithBufferedLvl1MaxSessions(1),
+		WithBufferedLvl1MaxAge(10*time.Second),
+		WithBufferedLvl1SweepInterval(50*time.Millisecond),
+	)
+	require.NoError(t, err)
+	fs := NewDeleteSpoolStrategy()
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(200*time.Millisecond),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when
+	err = writer.Write(newTestSession("prop1"))
+	require.NoError(t, err)
+	err = writer.Write(newTestSession("prop2"))
+	require.NoError(t, err)
+
+	// then
+	assert.Eventually(t, func() bool {
+		return len(childWriter.writeCalls) >= 2
+	}, 800*time.Millisecond, 10*time.Millisecond, "child writer should be called at least twice")
+
+	propertyIDs := make(map[string]bool)
+	for _, call := range childWriter.writeCalls {
+		require.Greater(t, len(call.sessions), 0)
+		propID := call.sessions[0].PropertyID
+		for _, sess := range call.sessions {
+			assert.Equal(t, propID, sess.PropertyID)
+		}
+		propertyIDs[propID] = true
+	}
+
+	assert.True(t, propertyIDs["prop1"])
+	assert.True(t, propertyIDs["prop2"])
+}
+
+func TestSpoolFailureCounterResetOnSuccess(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{failCount: 1}
+	sw, err := NewBufferedSpoolWriter(tmpDir, 100,
+		WithBufferedLvl1MaxSessions(1),
+		WithBufferedLvl1MaxAge(10*time.Second),
+		WithBufferedLvl1SweepInterval(50*time.Millisecond),
+	)
+	require.NoError(t, err)
+	fs := NewDeleteSpoolStrategy()
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(100*time.Millisecond),
+		WithMaxConsecutiveChildWriteFailures(3),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when
+	err = writer.Write(newTestSession("prop1"))
+	require.NoError(t, err)
+
+	// then -- wait for spool file to appear on disk first
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(spoolPath)
+		return err == nil
+	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
+
+	// Wait for first failure and second success; file should be removed
+	assert.Eventually(t, func() bool {
+		_, err := os.Stat(spoolPath)
+		return os.IsNotExist(err)
+	}, 1*time.Second, 10*time.Millisecond, "spool file should be removed after successful retry")
+
+	calls := childWriter.getWriteCalls()
+	assert.GreaterOrEqual(t, len(calls), 2, "should have at least 2 calls (1 fail + 1 success)")
+}
+
+func TestFailureCounterNotResetWhenFailureStrategyFails(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+
+	fs := &mockSpoolFailureStrategy{err: fmt.Errorf("rename failed")}
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(50*time.Millisecond),
+		WithMaxConsecutiveChildWriteFailures(2),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when
+	err = writer.Write(newTestSession("prop1"))
+	require.NoError(t, err)
+
+	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	require.Eventually(t, func() bool {
+		_, statErr := os.Stat(spoolPath)
+		return statErr == nil
+	}, 300*time.Millisecond, 10*time.Millisecond)
+
+	// then
+	assert.Eventually(t, func() bool {
+		return len(fs.getPaths()) >= 2
+	}, 400*time.Millisecond, 10*time.Millisecond, "failure strategy should be retried on subsequent ticks")
+
+	_, statErr := os.Stat(spoolPath)
+	assert.NoError(t, statErr, "spool file should remain when failure strategy fails")
 }

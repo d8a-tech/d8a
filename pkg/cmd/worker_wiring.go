@@ -92,11 +92,39 @@ func buildWorkerRuntime(
 		splitterRegistry,
 	)
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
+		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
+
+		var sw sessions.SpoolWriter
+		var fs sessions.SpoolFailureStrategy
+
+		mode := cmd.String(deliveryModeFlag.Name)
+		if mode == "at_least_once" {
+			dsw, err := sessions.NewDirectSpoolWriter(spoolDir)
+			if err != nil {
+				cleanup()
+				return nil, fmt.Errorf("create direct spool writer: %w", err)
+			}
+			sw = dsw
+			fs = sessions.NewQuarantineSpoolStrategy()
+		} else {
+			bsw, err := sessions.NewBufferedSpoolWriter(
+				spoolDir,
+				cmd.Int(storageSpoolWriteChanBufferFlag.Name),
+			)
+			if err != nil {
+				cleanup()
+				return nil, fmt.Errorf("create buffered spool writer: %w", err)
+			}
+			sw = bsw
+			fs = sessions.NewDeleteSpoolStrategy()
+		}
+
 		batchedWriter, c, err := sessions.NewBackgroundBatchingWriter(
 			ctx,
 			sessionWriter,
-			sessions.WithSpoolDir(filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")),
-			sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
+			sw,
+			fs,
+			sessions.WithSpoolDir(spoolDir),
 		)
 		if err != nil {
 			cleanup()

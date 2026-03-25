@@ -16,49 +16,50 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// backgroundBatchingWriter implements SessionWriter with two-level batching:
-// - Lvl1: per-property in-memory buffer (flushed on age/count)
-// - Lvl2: per-property on-disk spool files (flushed periodically to child writer)
+// backgroundBatchingWriter implements SessionWriter with an injected SpoolWriter
+// for the lvl1-to-lvl2 handoff and periodic lvl2 flushes to a child writer.
 type backgroundBatchingWriter struct {
-	childWriter SessionWriter
+	childWriter     SessionWriter
+	spoolWriter     SpoolWriter
+	failureStrategy SpoolFailureStrategy
 
 	// Configuration
-	lvl1MaxAge                       time.Duration
-	lvl1MaxSessions                  int
-	lvl1SweepInterval                time.Duration
 	lvl2Dir                          string
 	lvl2FlushInterval                time.Duration
 	encoder                          encoding.EncoderFunc
 	decoder                          encoding.DecoderFunc
 	maxConsecutiveChildWriteFailures int
 
-	// Actor pattern: single goroutine owns all state
-	writeChan    chan writeRequest
+	// Actor pattern: single goroutine owns lvl2 state
 	flushChan    chan struct{}
 	stopChan     chan struct{}
 	cleanupDone  chan struct{}
 	actorStopped sync.WaitGroup
 
 	ctx context.Context
+
+	mu        sync.RWMutex
+	closed    bool
+	closeOnce sync.Once
 }
 
-type writeRequest struct {
-	sessions []*schema.Session
-}
-
-// propertyBuffer holds in-memory sessions for a single property.
-type propertyBuffer struct {
-	sessions []*schema.Session
-	firstAdd time.Time
-}
-
-// NewBackgroundBatchingWriter creates a writer that uses spool file to queue the writes.
+// NewBackgroundBatchingWriter creates a writer that uses an injected SpoolWriter
+// for the lvl1-to-lvl2 handoff and a SpoolFailureStrategy for exceeded failures.
 // Returns the writer, a cleanup function (to be deferred), and an error.
 func NewBackgroundBatchingWriter(
 	ctx context.Context,
 	childWriter SessionWriter,
+	sw SpoolWriter,
+	fs SpoolFailureStrategy,
 	opts ...Option,
 ) (SessionWriter, func(), error) {
+	if sw == nil {
+		return nil, nil, fmt.Errorf("spool writer is required")
+	}
+	if fs == nil {
+		return nil, nil, fmt.Errorf("spool failure strategy is required")
+	}
+
 	cfg := defaultConfig()
 	for _, opt := range opts {
 		opt(cfg)
@@ -66,20 +67,18 @@ func NewBackgroundBatchingWriter(
 
 	// Ensure lvl2 directory exists
 	if err := os.MkdirAll(cfg.lvl2Dir, 0o750); err != nil {
-		return nil, nil, fmt.Errorf("failed to create spool directory: %w", err)
+		return nil, nil, fmt.Errorf("creating spool directory: %w", err)
 	}
 
 	w := &backgroundBatchingWriter{
 		childWriter:                      childWriter,
-		lvl1MaxAge:                       cfg.lvl1MaxAge,
-		lvl1MaxSessions:                  cfg.lvl1MaxSessions,
-		lvl1SweepInterval:                cfg.lvl1SweepInterval,
+		spoolWriter:                      sw,
+		failureStrategy:                  fs,
 		lvl2Dir:                          cfg.lvl2Dir,
 		lvl2FlushInterval:                cfg.lvl2FlushInterval,
 		encoder:                          cfg.encoder,
 		decoder:                          cfg.decoder,
 		maxConsecutiveChildWriteFailures: cfg.maxConsecutiveChildWriteFailures,
-		writeChan:                        make(chan writeRequest, cfg.writeChanBuffer),
 		flushChan:                        make(chan struct{}, 1),
 		stopChan:                         make(chan struct{}),
 		cleanupDone:                      make(chan struct{}),
@@ -90,172 +89,82 @@ func NewBackgroundBatchingWriter(
 	go w.actorLoop()
 
 	cleanup := func() {
-		close(w.stopChan)
-		w.actorStopped.Wait()
-		close(w.cleanupDone)
+		w.closeOnce.Do(func() {
+			w.mu.Lock()
+			w.closed = true
+			w.mu.Unlock()
+
+			if err := w.spoolWriter.Close(); err != nil {
+				logrus.Errorf("failed to close spool writer: %v", err)
+			}
+
+			close(w.stopChan)
+			w.actorStopped.Wait()
+			close(w.cleanupDone)
+		})
 	}
 
 	return w, cleanup, nil
 }
 
-// Write implements SessionWriter.
+// Write implements SessionWriter by grouping sessions per property,
+// encoding each group, and delegating to the injected SpoolWriter.
 func (w *backgroundBatchingWriter) Write(sessions ...*schema.Session) error {
+	w.mu.RLock()
+	if w.closed {
+		w.mu.RUnlock()
+		return fmt.Errorf("writer is stopped")
+	}
+	w.mu.RUnlock()
+
 	if len(sessions) == 0 {
 		return nil
 	}
 
-	req := writeRequest{sessions: sessions}
-	select {
-	case w.writeChan <- req:
-		return nil
-	case <-w.ctx.Done():
-		return w.ctx.Err()
-	case <-w.stopChan:
-		return fmt.Errorf("writer is stopped")
+	// Group sessions by property
+	byProperty := make(map[string][]*schema.Session)
+	for _, sess := range sessions {
+		propID := sess.PropertyID
+		if propID == "" {
+			logrus.Warn("session has empty PropertyID, skipping")
+			continue
+		}
+		byProperty[propID] = append(byProperty[propID], sess)
 	}
+
+	// Encode and delegate to spool writer per property
+	for propID, propertySessions := range byProperty {
+		var encodedBuf bytes.Buffer
+		if _, err := w.encoder(&encodedBuf, propertySessions); err != nil {
+			return fmt.Errorf("encoding sessions for property %q: %w", propID, err)
+		}
+
+		if err := w.spoolWriter.Write(propID, encodedBuf.Bytes()); err != nil {
+			return fmt.Errorf("writing to spool for property %q: %w", propID, err)
+		}
+	}
+
+	return nil
 }
 
-// actorLoop runs in a single goroutine and owns all state.
+// actorLoop runs in a single goroutine and owns lvl2 state.
 func (w *backgroundBatchingWriter) actorLoop() {
 	defer w.actorStopped.Done()
 
-	// Per-property lvl1 buffers
-	lvl1Buffers := make(map[string]*propertyBuffer)
-
-	// Consecutive failure counts per spool file path
 	consecutiveFailuresBySpool := make(map[string]int)
 
-	// Lvl1 sweep ticker
-	lvl1Ticker := time.NewTicker(w.lvl1SweepInterval)
-	defer lvl1Ticker.Stop()
-
-	// Lvl2 flush ticker
 	lvl2Ticker := time.NewTicker(w.lvl2FlushInterval)
 	defer lvl2Ticker.Stop()
 
 	for {
 		select {
 		case <-w.stopChan:
-			// Flush lvl1 to lvl2 (in-memory to disk) only
-			// Do not flush lvl2 to child to avoid blocking on external warehouses
-			w.flushLvl1ToLvl2(lvl1Buffers)
+			// Do NOT flush lvl2 to child on stop
 			return
 
-		case req := <-w.writeChan:
-			// Group sessions by property (should already be grouped by DirectCloser, but be safe)
-			byProperty := make(map[string][]*schema.Session)
-			for _, sess := range req.sessions {
-				propID := sess.PropertyID
-				if propID == "" {
-					logrus.Warn("session has empty PropertyID, skipping")
-					continue
-				}
-				byProperty[propID] = append(byProperty[propID], sess)
-			}
-
-			// Add to lvl1 buffers
-			now := time.Now()
-			for propID, sessions := range byProperty {
-				buf, exists := lvl1Buffers[propID]
-				if !exists {
-					buf = &propertyBuffer{
-						sessions: make([]*schema.Session, 0, w.lvl1MaxSessions),
-						firstAdd: now,
-					}
-					lvl1Buffers[propID] = buf
-				}
-				buf.sessions = append(buf.sessions, sessions...)
-
-				// Check if we should flush immediately (count threshold)
-				if len(buf.sessions) >= w.lvl1MaxSessions {
-					w.flushPropertyLvl1ToLvl2(propID, buf)
-					delete(lvl1Buffers, propID)
-				}
-			}
-
-		case <-lvl1Ticker.C:
-			// Sweep: flush buffers that are too old
-			now := time.Now()
-			for propID, buf := range lvl1Buffers {
-				if now.Sub(buf.firstAdd) >= w.lvl1MaxAge {
-					w.flushPropertyLvl1ToLvl2(propID, buf)
-					delete(lvl1Buffers, propID)
-				}
-			}
-
 		case <-lvl2Ticker.C:
-			// Periodic flush of lvl2 to child writer
 			w.flushLvl2ToChild(consecutiveFailuresBySpool)
 		}
-	}
-}
-
-// flushPropertyLvl1ToLvl2 flushes a single property's lvl1 buffer to lvl2 spool file.
-func (w *backgroundBatchingWriter) flushPropertyLvl1ToLvl2(propID string, buf *propertyBuffer) {
-	if len(buf.sessions) == 0 {
-		return
-	}
-
-	// Encode sessions to memory buffer
-	var encodedBuf bytes.Buffer
-	_, err := w.encoder(&encodedBuf, buf.sessions)
-	if err != nil {
-		logrus.Errorf("failed to encode sessions for property %q: %v", propID, err)
-		return
-	}
-
-	payload := encodedBuf.Bytes()
-	const maxUint32 = 0xFFFFFFFF
-	if len(payload) > maxUint32 {
-		logrus.Errorf("payload too large for property %q: %d bytes", propID, len(payload))
-		return
-	}
-	payloadLen := uint32(len(payload)) //nolint:gosec // checked above
-
-	// Get spool file path
-	spoolPath := filepath.Join(w.lvl2Dir, fmt.Sprintf("property_%s.spool", propID))
-
-	// Open file for append
-	//nolint:gosec // path is constructed from property ID
-	file, err := os.OpenFile(
-		filepath.Clean(spoolPath),
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
-		0o644,
-	)
-	if err != nil {
-		logrus.Errorf("failed to open spool file for property %q: %v", propID, err)
-		return
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logrus.Errorf("failed to close spool file for property %q: %v", propID, closeErr)
-		}
-	}()
-
-	// Write header (4 bytes: payload length)
-	header := make([]byte, 4)
-	binary.LittleEndian.PutUint32(header, payloadLen)
-	if _, err := file.Write(header); err != nil {
-		logrus.Errorf("failed to write header to spool file for property %q: %v", propID, err)
-		return
-	}
-
-	// Write payload
-	if _, err := file.Write(payload); err != nil {
-		logrus.Errorf("failed to write payload to spool file for property %q: %v", propID, err)
-		return
-	}
-
-	// Sync to ensure durability
-	if err := file.Sync(); err != nil {
-		logrus.Errorf("failed to sync spool file for property %q: %v", propID, err)
-	}
-}
-
-// flushLvl1ToLvl2 flushes all lvl1 buffers to lvl2.
-func (w *backgroundBatchingWriter) flushLvl1ToLvl2(buffers map[string]*propertyBuffer) {
-	for propID, buf := range buffers {
-		w.flushPropertyLvl1ToLvl2(propID, buf)
 	}
 }
 
@@ -291,35 +200,31 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 			if err := os.Remove(spoolPath); err != nil {
 				logrus.Errorf("failed to remove empty spool file %q: %v", spoolPath, err)
 			} else {
-				// Clean up failure tracking for removed empty file
 				delete(consecutiveFailuresBySpool, spoolPath)
 			}
 			continue
 		}
 
 		if err := w.childWriter.Write(allSessions...); err != nil {
-			// Increment failure count for this spool file
 			consecutiveFailuresBySpool[spoolPath]++
 			failureCount := consecutiveFailuresBySpool[spoolPath]
 
 			if failureCount >= w.maxConsecutiveChildWriteFailures {
-				// Threshold exceeded: discard spool file
 				logrus.Errorf(
-					"discarding spool file %q after %d consecutive child writer failures (threshold: %d)",
+					"exceeded failure threshold for spool file %q after %d consecutive child writer failures (threshold: %d)",
 					spoolPath,
 					failureCount,
 					w.maxConsecutiveChildWriteFailures,
 				)
-				if removeErr := os.Remove(spoolPath); removeErr != nil {
-					logrus.Errorf("failed to remove discarded spool file %q: %v", spoolPath, removeErr)
+				if strategyErr := w.failureStrategy.OnExceededFailures(spoolPath); strategyErr != nil {
+					logrus.Errorf("failure strategy error for spool file %q: %v", spoolPath, strategyErr)
+					continue
 				}
 				delete(consecutiveFailuresBySpool, spoolPath)
-				// Continue to next file (treat as success)
 				continue
 			}
 
 			logrus.Errorf("failed to write sessions from spool file %q to child writer: %v", spoolPath, err)
-			// Keep spool file on error (will retry on next flush)
 			continue
 		}
 
@@ -338,7 +243,7 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session, error) {
 	file, err := os.Open(filepath.Clean(path)) //nolint:gosec // path is constructed from property ID
 	if err != nil {
-		return nil, fmt.Errorf("failed to open spool file: %w", err)
+		return nil, fmt.Errorf("opening spool file: %w", err)
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
@@ -353,14 +258,12 @@ func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session
 		header := make([]byte, 4)
 		n, err := file.Read(header)
 		if err == io.EOF {
-			// Clean end of file
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read header: %w", err)
+			return nil, fmt.Errorf("reading header: %w", err)
 		}
 		if n != 4 {
-			// Truncated header
 			logrus.Warnf("truncated header in spool file %q, stopping read", path)
 			break
 		}
@@ -371,15 +274,13 @@ func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session
 		payload := make([]byte, payloadLen)
 		n, err = file.Read(payload)
 		if err == io.EOF {
-			// Truncated payload
 			logrus.Warnf("truncated payload in spool file %q, stopping read", path)
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read payload: %w", err)
+			return nil, fmt.Errorf("reading payload: %w", err)
 		}
 		if n != int(payloadLen) {
-			// Truncated payload
 			logrus.Warnf("truncated payload in spool file %q (expected %d, got %d), stopping read", path, payloadLen, n)
 			break
 		}
@@ -387,7 +288,7 @@ func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session
 		// Decode payload
 		var sessions []*schema.Session
 		if err := w.decoder(bytes.NewReader(payload), &sessions); err != nil {
-			return nil, fmt.Errorf("failed to decode payload: %w", err)
+			return nil, fmt.Errorf("decoding payload: %w", err)
 		}
 
 		allSessions = append(allSessions, sessions...)
@@ -398,54 +299,25 @@ func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session
 
 // config holds configuration for the writer.
 type config struct {
-	lvl1MaxAge                       time.Duration
-	lvl1MaxSessions                  int
-	lvl1SweepInterval                time.Duration
 	lvl2Dir                          string
 	lvl2FlushInterval                time.Duration
 	encoder                          encoding.EncoderFunc
 	decoder                          encoding.DecoderFunc
 	maxConsecutiveChildWriteFailures int
-	writeChanBuffer                  int
 }
 
 func defaultConfig() *config {
 	return &config{
-		lvl1MaxAge:                       5 * time.Second,
-		lvl1MaxSessions:                  1000,
-		lvl1SweepInterval:                250 * time.Millisecond,
 		lvl2Dir:                          "/storage/writer",
 		lvl2FlushInterval:                1 * time.Minute,
 		encoder:                          encoding.GobEncoder,
 		decoder:                          encoding.GobDecoder,
 		maxConsecutiveChildWriteFailures: 20,
-		writeChanBuffer:                  10000,
 	}
 }
 
 // Option is a functional option for configuring the writer.
 type Option func(*config)
-
-// WithLvl1MaxAge sets the maximum age for lvl1 buffers.
-func WithLvl1MaxAge(d time.Duration) Option {
-	return func(c *config) {
-		c.lvl1MaxAge = d
-	}
-}
-
-// WithLvl1MaxSessions sets the maximum number of sessions in lvl1 buffer.
-func WithLvl1MaxSessions(n int) Option {
-	return func(c *config) {
-		c.lvl1MaxSessions = n
-	}
-}
-
-// WithLvl1SweepInterval sets the sweep interval for lvl1 buffers.
-func WithLvl1SweepInterval(d time.Duration) Option {
-	return func(c *config) {
-		c.lvl1SweepInterval = d
-	}
-}
 
 // WithSpoolDir sets the directory for lvl2 spool files.
 func WithSpoolDir(dir string) Option {
@@ -470,19 +342,9 @@ func WithEncoderDecoder(encoder encoding.EncoderFunc, decoder encoding.DecoderFu
 }
 
 // WithMaxConsecutiveChildWriteFailures sets the maximum number of consecutive
-// child writer failures before a spool file is discarded.
+// child writer failures before the failure strategy is invoked.
 func WithMaxConsecutiveChildWriteFailures(n int) Option {
 	return func(c *config) {
 		c.maxConsecutiveChildWriteFailures = n
-	}
-}
-
-// WithWriteChanBuffer sets the capacity of the channel used for incoming Write calls.
-// Larger values reduce blocking of callers when the actor is busy (e.g. during L2 flush)
-// at the cost of more in-memory sessions on process crash. Zero means unbuffered.
-// Default is 1000.
-func WithWriteChanBuffer(n int) Option {
-	return func(c *config) {
-		c.writeChanBuffer = n
 	}
 }
