@@ -42,10 +42,6 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		logrus.Fatalf("failed to open ClickHouse connection: %v", err)
 	}
 
-	if err != nil {
-		logrus.Fatalf("failed to create table columns cache: %v", err)
-	}
-
 	driver := &clickhouseDriver{
 		db:                db,
 		conn:              conn,

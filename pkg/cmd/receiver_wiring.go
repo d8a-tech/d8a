@@ -15,12 +15,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// newBatchingStorageFn and newFileBatchingBackendFn are constructor indirections
-// allowing tests to observe which backend option / constructor were used.
-var newBatchingStorageFn = receiver.NewBatchingStorage
-
-var newFileBatchingBackendFn = receiver.NewFileBatchingBackend
-
 func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worker.Publisher) receiver.Storage {
 	backend := strings.ToLower(cmd.String(queueBackendFlag.Name))
 
@@ -52,7 +46,7 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 	batchingBackend := strings.ToLower(cmd.String(receiverBatchingBackendFlag.Name))
 	if batchingBackend == "filesystem" {
 		opts = append(opts, receiver.WithBackend(
-			newFileBatchingBackendFn(receiver.FileBatchingBackendConfig{
+			receiver.NewFileBatchingBackend(receiver.FileBatchingBackendConfig{
 				Dir: filepath.Join(
 					cmd.String(storageQueueDirectoryFlag.Name),
 					"receiver-batching",
@@ -62,7 +56,7 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 		))
 	}
 
-	return newBatchingStorageFn(
+	return receiver.NewBatchingStorage(
 		storagepublisher.NewAdapter(encoding.GzipJSONEncoder, publisher),
 		cmd.Int(receiverBatchSizeFlag.Name),
 		cmd.Duration(receiverBatchTimeoutFlag.Name),

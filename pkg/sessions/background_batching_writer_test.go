@@ -18,8 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- test doubles ---
-
 type mockSpoolWriter struct {
 	mu         sync.Mutex
 	calls      []spoolWriteCall
@@ -118,8 +116,6 @@ func newTestSession(propertyID string) *schema.Session {
 	event := schema.NewEvent(hit)
 	return schema.NewSession([]*schema.Event{event})
 }
-
-// --- tests ---
 
 func TestWriteDelegatesToSpoolWriter(t *testing.T) {
 	// given

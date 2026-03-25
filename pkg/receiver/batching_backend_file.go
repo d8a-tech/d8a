@@ -63,7 +63,9 @@ func (f *fileBatchingBackend) Flush(cb func([]*hits.Hit) error) error {
 	}
 
 	if len(allHits) == 0 {
-		_ = os.Remove(path)
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			logrus.Debugf("removing empty flush file %q: %v", path, err)
+		}
 		return nil
 	}
 
@@ -127,8 +129,12 @@ func (f *fileBatchingBackend) writeAtomically(allHits []*hits.Hit) error {
 	success := false
 	defer func() {
 		if !success {
-			_ = tmp.Close()
-			_ = os.Remove(tmpPath)
+			if closeErr := tmp.Close(); closeErr != nil {
+				logrus.Debugf("closing temp flush file %q: %v", tmpPath, closeErr)
+			}
+			if removeErr := os.Remove(tmpPath); removeErr != nil && !os.IsNotExist(removeErr) {
+				logrus.Debugf("removing temp flush file %q: %v", tmpPath, removeErr)
+			}
 		}
 	}()
 

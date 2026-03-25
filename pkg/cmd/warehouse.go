@@ -21,24 +21,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-var newStaticDriverRegistryFn = warehouse.NewStaticDriverRegistry
-
-var newConsoleDriverFn = warehouse.NewConsoleDriver
-
-var newNoopDriverFn = warehouse.NewNoopDriver
-
-var bigQueryCredentialsFromJSONWithTypeFn = google.CredentialsFromJSONWithType
-
-var newBigQueryClientFn = bigquery.NewClient
-
-var createBigQueryWriterFn = createBigQueryWriter
-
-var createBigQueryPartitionOptionFn = createBigQueryPartitionOption
-
-var newBigQueryTableDriverFn = whBigQuery.NewBigQueryTableDriver
-
-var newClickHouseTableDriverFn = whClickhouse.NewClickHouseTableDriver
-
 const (
 	storageTypeS3         = "s3"
 	storageTypeGCS        = "gcs"
@@ -59,9 +41,9 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 	case "files":
 		return createFilesWarehouse(ctx, cmd)
 	case "console", "":
-		return newStaticDriverRegistryFn(newConsoleDriverFn())
+		return warehouse.NewStaticDriverRegistry(warehouse.NewConsoleDriver())
 	case "noop":
-		return newStaticDriverRegistryFn(newNoopDriverFn())
+		return warehouse.NewStaticDriverRegistry(warehouse.NewNoopDriver())
 	default:
 		logrus.Fatalf("unsupported warehouse %s", warehouseType)
 		return nil
@@ -90,7 +72,7 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		raw = decoded
 	}
 
-	googleCreds, credErr := bigQueryCredentialsFromJSONWithTypeFn(
+	googleCreds, credErr := google.CredentialsFromJSONWithType(
 		ctx,
 		raw,
 		google.ServiceAccount,
@@ -100,7 +82,7 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		logrus.Fatalf("failed to parse BigQuery credentials JSON: %v", credErr)
 	}
 
-	client, err := newBigQueryClientFn(
+	client, err := bigquery.NewClient(
 		ctx,
 		projectID,
 		option.WithCredentials(googleCreds),
@@ -109,12 +91,12 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 		logrus.Fatalf("failed to create BigQuery client: %v", err)
 	}
 
-	writer := createBigQueryWriterFn(cmd, client, datasetName)
+	writer := createBigQueryWriter(cmd, client, datasetName)
 
-	partitionOpt := createBigQueryPartitionOptionFn(cmd)
+	partitionOpt := createBigQueryPartitionOption(cmd)
 
-	return newStaticDriverRegistryFn(
-		newBigQueryTableDriverFn(
+	return warehouse.NewStaticDriverRegistry(
+		whBigQuery.NewBigQueryTableDriver(
 			client,
 			datasetName,
 			writer,
@@ -240,8 +222,8 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		opts = append(opts, whClickhouse.WithPartitionBy(partitionByStr))
 	}
 
-	return newStaticDriverRegistryFn(
-		newClickHouseTableDriverFn(
+	return warehouse.NewStaticDriverRegistry(
+		whClickhouse.NewClickHouseTableDriver(
 			options,
 			database,
 			opts...,
@@ -318,7 +300,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
 	)
 
-	return newStaticDriverRegistryFn(driver)
+	return warehouse.NewStaticDriverRegistry(driver)
 }
 
 func validateFilesPathTemplate(tmplStr string) {

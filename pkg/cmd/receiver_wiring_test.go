@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
-	"github.com/d8a-tech/d8a/pkg/receiver"
+	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,20 +25,10 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 	unsetEnvForTest(t, "DELIVERY_MODE")
 	unsetEnvForTest(t, "RECEIVER_BATCHING_BACKEND")
 
-	var capturedOpts []receiver.BatchingOption
-	origFn := newBatchingStorageFn
-	newBatchingStorageFn = func(
-		child receiver.Storage,
-		batchSize int,
-		timeout time.Duration,
-		opts ...receiver.BatchingOption,
-	) *receiver.BatchingStorage {
-		capturedOpts = opts
-		return origFn(child, batchSize, timeout, opts...)
-	}
-	t.Cleanup(func() { newBatchingStorageFn = origFn })
+	queueDir := t.TempDir()
+	expectedDir := filepath.Join(queueDir, "receiver-batching")
 
-	args := []string{"d8a-test"}
+	args := []string{"d8a-test", "--storage-queue-directory=" + queueDir}
 	setCurrentRunArgsForTest(t, args)
 
 	app := &cli.Command{
@@ -44,14 +36,22 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			_ = buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			if closableStorage, ok := storage.(interface{ Close() }); ok {
+				t.Cleanup(closableStorage.Close)
+			}
+
+			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
+			require.NoError(t, err)
+
+			_, err = os.Stat(expectedDir)
+			assert.True(t, os.IsNotExist(err), "memory backend should not create filesystem batching directory")
 			return nil
 		},
 	}
 
 	// then
 	require.NoError(t, app.Run(context.Background(), args))
-	assert.Empty(t, capturedOpts, "default wiring should inject no backend options")
 }
 
 func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) {
@@ -62,17 +62,6 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 
 	queueDir := t.TempDir()
 	expectedDir := filepath.Join(queueDir, "receiver-batching")
-
-	var calledFileFn bool
-	var capturedCfg receiver.FileBatchingBackendConfig
-
-	origFileFn := newFileBatchingBackendFn
-	newFileBatchingBackendFn = func(cfg receiver.FileBatchingBackendConfig) receiver.BatchingBackend {
-		calledFileFn = true
-		capturedCfg = cfg
-		return origFileFn(cfg)
-	}
-	t.Cleanup(func() { newFileBatchingBackendFn = origFileFn })
 
 	args := []string{
 		"d8a-test",
@@ -86,14 +75,36 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			_ = buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			if closableStorage, ok := storage.(interface{ Close() }); ok {
+				t.Cleanup(closableStorage.Close)
+			}
+
+			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
+			require.NoError(t, err)
+
+			flushFilePath := filepath.Join(expectedDir, "pending_hits.json.gz")
+			_, err = os.Stat(flushFilePath)
+			require.NoError(t, err)
 			return nil
 		},
 	}
 
 	// then
 	require.NoError(t, app.Run(context.Background(), args))
-	assert.True(t, calledFileFn, "filesystem backend constructor should be called")
-	assert.Equal(t, expectedDir, capturedCfg.Dir)
-	assert.Equal(t, "pending_hits.json.gz", capturedCfg.FlushFileName)
+
+	flushFilePath := filepath.Join(expectedDir, "pending_hits.json.gz")
+	file, err := os.Open(flushFilePath)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = file.Close() })
+
+	gz, err := gzip.NewReader(file)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = gz.Close() })
+
+	var hitsFromFile []*hits.Hit
+	err = json.NewDecoder(gz).Decode(&hitsFromFile)
+	require.NoError(t, err)
+	require.Len(t, hitsFromFile, 1)
+	assert.Equal(t, "property-a", hitsFromFile[0].PropertyID)
 }

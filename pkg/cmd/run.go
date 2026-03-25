@@ -83,7 +83,7 @@ func configureLogging(ctx context.Context, cmd *cli.Command) (context.Context, e
 }
 
 func configDocsFlags() []cli.Flag {
-	return append([]cli.Flag{airgappedFlag, deliveryModeFlag}, getServerFlags()...)
+	return append([]cli.Flag{airgappedFlag}, getServerFlags()...)
 }
 
 func applyModeOverridesBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {

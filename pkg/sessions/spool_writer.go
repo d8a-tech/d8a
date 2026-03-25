@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -191,7 +192,9 @@ func appendFramedRecord(lvl2Dir, propID string, payload []byte) error {
 		return fmt.Errorf("payload too large for property %q: %d bytes", propID, len(payload))
 	}
 
-	spoolPath := filepath.Join(lvl2Dir, fmt.Sprintf("property_%s.spool", propID))
+	sanitizedPropID := strings.NewReplacer("/", "_", "\\", "_").Replace(propID)
+
+	spoolPath := filepath.Join(lvl2Dir, fmt.Sprintf("property_%s.spool", sanitizedPropID))
 
 	//nolint:gosec // path is constructed from property ID
 	file, err := os.OpenFile(
