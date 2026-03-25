@@ -19,12 +19,12 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 	// Generate configs for receiver and worker
 	receiverConfigPath := newTestConfigBuilder().
 		WithPort(port).
-		WithWarehouse("noop").
+		WithWarehouse("console").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)
 
 	workerConfigPath := newTestConfigBuilder().
-		WithWarehouse("noop").
+		WithWarehouse("console").
 		WithSessionTimeout(2 * time.Second).
 		Build(t)
 
@@ -96,10 +96,10 @@ func TestSeparateReceiverAndWorker(t *testing.T) {
 		"worker should process hits from queue",
 	)
 
-	// Verify worker logs show "flushing batch" to warehouse
+	// Verify worker logs show session JSON written to warehouse
 	assert.True(
 		t,
-		workerHandle.logs.waitFor("flushing batch", 10*time.Second),
+		workerHandle.logs.waitFor(`"session_id"`, 10*time.Second),
 		"worker should flush batch to warehouse",
 	)
 

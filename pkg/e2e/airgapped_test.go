@@ -17,7 +17,7 @@ func TestAirgappedModeOverridesConflictingSettings(t *testing.T) {
 
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	configContent := fmt.Sprintf(`airgapped: true
-warehouse: noop
+warehouse: console
 
 receiver:
   batch_size: 100
@@ -100,7 +100,7 @@ property:
 
 	require.True(
 		t,
-		handle.logs.waitFor("flushing batch of size", 10*time.Second),
+		handle.logs.waitFor(`"session_id"`, 10*time.Second),
 		"airgapped mode should still process local tracking hits",
 	)
 }
