@@ -315,7 +315,10 @@ func rotateSpoolToInflight(activeSpoolPath string) (string, error) {
 }
 
 func inflightSpoolPathWithSuffix(activeSpoolPath string, tsNano int64, attempt int) string {
-	return inflightSpoolPathFromActivePath(activeSpoolPath) + "." + strconv.FormatInt(tsNano, 10) + "." + strconv.Itoa(attempt)
+	base := inflightSpoolPathFromActivePath(activeSpoolPath)
+	ts := strconv.FormatInt(tsNano, 10)
+	att := strconv.Itoa(attempt)
+	return base + "." + ts + "." + att
 }
 
 // readSpoolFile reads all framed records from a spool file.

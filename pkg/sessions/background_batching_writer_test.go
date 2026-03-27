@@ -511,7 +511,8 @@ func TestDeleteStrategyOnRepeatedFailures(t *testing.T) {
 	// No quarantine files should exist
 	_, err = os.Stat(spoolPath + ".quarantine")
 	assert.True(t, os.IsNotExist(err), "active quarantine file should not exist with delete strategy")
-	assert.Empty(t, quarantinePathsForProperty(t, tmpDir, "prop1"), "inflight quarantine file should not exist with delete strategy")
+	msg := "inflight quarantine file should not exist with delete strategy"
+	assert.Empty(t, quarantinePathsForProperty(t, tmpDir, "prop1"), msg)
 }
 
 func TestPreExistingSpoolFileIsReplayedOnLvl2Tick(t *testing.T) {
@@ -601,7 +602,8 @@ func TestFlushRotatesActiveSpoolAndPreservesWritesAfterRotation(t *testing.T) {
 
 	// then
 	activePath := activeSpoolPath(tmpDir, "prop1")
-	assert.Empty(t, inflightPathsForProperty(t, tmpDir, "prop1"), "inflight spool should be removed after successful flush")
+	msg := "inflight spool should be removed after successful flush"
+	assert.Empty(t, inflightPathsForProperty(t, tmpDir, "prop1"), msg)
 
 	data, err := os.ReadFile(activePath)
 	require.NoError(t, err, "a new active spool file should contain write after rotation")
@@ -722,7 +724,8 @@ func TestNewBackgroundBatchingWriterStartupKeepsBothActiveAndInflightFiles(t *te
 
 	_, err = os.Stat(activePath)
 	assert.True(t, os.IsNotExist(err), "active spool should be removed after successful flush")
-	assert.Empty(t, inflightPathsForProperty(t, tmpDir, "prop1"), "inflight spools should be removed after successful flush")
+	msg := "inflight spools should be removed after successful flush"
+	assert.Empty(t, inflightPathsForProperty(t, tmpDir, "prop1"), msg)
 }
 
 func TestFlushLvl2ToChildDoesNotOverwriteExistingInflightSpool(t *testing.T) {
@@ -1042,5 +1045,6 @@ func TestFailureCounterNotResetWhenFailureStrategyFails(t *testing.T) {
 		return len(fs.getPaths()) >= 2
 	}, 400*time.Millisecond, 10*time.Millisecond, "failure strategy should be retried on subsequent ticks")
 
-	assert.NotEmpty(t, inflightPathsForProperty(t, tmpDir, "prop1"), "spool file should remain when failure strategy fails")
+	msg := "spool file should remain when failure strategy fails"
+	assert.NotEmpty(t, inflightPathsForProperty(t, tmpDir, "prop1"), msg)
 }
