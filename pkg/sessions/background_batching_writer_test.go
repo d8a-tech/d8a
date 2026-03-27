@@ -144,6 +144,17 @@ func newTestSession(propertyID string) *schema.Session {
 	return schema.NewSession([]*schema.Event{event})
 }
 
+func writeSessionRecordsToSpool(t *testing.T, sw SpoolWriter, propertyID string, sessions []*schema.Session) {
+	t.Helper()
+
+	for _, sess := range sessions {
+		var encodedBuf bytes.Buffer
+		_, err := encoding.GobEncoder(&encodedBuf, []*schema.Session{sess})
+		require.NoError(t, err)
+		require.NoError(t, sw.Write(propertyID, encodedBuf.Bytes()))
+	}
+}
+
 func inflightPathsForProperty(t *testing.T, dir, propertyID string) []string {
 	t.Helper()
 
@@ -159,6 +170,21 @@ func inflightPathsForProperty(t *testing.T, dir, propertyID string) []string {
 		if strings.HasPrefix(entry.Name(), prefix) {
 			paths = append(paths, filepath.Join(dir, entry.Name()))
 		}
+	}
+
+	return paths
+}
+
+func nonQuarantineInflightPathsForProperty(t *testing.T, dir, propertyID string) []string {
+	t.Helper()
+
+	allInflight := inflightPathsForProperty(t, dir, propertyID)
+	paths := make([]string, 0, len(allInflight))
+	for _, path := range allInflight {
+		if strings.HasSuffix(path, ".quarantine") {
+			continue
+		}
+		paths = append(paths, path)
 	}
 
 	return paths
@@ -775,6 +801,191 @@ func TestFlushLvl2ToChildDoesNotOverwriteExistingInflightSpool(t *testing.T) {
 		require.NoError(t, readErr)
 		require.Len(t, sessions, 1)
 		assert.Equal(t, "prop1", sessions[0].PropertyID)
+	}
+}
+
+func TestFlushLvl2ToChildFlushesInflightSpoolInChunks(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, sw.Close())
+	})
+
+	writeSessionRecordsToSpool(t, sw, "prop1", []*schema.Session{
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+	})
+
+	childWriter := &countingMockSessionWriter{}
+	w := &backgroundBatchingWriter{
+		childWriter:                      childWriter,
+		failureStrategy:                  &mockSpoolFailureStrategy{},
+		lvl2Dir:                          tmpDir,
+		decoder:                          encoding.GobDecoder,
+		flushChunkSize:                   2,
+		maxConsecutiveChildWriteFailures: 20,
+	}
+
+	// when
+	w.flushLvl2ToChild(make(map[string]int))
+
+	// then
+	calls := childWriter.getWriteCalls()
+	require.Len(t, calls, 3)
+	assert.Len(t, calls[0], 2)
+	assert.Len(t, calls[1], 2)
+	assert.Len(t, calls[2], 1)
+
+	msg := "inflight spool should be removed after successful chunked flush"
+	assert.Empty(t, inflightPathsForProperty(t, tmpDir, "prop1"), msg)
+
+	_, err = os.Stat(activeSpoolPath(tmpDir, "prop1"))
+	assert.True(t, os.IsNotExist(err), "active spool should be removed after successful chunked flush")
+}
+
+func TestChunkedFlushPreservesConcurrentWriteAfterRotation(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, sw.Close())
+	})
+
+	writeSessionRecordsToSpool(t, sw, "prop1", []*schema.Session{
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+		newTestSession("prop1"),
+	})
+
+	var postRotationPayload bytes.Buffer
+	_, err = encoding.GobEncoder(&postRotationPayload, []*schema.Session{newTestSession("prop1")})
+	require.NoError(t, err)
+
+	firstCall := true
+	childWriter := &hookMockSessionWriter{
+		hook: func() {
+			if !firstCall {
+				return
+			}
+			firstCall = false
+			require.NoError(t, sw.Write("prop1", postRotationPayload.Bytes()))
+		},
+	}
+
+	w := &backgroundBatchingWriter{
+		childWriter:                      childWriter,
+		failureStrategy:                  &mockSpoolFailureStrategy{},
+		lvl2Dir:                          tmpDir,
+		decoder:                          encoding.GobDecoder,
+		flushChunkSize:                   1,
+		maxConsecutiveChildWriteFailures: 20,
+	}
+
+	// when
+	w.flushLvl2ToChild(make(map[string]int))
+
+	// then
+	calls := childWriter.getWriteCalls()
+	require.Len(t, calls, 3, "chunk size 1 should flush each decoded session separately")
+	for _, call := range calls {
+		require.Len(t, call, 1)
+		assert.Equal(t, "prop1", call[0].PropertyID)
+	}
+
+	activePath := activeSpoolPath(tmpDir, "prop1")
+	data, err := os.ReadFile(activePath)
+	require.NoError(t, err, "concurrent write should land in new active spool")
+	require.True(t, len(data) >= 4)
+
+	payloadLen := binary.LittleEndian.Uint32(data[:4])
+	require.Equal(t, uint32(len(postRotationPayload.Bytes())), payloadLen)
+	assert.Equal(t, postRotationPayload.Bytes(), data[4:4+payloadLen])
+}
+
+func TestChunkedFlushRepeatedFailuresApplyConfiguredStrategy(t *testing.T) {
+	tests := []struct {
+		name                string
+		strategy            SpoolFailureStrategy
+		assertPostThreshold func(t *testing.T, dir, firstInflightPath string)
+	}{
+		{
+			name:     "delete strategy removes inflight spool after threshold",
+			strategy: NewDeleteSpoolStrategy(),
+			assertPostThreshold: func(t *testing.T, dir, firstInflightPath string) {
+				t.Helper()
+				assert.Empty(t, nonQuarantineInflightPathsForProperty(t, dir, "prop1"))
+				_, err := os.Stat(firstInflightPath)
+				assert.True(t, os.IsNotExist(err))
+			},
+		},
+		{
+			name:     "quarantine strategy renames inflight spool after threshold",
+			strategy: NewQuarantineSpoolStrategy(),
+			assertPostThreshold: func(t *testing.T, dir, firstInflightPath string) {
+				t.Helper()
+				assert.Empty(t, nonQuarantineInflightPathsForProperty(t, dir, "prop1"))
+				quarantinePaths := quarantinePathsForProperty(t, dir, "prop1")
+				require.Len(t, quarantinePaths, 1)
+				assert.Equal(t, firstInflightPath+".quarantine", quarantinePaths[0])
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			tmpDir := t.TempDir()
+			sw, err := NewDirectSpoolWriter(tmpDir)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				require.NoError(t, sw.Close())
+			})
+
+			writeSessionRecordsToSpool(t, sw, "prop1", []*schema.Session{
+				newTestSession("prop1"),
+				newTestSession("prop1"),
+				newTestSession("prop1"),
+			})
+
+			childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+			consecutiveFailuresBySpool := make(map[string]int)
+			w := &backgroundBatchingWriter{
+				childWriter:                      childWriter,
+				failureStrategy:                  tt.strategy,
+				lvl2Dir:                          tmpDir,
+				decoder:                          encoding.GobDecoder,
+				flushChunkSize:                   1,
+				maxConsecutiveChildWriteFailures: 2,
+			}
+
+			// when
+			w.flushLvl2ToChild(consecutiveFailuresBySpool)
+
+			inflightPaths := inflightPathsForProperty(t, tmpDir, "prop1")
+			require.Len(t, inflightPaths, 1)
+			firstInflightPath := inflightPaths[0]
+			remainingInflight := inflightPathsForProperty(t, tmpDir, "prop1")
+			require.Len(t, remainingInflight, 1)
+			assert.Equal(
+				t,
+				firstInflightPath,
+				remainingInflight[0],
+				"inflight path should be reused before threshold",
+			)
+
+			w.flushLvl2ToChild(consecutiveFailuresBySpool)
+
+			// then
+			calls := childWriter.getWriteCalls()
+			require.Len(t, calls, 2, "chunked retries should replay from same inflight file on each tick")
+			tt.assertPostThreshold(t, tmpDir, firstInflightPath)
+		})
 	}
 }
 

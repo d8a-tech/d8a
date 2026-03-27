@@ -29,6 +29,7 @@ type backgroundBatchingWriter struct {
 	lvl2FlushInterval                time.Duration
 	encoder                          encoding.EncoderFunc
 	decoder                          encoding.DecoderFunc
+	flushChunkSize                   int
 	maxConsecutiveChildWriteFailures int
 
 	// Actor pattern: single goroutine owns lvl2 state
@@ -83,6 +84,7 @@ func NewBackgroundBatchingWriter(
 		lvl2FlushInterval:                cfg.lvl2FlushInterval,
 		encoder:                          cfg.encoder,
 		decoder:                          cfg.decoder,
+		flushChunkSize:                   cfg.flushChunkSize,
 		maxConsecutiveChildWriteFailures: cfg.maxConsecutiveChildWriteFailures,
 		flushChan:                        make(chan struct{}, 1),
 		stopChan:                         make(chan struct{}),
@@ -208,24 +210,10 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 			}
 		}
 
-		// Read and decode all records from this spool file
-		allSessions, err := w.readSpoolFile(inflightSpoolPath)
+		wroteAny, fullyProcessed, err := w.flushSpoolFileInChunks(inflightSpoolPath)
 		if err != nil {
-			logrus.Errorf("failed to read spool file %q: %v", inflightSpoolPath, err)
-			continue
-		}
+			logrus.Errorf("failed to flush spool file %q: %v", inflightSpoolPath, err)
 
-		if len(allSessions) == 0 {
-			// Empty file, remove it
-			if err := os.Remove(inflightSpoolPath); err != nil {
-				logrus.Errorf("failed to remove empty spool file %q: %v", inflightSpoolPath, err)
-			} else {
-				delete(consecutiveFailuresBySpool, inflightSpoolPath)
-			}
-			continue
-		}
-
-		if err := w.childWriter.Write(allSessions...); err != nil {
 			consecutiveFailuresBySpool[inflightSpoolPath]++
 			failureCount := consecutiveFailuresBySpool[inflightSpoolPath]
 
@@ -241,22 +229,189 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 					continue
 				}
 				delete(consecutiveFailuresBySpool, inflightSpoolPath)
-				continue
 			}
 
-			logrus.Errorf("failed to write sessions from spool file %q to child writer: %v", inflightSpoolPath, err)
 			continue
 		}
 
-		logrus.Debugf("wrote %d sessions from spool %q to warehouse", len(allSessions), inflightSpoolPath)
+		if !fullyProcessed {
+			continue
+		}
+
+		if !wroteAny {
+			// Empty file, remove it after successful full processing
+			if err := os.Remove(inflightSpoolPath); err != nil {
+				logrus.Errorf("failed to remove empty spool file %q: %v", inflightSpoolPath, err)
+			} else {
+				delete(consecutiveFailuresBySpool, inflightSpoolPath)
+			}
+			continue
+		}
 
 		// Success: remove spool file and reset failure count
 		if err := os.Remove(inflightSpoolPath); err != nil {
 			logrus.Errorf("failed to remove spool file %q after successful flush: %v", inflightSpoolPath, err)
 		} else {
+			if wroteAny {
+				logrus.Debugf("wrote sessions from spool %q to warehouse", inflightSpoolPath)
+			}
 			delete(consecutiveFailuresBySpool, inflightSpoolPath)
 		}
 	}
+}
+
+func (w *backgroundBatchingWriter) flushSpoolFileInChunks(path string) (wroteAny, fullyProcessed bool, err error) {
+	file, err := os.Open(filepath.Clean(path)) //nolint:gosec // path is constructed from property ID
+	if err != nil {
+		return false, false, fmt.Errorf("opening spool file: %w", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			logrus.Errorf("failed to close spool file %q: %v", path, closeErr)
+		}
+	}()
+
+	info, err := file.Stat()
+	if err != nil {
+		return false, false, fmt.Errorf("stating spool file: %w", err)
+	}
+
+	chunkSize := w.flushChunkSize
+	if chunkSize <= 0 {
+		chunkSize = 1
+	}
+
+	header := make([]byte, 4)
+	var payloadBuf []byte
+	chunk := make([]*schema.Session, 0, chunkSize)
+	var bytesRead int64
+
+	for {
+		payloadLen, reachedEOF, truncatedHeader, headerErr := readSpoolFrameHeader(file, header, path)
+		if headerErr != nil {
+			return wroteAny, false, headerErr
+		}
+		if reachedEOF {
+			chunkFlushed, flushErr := flushChunkToChild(w.childWriter, &chunk)
+			if chunkFlushed {
+				wroteAny = true
+			}
+			if flushErr != nil {
+				return wroteAny, false, flushErr
+			}
+			return wroteAny, true, nil
+		}
+		if truncatedHeader {
+			return wroteAny, false, nil
+		}
+
+		bytesRead += int64(len(header))
+
+		remainingBytes := info.Size() - bytesRead
+		if isPayloadTruncated(path, payloadLen, remainingBytes) {
+			return wroteAny, false, nil
+		}
+
+		payloadBuf = ensurePayloadBuffer(payloadBuf, payloadLen)
+		payload := payloadBuf[:int(payloadLen)]
+
+		payloadComplete, payloadErr := readSpoolFramePayload(file, payload, path)
+		if payloadErr != nil {
+			return wroteAny, false, payloadErr
+		}
+		if !payloadComplete {
+			return wroteAny, false, nil
+		}
+
+		bytesRead += int64(payloadLen)
+
+		var sessions []*schema.Session
+		if err := w.decoder(bytes.NewReader(payload), &sessions); err != nil {
+			return wroteAny, false, fmt.Errorf("decoding payload: %w", err)
+		}
+
+		for _, sess := range sessions {
+			chunk = append(chunk, sess)
+			if len(chunk) >= chunkSize {
+				chunkFlushed, flushErr := flushChunkToChild(w.childWriter, &chunk)
+				if chunkFlushed {
+					wroteAny = true
+				}
+				if flushErr != nil {
+					return wroteAny, false, flushErr
+				}
+			}
+		}
+	}
+}
+
+func flushChunkToChild(childWriter SessionWriter, chunk *[]*schema.Session) (bool, error) {
+	if len(*chunk) == 0 {
+		return false, nil
+	}
+
+	if err := childWriter.Write((*chunk)...); err != nil {
+		return false, fmt.Errorf("writing chunk to child writer: %w", err)
+	}
+
+	*chunk = (*chunk)[:0]
+	return true, nil
+}
+
+func isPayloadTruncated(path string, payloadLen uint32, remainingBytes int64) bool {
+	if int64(payloadLen) <= remainingBytes {
+		return false
+	}
+
+	logrus.Warnf(
+		"truncated payload in spool file %q (expected %d bytes, remaining %d), stopping read",
+		path,
+		payloadLen,
+		remainingBytes,
+	)
+	return true
+}
+
+func readSpoolFrameHeader(
+	file *os.File,
+	header []byte,
+	path string,
+) (payloadLen uint32, reachedEOF, truncated bool, err error) {
+	if _, err := io.ReadFull(file, header); err != nil {
+		if err == io.EOF {
+			return 0, true, false, nil
+		}
+
+		if err == io.ErrUnexpectedEOF {
+			logrus.Warnf("truncated header in spool file %q, stopping read", path)
+			return 0, false, true, nil
+		}
+
+		return 0, false, false, fmt.Errorf("reading header: %w", err)
+	}
+
+	return binary.LittleEndian.Uint32(header), false, false, nil
+}
+
+func ensurePayloadBuffer(buf []byte, payloadLen uint32) []byte {
+	if cap(buf) < int(payloadLen) {
+		return make([]byte, int(payloadLen))
+	}
+
+	return buf
+}
+
+func readSpoolFramePayload(file *os.File, payload []byte, path string) (bool, error) {
+	if _, err := io.ReadFull(file, payload); err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			logrus.Warnf("truncated payload in spool file %q, stopping read", path)
+			return false, nil
+		}
+
+		return false, fmt.Errorf("reading payload: %w", err)
+	}
+
+	return true, nil
 }
 
 func recoverInflightSpoolFiles(lvl2Dir string) error {
@@ -335,36 +490,32 @@ func (w *backgroundBatchingWriter) readSpoolFile(path string) ([]*schema.Session
 
 	var allSessions []*schema.Session
 
+	header := make([]byte, 4)
 	for {
-		// Read header (4 bytes)
-		header := make([]byte, 4)
-		n, err := file.Read(header)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
+		if _, err := io.ReadFull(file, header); err != nil {
+			if err == io.EOF {
+				break
+			}
+
+			if err == io.ErrUnexpectedEOF {
+				logrus.Warnf("truncated header in spool file %q, stopping read", path)
+				break
+			}
+
 			return nil, fmt.Errorf("reading header: %w", err)
-		}
-		if n != 4 {
-			logrus.Warnf("truncated header in spool file %q, stopping read", path)
-			break
 		}
 
 		payloadLen := binary.LittleEndian.Uint32(header)
 
 		// Read payload
 		payload := make([]byte, payloadLen)
-		n, err = file.Read(payload)
-		if err == io.EOF {
-			logrus.Warnf("truncated payload in spool file %q, stopping read", path)
-			break
-		}
-		if err != nil {
+		if _, err := io.ReadFull(file, payload); err != nil {
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
+				logrus.Warnf("truncated payload in spool file %q, stopping read", path)
+				break
+			}
+
 			return nil, fmt.Errorf("reading payload: %w", err)
-		}
-		if n != int(payloadLen) {
-			logrus.Warnf("truncated payload in spool file %q (expected %d, got %d), stopping read", path, payloadLen, n)
-			break
 		}
 
 		// Decode payload
@@ -385,6 +536,7 @@ type config struct {
 	lvl2FlushInterval                time.Duration
 	encoder                          encoding.EncoderFunc
 	decoder                          encoding.DecoderFunc
+	flushChunkSize                   int
 	maxConsecutiveChildWriteFailures int
 }
 
@@ -394,6 +546,7 @@ func defaultConfig() *config {
 		lvl2FlushInterval:                1 * time.Minute,
 		encoder:                          encoding.GobEncoder,
 		decoder:                          encoding.GobDecoder,
+		flushChunkSize:                   1000,
 		maxConsecutiveChildWriteFailures: 20,
 	}
 }
@@ -420,6 +573,15 @@ func WithEncoderDecoder(encoder encoding.EncoderFunc, decoder encoding.DecoderFu
 	return func(c *config) {
 		c.encoder = encoder
 		c.decoder = decoder
+	}
+}
+
+// WithLvl2FlushChunkSize sets the max sessions per child writer flush call.
+func WithLvl2FlushChunkSize(n int) Option {
+	return func(c *config) {
+		if n > 0 {
+			c.flushChunkSize = n
+		}
 	}
 }
 
