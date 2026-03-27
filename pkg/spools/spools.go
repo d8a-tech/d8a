@@ -24,7 +24,7 @@ const (
 // Append and Flush are safe to call concurrently with each other.
 type Spool interface {
 	Append(key string, payload []byte) error
-	Flush(fn func(key string, frames [][]byte) error) error
+	Flush(fn func(key string, inflightPath string, frames [][]byte) error) error
 	Recover() error
 	Close() error
 }
@@ -119,7 +119,7 @@ func (s *fileSpool) appendToFile(path string, payload []byte) error {
 }
 
 // Flush implements Spool.
-func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
+func (s *fileSpool) Flush(fn func(key string, inflightPath string, frames [][]byte) error) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -189,7 +189,7 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 			continue
 		}
 
-		if fnErr := fn(p.key, frames); fnErr != nil {
+		if fnErr := fn(p.key, p.inflightPath, frames); fnErr != nil {
 			// Leave inflight file in place for retry on next flush cycle.
 			logrus.Warnf("flush callback failed for key %q: %v", p.key, fnErr)
 			flushErr = fnErr

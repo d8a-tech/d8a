@@ -54,7 +54,7 @@ func TestAppendAndFlush(t *testing.T) {
 	require.NoError(t, s.Append("prop2", []byte("foo")))
 
 	collected := make(map[string][][]byte)
-	err = s.Flush(func(key string, frames [][]byte) error {
+	err = s.Flush(func(key string, _ string, frames [][]byte) error {
 		collected[key] = frames
 		return nil
 	})
@@ -89,7 +89,7 @@ func TestFlushCallbackError_LeavesInflight(t *testing.T) {
 
 	// when — callback fails
 	callbackErr := fmt.Errorf("downstream failure")
-	err = s.Flush(func(_ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
 		return callbackErr
 	})
 
@@ -112,7 +112,7 @@ func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 	require.NoError(t, s.Append("prop1", []byte("frame-b")))
 
 	callCount := 0
-	err = s.Flush(func(_ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
 		callCount++
 		return fmt.Errorf("transient failure")
 	})
@@ -127,7 +127,7 @@ func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 
 	// when — second flush succeeds without restart
 	var retried [][]byte
-	err = s.Flush(func(_ string, frames [][]byte) error {
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
 		retried = frames
 		return nil
 	})
@@ -164,7 +164,7 @@ func TestRecoverInflightOnNew(t *testing.T) {
 
 	// Flush should yield the recovered frame.
 	var frames [][]byte
-	err = s.Flush(func(_ string, f [][]byte) error {
+	err = s.Flush(func(_ string, _ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -186,7 +186,7 @@ func TestRecoverMergesIntoExistingActive(t *testing.T) {
 
 	// then — flush should have both frames (existing first, then recovered)
 	var frames [][]byte
-	err = s.Flush(func(_ string, f [][]byte) error {
+	err = s.Flush(func(_ string, _ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -217,7 +217,7 @@ func TestTruncatedTrailingFrame(t *testing.T) {
 
 	// then — the good frame was recovered; truncated frame was dropped
 	var frames [][]byte
-	err = s.Flush(func(_ string, f [][]byte) error {
+	err = s.Flush(func(_ string, _ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -250,7 +250,7 @@ func TestTruncatedPayload(t *testing.T) {
 
 	// then — only the first valid frame is recovered
 	var frames [][]byte
-	err = s.Flush(func(_ string, f [][]byte) error {
+	err = s.Flush(func(_ string, _ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -272,7 +272,7 @@ func TestEmptyActiveFileFlush(t *testing.T) {
 
 	// when
 	callbackCalled := false
-	err = s.Flush(func(_ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
 		callbackCalled = true
 		return nil
 	})
@@ -296,7 +296,7 @@ func TestConcurrentAppendDuringFlush(t *testing.T) {
 
 	// when — flush renames active to inflight; concurrent append creates new active
 	var flushedFrames [][]byte
-	err = s.Flush(func(key string, frames [][]byte) error {
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
 		// Append happens while flush callback runs (new active file).
 		appendErr := s.Append("prop1", []byte("during-flush"))
 		require.NoError(t, appendErr)
@@ -311,7 +311,7 @@ func TestConcurrentAppendDuringFlush(t *testing.T) {
 
 	// Second flush picks up the concurrent append.
 	var secondFrames [][]byte
-	err = s.Flush(func(_ string, frames [][]byte) error {
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
 		secondFrames = frames
 		return nil
 	})
@@ -345,7 +345,7 @@ func TestCloseRejectsFlush(t *testing.T) {
 	require.NoError(t, s.Close())
 
 	// then
-	err = s.Flush(func(_ string, _ [][]byte) error { return nil })
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error { return nil })
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "closed")
 }
@@ -368,4 +368,24 @@ func TestKeySanitizationInFilenames(t *testing.T) {
 	exists, err = afero.Exists(fs, "/data/spools/org_prop_456.spool")
 	require.NoError(t, err)
 	assert.True(t, exists)
+}
+
+func TestFlushPassesInflightPath(t *testing.T) {
+	// given
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools")
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("data")))
+
+	// when
+	var receivedPath string
+	err = s.Flush(func(_ string, inflightPath string, _ [][]byte) error {
+		receivedPath = inflightPath
+		return nil
+	})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "/data/spools/prop1.spool.inflight", receivedPath)
 }
