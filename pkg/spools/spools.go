@@ -141,13 +141,27 @@ func (s *fileSpool) Flush(fn func(key string, inflightPath string, frames [][]by
 	var toFlush []pending
 	seen := make(map[string]bool)
 
-	// First pass: rename active files to inflight.
+	// Build a set of keys that already have inflight files from prior failed flushes.
+	inflightKeys := make(map[string]bool)
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, inflightExt) {
+			inflightKeys[keyFromFilename(name, inflightExt)] = true
+		}
+	}
+
+	// First pass: rename active files to inflight, but skip keys that already
+	// have an inflight file — those get retried first; the active file stays
+	// for a future flush cycle.
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasSuffix(name, spoolExt) || strings.HasSuffix(name, inflightExt) {
 			continue
 		}
 		key := keyFromFilename(name, spoolExt)
+		if inflightKeys[key] {
+			continue // active file deferred; inflight retry takes priority
+		}
 		active := s.dir + "/" + name
 		inflight := active + ".inflight"
 
@@ -183,7 +197,7 @@ func (s *fileSpool) Flush(fn func(key string, inflightPath string, frames [][]by
 		}
 		if len(frames) == 0 {
 			// Empty file — just remove it.
-			if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil {
+			if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil && !os.IsNotExist(removeErr) {
 				logrus.Errorf("removing empty inflight file %q: %v", p.inflightPath, removeErr)
 			}
 			continue
@@ -196,7 +210,7 @@ func (s *fileSpool) Flush(fn func(key string, inflightPath string, frames [][]by
 			continue
 		}
 
-		if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil {
+		if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil && !os.IsNotExist(removeErr) {
 			logrus.Errorf("removing inflight file %q after successful flush: %v", p.inflightPath, removeErr)
 		}
 	}

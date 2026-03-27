@@ -143,6 +143,120 @@ func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 	assert.Empty(t, entries)
 }
 
+func TestFlushWithInflightAndNewActive_NoRenameCollision(t *testing.T) {
+	// given — first flush fails leaving inflight, then new data arrives
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools")
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("old-data")))
+
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+		return fmt.Errorf("transient failure")
+	})
+	require.Error(t, err)
+
+	// New writes arrive after the failed flush.
+	require.NoError(t, s.Append("prop1", []byte("new-data")))
+
+	// Both files should exist: inflight from failed flush and new active.
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+
+	// when — second flush retries the inflight; active file is deferred
+	var retriedFrames [][]byte
+	flushCallCount := 0
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+		flushCallCount++
+		retriedFrames = frames
+		return nil
+	})
+
+	// then — only the old inflight was flushed (one callback call)
+	require.NoError(t, err)
+	assert.Equal(t, 1, flushCallCount)
+	require.Len(t, retriedFrames, 1)
+	assert.Equal(t, []byte("old-data"), retriedFrames[0])
+
+	// The active file should still be present for the next flush cycle.
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "prop1.spool", entries[0].Name())
+
+	// when — third flush picks up the remaining active file
+	var finalFrames [][]byte
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+		finalFrames = frames
+		return nil
+	})
+
+	// then — new data flushed, directory empty
+	require.NoError(t, err)
+	require.Len(t, finalFrames, 1)
+	assert.Equal(t, []byte("new-data"), finalFrames[0])
+
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestFlushInflightRetryFailsAgain_ActiveStillDeferred(t *testing.T) {
+	// given — inflight exists and active has new data; retry also fails
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools")
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("original")))
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+		return fmt.Errorf("fail-1")
+	})
+	require.Error(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("additional")))
+
+	// when — second flush also fails for the inflight retry
+	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+		return fmt.Errorf("fail-2")
+	})
+
+	// then — error returned, both files still present
+	require.Error(t, err)
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+
+	names := []string{entries[0].Name(), entries[1].Name()}
+	assert.Contains(t, names, "prop1.spool")
+	assert.Contains(t, names, "prop1.spool.inflight")
+
+	// when — third flush succeeds
+	callKeys := make(map[string]bool)
+	err = s.Flush(func(key string, _ string, _ [][]byte) error {
+		callKeys[key] = true
+		return nil
+	})
+
+	// then — inflight was retried; active still deferred because inflight existed
+	require.NoError(t, err)
+	assert.True(t, callKeys["prop1"])
+
+	// One more flush to drain the remaining active file
+	var lastFrames [][]byte
+	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+		lastFrames = frames
+		return nil
+	})
+	require.NoError(t, err)
+	require.Len(t, lastFrames, 1)
+	assert.Equal(t, []byte("additional"), lastFrames[0])
+
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestRecoverInflightOnNew(t *testing.T) {
 	// given — simulate crash remnant: inflight file exists
 	fs := afero.NewMemMapFs()
