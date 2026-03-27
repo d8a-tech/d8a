@@ -305,6 +305,32 @@ func TestNewBackgroundBatchingWriterRejectsNilDependencies(t *testing.T) {
 	assert.Contains(t, errNilFailureStrategy.Error(), "spool failure strategy is required")
 }
 
+func TestNewBackgroundBatchingWriterUsesDefaultFlushChunkSizeWhenOptionNotProvided(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
+
+	// when
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(10*time.Second),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	bw, ok := writer.(*backgroundBatchingWriter)
+	require.True(t, ok)
+
+	// then
+	assert.Equal(t, defaultConfig().flushChunkSize, bw.flushChunkSize)
+}
+
 func TestWriteRejectsAfterCleanup(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
