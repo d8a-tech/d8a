@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -195,13 +196,14 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 			inflightSpoolPath = filepath.Join(w.lvl2Dir, spoolFileName)
 		} else {
 			activeSpoolPath := filepath.Join(w.lvl2Dir, spoolFileName)
-			inflightSpoolPath = inflightSpoolPathFromActivePath(activeSpoolPath)
 
-			if err := os.Rename(activeSpoolPath, inflightSpoolPath); err != nil {
-				if os.IsNotExist(err) {
+			var rotateErr error
+			inflightSpoolPath, rotateErr = rotateSpoolToInflight(activeSpoolPath)
+			if rotateErr != nil {
+				if os.IsNotExist(rotateErr) {
 					continue
 				}
-				logrus.Errorf("failed to rotate spool file %q to inflight %q: %v", activeSpoolPath, inflightSpoolPath, err)
+				logrus.Errorf("failed to rotate spool file %q to inflight: %v", activeSpoolPath, rotateErr)
 				continue
 			}
 		}
@@ -277,7 +279,7 @@ func recoverInflightSpoolFiles(lvl2Dir string) error {
 			continue
 		}
 		if _, err := os.Stat(activeSpoolPath); err == nil {
-			logrus.Warnf("skipping inflight recovery for %q because active spool already exists", inflightSpoolPath)
+			logrus.Warnf("leaving inflight spool %q in place because active spool already exists", inflightSpoolPath)
 			continue
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("checking active spool %q during inflight recovery: %w", activeSpoolPath, err)
@@ -289,6 +291,31 @@ func recoverInflightSpoolFiles(lvl2Dir string) error {
 	}
 
 	return nil
+}
+
+func rotateSpoolToInflight(activeSpoolPath string) (string, error) {
+	for attempt := 0; attempt < 16; attempt++ {
+		candidateInflightPath := inflightSpoolPathWithSuffix(activeSpoolPath, time.Now().UnixNano(), attempt)
+		if err := os.Rename(activeSpoolPath, candidateInflightPath); err != nil {
+			if os.IsNotExist(err) {
+				return "", err
+			}
+
+			if _, statErr := os.Stat(candidateInflightPath); statErr == nil {
+				continue
+			}
+
+			return "", fmt.Errorf("renaming active spool %q to inflight %q: %w", activeSpoolPath, candidateInflightPath, err)
+		}
+
+		return candidateInflightPath, nil
+	}
+
+	return "", fmt.Errorf("could not allocate unique inflight path for active spool %q", activeSpoolPath)
+}
+
+func inflightSpoolPathWithSuffix(activeSpoolPath string, tsNano int64, attempt int) string {
+	return inflightSpoolPathFromActivePath(activeSpoolPath) + "." + strconv.FormatInt(tsNano, 10) + "." + strconv.Itoa(attempt)
 }
 
 // readSpoolFile reads all framed records from a spool file.

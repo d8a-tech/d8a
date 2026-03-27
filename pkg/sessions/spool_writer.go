@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -47,11 +48,18 @@ func inflightSpoolPathFromActivePath(activePath string) string {
 }
 
 func activeSpoolPathFromInflightPath(inflightPath string) (string, bool) {
-	if !strings.HasSuffix(inflightPath, spoolInflightFileSuffix) {
+	baseName := filepath.Base(inflightPath)
+	if !isInflightSpoolFileName(baseName) {
 		return "", false
 	}
 
-	return strings.TrimSuffix(inflightPath, ".inflight"), true
+	idx := strings.Index(baseName, spoolInflightFileSuffix)
+	if idx < 0 {
+		return "", false
+	}
+
+	activeBaseName := baseName[:idx] + spoolFileSuffix
+	return filepath.Join(filepath.Dir(inflightPath), activeBaseName), true
 }
 
 func isActiveSpoolFileName(name string) bool {
@@ -59,7 +67,34 @@ func isActiveSpoolFileName(name string) bool {
 }
 
 func isInflightSpoolFileName(name string) bool {
-	return strings.HasPrefix(name, spoolFilePrefix) && strings.HasSuffix(name, spoolInflightFileSuffix)
+	if !strings.HasPrefix(name, spoolFilePrefix) {
+		return false
+	}
+
+	if strings.HasSuffix(name, spoolInflightFileSuffix) {
+		return true
+	}
+
+	idx := strings.Index(name, spoolInflightFileSuffix+".")
+	if idx < 0 {
+		return false
+	}
+
+	versionSuffix := name[idx+len(spoolInflightFileSuffix)+1:]
+	parts := strings.Split(versionSuffix, ".")
+	if len(parts) != 2 {
+		return false
+	}
+
+	if _, err := strconv.ParseInt(parts[0], 10, 64); err != nil {
+		return false
+	}
+
+	if _, err := strconv.Atoi(parts[1]); err != nil {
+		return false
+	}
+
+	return true
 }
 
 // bufferedSpoolWriter accumulates sessions in per-property in-memory buffers
