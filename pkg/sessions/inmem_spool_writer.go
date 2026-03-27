@@ -15,9 +15,8 @@ type inMemSpoolWriter struct {
 	maxAge        time.Duration
 	sweepInterval time.Duration
 	writeChan     chan inMemWriteRequest
-	stopChan      chan struct{}
 	stopped       chan struct{}
-	mu            sync.Mutex
+	mu            sync.RWMutex
 	closed        bool
 	closeOnce     sync.Once
 }
@@ -65,7 +64,6 @@ func NewInMemSpoolWriter(child SessionWriter, opts ...InMemSpoolOption) (Session
 		maxAge:        30 * time.Second,
 		sweepInterval: 5 * time.Second,
 		writeChan:     make(chan inMemWriteRequest, 256),
-		stopChan:      make(chan struct{}),
 		stopped:       make(chan struct{}),
 	}
 	for _, opt := range opts {
@@ -76,11 +74,14 @@ func NewInMemSpoolWriter(child SessionWriter, opts ...InMemSpoolOption) (Session
 
 	cleanup := func() {
 		w.closeOnce.Do(func() {
+			// Write-lock ensures no Write call is between its closed
+			// check and its channel send. After this block, writeChan
+			// is closed so the loop can range-drain it deterministically.
 			w.mu.Lock()
 			w.closed = true
+			close(w.writeChan)
 			w.mu.Unlock()
 
-			close(w.stopChan)
 			<-w.stopped
 		})
 	}
@@ -94,21 +95,17 @@ func (w *inMemSpoolWriter) Write(sessions ...*schema.Session) error {
 		return nil
 	}
 
-	w.mu.Lock()
-	if w.closed {
-		w.mu.Unlock()
-		return fmt.Errorf("writer is stopped")
-	}
-	w.mu.Unlock()
+	// Hold the read lock across the closed check and channel send so
+	// cleanup cannot close writeChan between the two operations.
+	w.mu.RLock()
+	defer w.mu.RUnlock()
 
-	// Use select so we never block if the loop has already exited
-	// (e.g. cleanup raced between the closed check above and this send).
-	select {
-	case w.writeChan <- inMemWriteRequest{sessions: sessions}:
-		return nil
-	case <-w.stopped:
+	if w.closed {
 		return fmt.Errorf("writer is stopped")
 	}
+
+	w.writeChan <- inMemWriteRequest{sessions: sessions}
+	return nil
 }
 
 type propertyBuffer struct {
@@ -125,16 +122,17 @@ func (w *inMemSpoolWriter) loop() {
 
 	for {
 		select {
-		case req := <-w.writeChan:
+		case req, ok := <-w.writeChan:
+			if !ok {
+				// Channel closed by cleanup — drain buffers and exit.
+				w.flushAll(buffers)
+				return
+			}
 			w.bufferSessions(buffers, req.sessions)
 			w.flushByCount(buffers)
 
 		case <-ticker.C:
 			w.flushByAge(buffers)
-
-		case <-w.stopChan:
-			w.drain(buffers)
-			return
 		}
 	}
 }
@@ -182,17 +180,7 @@ func (w *inMemSpoolWriter) flushProperty(buffers map[string]*propertyBuffer, pro
 	delete(buffers, propID)
 }
 
-func (w *inMemSpoolWriter) drain(buffers map[string]*propertyBuffer) {
-	// Drain any remaining items on writeChan.
-	for {
-		select {
-		case req := <-w.writeChan:
-			w.bufferSessions(buffers, req.sessions)
-		default:
-			goto flushed
-		}
-	}
-flushed:
+func (w *inMemSpoolWriter) flushAll(buffers map[string]*propertyBuffer) {
 	// Best-effort flush of all remaining buffers during shutdown.
 	// On failure, log and discard — there is no next sweep cycle.
 	for propID, buf := range buffers {

@@ -315,3 +315,55 @@ func TestInMemSpoolWriter_WriteDuringCleanupDoesNotBlock(t *testing.T) {
 		t.Fatal("Write blocked forever during cleanup")
 	}
 }
+
+func TestInMemSpoolWriter_RacingWriteIsDeliveredOrRejected(t *testing.T) {
+	// This test verifies that every Write that returns nil has its sessions
+	// delivered to child during drain, and every Write that is rejected
+	// returns an error. No session may be silently lost.
+
+	// given
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),      // high so count-flush doesn't trigger
+		WithMaxAge(10*time.Minute), // high so age-flush doesn't trigger
+		WithSweepInterval(10*time.Minute),
+	)
+	require.NoError(t, err)
+
+	const numWriters = 20
+	const writesPerWriter = 50
+
+	var wg sync.WaitGroup
+	var acceptedMu sync.Mutex
+	accepted := 0
+
+	// when — launch many concurrent writers, then trigger cleanup mid-flight
+	wg.Add(numWriters)
+	for g := 0; g < numWriters; g++ {
+		go func() {
+			defer wg.Done()
+			for i := 0; i < writesPerWriter; i++ {
+				if writeErr := w.Write(session("P")); writeErr == nil {
+					acceptedMu.Lock()
+					accepted++
+					acceptedMu.Unlock()
+				}
+			}
+		}()
+	}
+
+	// Give writers a head start, then clean up while they're still running.
+	time.Sleep(5 * time.Millisecond)
+	cleanup()
+	wg.Wait()
+
+	// then — child must have received exactly the number of accepted sessions
+	all := child.allSessions()
+	acceptedMu.Lock()
+	expectedCount := accepted
+	acceptedMu.Unlock()
+
+	assert.Equal(t, expectedCount, len(all),
+		"every accepted Write (returned nil) must be drained to child; got %d delivered vs %d accepted",
+		len(all), expectedCount)
+}
