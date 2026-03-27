@@ -117,8 +117,20 @@ func buildWorkerRuntime(
 			cleanup()
 			return nil, fmt.Errorf("create persistent spool writer: %w", err)
 		}
-		sessionWriter = persistentWriter
-		batchingCleanup = persistentCleanup
+
+		if mode == "at_least_once" {
+			sessionWriter = persistentWriter
+			batchingCleanup = persistentCleanup
+		} else {
+			inMemWriter, inMemCleanup, err := sessions.NewInMemSpoolWriter(persistentWriter)
+			if err != nil {
+				persistentCleanup()
+				cleanup()
+				return nil, fmt.Errorf("create in-mem spool writer: %w", err)
+			}
+			sessionWriter = inMemWriter
+			batchingCleanup = func() { inMemCleanup(); persistentCleanup() }
+		}
 	}
 
 	w := worker.NewWorker(
