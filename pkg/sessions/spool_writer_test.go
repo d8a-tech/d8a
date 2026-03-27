@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,7 +26,7 @@ func TestDirectSpoolWriterWrite_SanitizesPropertyIDPathSeparators(t *testing.T) 
 	require.NoError(t, err)
 
 	// then
-	expectedSpoolPath := filepath.Join(tmpDir, "property_.._tenant_prod.spool")
+	expectedSpoolPath := activeSpoolPath(tmpDir, propID)
 	_, err = os.Stat(expectedSpoolPath)
 	require.NoError(t, err)
 

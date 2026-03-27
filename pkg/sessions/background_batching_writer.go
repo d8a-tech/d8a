@@ -70,6 +70,10 @@ func NewBackgroundBatchingWriter(
 		return nil, nil, fmt.Errorf("creating spool directory: %w", err)
 	}
 
+	if err := recoverInflightSpoolFiles(cfg.lvl2Dir); err != nil {
+		return nil, nil, fmt.Errorf("recovering inflight spool files: %w", err)
+	}
+
 	w := &backgroundBatchingWriter{
 		childWriter:                      childWriter,
 		spoolWriter:                      sw,
@@ -181,62 +185,110 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 			continue
 		}
 
-		// Only process .spool files
-		if filepath.Ext(entry.Name()) != ".spool" {
+		spoolFileName := entry.Name()
+		if !isActiveSpoolFileName(spoolFileName) && !isInflightSpoolFileName(spoolFileName) {
 			continue
 		}
 
-		spoolPath := filepath.Join(w.lvl2Dir, entry.Name())
+		var inflightSpoolPath string
+		if isInflightSpoolFileName(spoolFileName) {
+			inflightSpoolPath = filepath.Join(w.lvl2Dir, spoolFileName)
+		} else {
+			activeSpoolPath := filepath.Join(w.lvl2Dir, spoolFileName)
+			inflightSpoolPath = inflightSpoolPathFromActivePath(activeSpoolPath)
+
+			if err := os.Rename(activeSpoolPath, inflightSpoolPath); err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				logrus.Errorf("failed to rotate spool file %q to inflight %q: %v", activeSpoolPath, inflightSpoolPath, err)
+				continue
+			}
+		}
 
 		// Read and decode all records from this spool file
-		allSessions, err := w.readSpoolFile(spoolPath)
+		allSessions, err := w.readSpoolFile(inflightSpoolPath)
 		if err != nil {
-			logrus.Errorf("failed to read spool file %q: %v", spoolPath, err)
+			logrus.Errorf("failed to read spool file %q: %v", inflightSpoolPath, err)
 			continue
 		}
 
 		if len(allSessions) == 0 {
 			// Empty file, remove it
-			if err := os.Remove(spoolPath); err != nil {
-				logrus.Errorf("failed to remove empty spool file %q: %v", spoolPath, err)
+			if err := os.Remove(inflightSpoolPath); err != nil {
+				logrus.Errorf("failed to remove empty spool file %q: %v", inflightSpoolPath, err)
 			} else {
-				delete(consecutiveFailuresBySpool, spoolPath)
+				delete(consecutiveFailuresBySpool, inflightSpoolPath)
 			}
 			continue
 		}
 
 		if err := w.childWriter.Write(allSessions...); err != nil {
-			consecutiveFailuresBySpool[spoolPath]++
-			failureCount := consecutiveFailuresBySpool[spoolPath]
+			consecutiveFailuresBySpool[inflightSpoolPath]++
+			failureCount := consecutiveFailuresBySpool[inflightSpoolPath]
 
 			if failureCount >= w.maxConsecutiveChildWriteFailures {
 				logrus.Errorf(
 					"exceeded failure threshold for spool file %q after %d consecutive child writer failures (threshold: %d)",
-					spoolPath,
+					inflightSpoolPath,
 					failureCount,
 					w.maxConsecutiveChildWriteFailures,
 				)
-				if strategyErr := w.failureStrategy.OnExceededFailures(spoolPath); strategyErr != nil {
-					logrus.Errorf("failure strategy error for spool file %q: %v", spoolPath, strategyErr)
+				if strategyErr := w.failureStrategy.OnExceededFailures(inflightSpoolPath); strategyErr != nil {
+					logrus.Errorf("failure strategy error for spool file %q: %v", inflightSpoolPath, strategyErr)
 					continue
 				}
-				delete(consecutiveFailuresBySpool, spoolPath)
+				delete(consecutiveFailuresBySpool, inflightSpoolPath)
 				continue
 			}
 
-			logrus.Errorf("failed to write sessions from spool file %q to child writer: %v", spoolPath, err)
+			logrus.Errorf("failed to write sessions from spool file %q to child writer: %v", inflightSpoolPath, err)
 			continue
 		}
 
-		logrus.Debugf("wrote %d sessions from spool %q to warehouse", len(allSessions), spoolPath)
+		logrus.Debugf("wrote %d sessions from spool %q to warehouse", len(allSessions), inflightSpoolPath)
 
 		// Success: remove spool file and reset failure count
-		if err := os.Remove(spoolPath); err != nil {
-			logrus.Errorf("failed to remove spool file %q after successful flush: %v", spoolPath, err)
+		if err := os.Remove(inflightSpoolPath); err != nil {
+			logrus.Errorf("failed to remove spool file %q after successful flush: %v", inflightSpoolPath, err)
 		} else {
-			delete(consecutiveFailuresBySpool, spoolPath)
+			delete(consecutiveFailuresBySpool, inflightSpoolPath)
 		}
 	}
+}
+
+func recoverInflightSpoolFiles(lvl2Dir string) error {
+	entries, err := os.ReadDir(lvl2Dir)
+	if err != nil {
+		return fmt.Errorf("reading spool directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if !isInflightSpoolFileName(entry.Name()) {
+			continue
+		}
+
+		inflightSpoolPath := filepath.Join(lvl2Dir, entry.Name())
+		activeSpoolPath, ok := activeSpoolPathFromInflightPath(inflightSpoolPath)
+		if !ok {
+			continue
+		}
+		if _, err := os.Stat(activeSpoolPath); err == nil {
+			logrus.Warnf("skipping inflight recovery for %q because active spool already exists", inflightSpoolPath)
+			continue
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("checking active spool %q during inflight recovery: %w", activeSpoolPath, err)
+		}
+
+		if err := os.Rename(inflightSpoolPath, activeSpoolPath); err != nil {
+			return fmt.Errorf("renaming inflight spool %q to active %q: %w", inflightSpoolPath, activeSpoolPath, err)
+		}
+	}
+
+	return nil
 }
 
 // readSpoolFile reads all framed records from a spool file.

@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -101,6 +100,32 @@ func (m *countingMockSessionWriter) Write(sessions ...*schema.Session) error {
 }
 
 func (m *countingMockSessionWriter) getWriteCalls() [][]*schema.Session {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([][]*schema.Session, len(m.writeCalls))
+	copy(out, m.writeCalls)
+	return out
+}
+
+type hookMockSessionWriter struct {
+	mu         sync.Mutex
+	writeCalls [][]*schema.Session
+	hook       func()
+}
+
+func (m *hookMockSessionWriter) Write(sessions ...*schema.Session) error {
+	m.mu.Lock()
+	m.writeCalls = append(m.writeCalls, sessions)
+	m.mu.Unlock()
+
+	if m.hook != nil {
+		m.hook()
+	}
+
+	return nil
+}
+
+func (m *hookMockSessionWriter) getWriteCalls() [][]*schema.Session {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	out := make([][]*schema.Session, len(m.writeCalls))
@@ -257,7 +282,7 @@ func TestDirectSpoolWriterSyncsAndFrameFormat(t *testing.T) {
 	// then
 	require.NoError(t, err)
 
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
 	data, err := os.ReadFile(spoolPath)
 	require.NoError(t, err)
 
@@ -324,13 +349,13 @@ func TestDirectSpoolWriterPreservesFileOnChildFailure(t *testing.T) {
 		return len(childWriter.getWriteCalls()) >= 1
 	}, 300*time.Millisecond, 10*time.Millisecond, "child writer should be called at least once")
 
-	// Spool file should still exist (child failed)
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	_, statErr := os.Stat(spoolPath)
+	// Inflight spool file should still exist (child failed)
+	inflightPath := inflightSpoolPathFromActivePath(activeSpoolPath(tmpDir, "prop1"))
+	_, statErr := os.Stat(inflightPath)
 	assert.NoError(t, statErr, "spool file should still exist after child failure")
 
 	// File should be readable
-	data, readErr := os.ReadFile(spoolPath)
+	data, readErr := os.ReadFile(inflightPath)
 	require.NoError(t, readErr)
 	assert.True(t, len(data) > 4, "spool file should contain framed record data")
 
@@ -367,8 +392,9 @@ func TestQuarantineStrategyOnRepeatedFailures(t *testing.T) {
 	require.NoError(t, err)
 
 	// then -- spool file should be quarantined (renamed), not deleted
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
-	quarantinePath := spoolPath + ".quarantine"
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(spoolPath)
+	quarantinePath := inflightPath + ".quarantine"
 
 	assert.Eventually(t, func() bool {
 		_, err := os.Stat(quarantinePath)
@@ -418,22 +444,29 @@ func TestDeleteStrategyOnRepeatedFailures(t *testing.T) {
 	require.NoError(t, err)
 
 	// then -- wait for spool file to appear on disk (buffered flush)
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(spoolPath)
 	require.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return err == nil
+		_, activeErr := os.Stat(spoolPath)
+		if activeErr == nil {
+			return true
+		}
+		_, rotateErr := os.Stat(inflightPath)
+		return rotateErr == nil
 	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
 
 	// Wait for spool file to be deleted (delete strategy)
 	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return os.IsNotExist(err)
+		_, activeErr := os.Stat(spoolPath)
+		_, rotateErr := os.Stat(inflightPath)
+		return os.IsNotExist(activeErr) && os.IsNotExist(rotateErr)
 	}, 500*time.Millisecond, 10*time.Millisecond, "spool file should be deleted after threshold")
 
-	// No quarantine file should exist
-	quarantinePath := spoolPath + ".quarantine"
-	_, err = os.Stat(quarantinePath)
-	assert.True(t, os.IsNotExist(err), "quarantine file should not exist with delete strategy")
+	// No quarantine files should exist
+	_, err = os.Stat(spoolPath + ".quarantine")
+	assert.True(t, os.IsNotExist(err), "active quarantine file should not exist with delete strategy")
+	_, err = os.Stat(inflightPath + ".quarantine")
+	assert.True(t, os.IsNotExist(err), "inflight quarantine file should not exist with delete strategy")
 }
 
 func TestPreExistingSpoolFileIsReplayedOnLvl2Tick(t *testing.T) {
@@ -450,7 +483,7 @@ func TestPreExistingSpoolFileIsReplayedOnLvl2Tick(t *testing.T) {
 	require.NoError(t, err)
 	payload := encodedBuf.Bytes()
 
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
 	header := make([]byte, 4, 4+len(payload))
 	binary.LittleEndian.PutUint32(header, uint32(len(payload)))
 	err = os.WriteFile(spoolPath, append(header, payload...), 0o644)
@@ -486,6 +519,114 @@ func TestPreExistingSpoolFileIsReplayedOnLvl2Tick(t *testing.T) {
 	}, 200*time.Millisecond, 10*time.Millisecond, "spool file should be removed after successful flush")
 }
 
+func TestFlushRotatesActiveSpoolAndPreservesWritesAfterRotation(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, sw.Close())
+	})
+
+	var firstPayload bytes.Buffer
+	_, err = encoding.GobEncoder(&firstPayload, []*schema.Session{newTestSession("prop1")})
+	require.NoError(t, err)
+	require.NoError(t, sw.Write("prop1", firstPayload.Bytes()))
+
+	var secondPayload bytes.Buffer
+	_, err = encoding.GobEncoder(&secondPayload, []*schema.Session{newTestSession("prop1")})
+	require.NoError(t, err)
+
+	childWriter := &hookMockSessionWriter{
+		hook: func() {
+			require.NoError(t, sw.Write("prop1", secondPayload.Bytes()))
+		},
+	}
+
+	w := &backgroundBatchingWriter{
+		childWriter:                      childWriter,
+		failureStrategy:                  &mockSpoolFailureStrategy{},
+		lvl2Dir:                          tmpDir,
+		decoder:                          encoding.GobDecoder,
+		maxConsecutiveChildWriteFailures: 20,
+	}
+
+	// when
+	w.flushLvl2ToChild(make(map[string]int))
+
+	// then
+	activePath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(activePath)
+
+	_, err = os.Stat(inflightPath)
+	assert.True(t, os.IsNotExist(err), "inflight spool should be removed after successful flush")
+
+	data, err := os.ReadFile(activePath)
+	require.NoError(t, err, "a new active spool file should contain write after rotation")
+	require.True(t, len(data) >= 4)
+
+	payloadLen := binary.LittleEndian.Uint32(data[:4])
+	require.Equal(t, uint32(len(secondPayload.Bytes())), payloadLen)
+	assert.Equal(t, secondPayload.Bytes(), data[4:4+payloadLen])
+
+	calls := childWriter.getWriteCalls()
+	require.Len(t, calls, 1)
+	require.Len(t, calls[0], 1)
+	assert.Equal(t, "prop1", calls[0][0].PropertyID)
+}
+
+func TestNewBackgroundBatchingWriterRecoversInflightSpoolFilesOnStartup(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	childWriter := &countingMockSessionWriter{}
+	sw := &mockSpoolWriter{}
+	fs := &mockSpoolFailureStrategy{}
+
+	var encodedBuf bytes.Buffer
+	sessions := []*schema.Session{newTestSession("prop1")}
+	_, err := encoding.GobEncoder(&encodedBuf, sessions)
+	require.NoError(t, err)
+	payload := encodedBuf.Bytes()
+
+	activePath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(activePath)
+	header := make([]byte, 4, 4+len(payload))
+	binary.LittleEndian.PutUint32(header, uint32(len(payload)))
+	err = os.WriteFile(inflightPath, append(header, payload...), 0o644)
+	require.NoError(t, err)
+
+	writer, cleanup, err := NewBackgroundBatchingWriter(
+		context.Background(),
+		childWriter,
+		sw,
+		fs,
+		WithSpoolDir(tmpDir),
+		WithLvl2FlushInterval(5*time.Second),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	bw, ok := writer.(*backgroundBatchingWriter)
+	require.True(t, ok)
+
+	// when
+	_, err = os.Stat(activePath)
+	require.NoError(t, err, "startup should recover inflight spool back to active")
+	_, err = os.Stat(inflightPath)
+	require.True(t, os.IsNotExist(err), "inflight spool should be renamed back during startup")
+
+	bw.flushLvl2ToChild(make(map[string]int))
+
+	// then
+	calls := childWriter.getWriteCalls()
+	require.Len(t, calls, 1)
+	require.Len(t, calls[0], 1)
+	assert.Equal(t, "prop1", calls[0][0].PropertyID)
+
+	_, err = os.Stat(activePath)
+	assert.True(t, os.IsNotExist(err), "recovered active spool should be removed after successful flush")
+}
+
 func TestCleanupCallsSpoolWriterCloseAndDoesNotFlushLvl2(t *testing.T) {
 	// given
 	tmpDir := t.TempDir()
@@ -500,7 +641,7 @@ func TestCleanupCallsSpoolWriterCloseAndDoesNotFlushLvl2(t *testing.T) {
 	require.NoError(t, err)
 	payload := encodedBuf.Bytes()
 
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
 	header := make([]byte, 4, 4+len(payload))
 	binary.LittleEndian.PutUint32(header, uint32(len(payload)))
 	err = os.WriteFile(spoolPath, append(header, payload...), 0o644)
@@ -552,7 +693,7 @@ func TestBufferedSpoolWriterFlushesToDiskOnCount(t *testing.T) {
 	require.NoError(t, err)
 
 	// then -- spool file should exist on disk with both records
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
 	assert.Eventually(t, func() bool {
 		info, err := os.Stat(spoolPath)
 		if err != nil {
@@ -598,7 +739,7 @@ func TestBufferedSpoolWriterFlushesOnClose(t *testing.T) {
 	require.NoError(t, err)
 
 	// then -- spool file should exist (flushed on close)
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
 	data, err := os.ReadFile(spoolPath)
 	require.NoError(t, err)
 	require.True(t, len(data) >= 4)
@@ -700,16 +841,22 @@ func TestSpoolFailureCounterResetOnSuccess(t *testing.T) {
 	require.NoError(t, err)
 
 	// then -- wait for spool file to appear on disk first
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(spoolPath)
 	require.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return err == nil
+		_, activeErr := os.Stat(spoolPath)
+		if activeErr == nil {
+			return true
+		}
+		_, rotateErr := os.Stat(inflightPath)
+		return rotateErr == nil
 	}, 300*time.Millisecond, 10*time.Millisecond, "spool file should exist after lvl1 flush")
 
 	// Wait for first failure and second success; file should be removed
 	assert.Eventually(t, func() bool {
-		_, err := os.Stat(spoolPath)
-		return os.IsNotExist(err)
+		_, activeErr := os.Stat(spoolPath)
+		_, rotateErr := os.Stat(inflightPath)
+		return os.IsNotExist(activeErr) && os.IsNotExist(rotateErr)
 	}, 1*time.Second, 10*time.Millisecond, "spool file should be removed after successful retry")
 
 	calls := childWriter.getWriteCalls()
@@ -741,10 +888,15 @@ func TestFailureCounterNotResetWhenFailureStrategyFails(t *testing.T) {
 	err = writer.Write(newTestSession("prop1"))
 	require.NoError(t, err)
 
-	spoolPath := filepath.Join(tmpDir, "property_prop1.spool")
+	spoolPath := activeSpoolPath(tmpDir, "prop1")
+	inflightPath := inflightSpoolPathFromActivePath(spoolPath)
 	require.Eventually(t, func() bool {
-		_, statErr := os.Stat(spoolPath)
-		return statErr == nil
+		_, activeErr := os.Stat(spoolPath)
+		if activeErr == nil {
+			return true
+		}
+		_, rotateErr := os.Stat(inflightPath)
+		return rotateErr == nil
 	}, 300*time.Millisecond, 10*time.Millisecond)
 
 	// then
@@ -752,6 +904,6 @@ func TestFailureCounterNotResetWhenFailureStrategyFails(t *testing.T) {
 		return len(fs.getPaths()) >= 2
 	}, 400*time.Millisecond, 10*time.Millisecond, "failure strategy should be retried on subsequent ticks")
 
-	_, statErr := os.Stat(spoolPath)
+	_, statErr := os.Stat(inflightPath)
 	assert.NoError(t, statErr, "spool file should remain when failure strategy fails")
 }

@@ -24,6 +24,44 @@ type SpoolFailureStrategy interface {
 	OnExceededFailures(spoolPath string) error
 }
 
+const (
+	spoolFilePrefix         = "property_"
+	spoolFileSuffix         = ".spool"
+	spoolInflightFileSuffix = ".spool.inflight"
+)
+
+func sanitizeSpoolPropertyID(propID string) string {
+	return strings.NewReplacer("/", "_", "\\", "_").Replace(propID)
+}
+
+func activeSpoolFilename(propID string) string {
+	return fmt.Sprintf("%s%s%s", spoolFilePrefix, sanitizeSpoolPropertyID(propID), spoolFileSuffix)
+}
+
+func activeSpoolPath(lvl2Dir, propID string) string {
+	return filepath.Join(lvl2Dir, activeSpoolFilename(propID))
+}
+
+func inflightSpoolPathFromActivePath(activePath string) string {
+	return activePath + ".inflight"
+}
+
+func activeSpoolPathFromInflightPath(inflightPath string) (string, bool) {
+	if !strings.HasSuffix(inflightPath, spoolInflightFileSuffix) {
+		return "", false
+	}
+
+	return strings.TrimSuffix(inflightPath, ".inflight"), true
+}
+
+func isActiveSpoolFileName(name string) bool {
+	return strings.HasPrefix(name, spoolFilePrefix) && strings.HasSuffix(name, spoolFileSuffix)
+}
+
+func isInflightSpoolFileName(name string) bool {
+	return strings.HasPrefix(name, spoolFilePrefix) && strings.HasSuffix(name, spoolInflightFileSuffix)
+}
+
 // bufferedSpoolWriter accumulates sessions in per-property in-memory buffers
 // and flushes to lvl2 spool files on count/age thresholds.
 type bufferedSpoolWriter struct {
@@ -192,9 +230,7 @@ func appendFramedRecord(lvl2Dir, propID string, payload []byte) error {
 		return fmt.Errorf("payload too large for property %q: %d bytes", propID, len(payload))
 	}
 
-	sanitizedPropID := strings.NewReplacer("/", "_", "\\", "_").Replace(propID)
-
-	spoolPath := filepath.Join(lvl2Dir, fmt.Sprintf("property_%s.spool", sanitizedPropID))
+	spoolPath := activeSpoolPath(lvl2Dir, propID)
 
 	//nolint:gosec // path is constructed from property ID
 	file, err := os.OpenFile(
