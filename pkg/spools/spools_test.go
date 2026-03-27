@@ -102,6 +102,47 @@ func TestFlushCallbackError_LeavesInflight(t *testing.T) {
 	assert.Equal(t, "prop1.spool.inflight", entries[0].Name())
 }
 
+func TestFlushRetryInflightWithoutRestart(t *testing.T) {
+	// given — append data, first flush fails leaving inflight
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools")
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("frame-a")))
+	require.NoError(t, s.Append("prop1", []byte("frame-b")))
+
+	callCount := 0
+	err = s.Flush(func(_ string, _ [][]byte) error {
+		callCount++
+		return fmt.Errorf("transient failure")
+	})
+	require.Error(t, err)
+	assert.Equal(t, 1, callCount)
+
+	// Inflight file should exist.
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "prop1.spool.inflight", entries[0].Name())
+
+	// when — second flush succeeds without restart
+	var retried [][]byte
+	err = s.Flush(func(_ string, frames [][]byte) error {
+		retried = frames
+		return nil
+	})
+
+	// then — same frames delivered, inflight cleaned up
+	require.NoError(t, err)
+	require.Len(t, retried, 2)
+	assert.Equal(t, []byte("frame-a"), retried[0])
+	assert.Equal(t, []byte("frame-b"), retried[1])
+
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestRecoverInflightOnNew(t *testing.T) {
 	// given — simulate crash remnant: inflight file exists
 	fs := afero.NewMemMapFs()

@@ -133,12 +133,15 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 	}
 
 	// Collect active files and rename them to inflight while holding the lock.
+	// Also pick up pre-existing inflight files left by a prior failed flush.
 	type pending struct {
 		key          string
 		inflightPath string
 	}
 	var toFlush []pending
+	seen := make(map[string]bool)
 
+	// First pass: rename active files to inflight.
 	for _, entry := range entries {
 		name := entry.Name()
 		if !strings.HasSuffix(name, spoolExt) || strings.HasSuffix(name, inflightExt) {
@@ -153,6 +156,21 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 			return fmt.Errorf("renaming %q to inflight: %w", active, err)
 		}
 		toFlush = append(toFlush, pending{key: key, inflightPath: inflight})
+		seen[inflight] = true
+	}
+
+	// Second pass: collect pre-existing inflight files from prior failed flushes.
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasSuffix(name, inflightExt) {
+			continue
+		}
+		inflightPath := s.dir + "/" + name
+		if seen[inflightPath] {
+			continue
+		}
+		key := keyFromFilename(name, inflightExt)
+		toFlush = append(toFlush, pending{key: key, inflightPath: inflightPath})
 	}
 	s.mu.Unlock()
 
