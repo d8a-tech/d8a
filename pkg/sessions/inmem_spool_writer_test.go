@@ -1,6 +1,7 @@
 package sessions
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -51,6 +52,45 @@ func (r *recordingWriter) callsSnapshot() [][]*schema.Session {
 
 func session(propID string) *schema.Session {
 	return &schema.Session{PropertyID: propID}
+}
+
+// failingWriter is a test double that fails a configurable number of times
+// then succeeds, recording all successful writes.
+type failingWriter struct {
+	mu          sync.Mutex
+	failCount   int // remaining failures
+	calls       [][]*schema.Session
+	failedCalls int
+}
+
+func (f *failingWriter) Write(sessions ...*schema.Session) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.failCount > 0 {
+		f.failCount--
+		f.failedCalls++
+		return fmt.Errorf("simulated failure")
+	}
+	cp := make([]*schema.Session, len(sessions))
+	copy(cp, sessions)
+	f.calls = append(f.calls, cp)
+	return nil
+}
+
+func (f *failingWriter) allSessions() []*schema.Session {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var all []*schema.Session
+	for _, c := range f.calls {
+		all = append(all, c...)
+	}
+	return all
+}
+
+func (f *failingWriter) getFailedCalls() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.failedCalls
 }
 
 func TestInMemSpoolWriter_FlushOnCount(t *testing.T) {
@@ -216,4 +256,62 @@ func TestInMemSpoolWriter_SkipsEmptyPropertyID(t *testing.T) {
 
 	// then — nothing should be flushed
 	assert.Equal(t, 0, child.callCount())
+}
+
+func TestInMemSpoolWriter_RetainsBufferOnChildFailure(t *testing.T) {
+	// given — child fails once then succeeds
+	child := &failingWriter{failCount: 1}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(30*time.Millisecond),
+		WithSweepInterval(15*time.Millisecond),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when — write a session; first sweep will fail, second should succeed
+	require.NoError(t, w.Write(session("R")))
+
+	// then — eventually child receives the session after retry
+	assert.Eventually(t, func() bool {
+		return len(child.allSessions()) >= 1
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// The child must have been called at least twice (one failure + one success)
+	assert.GreaterOrEqual(t, child.getFailedCalls(), 1)
+	all := child.allSessions()
+	assert.Len(t, all, 1)
+	assert.Equal(t, "R", all[0].PropertyID)
+}
+
+func TestInMemSpoolWriter_WriteDuringCleanupDoesNotBlock(t *testing.T) {
+	// given
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+	)
+	require.NoError(t, err)
+
+	// when — start cleanup in background, then try to Write concurrently
+	// The Write must not block forever even if it races with cleanup.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// Tight loop of writes — some will succeed, some will see "stopped".
+		// The key property: none of them block forever.
+		for i := 0; i < 100; i++ {
+			_ = w.Write(session("D"))
+		}
+	}()
+
+	cleanup()
+
+	select {
+	case <-done:
+		// success — writes completed without blocking
+	case <-time.After(2 * time.Second):
+		t.Fatal("Write blocked forever during cleanup")
+	}
 }

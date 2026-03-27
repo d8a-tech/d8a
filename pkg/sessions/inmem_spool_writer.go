@@ -101,8 +101,14 @@ func (w *inMemSpoolWriter) Write(sessions ...*schema.Session) error {
 	}
 	w.mu.Unlock()
 
-	w.writeChan <- inMemWriteRequest{sessions: sessions}
-	return nil
+	// Use select so we never block if the loop has already exited
+	// (e.g. cleanup raced between the closed check above and this send).
+	select {
+	case w.writeChan <- inMemWriteRequest{sessions: sessions}:
+		return nil
+	case <-w.stopped:
+		return fmt.Errorf("writer is stopped")
+	}
 }
 
 type propertyBuffer struct {
@@ -170,6 +176,8 @@ func (w *inMemSpoolWriter) flushByAge(buffers map[string]*propertyBuffer) {
 func (w *inMemSpoolWriter) flushProperty(buffers map[string]*propertyBuffer, propID string, buf *propertyBuffer) {
 	if err := w.child.Write(buf.sessions...); err != nil {
 		logrus.Errorf("in-mem spool flush for property %q: %v", propID, err)
+		// Keep sessions in the buffer for retry on the next sweep cycle.
+		return
 	}
 	delete(buffers, propID)
 }
@@ -185,8 +193,12 @@ func (w *inMemSpoolWriter) drain(buffers map[string]*propertyBuffer) {
 		}
 	}
 flushed:
-	// Flush all remaining buffers.
+	// Best-effort flush of all remaining buffers during shutdown.
+	// On failure, log and discard — there is no next sweep cycle.
 	for propID, buf := range buffers {
-		w.flushProperty(buffers, propID, buf)
+		if err := w.child.Write(buf.sessions...); err != nil {
+			logrus.Errorf("in-mem spool drain flush for property %q: %v (sessions lost)", propID, err)
+		}
+		delete(buffers, propID)
 	}
 }
