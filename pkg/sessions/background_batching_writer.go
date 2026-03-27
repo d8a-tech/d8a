@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -16,6 +17,23 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 )
+
+// childWriterError wraps errors that occur during child SessionWriter.Write operations.
+// Non-child errors (open, stat, read, decode) are NOT wrapped in this type and must not
+// count toward the failure threshold.
+type childWriterError struct {
+	err error
+}
+
+// Error implements the error interface.
+func (e *childWriterError) Error() string {
+	return e.err.Error()
+}
+
+// Unwrap returns the underlying error for error chain compatibility.
+func (e *childWriterError) Unwrap() error {
+	return e.err
+}
 
 // backgroundBatchingWriter implements SessionWriter with an injected SpoolWriter
 // for the lvl1-to-lvl2 handoff and periodic lvl2 flushes to a child writer.
@@ -214,21 +232,26 @@ func (w *backgroundBatchingWriter) flushLvl2ToChild(consecutiveFailuresBySpool m
 		if err != nil {
 			logrus.Errorf("failed to flush spool file %q: %v", inflightSpoolPath, err)
 
-			consecutiveFailuresBySpool[inflightSpoolPath]++
-			failureCount := consecutiveFailuresBySpool[inflightSpoolPath]
+			// Only count child-writer failures toward the threshold.
+			// Non-child errors (open, stat, read, decode) do not count.
+			var childErr *childWriterError
+			if errors.As(err, &childErr) {
+				consecutiveFailuresBySpool[inflightSpoolPath]++
+				failureCount := consecutiveFailuresBySpool[inflightSpoolPath]
 
-			if failureCount >= w.maxConsecutiveChildWriteFailures {
-				logrus.Errorf(
-					"exceeded failure threshold for spool file %q after %d consecutive child writer failures (threshold: %d)",
-					inflightSpoolPath,
-					failureCount,
-					w.maxConsecutiveChildWriteFailures,
-				)
-				if strategyErr := w.failureStrategy.OnExceededFailures(inflightSpoolPath); strategyErr != nil {
-					logrus.Errorf("failure strategy error for spool file %q: %v", inflightSpoolPath, strategyErr)
-					continue
+				if failureCount >= w.maxConsecutiveChildWriteFailures {
+					logrus.Errorf(
+						"exceeded failure threshold for spool file %q after %d consecutive child writer failures (threshold: %d)",
+						inflightSpoolPath,
+						failureCount,
+						w.maxConsecutiveChildWriteFailures,
+					)
+					if strategyErr := w.failureStrategy.OnExceededFailures(inflightSpoolPath); strategyErr != nil {
+						logrus.Errorf("failure strategy error for spool file %q: %v", inflightSpoolPath, strategyErr)
+						continue
+					}
+					delete(consecutiveFailuresBySpool, inflightSpoolPath)
 				}
-				delete(consecutiveFailuresBySpool, inflightSpoolPath)
 			}
 
 			continue
@@ -351,7 +374,7 @@ func flushChunkToChild(childWriter SessionWriter, chunk *[]*schema.Session) (boo
 	}
 
 	if err := childWriter.Write((*chunk)...); err != nil {
-		return false, fmt.Errorf("writing chunk to child writer: %w", err)
+		return false, &childWriterError{err: fmt.Errorf("writing chunk to child writer: %w", err)}
 	}
 
 	*chunk = (*chunk)[:0]

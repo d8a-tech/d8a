@@ -1259,3 +1259,57 @@ func TestFailureCounterNotResetWhenFailureStrategyFails(t *testing.T) {
 	msg := "spool file should remain when failure strategy fails"
 	assert.NotEmpty(t, inflightPathsForProperty(t, tmpDir, "prop1"), msg)
 }
+
+func TestDecodeErrorDoesNotIncrementFailureCounter(t *testing.T) {
+	// given
+	tmpDir := t.TempDir()
+	sw, err := NewDirectSpoolWriter(tmpDir)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, sw.Close())
+	})
+
+	// Write a valid session to create the spool file
+	writeSessionRecordsToSpool(t, sw, "prop1", []*schema.Session{
+		newTestSession("prop1"),
+	})
+
+	// Rotate it to inflight manually so we can corrupt it
+	activeSpoolPath := filepath.Join(tmpDir, activeSpoolFilename("prop1"))
+	inflightPath, err := rotateSpoolToInflight(activeSpoolPath)
+	require.NoError(t, err)
+
+	// Now corrupt the spool file by truncating it to an invalid state
+	// Write just a partial frame that will fail to decode
+	require.NoError(t, os.Truncate(inflightPath, 2))
+
+	// Create a writer that always fails on child writes
+	childWriter := &countingMockSessionWriter{alwaysFail: true, failCount: -1}
+	strategyMock := &mockSpoolFailureStrategy{}
+
+	w := &backgroundBatchingWriter{
+		childWriter:                      childWriter,
+		failureStrategy:                  strategyMock,
+		lvl2Dir:                          tmpDir,
+		decoder:                          encoding.GobDecoder,
+		flushChunkSize:                   1,
+		maxConsecutiveChildWriteFailures: 2,
+	}
+
+	// when: flush multiple times with the corrupted file
+	consecutiveFailuresBySpool := make(map[string]int)
+
+	// First flush: decode error (corrupted file)
+	w.flushLvl2ToChild(consecutiveFailuresBySpool)
+
+	// Verify failure count is still 0 for decode error
+	failureCount := consecutiveFailuresBySpool[inflightPath]
+	assert.Equal(t, 0, failureCount, "decode error should not increment failure counter")
+
+	// then: file should still exist (not deleted by strategy)
+	_, statErr := os.Stat(inflightPath)
+	assert.NoError(t, statErr, "inflight file should still exist after decode error")
+
+	// Verify strategy was never called
+	assert.Empty(t, strategyMock.getPaths(), "failure strategy should not be called for decode errors")
+}
