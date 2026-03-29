@@ -261,7 +261,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 							select {
 							case <-ctx.Done():
 								logrus.Debug("context cancelled, skipping task processing")
-								return nil
+								return ctx.Err()
 							default:
 								return runtime.Worker.Process(task)
 							}
@@ -401,7 +401,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						select {
 						case <-ctx.Done():
 							logrus.Debug("context cancelled, skipping task processing")
-							return nil
+							return ctx.Err()
 						default:
 							return runtime.Worker.Process(task)
 						}

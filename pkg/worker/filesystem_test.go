@@ -354,6 +354,37 @@ func TestNewFilesystemDirectoryConsumer_NonexistentDirectory(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not exist")
 }
 
+func TestFilesystemDirectoryConsumer_HandlerErrorPreservesTaskFile(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	format := NewBinaryMessageFormat()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	publisher, err := NewFilesystemDirectoryPublisher(dir, format)
+	assert.NoError(t, err)
+
+	task := &Task{Type: "test", Headers: map[string]string{"k": "v"}, Body: []byte("data")}
+	err = publisher.Publish(task)
+	assert.NoError(t, err)
+
+	consumer, err := NewFilesystemDirectoryConsumer(ctx, dir, format)
+	assert.NoError(t, err)
+
+	// when — handler returns context.Canceled (simulating shutdown)
+	processed, batchErr := consumer.processNextBatch(func(_ *Task) error {
+		return context.Canceled
+	})
+
+	// then — task file must still exist on disk for retry
+	assert.False(t, processed)
+	assert.ErrorIs(t, batchErr, context.Canceled)
+
+	files, err := os.ReadDir(dir)
+	assert.NoError(t, err)
+	assert.Len(t, files, 1, "task file must be preserved when handler returns an error")
+}
+
 func TestExtractTimestamp(t *testing.T) {
 	tests := []struct {
 		filename string
