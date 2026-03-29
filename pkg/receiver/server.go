@@ -159,15 +159,15 @@ func (s *Server) handleRequest(
 
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
-		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		logrus.WithError(err).Warn("failed to create hits from request")
+		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
 		return
 	}
 
 	for _, hit := range hits {
 		if hit.Request == nil {
-			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
-			logrus.Error(err)
-			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+			logrus.Errorf("server attributes are nil for hit %s", hit.ID)
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
@@ -179,7 +179,8 @@ func (s *Server) handleRequest(
 	}
 	err = s.storage.Push(hits)
 	if err != nil {
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		logrus.WithError(err).Error("failed to push hits to storage")
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
 	}
 
