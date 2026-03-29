@@ -859,3 +859,59 @@ func TestInflightFilesAreSortedByTimestamp(t *testing.T) {
 	assert.Equal(t, "/data/spools/prop1.spool.inflight.2000", names[1])
 	assert.Equal(t, "/data/spools/prop1.spool.inflight.3000", names[2])
 }
+
+func TestConcurrentFlushAndAppendNoRaceOnFailures(t *testing.T) {
+	// This test exercises concurrent Flush (with callback failures) and
+	// Append to verify there is no data race on failuresByKey. Run with
+	// -race to detect unsynchronized map access.
+
+	// given
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools",
+		WithNowFunc(sequentialClock(5000)),
+		WithMaxFailures(5),
+	)
+	require.NoError(t, err)
+
+	const goroutines = 4
+	const iterations = 20
+
+	// when — concurrent appends and flushes, with flushes sometimes failing
+	var wg sync.WaitGroup
+
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		key := fmt.Sprintf("key%d", g)
+
+		go func(k string) {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				_ = s.Append(k, []byte(fmt.Sprintf("payload-%d", i)))
+			}
+		}(key)
+	}
+
+	var flushCount atomic.Int32
+	for g := 0; g < goroutines; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				_ = s.Flush(func(_ string, _ [][]byte) error {
+					// Fail roughly half the time to exercise handleFlushFailure.
+					if flushCount.Add(1)%2 == 0 {
+						return fmt.Errorf("transient error")
+					}
+					return nil
+				})
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// then — no race detected (the race detector flags violations automatically).
+	// Final flush to drain remaining data.
+	err = s.Flush(func(_ string, _ [][]byte) error { return nil })
+	assert.NoError(t, err)
+}

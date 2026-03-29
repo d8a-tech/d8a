@@ -136,6 +136,7 @@ type fileSpool struct {
 	nowFunc         func() time.Time
 	mu              sync.Mutex
 	closed          bool
+	failMu          sync.Mutex // guards failuresByKey independently of mu
 	failuresByKey   map[string]int
 }
 
@@ -306,7 +307,9 @@ func (s *fileSpool) flushKey(key string, paths []string, fn func(string, [][]byt
 		}
 
 		// Success — reset failure counter and remove the inflight file.
+		s.failMu.Lock()
 		delete(s.failuresByKey, key)
+		s.failMu.Unlock()
 		s.removeInflight(path)
 	}
 	return nil
@@ -319,8 +322,10 @@ func (s *fileSpool) removeInflight(path string) {
 }
 
 func (s *fileSpool) handleFlushFailure(key string, allPaths []string, fnErr error) error {
+	s.failMu.Lock()
 	s.failuresByKey[key]++
 	count := s.failuresByKey[key]
+	s.failMu.Unlock()
 
 	if count >= s.maxFailures {
 		logrus.Errorf(
@@ -334,7 +339,9 @@ func (s *fileSpool) handleFlushFailure(key string, allPaths []string, fnErr erro
 				return fmt.Errorf("failure strategy for key %q: %w", key, stratErr)
 			}
 		}
+		s.failMu.Lock()
 		delete(s.failuresByKey, key)
+		s.failMu.Unlock()
 		return nil
 	}
 
