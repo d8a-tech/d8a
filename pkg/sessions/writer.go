@@ -279,6 +279,7 @@ func (m *sessionWriterImpl) writeColumnValuesAndSplit(
 			session.PropertyID,
 			err.Error(),
 		)
+		splitSessions = []*schema.Session{session}
 	}
 	for _, splitSession := range splitSessions {
 		sessionScopedEventStart := time.Now()
