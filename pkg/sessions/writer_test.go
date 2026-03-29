@@ -2,6 +2,7 @@ package sessions
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -107,4 +108,58 @@ func TestWriter_SkipsEmptyRows(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, mockDriver.WriteCalls,
 		"sessions with all broken events produce empty rows and must not trigger warehouse writes")
+}
+
+// failingSplitter is a SessionModifier that always returns an error from Split.
+type failingSplitter struct {
+	err error
+}
+
+func (f *failingSplitter) Split(_ *schema.Session) ([]*schema.Session, error) {
+	return nil, f.err
+}
+
+func newTestWriterWithSplitter(
+	ctx context.Context, mockDriver warehouse.Driver, sm splitter.SessionModifier,
+) SessionWriter {
+	return NewSessionWriter(
+		ctx,
+		warehouse.NewStaticDriverRegistry(mockDriver),
+		schema.NewStaticColumnsRegistry(
+			map[string]schema.Columns{},
+			schema.NewColumns(
+				[]schema.SessionColumn{},
+				[]schema.EventColumn{},
+				[]schema.SessionScopedEventColumn{},
+			),
+		),
+		schema.NewStaticLayoutRegistry(
+			map[string]schema.Layout{},
+			schema.NewEmbeddedSessionColumnsLayout(
+				"events",
+				"session_",
+			),
+		),
+		splitter.NewStaticRegistry(sm),
+		WithConcurrency(5),
+	)
+}
+
+func TestWriter_SplitterError_WritesUnsplitSession(t *testing.T) {
+	// given
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	mockDriver := warehouse.NewMockWarehouseDriver()
+	writer := newTestWriterWithSplitter(ctx, mockDriver, &failingSplitter{
+		err: errors.New("split failed"),
+	})
+	session := testSession("1", "1", "1")
+
+	// when
+	err := writer.Write(session)
+
+	// then
+	assert.NoError(t, err)
+	assert.Len(t, mockDriver.WriteCalls, 1,
+		"session must be written even when splitter returns an error")
 }
