@@ -19,28 +19,25 @@ import (
 )
 
 // ClickHouse CREATE TABLE query with primitive fields, collections, nested fields, and partitioning
-const ClickHouseCreateTableQuery = `CREATE TABLE testdb.analytics_events (
-	id String,
-	user_id Int64,
-	timestamp DateTime64(0) DEFAULT '1970-01-01 00:00:00',
-	event_type LowCardinality(String),
-	session_id String,
-	is_active Bool,
-	score Float64,
-	count Int64,
-	items Int32,
-	rating Float32,
-	tags Array(String),
-	metrics Array(Float64),
-	properties Nested(
-		key String,
-		value String
-	  ),
-	  created_date Date32 DEFAULT '1970-01-01'
-  ) ENGINE = MergeTree()
-  PARTITION BY toYYYYMM(timestamp)
-  ORDER BY (event_type, user_id, timestamp)
-  SETTINGS index_granularity = 8192;`
+var ClickHouseCreateTableQuery = "CREATE TABLE testdb.analytics_events (\n" +
+	"  `id` String,\n" +
+	"  `user_id` Int64,\n" +
+	"  `timestamp` DateTime64(0) DEFAULT '1970-01-01 00:00:00',\n" +
+	"  `event_type` LowCardinality(String),\n" +
+	"  `session_id` String,\n" +
+	"  `is_active` Bool,\n" +
+	"  `score` Float64,\n" +
+	"  `count` Int64,\n" +
+	"  `items` Int32,\n" +
+	"  `rating` Float32,\n" +
+	"  `tags` Array(String),\n" +
+	"  `metrics` Array(Float64),\n" +
+	"  `properties` Nested(`key` String, `value` String),\n" +
+	"  `created_date` Date32 DEFAULT '1970-01-01'\n" +
+	") ENGINE = MergeTree()\n" +
+	"PARTITION BY toYYYYMM(timestamp)\n" +
+	"ORDER BY (event_type, user_id, timestamp)\n" +
+	"SETTINGS index_granularity = 8192;"
 
 // ClickHouseTestSuite is a test suite that sets up a single ClickHouse container
 // for all tests to share, improving test performance

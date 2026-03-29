@@ -64,6 +64,11 @@ func (q *clickhouseQueryMapper) TablePredicate(table string) string {
 	return fmt.Sprintf("TABLE %s", table)
 }
 
+// ColumnName implements warehouse.QueryMapper.
+func (q *clickhouseQueryMapper) ColumnName(name string) string {
+	return quoteIdentifier(name)
+}
+
 func (q *clickhouseQueryMapper) TableSuffix(_ string) string {
 	var parts []string
 

@@ -74,6 +74,82 @@ func TestQueryMapperArrowTypes(t *testing.T) {
 	testutils.TestSupportedArrowTypes(t, NewClickHouseQueryMapper())
 }
 
+func TestQueryMapperColumnName(t *testing.T) {
+	mapper := NewClickHouseQueryMapper()
+
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple column name",
+			input:    "user_id",
+			expected: "`user_id`",
+		},
+		{
+			name:     "column with space",
+			input:    "user id",
+			expected: "`user id`",
+		},
+		{
+			name:     "SQL keyword",
+			input:    "select",
+			expected: "`select`",
+		},
+		{
+			name:     "column with backtick",
+			input:    "col`name",
+			expected: "`col``name`",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			result := mapper.ColumnName(tc.input)
+
+			// then
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestQueryMapperTablePredicate(t *testing.T) {
+	mapper := NewClickHouseQueryMapper()
+
+	// given
+	table := "`mydb`.`events`"
+
+	// when
+	result := mapper.TablePredicate(table)
+
+	// then — TablePredicate should pass through the already-quoted name
+	assert.Equal(t, "TABLE `mydb`.`events`", result)
+}
+
+func TestCreateQueryWithQuotedIdentifiers(t *testing.T) {
+	// given
+	mapper := NewClickHouseQueryMapper(
+		WithEngine("MergeTree()"),
+		WithOrderBy([]string{"id"}),
+	)
+
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.BinaryTypes.String},
+	}, nil)
+	quotedTable := quoteFullTableName("testdb", "events")
+
+	// when
+	query, err := warehouse.CreateTableQuery(mapper, quotedTable, schema)
+
+	// then
+	require.NoError(t, err)
+	assert.Contains(t, query, "CREATE TABLE `testdb`.`events`")
+	// Column names must be backtick-quoted
+	assert.Contains(t, query, "`id`")
+}
+
 func TestQueryMapperTypeErrors(t *testing.T) {
 	testutils.TestQueryMapperTypeErrors(t, NewClickHouseQueryMapper())
 }

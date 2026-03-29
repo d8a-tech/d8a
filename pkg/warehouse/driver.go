@@ -59,6 +59,10 @@ type QueryMapper interface {
 	// Returns string like "VARCHAR(255)", "Int64", "TIMESTAMP", etc.
 	Field(*arrow.Field) (string, error)
 
+	// ColumnName returns a safely quoted column name for use in DDL statements.
+	// Implementations must escape the identifier according to warehouse-specific rules.
+	ColumnName(name string) string
+
 	// TableSuffix returns warehouse-specific table creation suffix.
 	// Examples: "ENGINE = MergeTree()", "OPTIONS (description='...')"
 	// May include newlines for multi-line clauses.
@@ -78,7 +82,7 @@ func CreateTableQuery(qm QueryMapper, table string, schema *arrow.Schema) (strin
 		}
 
 		buf.WriteString("  ")
-		buf.WriteString(field.Name)
+		buf.WriteString(qm.ColumnName(field.Name))
 		buf.WriteString(" ")
 		buf.WriteString(fieldType)
 		if i < len(schema.Fields())-1 {
