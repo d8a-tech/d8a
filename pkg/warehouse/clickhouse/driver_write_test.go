@@ -9,6 +9,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type fakeWriteBatch struct {
@@ -31,6 +32,19 @@ func (b *fakeWriteBatch) Append(_ ...any) error {
 func (b *fakeWriteBatch) Send() error {
 	b.sendCalls++
 	return b.sendErr
+}
+
+type capturingWriteBatch struct {
+	rows [][]any
+}
+
+func (b *capturingWriteBatch) Append(v ...any) error {
+	b.rows = append(b.rows, v)
+	return nil
+}
+
+func (b *capturingWriteBatch) Send() error {
+	return nil
 }
 
 func TestClickHouseDriverWriteBatchErrorSemantics(t *testing.T) {
@@ -97,4 +111,71 @@ func TestClickHouseDriverWriteBatchErrorSemantics(t *testing.T) {
 			assert.Equal(t, tc.expectedSends, tc.batch.sendCalls)
 		})
 	}
+}
+
+func TestWrite_MetadataAlignedWithReorderedFields(t *testing.T) {
+	// Regression test for H10: when ClickHouse physical column order differs
+	// from the Arrow schema order, metadata must come from the reordered field,
+	// not the original Arrow schema index.
+	//
+	// Arrow schema order:  [timestamp (DateTime64 with precision metadata), name (String)]
+	// Physical CH order:   [name (String), timestamp (DateTime64 with precision metadata)]
+	//
+	// Before the fix, Format() for physical column 0 ("name") would receive
+	// schema.Field(0).Metadata — the timestamp's precision metadata instead of
+	// the string's empty metadata, and vice versa for column 1.
+
+	// given
+	tableName := "events"
+
+	// Arrow schema: timestamp first, name second
+	timestampMeta := arrow.NewMetadata(
+		[]string{PrecisionMetadataKey},
+		[]string{PrecisionMetadataValueSecond},
+	)
+	arrowFields := []arrow.Field{
+		{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s, Metadata: timestampMeta},
+		{Name: "name", Type: arrow.BinaryTypes.String},
+	}
+	schema := arrow.NewSchema(arrowFields, nil)
+
+	// Physical ClickHouse order: name first, timestamp second (reversed)
+	nameField := &arrow.Field{Name: "name", Type: arrow.BinaryTypes.String}
+	tsField := &arrow.Field{
+		Name:     "timestamp",
+		Type:     arrow.FixedWidthTypes.Timestamp_s,
+		Metadata: timestampMeta,
+	}
+	physicalFields := []*arrow.Field{nameField, tsField}
+
+	batch := &capturingWriteBatch{}
+	driver := &clickhouseDriver{
+		database:        "testdb",
+		fieldTypeMapper: NewFieldTypeMapper(),
+		tableColumnsCache: util.NewTTLCache[[]*arrow.Field](
+			time.Minute,
+		),
+		prepareBatch: func(_ context.Context, _ string) (clickhouseWriteBatch, error) {
+			return batch, nil
+		},
+	}
+	driver.tableColumnsCache.Set(tableName, physicalFields)
+
+	ts := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	rows := []map[string]any{
+		{"name": "pageview", "timestamp": ts},
+	}
+
+	// when
+	err := driver.Write(context.Background(), tableName, schema, rows)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, batch.rows, 1)
+
+	// Physical order is [name, timestamp] — values must match that order
+	appended := batch.rows[0]
+	require.Len(t, appended, 2)
+	assert.Equal(t, "pageview", appended[0], "first physical column should be name")
+	assert.Equal(t, ts.Format(timestampFormat), appended[1], "second physical column should be formatted timestamp")
 }

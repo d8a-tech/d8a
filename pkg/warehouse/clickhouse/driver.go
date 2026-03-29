@@ -255,7 +255,7 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 			}
 
 			// Format value according to column type
-			formattedValue, err := columnTypes[i].Format(value, schema.Field(i).Metadata)
+			formattedValue, err := columnTypes[i].Format(value, schemaFields[i].Metadata)
 			if err != nil {
 				return fmt.Errorf("error formatting value for column %s: %w", col, err)
 			}
