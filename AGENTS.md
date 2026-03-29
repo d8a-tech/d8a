@@ -12,7 +12,7 @@ Core packages (see `docs/docs/articles/technical-deep-dive.md`):
 
 - `pkg/receiver`: Receives HTTP requests, selects a `protocol.Protocol`, builds `hits.Hit`, and pushes hits into `receiver.Storage`.
 - `pkg/worker`: Generic task system with `Publisher`, `Consumer`, `Task`, a `Worker` that maps task types to handlers, and optional middlewares.
-- `pkg/bolt`: BoltDB-backed implementations for queue/storage primitives.
+- `pkg/bolt`: BoltDB-backed implementations for KV, set, and proto-session I/O primitives.
 - `pkg/protosessions`: Consumes hit tasks, groups hits into proto-sessions, and closes them via a `protosessions.Closer`.
 - `pkg/sessions`: Session closing, column execution, and writing to the warehouse (direct/in-place closing today).
 - `pkg/columns` and `pkg/schema`: Column “interfaces” (what a column is) and column implementations (how it’s written) for event and session scope.

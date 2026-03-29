@@ -40,10 +40,16 @@ type BatchingStorage struct {
 	flushTicker  *time.Ticker
 	lastFlush    time.Time
 	done         chan struct{}
+	closeOnce    sync.Once
 }
 
 // NewBatchingStorage creates a new BatchingStorage instance.
-func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration, opts ...BatchingOption) *BatchingStorage {
+func NewBatchingStorage(
+	child Storage,
+	batchSize int,
+	timeout time.Duration,
+	opts ...BatchingOption,
+) (storage *BatchingStorage, cleanup func()) {
 	bs := &BatchingStorage{
 		child:     child,
 		batchSize: batchSize,
@@ -77,7 +83,7 @@ func NewBatchingStorage(child Storage, batchSize int, timeout time.Duration, opt
 		}
 	}()
 
-	return bs
+	return bs, bs.Close
 }
 
 // Push implements the Storage interface.
@@ -116,12 +122,14 @@ func (bs *BatchingStorage) flushLocked() error {
 
 // Close closes the BatchingStorage instance.
 func (bs *BatchingStorage) Close() {
-	bs.flushTicker.Stop()
-	close(bs.done)
-	if err := bs.Flush(); err != nil {
-		logrus.Errorf("failed to flush batch on close: %v", err)
-	}
-	if err := bs.backend.Close(); err != nil {
-		logrus.Errorf("failed to close batching backend: %v", err)
-	}
+	bs.closeOnce.Do(func() {
+		bs.flushTicker.Stop()
+		close(bs.done)
+		if err := bs.Flush(); err != nil {
+			logrus.Errorf("failed to flush batch on close: %v", err)
+		}
+		if err := bs.backend.Close(); err != nil {
+			logrus.Errorf("failed to close batching backend: %v", err)
+		}
+	})
 }

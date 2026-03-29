@@ -41,8 +41,8 @@ func (m *batchingMockStorage) Close() {
 func TestBatchingStorage_BasicBatching(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{}
-	bs := NewBatchingStorage(mock, 3, 100*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 3, 100*time.Millisecond)
+	defer cleanup()
 
 	// when
 	testHits := []*hits.Hit{
@@ -62,8 +62,8 @@ func TestBatchingStorage_BasicBatching(t *testing.T) {
 func TestBatchingStorage_TimeoutFlush(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{}
-	bs := NewBatchingStorage(mock, 10, 50*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 10, 50*time.Millisecond)
+	defer cleanup()
 
 	testHits := []*hits.Hit{
 		hits.New(),
@@ -82,8 +82,8 @@ func TestBatchingStorage_TimeoutFlush(t *testing.T) {
 func TestBatchingStorage_ManualFlush(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{}
-	bs := NewBatchingStorage(mock, 10, 100*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 10, 100*time.Millisecond)
+	defer cleanup()
 
 	testHits := []*hits.Hit{
 		hits.New(),
@@ -104,8 +104,8 @@ func TestBatchingStorage_ManualFlush(t *testing.T) {
 func TestBatchingStorage_ErrorHandling(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{err: errors.New("storage error")}
-	bs := NewBatchingStorage(mock, 3, 100*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 3, 100*time.Millisecond)
+	defer cleanup()
 
 	testHits := []*hits.Hit{
 		hits.New(),
@@ -124,7 +124,7 @@ func TestBatchingStorage_ErrorHandling(t *testing.T) {
 func TestBatchingStorage_Close(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{}
-	bs := NewBatchingStorage(mock, 10, 100*time.Millisecond)
+	bs, _ := NewBatchingStorage(mock, 10, 100*time.Millisecond)
 
 	testHits := []*hits.Hit{
 		hits.New(),
@@ -143,8 +143,8 @@ func TestBatchingStorage_Close(t *testing.T) {
 func TestBatchingStorage_ConcurrentAccess(t *testing.T) {
 	// given
 	mock := &batchingMockStorage{}
-	bs := NewBatchingStorage(mock, 100, 100*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 100, 100*time.Millisecond)
+	defer cleanup()
 
 	var wg sync.WaitGroup
 
@@ -176,8 +176,8 @@ func TestBatchingStorage_DefaultUsesMemoryBackend(t *testing.T) {
 	mock := &batchingMockStorage{}
 
 	// when
-	bs := NewBatchingStorage(mock, 10, 100*time.Millisecond)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 10, 100*time.Millisecond)
+	defer cleanup()
 
 	// then
 	_, isMemory := bs.backend.(*memoryBatchingBackend)
@@ -194,8 +194,8 @@ func TestBatchingStorage_WithBackendOption(t *testing.T) {
 	})
 
 	// when
-	bs := NewBatchingStorage(mock, 10, 100*time.Millisecond, WithBackend(fb))
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 10, 100*time.Millisecond, WithBackend(fb))
+	defer cleanup()
 
 	// then
 	_, isFile := bs.backend.(*fileBatchingBackend)
@@ -206,8 +206,8 @@ func TestMemoryBackend_DoesNotDropHitsOnChildPushFailure(t *testing.T) {
 	// given
 	pushErr := errors.New("downstream failure")
 	mock := &batchingMockStorage{err: pushErr}
-	bs := NewBatchingStorage(mock, 3, time.Hour)
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 3, time.Hour)
+	defer cleanup()
 
 	h1 := hits.New()
 	h1.ID = "hit-1"
@@ -367,8 +367,8 @@ func TestBatchingStorage_FileBackend_RecoverPreExistingHitsAfterRestart(t *testi
 	}
 	child := &batchingMockStorage{}
 
-	bs1 := NewBatchingStorage(child, 10, time.Hour, WithBackend(NewFileBatchingBackend(cfg)))
-	t.Cleanup(bs1.Close)
+	bs1, cleanup1 := NewBatchingStorage(child, 10, time.Hour, WithBackend(NewFileBatchingBackend(cfg)))
+	t.Cleanup(cleanup1)
 
 	h := hits.New()
 	h.ID = "pre-existing-batching-hit"
@@ -379,8 +379,8 @@ func TestBatchingStorage_FileBackend_RecoverPreExistingHitsAfterRestart(t *testi
 	require.NoError(t, statErr, "flush file should exist before restart recovery")
 
 	// when — a new batching storage starts with the same backend path and child
-	bs2 := NewBatchingStorage(child, 10, time.Hour, WithBackend(NewFileBatchingBackend(cfg)))
-	defer bs2.Close()
+	bs2, cleanup2 := NewBatchingStorage(child, 10, time.Hour, WithBackend(NewFileBatchingBackend(cfg)))
+	defer cleanup2()
 
 	err := bs2.Flush()
 
@@ -458,8 +458,8 @@ func TestBatchingStorage_FileBackend_PushFailurePropagates(t *testing.T) {
 
 	pushErr := errors.New("downstream unavailable")
 	mock := &batchingMockStorage{err: pushErr}
-	bs := NewBatchingStorage(mock, 2, time.Hour, WithBackend(fb))
-	defer bs.Close()
+	bs, cleanup := NewBatchingStorage(mock, 2, time.Hour, WithBackend(fb))
+	defer cleanup()
 
 	h1 := hits.New()
 	h1.ID = "fail-1"

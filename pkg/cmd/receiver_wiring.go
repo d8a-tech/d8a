@@ -15,7 +15,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worker.Publisher) receiver.Storage {
+func buildReceiverStorage(
+	ctx context.Context,
+	cmd *cli.Command,
+	publisher worker.Publisher,
+) (storage receiver.Storage, cleanup func()) {
 	backend := strings.ToLower(cmd.String(queueBackendFlag.Name))
 
 	if backend == "objectstorage" {

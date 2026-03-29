@@ -34,10 +34,8 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
-			if closableStorage, ok := storage.(interface{ Close() }); ok {
-				t.Cleanup(closableStorage.Close)
-			}
+			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			defer cleanup()
 
 			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)
@@ -73,10 +71,8 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
-			if closableStorage, ok := storage.(interface{ Close() }); ok {
-				t.Cleanup(closableStorage.Close)
-			}
+			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			defer cleanup()
 
 			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)

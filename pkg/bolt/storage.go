@@ -1,3 +1,5 @@
+// Package bolt provides BoltDB-backed implementations for KV, set, and
+// proto-session I/O primitives.
 package bolt
 
 import (

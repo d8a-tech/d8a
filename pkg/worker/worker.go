@@ -66,28 +66,26 @@ func (w *Worker) Process(task *Task) error {
 		logrus.Debugf("processed task of type `%s` with %d handlers", task.Type, len(handlers))
 		return nil
 	}
-	for i, mw := range w.middleware {
-		var next func() *Error
-		if i == len(w.middleware)-1 {
-			next = func() *Error {
-				for _, handler := range handlers {
-					if err := handler.Process(task.Headers, task.Body); err != nil {
-						if err.Type == ErrTypeDroppable {
-							return nil
-						}
-						return err
-					}
+	next := func() *Error {
+		for _, handler := range handlers {
+			if err := handler.Process(task.Headers, task.Body); err != nil {
+				if err.Type == ErrTypeDroppable {
+					return nil
 				}
-				return nil
-			}
-		} else {
-			next = func() *Error {
-				return w.middleware[i+1].Handle(task, next)
+				return err
 			}
 		}
-		if err := mw.Handle(task, next); err != nil {
-			return err
+		return nil
+	}
+	for i := len(w.middleware) - 1; i >= 0; i-- {
+		mw := w.middleware[i]
+		prevNext := next
+		next = func() *Error {
+			return mw.Handle(task, prevNext)
 		}
+	}
+	if err := next(); err != nil {
+		return err
 	}
 	logrus.Debugf("processed task of type `%s` with %d handlers", task.Type, len(handlers))
 	return nil

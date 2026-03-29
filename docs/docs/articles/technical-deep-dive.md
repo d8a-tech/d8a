@@ -22,7 +22,7 @@ Other, utility packages:
 
 - `pkg/cmd` - command line arguments parsing, configuration loading, and full pipeline wiring
 - `pkg/worker` - abstractions for the queue logic (publisher, consumer, task, worker, middleware)
-- `pkg/bolt` - BoltDB-backed implementations for queue, KV, and set primitives
+- `pkg/bolt` - BoltDB-backed implementations for KV, set, and proto-session I/O primitives
 - `pkg/storage` - generic KV and set storage interfaces with in-memory and monitoring implementations
 - `pkg/protocol` - tracking protocol abstractions and implementations (GA4, Matomo, D8A)
 - `pkg/properties` - property settings registry and configuration
@@ -168,7 +168,7 @@ flowchart LR
 
 Queue implemented for `tracker-api` is generic, and can be used in later steps (for example after session is closed and before it's written to the warehouse - currently it's not - for quicker MVP delivery). It's implemented in `worker` package.
 
-The semantics are dead simple - you publish to named queue, that accepts only one type of task, something on the other side consumes it. There are no sophisticated features like AMQP's bindings, exponential backoff and such. Such dead simple approach is limiting, but offers a wide range of possible implementations (currently we have `bolt` and filesystem implementations). The interfaces are again very simple. There are two interfaces, that operate on `Task` objects, that are really generic:
+The semantics are dead simple - you publish to named queue, that accepts only one type of task, something on the other side consumes it. There are no sophisticated features like AMQP's bindings, exponential backoff and such. Such dead simple approach is limiting, but offers a wide range of possible implementations (currently we have filesystem and object storage implementations). The interfaces are again very simple. There are two interfaces, that operate on `Task` objects, that are really generic:
 
 ```go
 // Consumer defines an interface for task consumers
@@ -216,13 +216,13 @@ w := worker.NewWorker(
 ### Key interfaces
 
 **`worker.Publisher`** - publishes a single task to a queue.
-- `bolt.publisher` - stores tasks in BoltDB under nanosecond-timestamp keys
 - `FilesystemDirectoryPublisher` - writes tasks atomically to timestamped `.task` files in a directory
+- `objectstorage.Publisher` - uploads serialized tasks to an object storage bucket via Go CDK
 - `monitoringPublisher` - decorator that records OpenTelemetry metrics, then delegates
 
 **`worker.Consumer`** - consumes tasks from a queue via a handler callback.
-- `bolt.consumer` - reads tasks from BoltDB in batches, deserializes, calls handler, then deletes
 - `FilesystemDirectoryConsumer` - polls a directory for `.task` files, processes in timestamp order
+- `objectstorage.Consumer` - polls an object storage bucket for task objects via Go CDK
 
 **`worker.Middleware`** - wraps task processing with a next-chain pattern (similar to HTTP middleware).
 - No production implementations in core packages currently

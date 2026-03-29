@@ -187,3 +187,50 @@ func TestWorker_Process(t *testing.T) {
 		})
 	}
 }
+
+func TestWorker_Process_WithMultipleMiddleware_CallsEachMiddlewareOnceBeforeHandler(t *testing.T) {
+	// given
+	var order []string
+	var handlerCalls int
+
+	w := NewWorker(
+		[]TaskHandler{
+			&mockTaskHandler{
+				taskType: "test",
+				processFunc: func(_ map[string]string, _ []byte) *Error {
+					order = append(order, "handler")
+					handlerCalls++
+					return nil
+				},
+			},
+		},
+		[]Middleware{
+			&mockMiddleware{
+				handleFunc: func(_ *Task, next func() *Error) *Error {
+					order = append(order, "mw1-before")
+					defer func() {
+						order = append(order, "mw1-after")
+					}()
+					return next()
+				},
+			},
+			&mockMiddleware{
+				handleFunc: func(_ *Task, next func() *Error) *Error {
+					order = append(order, "mw2-before")
+					defer func() {
+						order = append(order, "mw2-after")
+					}()
+					return next()
+				},
+			},
+		},
+	)
+
+	// when
+	err := w.Process(&Task{Type: "test"})
+
+	// then
+	assert.NoError(t, err)
+	assert.Equal(t, 1, handlerCalls)
+	assert.Equal(t, []string{"mw1-before", "mw2-before", "handler", "mw2-after", "mw1-after"}, order)
+}

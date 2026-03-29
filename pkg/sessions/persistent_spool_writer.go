@@ -142,6 +142,7 @@ func (w *persistentSpoolWriter) actorLoop() {
 	for {
 		select {
 		case <-w.stopChan:
+			// Appended data is assumed durable enough in the spool; no final flush here.
 			return
 		case <-ticker.C:
 			w.flush()
