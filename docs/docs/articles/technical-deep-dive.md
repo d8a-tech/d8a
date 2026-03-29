@@ -520,11 +520,11 @@ Basically, `Layout` interface tells what tables and with what schema should be c
 flowchart TB
     A[protosessions.Closer.Close] --> B[DirectCloser<br/>Hits → Sessions]
     B --> C[SessionWriter.Write]
-    C --> D{Spooling?}
-    D -->|In-Memory| E[inMemSpoolWriter<br/>Buffer by count/age]
-    D -->|Persistent| F[persistentSpoolWriter<br/>Disk spool via pkg/spools]
-    D -->|Direct| G[sessionWriterImpl]
-    E --> G
+    C --> D{Delivery mode}
+    D -->|best-effort| E[inMemSpoolWriter<br/>Buffer by count/age]
+    E --> F[persistentSpoolWriter<br/>Disk spool via pkg/spools]
+    D -->|at-least-once| F
+    D -->|spooling disabled| G[sessionWriterImpl]
     F --> G
     G --> H[Run Columns Pipeline]
     H --> I[Split Sessions<br/>via splitter]
@@ -534,11 +534,17 @@ flowchart TB
 
 When a protosession is closed, the `sessions.DirectCloser` converts proto-sessions (groups of `*hits.Hit`) into `*schema.Session` objects, groups them by property, and delegates to a `SessionWriter`.
 
-The `SessionWriter` may be wrapped with spooling decorators for resilience:
+The `SessionWriter` is assembled as a decorator chain whose shape depends on the delivery mode:
 
-1. **`inMemSpoolWriter`** - buffers sessions in memory per property and flushes to a child writer when a count threshold (`maxSessions`) or age threshold (`maxAge`) is reached. A background goroutine sweeps periodically.
+- **Best-effort (default):** `inMemSpoolWriter` → `persistentSpoolWriter` → `sessionWriterImpl`
+- **At-least-once:** `persistentSpoolWriter` → `sessionWriterImpl` (no in-memory buffer; sessions go straight to disk spool)
+- **Spooling disabled:** `sessionWriterImpl` directly
 
-2. **`persistentSpoolWriter`** - encodes sessions via `encoding.EncoderFunc`, appends to a crash-safe `spools.Spool` keyed by property, and periodically flushes via a background actor loop that decodes and delegates to the child writer. Uses a `SpoolFailureStrategy` when consecutive failures are exceeded.
+The spooling decorators provide resilience:
+
+1. **`inMemSpoolWriter`** - buffers sessions in memory per property and flushes to its child writer when a count threshold (`maxSessions`) or age threshold (`maxAge`) is reached. A background goroutine sweeps periodically. On flush failure, sessions are retained in the buffer for retry.
+
+2. **`persistentSpoolWriter`** - encodes sessions via `encoding.EncoderFunc` (Gob by default), appends to a crash-safe `spools.Spool` keyed by property, and periodically flushes via a background actor loop that decodes and delegates to the child writer. Failure handling (max consecutive failures, delete vs. quarantine strategy) is configured on the underlying `spools.Spool`, not on the writer itself.
 
 The core `sessionWriterImpl` then:
 1. Resolves warehouse driver, layout, and columns per property (cached with TTL)
@@ -557,9 +563,9 @@ The core `sessionWriterImpl` then:
 - `persistentSpoolWriter` - decorator that encodes sessions to disk spool and flushes periodically
 - `noopWriter` - does nothing (testing)
 
-**`sessions.SpoolFailureStrategy`** - defines behavior when a spool file exceeds maximum consecutive failures.
-- `deleteSpoolStrategy` - deletes the spool file (best-effort, data loss acceptable)
-- `quarantineSpoolStrategy` - renames spool file to `.quarantine` suffix (preserves for manual recovery)
+**`spools.FailureStrategy`** - defines behavior when a spool file exceeds maximum consecutive failures. Configured on the `spools.Spool` via `spools.WithFailureStrategy()`.
+- `spools.deleteStrategy` - deletes the spool file (best-effort, data loss acceptable)
+- `spools.quarantineStrategy` - renames spool file to `.quarantine` suffix (preserves for manual recovery)
 
 **`spools.Spool`** - crash-safe keyed framed-file append+flush primitive.
 - `fileSpool` - `afero.Fs`-backed implementation using length-prefixed binary frames, rename-before-read flush isolation, and mutex-protected concurrent access
@@ -638,7 +644,7 @@ Each relevant warehouse driver implementation (BigQuery, ClickHouse) provides it
 - Nullability handling
 - Type-specific formatting for data insertion
 
-The type mapping system also supports compatibility rules, allowing certain type conversions (e.g., INT32 <-> INT64) to be considered valid during schema comparisons.
+The type mapping system also supports compatibility rules, allowing certain type conversions (e.g., INT32 ↔ INT64) to be considered valid during schema comparisons.
 
 ### 7.3 Schema management
 
@@ -668,7 +674,7 @@ The `FindMissingColumns` function provides common logic for comparing schemas, h
 **`warehouse.QueryMapper`** - generates warehouse-specific SQL DDL fragments from Arrow schemas.
 - `clickhouseQueryMapper` - generates ClickHouse DDL with configurable ENGINE, PARTITION BY, ORDER BY
 
-**`warehouse.FieldTypeMapper[T]`** - bidirectional Arrow <-> warehouse type conversion (generic interface).
+**`warehouse.FieldTypeMapper[T]`** - bidirectional Arrow ↔ warehouse type conversion (generic interface).
 - BigQuery: 11 mappers covering string, int32/64, float32/64, bool, timestamp, date32, arrays, nested, nullable
 - ClickHouse: 13 mappers covering the above plus low-cardinality, nullability-as-default, restricted nested
 - `TypeMapperImpl[T]` - composite mapper that chains multiple mappers, returning the first successful mapping
