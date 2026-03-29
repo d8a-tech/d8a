@@ -112,11 +112,16 @@ func (bs *BatchingStorage) Flush() error {
 
 func (bs *BatchingStorage) flushLocked() error {
 	bs.lastFlush = time.Now()
+	// Reset pendingCount unconditionally so that a transient flush failure
+	// does not permanently degenerate batching into per-request flushes.
+	// The backend retains unflushed hits on error (memory keeps its buffer,
+	// file keeps the file) so they will be delivered on the next successful flush.
+	bs.pendingCount = 0
+
 	if err := bs.backend.Flush(bs.child.Push); err != nil {
 		return fmt.Errorf("flushing batch: %w", err)
 	}
 
-	bs.pendingCount = 0
 	return nil
 }
 

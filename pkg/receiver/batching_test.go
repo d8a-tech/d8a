@@ -488,6 +488,70 @@ func TestBatchingStorage_FileBackend_PushFailurePropagates(t *testing.T) {
 	assert.Len(t, mock.hits, 2)
 }
 
+func TestBatchingStorage_BatchingRecoversAfterFlushFailure(t *testing.T) {
+	// Regression test for H16: a single flush failure must not permanently
+	// degenerate batching into per-request synchronous flushes.
+	tests := []struct {
+		name    string
+		backend func() BatchingBackend
+	}{
+		{
+			name:    "memory backend",
+			backend: func() BatchingBackend { return &memoryBatchingBackend{} },
+		},
+		{
+			name: "file backend",
+			backend: func() BatchingBackend {
+				return NewFileBatchingBackend(FileBatchingBackendConfig{
+					Dir:           t.TempDir(),
+					FlushFileName: "pending.json.gz",
+				})
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given — child fails on the first batch
+			mock := &batchingMockStorage{err: errors.New("transient failure")}
+			batchSize := 3
+			bs, cleanup := NewBatchingStorage(mock, batchSize, time.Hour, WithBackend(tt.backend()))
+			defer cleanup()
+
+			// when — push enough hits to trigger flush; flush fails
+			err := bs.Push([]*hits.Hit{hits.New(), hits.New(), hits.New()})
+			assert.Error(t, err, "first flush should fail")
+
+			// given — clear the transient error
+			mock.mu.Lock()
+			mock.err = nil
+			mock.mu.Unlock()
+
+			// when — push hits below the batch threshold
+			err = bs.Push([]*hits.Hit{hits.New()})
+			assert.NoError(t, err, "push below threshold should not trigger flush")
+
+			// then — child should NOT have received hits yet (batching still works)
+			mock.mu.Lock()
+			flushedSoFar := len(mock.hits)
+			mock.mu.Unlock()
+			assert.Equal(t, 0, flushedSoFar,
+				"batching should still be active; a sub-threshold push must not trigger a flush")
+
+			// when — push enough to reach the threshold again
+			err = bs.Push([]*hits.Hit{hits.New(), hits.New()})
+			assert.NoError(t, err, "second batch flush should succeed")
+
+			// then — child received hits (original retained + new ones)
+			mock.mu.Lock()
+			totalFlushed := len(mock.hits)
+			mock.mu.Unlock()
+			assert.True(t, totalFlushed > 0,
+				"flush at batch threshold should deliver hits")
+		})
+	}
+}
+
 func TestFileBackend_FlushNoopWhenNoFile(t *testing.T) {
 	// given
 	dir := t.TempDir()
