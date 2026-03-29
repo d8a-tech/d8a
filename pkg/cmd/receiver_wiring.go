@@ -63,3 +63,12 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 		opts...,
 	)
 }
+
+func closeReceiverStorage(storage receiver.Storage) {
+	closableStorage, ok := storage.(interface{ Close() })
+	if !ok {
+		return
+	}
+
+	closableStorage.Close()
+}

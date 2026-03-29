@@ -243,6 +243,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					defer closeReceiverStorage(serverStorage)
 					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter, geoProvider)
 					if err != nil {
 						return err
@@ -322,6 +323,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					defer closeReceiverStorage(serverStorage)
 					server := buildReceiverServer(cmd, serverStorage, converter)
 					return server.Run(ctx)
 				},
@@ -372,6 +374,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					}()
 
 					serverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					defer closeReceiverStorage(serverStorage)
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
 						if err := whr.Close(); err != nil {

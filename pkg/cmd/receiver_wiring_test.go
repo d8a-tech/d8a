@@ -17,6 +17,16 @@ type noopPublisher struct{}
 
 func (n *noopPublisher) Publish(_ *worker.Task) error { return nil }
 
+type closableStorage struct {
+	closed bool
+}
+
+func (s *closableStorage) Push(_ []*hits.Hit) error { return nil }
+
+func (s *closableStorage) Close() {
+	s.closed = true
+}
+
 func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 	// given
 	setDeliveryModeForTest(t, "")
@@ -90,4 +100,15 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 
 	// then
 	require.NoError(t, app.Run(context.Background(), args))
+}
+
+func TestCloseReceiverStorage_ClosesBatchingStorage(t *testing.T) {
+	// given
+	storage := &closableStorage{}
+
+	// when
+	closeReceiverStorage(storage)
+
+	// then
+	assert.True(t, storage.closed)
 }
