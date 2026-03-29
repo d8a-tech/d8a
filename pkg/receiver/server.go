@@ -105,6 +105,12 @@ func extractTrackingLibrary(queryParams url.Values) string {
 	return dtn + "@" + dtv
 }
 
+const (
+	defaultReadTimeout    = 5 * time.Second
+	defaultWriteTimeout   = 10 * time.Second
+	defaultMaxConcurrency = 256 * 1024
+)
+
 // Server holds all server-related dependencies and configuration
 type Server struct {
 	protocols       []protocol.Protocol
@@ -114,11 +120,38 @@ type Server struct {
 	host            string
 	port            int
 	proxyTrust      proxyTrust
+	readTimeout     time.Duration
+	writeTimeout    time.Duration
+	maxConcurrency  int
 }
 
 func WithHost(host string) ServerOption {
 	return func(s *Server) {
 		s.host = host
+	}
+}
+
+// WithReadTimeout sets the maximum duration for reading the full request
+// (including body). Zero means no timeout. Default is 5s.
+func WithReadTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		s.readTimeout = d
+	}
+}
+
+// WithWriteTimeout sets the maximum duration for writing the full response.
+// Zero means no timeout. Default is 10s.
+func WithWriteTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		s.writeTimeout = d
+	}
+}
+
+// WithMaxConcurrency sets the maximum number of concurrent connections the
+// server will accept. Zero means fasthttp's default. Default is 256 * 1024.
+func WithMaxConcurrency(n int) ServerOption {
+	return func(s *Server) {
+		s.maxConcurrency = n
 	}
 }
 
@@ -141,6 +174,9 @@ func NewServer(
 		host:            "0.0.0.0",
 		port:            port,
 		proxyTrust:      noProxyTrust{},
+		readTimeout:     defaultReadTimeout,
+		writeTimeout:    defaultWriteTimeout,
+		maxConcurrency:  defaultMaxConcurrency,
 	}
 
 	for _, opt := range opts {
@@ -248,6 +284,9 @@ func (s *Server) Run(ctx context.Context) error {
 		Logger:                newFastHTTPServerLogger(logrus.StandardLogger()),
 		Name:                  "Tracker API",
 		SecureErrorLogMessage: true,
+		ReadTimeout:           s.readTimeout,
+		WriteTimeout:          s.writeTimeout,
+		Concurrency:           s.maxConcurrency,
 	}
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})
