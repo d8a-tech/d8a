@@ -134,3 +134,132 @@ func TestHandleRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleRequest_ErrorResponsesDoNotLeakInternalDetails(t *testing.T) {
+	// sensitiveStrings are patterns that must never appear in HTTP response bodies.
+	sensitiveStrings := []string{
+		"property",
+		"protocol",
+		"hit.",
+		"nil",
+		"storage",
+		"bolt",
+		"test_property_id",
+		"test_protocol",
+		"disk full",
+	}
+
+	assertNoLeaks := func(t *testing.T, body string) {
+		t.Helper()
+		for _, s := range sensitiveStrings {
+			assert.NotContains(t, body, s,
+				"response body should not contain internal detail %q", s)
+		}
+	}
+
+	defaultRequest := func() *fasthttp.RequestCtx {
+		ctx := &fasthttp.RequestCtx{}
+		ctx.Request.SetHost("example.com")
+		ctx.Request.Header.SetHost("example.com")
+		ctx.Request.Header.Set("X-Real-IP", "192.168.1.1")
+		ctx.URI().SetQueryString("param1=value1")
+		ctx.Request.Header.Set("User-Agent", "test-agent")
+		ctx.URI().SetPath("/collect")
+		return ctx
+	}
+
+	tests := []struct {
+		name           string
+		protocolErr    error
+		storageErr     error
+		expectedStatus int
+		expectedBody   string
+	}{
+		{
+			name:           "protocol error does not leak details",
+			protocolErr:    fmt.Errorf("property test_property_id not found in protocol registry"),
+			storageErr:     nil,
+			expectedStatus: fasthttp.StatusBadRequest,
+			expectedBody:   "Bad Request",
+		},
+		{
+			name:           "storage error does not leak details",
+			protocolErr:    nil,
+			storageErr:     fmt.Errorf("bolt: disk full, cannot write to storage"),
+			expectedStatus: fasthttp.StatusInternalServerError,
+			expectedBody:   "Internal Server Error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			storage := &mockStorage{err: tt.storageErr}
+			p := &mockProtocol{id: "test_protocol", err: tt.protocolErr}
+			server := NewServer(
+				storage,
+				NewDummyRawLogStorage(),
+				HitValidatingRuleSet(1024*128, properties.NewStaticSettingsRegistry([]properties.Settings{
+					{
+						PropertyID: "test_property_id",
+						ProtocolID: "test_protocol",
+					},
+				})),
+				[]protocol.Protocol{p},
+				8080,
+				WithTrustAllProxies(),
+			)
+
+			ctx := defaultRequest()
+
+			// when
+			server.handleRequest(context.Background(), ctx, p)
+
+			// then
+			assert.Equal(t, tt.expectedStatus, ctx.Response.StatusCode())
+			body := string(ctx.Response.Body())
+			assert.Contains(t, body, tt.expectedBody)
+			assertNoLeaks(t, body)
+		})
+	}
+}
+
+func TestHandleRequest_ValidationErrorDoesNotLeakDetails(t *testing.T) {
+	// given — use a protocol whose property ID doesn't match settings,
+	// triggering PropertyProtocolMatchesTheEndpointProtocol validation error.
+	storage := &mockStorage{}
+	p := &mockProtocol{id: "wrong_protocol"}
+	server := NewServer(
+		storage,
+		NewDummyRawLogStorage(),
+		HitValidatingRuleSet(1024*128, properties.NewStaticSettingsRegistry([]properties.Settings{
+			{
+				PropertyID: "test_property_id",
+				ProtocolID: "test_protocol",
+			},
+		})),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.1")
+	ctx.URI().SetQueryString("param1=value1")
+	ctx.Request.Header.Set("User-Agent", "test-agent")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	body := string(ctx.Response.Body())
+	assert.Contains(t, body, "Bad Request")
+	assert.NotContains(t, body, "test_property_id")
+	assert.NotContains(t, body, "test_protocol")
+	assert.NotContains(t, body, "wrong_protocol")
+	assert.NotContains(t, body, "does not match")
+}
