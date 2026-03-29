@@ -68,6 +68,7 @@ type TimingWheel struct {
 	processor            BucketProcessorFunc
 	currentTime          time.Time
 	firstUpdatedTime     time.Time
+	timeMu               sync.RWMutex // guards currentTime and firstUpdatedTime
 	skipCatchUpOnStartup bool
 	startupBucketRebased bool
 	stop                 chan struct{}
@@ -136,7 +137,13 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 	// Default to sleeping between ticks
 	tw.loopSleep = tw.tickInterval
 
-	if tw.currentTime.IsZero() {
+	// Snapshot time fields under read lock to avoid racing with UpdateTime.
+	tw.timeMu.RLock()
+	curTime := tw.currentTime
+	firstTime := tw.firstUpdatedTime
+	tw.timeMu.RUnlock()
+
+	if curTime.IsZero() {
 		logrus.Debugf("no hits processed yet, skipping timing wheel tick")
 		return nil
 	}
@@ -148,7 +155,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 	// First run - initialize to current bucket
 	if nextBucket == -1 {
-		currentBucket := tw.BucketNumber(tw.firstUpdatedTime)
+		currentBucket := tw.BucketNumber(firstTime)
 		if err := tw.backend.SaveNextBucket(ctx, currentBucket); err != nil {
 			return fmt.Errorf("failed to initialize bucket: %w", err)
 		}
@@ -156,7 +163,7 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 		return nil
 	}
 
-	currentBucket := tw.BucketNumber(tw.currentTime)
+	currentBucket := tw.BucketNumber(curTime)
 	if tw.skipCatchUpOnStartup && !tw.startupBucketRebased && nextBucket < currentBucket {
 		if err := tw.backend.SaveNextBucket(ctx, currentBucket); err != nil {
 			return fmt.Errorf("failed to rebase catch-up bucket: %w", err)
@@ -199,6 +206,9 @@ func (tw *TimingWheel) tick(ctx context.Context) error {
 
 // UpdateTime updates the timing wheel's current time if the new time is after the existing time.
 func (tw *TimingWheel) UpdateTime(t time.Time) {
+	tw.timeMu.Lock()
+	defer tw.timeMu.Unlock()
+
 	if t.After(tw.currentTime) {
 		if tw.firstUpdatedTime.IsZero() {
 			tw.firstUpdatedTime = t
@@ -209,6 +219,9 @@ func (tw *TimingWheel) UpdateTime(t time.Time) {
 
 // CurrentTime returns the timing wheel's current time.
 func (tw *TimingWheel) CurrentTime() time.Time {
+	tw.timeMu.RLock()
+	defer tw.timeMu.RUnlock()
+
 	return tw.currentTime
 }
 
