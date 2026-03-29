@@ -17,16 +17,6 @@ type noopPublisher struct{}
 
 func (n *noopPublisher) Publish(_ *worker.Task) error { return nil }
 
-type closableStorage struct {
-	closed bool
-}
-
-func (s *closableStorage) Push(_ []*hits.Hit) error { return nil }
-
-func (s *closableStorage) Close() {
-	s.closed = true
-}
-
 func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 	// given
 	setDeliveryModeForTest(t, "")
@@ -44,10 +34,8 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
-			if closableStorage, ok := storage.(interface{ Close() }); ok {
-				t.Cleanup(closableStorage.Close)
-			}
+			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			defer cleanup()
 
 			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)
@@ -83,10 +71,8 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage := buildReceiverStorage(ctx, cmd, &noopPublisher{})
-			if closableStorage, ok := storage.(interface{ Close() }); ok {
-				t.Cleanup(closableStorage.Close)
-			}
+			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			defer cleanup()
 
 			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)
@@ -100,15 +86,4 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 
 	// then
 	require.NoError(t, app.Run(context.Background(), args))
-}
-
-func TestCloseReceiverStorage_ClosesBatchingStorage(t *testing.T) {
-	// given
-	storage := &closableStorage{}
-
-	// when
-	closeReceiverStorage(storage)
-
-	// then
-	assert.True(t, storage.closed)
 }

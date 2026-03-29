@@ -15,7 +15,11 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worker.Publisher) receiver.Storage {
+func buildReceiverStorage(
+	ctx context.Context,
+	cmd *cli.Command,
+	publisher worker.Publisher,
+) (storage receiver.Storage, cleanup func()) {
 	backend := strings.ToLower(cmd.String(queueBackendFlag.Name))
 
 	if backend == "objectstorage" {
@@ -62,13 +66,4 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 		cmd.Duration(receiverBatchTimeoutFlag.Name),
 		opts...,
 	)
-}
-
-func closeReceiverStorage(storage receiver.Storage) {
-	closableStorage, ok := storage.(interface{ Close() })
-	if !ok {
-		return
-	}
-
-	closableStorage.Close()
 }
