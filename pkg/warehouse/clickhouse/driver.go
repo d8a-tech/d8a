@@ -60,8 +60,9 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 }
 
 func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error {
-	// Construct full table name with database
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
+	// Construct full table name with database (quoted for SQL, raw for errors)
+	fullTableName := quoteFullTableName(d.database, table)
+	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
 	query, err := warehouse.CreateTableQuery(d.queryMapper, fullTableName, schema)
 	if err != nil {
 		return err
@@ -70,7 +71,7 @@ func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error
 	_, err = d.db.Exec(query)
 	if err != nil {
 		if isAlreadyExistsErr(err) {
-			return warehouse.NewTableAlreadyExistsError(fullTableName)
+			return warehouse.NewTableAlreadyExistsError(rawTableName)
 		}
 		return err
 	}
@@ -107,15 +108,16 @@ func (d *clickhouseDriver) AddColumn(table string, field *arrow.Field) error {
 	}
 
 	// Build ALTER TABLE ADD COLUMN query
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
-	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", fullTableName, field.Name, columnType)
+	fullTableName := quoteFullTableName(d.database, table)
+	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
+	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", fullTableName, quoteIdentifier(field.Name), columnType)
 
 	// Execute the ALTER TABLE query
 	_, err = d.db.ExecContext(ctx, alterQuery)
 	if err != nil {
 		// Check if this is a duplicate column error from ClickHouse
 		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "duplicate") {
-			return warehouse.NewColumnAlreadyExistsError(fullTableName, field.Name)
+			return warehouse.NewColumnAlreadyExistsError(rawTableName, field.Name)
 		}
 		return fmt.Errorf("error adding column: %w", err)
 	}
@@ -219,7 +221,7 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 	}
 
 	// Construct full table name with database
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
+	fullTableName := quoteFullTableName(d.database, table)
 
 	// Get column names and types from schema
 	columns := make([]string, len(schemaFields))

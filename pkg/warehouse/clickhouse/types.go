@@ -263,7 +263,7 @@ func (m *clickhouseArrayTypeMapper) handleListOfStruct(structType *arrow.StructT
 			return SpecificClickhouseType{}, fmt.Errorf("error mapping field %s: %w", field.Name, err)
 		}
 
-		fieldDefs = append(fieldDefs, fmt.Sprintf("%s %s", field.Name, fieldType.TypeAsString))
+		fieldDefs = append(fieldDefs, fmt.Sprintf("%s %s", quoteIdentifier(field.Name), fieldType.TypeAsString))
 		fieldTypes = append(fieldTypes, fieldType)
 	}
 
@@ -468,7 +468,7 @@ func (m *clickhouseNestedTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowT
 			return SpecificClickhouseType{}, fmt.Errorf("error mapping field %s: %w", field.Name, err)
 		}
 
-		fieldDefs = append(fieldDefs, fmt.Sprintf("%s %s", field.Name, fieldType.TypeAsString))
+		fieldDefs = append(fieldDefs, fmt.Sprintf("%s %s", quoteIdentifier(field.Name), fieldType.TypeAsString))
 		fieldTypes = append(fieldTypes, fieldType)
 	}
 
