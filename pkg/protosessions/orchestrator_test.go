@@ -357,6 +357,36 @@ func TestOrchestrator_ProcessBucket_CleanupErrors(t *testing.T) {
 	}
 }
 
+func TestOrchestrator_BuildProtoSessionsBatch_PanicsOnNilHit(t *testing.T) {
+	// given
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	protoSessions := [][]*hits.Hit{
+		{makeTimedHit("c1", 100), nil, makeTimedHit("c1", 200)},
+	}
+
+	tickerBackend := NewGenericKVTimingWheelBackend("protosessions", storage.NewInMemoryKV())
+	backend := NewTestBatchedIOBackend()
+	closer := NewTestCloser()
+	requeuer := receiver.NewTestStorage(nil)
+	settingsRegistry := properties.NewTestSettingRegistry()
+
+	orchestrator := NewOrchestrator(
+		ctx,
+		backend,
+		tickerBackend,
+		closer,
+		requeuer,
+		settingsRegistry,
+	)
+
+	// when / then — must panic, not os.Exit
+	assert.Panics(t, func() {
+		_, _, _, _, _ = orchestrator.buildProtoSessionsBatch(protoSessions)
+	})
+}
+
 func makeTimedHit(clientID string, offsetSeconds int) *hits.Hit {
 	h := hits.New()
 	h.ClientID = hits.ClientID(clientID)

@@ -805,7 +805,7 @@ func (o *Orchestrator) buildProtoSessionsBatch(
 
 		for i, h := range sortedHits {
 			if h == nil {
-				logrus.Fatalf("hit is nil in processBucket at index %d", i)
+				logrus.Panicf("hit is nil in buildProtoSessionsBatch at index %d", i)
 			}
 		}
 
