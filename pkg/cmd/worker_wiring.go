@@ -16,9 +16,11 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
+	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/urfave/cli/v3"
 	"go.etcd.io/bbolt"
 )
@@ -94,44 +96,41 @@ func buildWorkerRuntime(
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
 		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
 
-		var sw sessions.SpoolWriter
-		var fs sessions.SpoolFailureStrategy
+		sp, err := spools.New(afero.NewOsFs(), spoolDir)
+		if err != nil {
+			cleanup()
+			return nil, fmt.Errorf("create spool: %w", err)
+		}
 
 		mode := cmd.String(deliveryModeFlag.Name)
+		var fs sessions.SpoolFailureStrategy
 		if mode == "at_least_once" {
-			dsw, err := sessions.NewDirectSpoolWriter(spoolDir)
-			if err != nil {
-				cleanup()
-				return nil, fmt.Errorf("create direct spool writer: %w", err)
-			}
-			sw = dsw
 			fs = sessions.NewQuarantineSpoolStrategy()
 		} else {
-			bsw, err := sessions.NewBufferedSpoolWriter(
-				spoolDir,
-				cmd.Int(storageSpoolWriteChanBufferFlag.Name),
-			)
-			if err != nil {
-				cleanup()
-				return nil, fmt.Errorf("create buffered spool writer: %w", err)
-			}
-			sw = bsw
 			fs = sessions.NewDeleteSpoolStrategy()
 		}
 
-		batchedWriter, c, err := sessions.NewBackgroundBatchingWriter(
-			ctx,
-			sessionWriter,
-			sw,
-			fs,
-			sessions.WithSpoolDir(spoolDir),
+		persistentWriter, persistentCleanup, err := sessions.NewPersistentSpoolWriter(
+			ctx, sp, sessionWriter, fs,
 		)
 		if err != nil {
 			cleanup()
-			return nil, fmt.Errorf("create background batching writer: %w", err)
+			return nil, fmt.Errorf("create persistent spool writer: %w", err)
 		}
-		sessionWriter = batchedWriter
-		batchingCleanup = c
+
+		if mode == "at_least_once" {
+			sessionWriter = persistentWriter
+			batchingCleanup = persistentCleanup
+		} else {
+			inMemWriter, inMemCleanup, err := sessions.NewInMemSpoolWriter(persistentWriter)
+			if err != nil {
+				persistentCleanup()
+				cleanup()
+				return nil, fmt.Errorf("create in-mem spool writer: %w", err)
+			}
+			sessionWriter = inMemWriter
+			batchingCleanup = func() { inMemCleanup(); persistentCleanup() }
+		}
 	}
 
 	w := worker.NewWorker(
