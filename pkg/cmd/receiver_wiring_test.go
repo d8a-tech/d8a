@@ -34,10 +34,11 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			storage, cleanup, err := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			require.NoError(t, err)
 			defer cleanup()
 
-			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
+			err = storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)
 
 			_, err = os.Stat(expectedDir)
@@ -47,6 +48,38 @@ func TestBuildReceiverStorage_DefaultUsesMemoryBackend(t *testing.T) {
 	}
 
 	// then
+	require.NoError(t, app.Run(context.Background(), args))
+}
+
+func TestBuildReceiverStorage_ObjectStorageBackendReturnsErrorOnNilPublisher(t *testing.T) {
+	// given
+	setDeliveryModeForTest(t, "")
+	unsetEnvForTest(t, "DELIVERY_MODE")
+	unsetEnvForTest(t, "RECEIVER_BATCHING_BACKEND")
+
+	queueDir := t.TempDir()
+
+	args := []string{
+		"d8a-test",
+		"--queue-backend=objectstorage",
+		"--storage-queue-directory=" + queueDir,
+	}
+	setCurrentRunArgsForTest(t, args)
+
+	app := &cli.Command{
+		Name:  "d8a-test",
+		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			// when — nil publisher triggers validation error in NewBackoffPingingPublisher
+			_, _, err := buildReceiverStorage(ctx, cmd, nil)
+
+			// then
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "creating backoff pinging publisher")
+			return nil
+		},
+	}
+
 	require.NoError(t, app.Run(context.Background(), args))
 }
 
@@ -71,10 +104,11 @@ func TestBuildReceiverStorage_FilesystemBackendInjectsFileBackend(t *testing.T) 
 		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			// when
-			storage, cleanup := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			storage, cleanup, err := buildReceiverStorage(ctx, cmd, &noopPublisher{})
+			require.NoError(t, err)
 			defer cleanup()
 
-			err := storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
+			err = storage.Push([]*hits.Hit{{PropertyID: "property-a"}})
 			require.NoError(t, err)
 
 			flushFilePath := filepath.Join(expectedDir, "pending_hits.json.gz")
