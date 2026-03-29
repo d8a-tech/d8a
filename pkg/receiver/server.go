@@ -113,6 +113,7 @@ type Server struct {
 	validationRules HitValidatingRule
 	host            string
 	port            int
+	proxyTrust      proxyTrust
 }
 
 func WithHost(host string) ServerOption {
@@ -139,6 +140,7 @@ func NewServer(
 		validationRules: validationRules,
 		host:            "0.0.0.0",
 		port:            port,
+		proxyTrust:      noProxyTrust{},
 	}
 
 	for _, opt := range opts {
@@ -210,7 +212,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 	bodyCopy := make([]byte, len(ctx.Request.Body()))
 	copy(bodyCopy, ctx.Request.Body())
 	request := &hits.ParsedRequest{
-		IP:                 realIP(ctx),
+		IP:                 s.realIP(ctx),
 		Method:             string(ctx.Method()),
 		Host:               string(ctx.Host()),
 		Path:               string(ctx.Path()),
