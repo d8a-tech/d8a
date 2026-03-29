@@ -14,13 +14,11 @@ import (
 )
 
 type persistentSpoolWriter struct {
-	child           SessionWriter
-	spool           spools.Spool
-	failureStrategy SpoolFailureStrategy
-	encoder         encoding.EncoderFunc
-	decoder         encoding.DecoderFunc
-	flushInterval   time.Duration
-	maxFailures     int
+	child         SessionWriter
+	spool         spools.Spool
+	encoder       encoding.EncoderFunc
+	decoder       encoding.DecoderFunc
+	flushInterval time.Duration
 
 	stopChan     chan struct{}
 	cleanupDone  chan struct{}
@@ -49,14 +47,6 @@ func WithEncoderDecoder(encoder encoding.EncoderFunc, decoder encoding.DecoderFu
 	}
 }
 
-// WithMaxConsecutiveFailures sets the maximum number of consecutive child
-// writer failures before the failure strategy is invoked for a key.
-func WithMaxConsecutiveFailures(n int) PersistentSpoolOption {
-	return func(w *persistentSpoolWriter) {
-		w.maxFailures = n
-	}
-}
-
 // NewPersistentSpoolWriter creates a SessionWriter decorator that encodes
 // sessions, appends them to a Spool keyed by PropertyID, and periodically
 // flushes via a background actor loop that decodes and delegates to child.
@@ -65,7 +55,6 @@ func NewPersistentSpoolWriter(
 	ctx context.Context,
 	spool spools.Spool,
 	child SessionWriter,
-	failureStrategy SpoolFailureStrategy,
 	opts ...PersistentSpoolOption,
 ) (SessionWriter, func(), error) {
 	if spool == nil {
@@ -74,21 +63,16 @@ func NewPersistentSpoolWriter(
 	if child == nil {
 		return nil, nil, fmt.Errorf("child writer is required")
 	}
-	if failureStrategy == nil {
-		return nil, nil, fmt.Errorf("failure strategy is required")
-	}
 
 	w := &persistentSpoolWriter{
-		child:           child,
-		spool:           spool,
-		failureStrategy: failureStrategy,
-		encoder:         encoding.GobEncoder,
-		decoder:         encoding.GobDecoder,
-		flushInterval:   1 * time.Minute,
-		maxFailures:     20,
-		stopChan:        make(chan struct{}),
-		cleanupDone:     make(chan struct{}),
-		ctx:             ctx,
+		child:         child,
+		spool:         spool,
+		encoder:       encoding.GobEncoder,
+		decoder:       encoding.GobDecoder,
+		flushInterval: 1 * time.Minute,
+		stopChan:      make(chan struct{}),
+		cleanupDone:   make(chan struct{}),
+		ctx:           ctx,
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -152,8 +136,6 @@ func (w *persistentSpoolWriter) Write(sessions ...*schema.Session) error {
 func (w *persistentSpoolWriter) actorLoop() {
 	defer w.actorStopped.Done()
 
-	failuresByKey := make(map[string]int)
-
 	ticker := time.NewTicker(w.flushInterval)
 	defer ticker.Stop()
 
@@ -162,45 +144,26 @@ func (w *persistentSpoolWriter) actorLoop() {
 		case <-w.stopChan:
 			return
 		case <-ticker.C:
-			w.flush(failuresByKey)
+			w.flush()
 		}
 	}
 }
 
-func (w *persistentSpoolWriter) flush(failuresByKey map[string]int) {
-	flushErr := w.spool.Flush(func(key string, inflightPath string, frames [][]byte) error {
+func (w *persistentSpoolWriter) flush() {
+	flushErr := w.spool.Flush(func(key string, frames [][]byte) error {
 		allSessions, decodeErr := w.decodeFrames(frames)
 		if decodeErr != nil {
 			return fmt.Errorf("decoding frames for key %q: %w", key, decodeErr)
 		}
 
 		if len(allSessions) == 0 {
-			delete(failuresByKey, key)
 			return nil
 		}
 
 		if writeErr := w.child.Write(allSessions...); writeErr != nil {
-			failuresByKey[key]++
-			count := failuresByKey[key]
-
-			if count >= w.maxFailures {
-				logrus.Errorf(
-					"exceeded failure threshold for key %q after %d consecutive failures (threshold: %d)",
-					key, count, w.maxFailures,
-				)
-				if stratErr := w.failureStrategy.OnExceededFailures(inflightPath); stratErr != nil {
-					logrus.Errorf("failure strategy error for key %q: %v", key, stratErr)
-					return fmt.Errorf("failure strategy for key %q: %w", key, stratErr)
-				}
-				delete(failuresByKey, key)
-				// Return nil so Flush removes the inflight file (strategy already handled it).
-				return nil
-			}
-
 			return fmt.Errorf("child write for key %q: %w", key, writeErr)
 		}
 
-		delete(failuresByKey, key)
 		return nil
 	})
 	if flushErr != nil {

@@ -4,7 +4,11 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"sort"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
@@ -22,6 +26,42 @@ func writeRawFrame(t *testing.T, fs afero.Fs, path string, payload []byte) {
 	_, err = f.Write(payload)
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
+}
+
+// recordingStrategy records calls and optionally returns an error.
+type recordingStrategy struct {
+	mu    sync.Mutex
+	calls []string
+	err   error
+}
+
+func (r *recordingStrategy) OnExceededFailures(fs afero.Fs, inflightPath string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls = append(r.calls, inflightPath)
+	if r.err != nil {
+		return r.err
+	}
+	// Default behavior: delete the file (same as deleteStrategy).
+	return fs.Remove(inflightPath)
+}
+
+func (r *recordingStrategy) getCalls() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]string, len(r.calls))
+	copy(out, r.calls)
+	return out
+}
+
+// sequentialClock returns a nowFunc that produces monotonically increasing
+// timestamps starting from the given nanosecond value.
+func sequentialClock(startNano int64) func() time.Time {
+	v := startNano
+	return func() time.Time {
+		cur := atomic.AddInt64(&v, 1)
+		return time.Unix(0, cur)
+	}
 }
 
 func TestSanitizeKey(t *testing.T) {
@@ -45,7 +85,7 @@ func TestSanitizeKey(t *testing.T) {
 func TestAppendAndFlush(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	// when
@@ -54,7 +94,7 @@ func TestAppendAndFlush(t *testing.T) {
 	require.NoError(t, s.Append("prop2", []byte("foo")))
 
 	collected := make(map[string][][]byte)
-	err = s.Flush(func(key string, _ string, frames [][]byte) error {
+	err = s.Flush(func(key string, frames [][]byte) error {
 		collected[key] = frames
 		return nil
 	})
@@ -73,7 +113,7 @@ func TestAppendAndFlush(t *testing.T) {
 	assert.Equal(t, 1, len(frames2))
 	assert.Equal(t, []byte("foo"), frames2[0])
 
-	// Active files should be gone, inflight files should be cleaned up.
+	// Active and inflight files should all be cleaned up.
 	entries, err := afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
 	assert.Empty(t, entries)
@@ -82,37 +122,38 @@ func TestAppendAndFlush(t *testing.T) {
 func TestFlushCallbackError_LeavesInflight(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("data")))
 
 	// when — callback fails
 	callbackErr := fmt.Errorf("downstream failure")
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ [][]byte) error {
 		return callbackErr
 	})
 
-	// then — flush returns error, inflight file remains
+	// then — flush returns error, inflight file remains with timestamped name
 	assert.ErrorIs(t, err, callbackErr)
 
 	entries, err := afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
-	assert.Equal(t, "prop1.spool.inflight", entries[0].Name())
+	assert.True(t, isInflightFile(entries[0].Name()), "expected inflight file, got %q", entries[0].Name())
+	assert.Equal(t, "prop1", keyFromInflight(entries[0].Name()))
 }
 
 func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 	// given — append data, first flush fails leaving inflight
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("frame-a")))
 	require.NoError(t, s.Append("prop1", []byte("frame-b")))
 
 	callCount := 0
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ [][]byte) error {
 		callCount++
 		return fmt.Errorf("transient failure")
 	})
@@ -123,11 +164,11 @@ func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 	entries, err := afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
-	assert.Equal(t, "prop1.spool.inflight", entries[0].Name())
+	assert.True(t, isInflightFile(entries[0].Name()))
 
 	// when — second flush succeeds without restart
 	var retried [][]byte
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+	err = s.Flush(func(_ string, frames [][]byte) error {
 		retried = frames
 		return nil
 	})
@@ -143,15 +184,15 @@ func TestFlushRetryInflightWithoutRestart(t *testing.T) {
 	assert.Empty(t, entries)
 }
 
-func TestFlushWithInflightAndNewActive_NoRenameCollision(t *testing.T) {
+func TestFlushWithInflightAndNewActive_BothFlushedInOrder(t *testing.T) {
 	// given — first flush fails leaving inflight, then new data arrives
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("old-data")))
 
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ [][]byte) error {
 		return fmt.Errorf("transient failure")
 	})
 	require.Error(t, err)
@@ -164,93 +205,140 @@ func TestFlushWithInflightAndNewActive_NoRenameCollision(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, entries, 2)
 
-	// when — second flush retries the inflight; active file is deferred
-	var retriedFrames [][]byte
-	flushCallCount := 0
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
-		flushCallCount++
-		retriedFrames = frames
+	// when — second flush: active gets renamed to a new inflight, both are processed
+	// in order (old first). Callback succeeds for old, then new.
+	var callOrder []string
+	err = s.Flush(func(_ string, frames [][]byte) error {
+		callOrder = append(callOrder, string(frames[0]))
 		return nil
 	})
 
-	// then — only the old inflight was flushed (one callback call)
+	// then — both flushed in order, directory empty
 	require.NoError(t, err)
-	assert.Equal(t, 1, flushCallCount)
-	require.Len(t, retriedFrames, 1)
-	assert.Equal(t, []byte("old-data"), retriedFrames[0])
-
-	// The active file should still be present for the next flush cycle.
-	entries, err = afero.ReadDir(fs, "/data/spools")
-	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, "prop1.spool", entries[0].Name())
-
-	// when — third flush picks up the remaining active file
-	var finalFrames [][]byte
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
-		finalFrames = frames
-		return nil
-	})
-
-	// then — new data flushed, directory empty
-	require.NoError(t, err)
-	require.Len(t, finalFrames, 1)
-	assert.Equal(t, []byte("new-data"), finalFrames[0])
+	require.Len(t, callOrder, 2)
+	assert.Equal(t, "old-data", callOrder[0])
+	assert.Equal(t, "new-data", callOrder[1])
 
 	entries, err = afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }
 
-func TestFlushInflightRetryFailsAgain_ActiveStillDeferred(t *testing.T) {
-	// given — inflight exists and active has new data; retry also fails
+func TestFlushWithInflightAndNewActive_OldestFailsSkipsNewer(t *testing.T) {
+	// given — first flush fails, new data arrives
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("original")))
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ [][]byte) error {
 		return fmt.Errorf("fail-1")
 	})
 	require.Error(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("additional")))
 
-	// when — second flush also fails for the inflight retry
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	// when — second flush: oldest fails again -> newer is skipped
+	callCount := 0
+	err = s.Flush(func(_ string, _ [][]byte) error {
+		callCount++
 		return fmt.Errorf("fail-2")
 	})
 
-	// then — error returned, both files still present
+	// then — callback called only once (oldest), both inflight files remain
 	require.Error(t, err)
+	assert.Equal(t, 1, callCount)
+
 	entries, err := afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
+	// Two inflight files (old inflight + newly renamed active)
 	require.Len(t, entries, 2)
-
-	names := []string{entries[0].Name(), entries[1].Name()}
-	assert.Contains(t, names, "prop1.spool")
-	assert.Contains(t, names, "prop1.spool.inflight")
+	for _, e := range entries {
+		assert.True(t, isInflightFile(e.Name()), "expected inflight, got %q", e.Name())
+	}
 
 	// when — third flush succeeds
-	callKeys := make(map[string]bool)
-	err = s.Flush(func(key string, _ string, _ [][]byte) error {
-		callKeys[key] = true
+	var flushOrder []string
+	err = s.Flush(func(_ string, frames [][]byte) error {
+		flushOrder = append(flushOrder, string(frames[0]))
 		return nil
 	})
 
-	// then — inflight was retried; active still deferred because inflight existed
+	// then — both flushed in order, directory empty
 	require.NoError(t, err)
-	assert.True(t, callKeys["prop1"])
+	require.Len(t, flushOrder, 2)
+	assert.Equal(t, "original", flushOrder[0])
+	assert.Equal(t, "additional", flushOrder[1])
 
-	// One more flush to drain the remaining active file
-	var lastFrames [][]byte
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
-		lastFrames = frames
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestMultipleInflightsPerKey_ActiveAlwaysRenamed(t *testing.T) {
+	// given — existing inflight + active file
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
+	require.NoError(t, err)
+
+	// First append + failed flush creates inflight-1
+	require.NoError(t, s.Append("prop1", []byte("batch-1")))
+	_ = s.Flush(func(_ string, _ [][]byte) error {
+		return fmt.Errorf("fail")
+	})
+
+	// Second append creates a new active file
+	require.NoError(t, s.Append("prop1", []byte("batch-2")))
+
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 2) // 1 inflight + 1 active
+
+	// when — flush: active should always be renamed, even with pending inflight
+	_ = s.Flush(func(_ string, _ [][]byte) error {
+		return fmt.Errorf("fail again")
+	})
+
+	// then — no active file should remain; both should be inflight
+	entries, err = afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.True(t, isInflightFile(e.Name()), "expected inflight, got %q", e.Name())
+		assert.False(t, isActiveFile(e.Name()), "active file should not remain after flush")
+	}
+}
+
+func TestMultipleInflightsPerKey_OrderingPreserved(t *testing.T) {
+	// given — create 3 inflight files by appending + failing flushes
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
+	require.NoError(t, err)
+
+	for i := 0; i < 3; i++ {
+		require.NoError(t, s.Append("prop1", []byte(fmt.Sprintf("batch-%d", i))))
+		_ = s.Flush(func(_ string, _ [][]byte) error {
+			return fmt.Errorf("fail")
+		})
+	}
+
+	// Verify 3 inflight files exist
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 3)
+
+	// when — flush with success: all 3 should be flushed in order
+	var order []string
+	err = s.Flush(func(_ string, frames [][]byte) error {
+		order = append(order, string(frames[0]))
 		return nil
 	})
+
+	// then — delivered oldest first
 	require.NoError(t, err)
-	require.Len(t, lastFrames, 1)
-	assert.Equal(t, []byte("additional"), lastFrames[0])
+	require.Len(t, order, 3)
+	assert.Equal(t, "batch-0", order[0])
+	assert.Equal(t, "batch-1", order[1])
+	assert.Equal(t, "batch-2", order[2])
 
 	entries, err = afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
@@ -258,17 +346,17 @@ func TestFlushInflightRetryFailsAgain_ActiveStillDeferred(t *testing.T) {
 }
 
 func TestRecoverInflightOnNew(t *testing.T) {
-	// given — simulate crash remnant: inflight file exists
+	// given — simulate crash remnant: inflight file with new naming
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
-	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight", []byte("recovered"))
+	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight.1000", []byte("recovered"))
 
 	// when — New triggers Recover
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
 	// then — inflight file should be gone, data should be in active file
-	exists, err := afero.Exists(fs, "/data/spools/prop1.spool.inflight")
+	exists, err := afero.Exists(fs, "/data/spools/prop1.spool.inflight.1000")
 	require.NoError(t, err)
 	assert.False(t, exists)
 
@@ -278,7 +366,7 @@ func TestRecoverInflightOnNew(t *testing.T) {
 
 	// Flush should yield the recovered frame.
 	var frames [][]byte
-	err = s.Flush(func(_ string, _ string, f [][]byte) error {
+	err = s.Flush(func(_ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -292,15 +380,15 @@ func TestRecoverMergesIntoExistingActive(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
 	writeRawFrame(t, fs, "/data/spools/prop1.spool", []byte("existing"))
-	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight", []byte("crashed"))
+	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight.1000", []byte("crashed"))
 
 	// when
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
 	// then — flush should have both frames (existing first, then recovered)
 	var frames [][]byte
-	err = s.Flush(func(_ string, _ string, f [][]byte) error {
+	err = s.Flush(func(_ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -315,23 +403,23 @@ func TestTruncatedTrailingFrame(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
 
-	// Write one valid frame manually, then append truncated data.
-	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight", []byte("good"))
+	inflightPath := "/data/spools/prop1.spool.inflight.1000"
+	writeRawFrame(t, fs, inflightPath, []byte("good"))
 
 	// Append partial header (2 bytes instead of 4).
-	f, err := fs.OpenFile("/data/spools/prop1.spool.inflight", os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePerms)
+	f, err := fs.OpenFile(inflightPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePerms)
 	require.NoError(t, err)
 	_, err = f.Write([]byte{0x05, 0x00}) // partial header
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
 	// when — New triggers Recover which reads inflight
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
 	// then — the good frame was recovered; truncated frame was dropped
 	var frames [][]byte
-	err = s.Flush(func(_ string, _ string, f [][]byte) error {
+	err = s.Flush(func(_ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -345,10 +433,11 @@ func TestTruncatedPayload(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
 
-	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight", []byte("ok"))
+	inflightPath := "/data/spools/prop1.spool.inflight.1000"
+	writeRawFrame(t, fs, inflightPath, []byte("ok"))
 
 	// Write header claiming 100 bytes but only 3 bytes of payload.
-	f, err := fs.OpenFile("/data/spools/prop1.spool.inflight", os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePerms)
+	f, err := fs.OpenFile(inflightPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePerms)
 	require.NoError(t, err)
 	header := make([]byte, headerSize)
 	binary.LittleEndian.PutUint32(header, 100)
@@ -359,12 +448,12 @@ func TestTruncatedPayload(t *testing.T) {
 	require.NoError(t, f.Close())
 
 	// when
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
 	// then — only the first valid frame is recovered
 	var frames [][]byte
-	err = s.Flush(func(_ string, _ string, f [][]byte) error {
+	err = s.Flush(func(_ string, f [][]byte) error {
 		frames = f
 		return nil
 	})
@@ -381,12 +470,12 @@ func TestEmptyActiveFileFlush(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	// when
 	callbackCalled := false
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error {
+	err = s.Flush(func(_ string, _ [][]byte) error {
 		callbackCalled = true
 		return nil
 	})
@@ -403,14 +492,14 @@ func TestEmptyActiveFileFlush(t *testing.T) {
 func TestConcurrentAppendDuringFlush(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
 	require.NoError(t, err)
 
 	require.NoError(t, s.Append("prop1", []byte("before-flush")))
 
 	// when — flush renames active to inflight; concurrent append creates new active
 	var flushedFrames [][]byte
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+	err = s.Flush(func(_ string, frames [][]byte) error {
 		// Append happens while flush callback runs (new active file).
 		appendErr := s.Append("prop1", []byte("during-flush"))
 		require.NoError(t, appendErr)
@@ -425,7 +514,7 @@ func TestConcurrentAppendDuringFlush(t *testing.T) {
 
 	// Second flush picks up the concurrent append.
 	var secondFrames [][]byte
-	err = s.Flush(func(_ string, _ string, frames [][]byte) error {
+	err = s.Flush(func(_ string, frames [][]byte) error {
 		secondFrames = frames
 		return nil
 	})
@@ -459,7 +548,7 @@ func TestCloseRejectsFlush(t *testing.T) {
 	require.NoError(t, s.Close())
 
 	// then
-	err = s.Flush(func(_ string, _ string, _ [][]byte) error { return nil })
+	err = s.Flush(func(_ string, _ [][]byte) error { return nil })
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "closed")
 }
@@ -484,22 +573,289 @@ func TestKeySanitizationInFilenames(t *testing.T) {
 	assert.True(t, exists)
 }
 
-func TestFlushPassesInflightPath(t *testing.T) {
-	// given
+func TestFailureStrategy_DeleteOnExceededFailures(t *testing.T) {
+	// given — spool with maxFailures=3 and recording strategy
 	fs := afero.NewMemMapFs()
-	s, err := New(fs, "/data/spools")
+	strategy := &recordingStrategy{}
+	s, err := New(fs, "/data/spools",
+		WithFailureStrategy(strategy),
+		WithMaxFailures(3),
+		WithNowFunc(sequentialClock(1000)),
+	)
 	require.NoError(t, err)
 
-	require.NoError(t, s.Append("prop1", []byte("data")))
+	require.NoError(t, s.Append("prop1", []byte("doomed")))
 
-	// when
-	var receivedPath string
-	err = s.Flush(func(_ string, inflightPath string, _ [][]byte) error {
-		receivedPath = inflightPath
+	// when — fail 3 times to hit the threshold
+	for i := 0; i < 3; i++ {
+		_ = s.Flush(func(_ string, _ [][]byte) error {
+			return fmt.Errorf("fail-%d", i)
+		})
+	}
+
+	// then — strategy was called once (for the single inflight file)
+	calls := strategy.getCalls()
+	require.Len(t, calls, 1)
+	assert.True(t, isInflightFile(calls[0][len("/data/spools/"):]))
+	assert.Equal(t, "prop1", keyFromInflight(calls[0][len("/data/spools/"):]))
+
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries, "inflight file should be removed by strategy")
+}
+
+func TestFailureStrategy_SuccessResetsCounter(t *testing.T) {
+	// given — spool with maxFailures=3
+	fs := afero.NewMemMapFs()
+	strategy := &recordingStrategy{}
+	s, err := New(fs, "/data/spools",
+		WithFailureStrategy(strategy),
+		WithMaxFailures(3),
+		WithNowFunc(sequentialClock(1000)),
+	)
+	require.NoError(t, err)
+
+	// Fail twice
+	require.NoError(t, s.Append("prop1", []byte("data-round1")))
+	for i := 0; i < 2; i++ {
+		_ = s.Flush(func(_ string, _ [][]byte) error {
+			return fmt.Errorf("transient")
+		})
+	}
+
+	// when — success on third flush resets counter
+	err = s.Flush(func(_ string, _ [][]byte) error {
+		return nil
+	})
+	require.NoError(t, err)
+
+	// Write new data and fail 2 more times — should NOT trigger strategy
+	// because counter was reset.
+	require.NoError(t, s.Append("prop1", []byte("data-round2")))
+	for i := 0; i < 2; i++ {
+		_ = s.Flush(func(_ string, _ [][]byte) error {
+			return fmt.Errorf("transient")
+		})
+	}
+
+	// then — strategy was never called (counter reset at 2, never reached 3)
+	calls := strategy.getCalls()
+	assert.Empty(t, calls)
+}
+
+func TestFailureStrategy_DefaultIsDelete(t *testing.T) {
+	// given — spool with maxFailures=1 and no explicit strategy (default=delete)
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools",
+		WithMaxFailures(1),
+		WithNowFunc(sequentialClock(1000)),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("will-be-deleted")))
+
+	// when — single failure triggers default delete strategy
+	_ = s.Flush(func(_ string, _ [][]byte) error {
+		return fmt.Errorf("permanent failure")
+	})
+
+	// then — inflight file was deleted by default strategy
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestFailureStrategy_QuarantineRenames(t *testing.T) {
+	// given — spool with maxFailures=1 and quarantine strategy
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools",
+		WithFailureStrategy(NewQuarantineStrategy()),
+		WithMaxFailures(1),
+		WithNowFunc(sequentialClock(1000)),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("quarantine-me")))
+
+	// when — single failure triggers quarantine
+	_ = s.Flush(func(_ string, _ [][]byte) error {
+		return fmt.Errorf("permanent failure")
+	})
+
+	// then — inflight file renamed to .quarantine
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Contains(t, entries[0].Name(), ".quarantine")
+	assert.Contains(t, entries[0].Name(), "prop1")
+}
+
+func TestFailureStrategy_MultipleKeysTrackedIndependently(t *testing.T) {
+	// given — spool with maxFailures=2
+	fs := afero.NewMemMapFs()
+	strategy := &recordingStrategy{}
+	s, err := New(fs, "/data/spools",
+		WithFailureStrategy(strategy),
+		WithMaxFailures(2),
+		WithNowFunc(sequentialClock(1000)),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("key-a", []byte("a-data")))
+	require.NoError(t, s.Append("key-b", []byte("b-data")))
+
+	// when — fail once for both keys
+	_ = s.Flush(func(_ string, _ [][]byte) error {
+		return fmt.Errorf("fail-1")
+	})
+
+	// Succeed for key-a on second flush, fail for key-b
+	_ = s.Flush(func(key string, _ [][]byte) error {
+		if key == "key-b" {
+			return fmt.Errorf("fail-2")
+		}
 		return nil
 	})
 
-	// then
+	// then — strategy called only for key-b (reached threshold of 2)
+	calls := strategy.getCalls()
+	require.Len(t, calls, 1)
+	assert.Contains(t, calls[0], "key-b")
+}
+
+func TestFailureStrategy_CleansAllInflightsForKey(t *testing.T) {
+	// given — spool with maxFailures=3, create multiple inflight files
+	fs := afero.NewMemMapFs()
+	strategy := &recordingStrategy{}
+	s, err := New(fs, "/data/spools",
+		WithFailureStrategy(strategy),
+		WithMaxFailures(3),
+		WithNowFunc(sequentialClock(1000)),
+	)
 	require.NoError(t, err)
-	assert.Equal(t, "/data/spools/prop1.spool.inflight", receivedPath)
+
+	// Create 3 inflight files by appending + failing flushes.
+	// Each flush: active renamed to inflight, callback fails, inflight stays.
+	// Next append creates new active. Repeat.
+	for i := 0; i < 3; i++ {
+		require.NoError(t, s.Append("prop1", []byte(fmt.Sprintf("batch-%d", i))))
+		_ = s.Flush(func(_ string, _ [][]byte) error {
+			return fmt.Errorf("fail-%d", i)
+		})
+	}
+
+	// then — the 3rd flush hit the threshold; strategy was called for all
+	// inflight files for this key. Because each flush cycle renames the active
+	// file into a new inflight, by the 3rd cycle there are 3 inflight files.
+	// handleFlushFailure passes paths[i:] (starting from the oldest, which
+	// always fails first), so all 3 are passed to the strategy.
+	calls := strategy.getCalls()
+	require.Len(t, calls, 3, "strategy should have been called for 3 inflight files")
+	for _, c := range calls {
+		assert.Contains(t, c, "prop1")
+		assert.True(t, isInflightFile(c[len("/data/spools/"):]))
+	}
+
+	// All inflight files should be deleted by the strategy.
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries, "all inflight files should be removed by strategy")
+}
+
+func TestRecoverMultipleInflights(t *testing.T) {
+	// given — multiple inflight files for the same key (crash recovery)
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
+	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight.1000", []byte("old"))
+	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight.2000", []byte("new"))
+
+	// when — New triggers Recover
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(3000)))
+	require.NoError(t, err)
+
+	// then — both frames recovered into active, inflight files gone
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "prop1.spool", entries[0].Name())
+
+	// Flush should yield both frames
+	var frames [][]byte
+	err = s.Flush(func(_ string, f [][]byte) error {
+		frames = f
+		return nil
+	})
+	require.NoError(t, err)
+	require.Len(t, frames, 2)
+	assert.Equal(t, []byte("old"), frames[0])
+	assert.Equal(t, []byte("new"), frames[1])
+}
+
+func TestIsInflightFile(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		want bool
+	}{
+		{name: "active file", file: "prop1.spool", want: false},
+		{name: "inflight file", file: "prop1.spool.inflight.1001", want: true},
+		{name: "quarantined file", file: "prop1.spool.inflight.1001.quarantine", want: true},
+		{name: "unrelated file", file: "something.txt", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isInflightFile(tt.file))
+		})
+	}
+}
+
+func TestIsActiveFile(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		want bool
+	}{
+		{name: "active file", file: "prop1.spool", want: true},
+		{name: "inflight file", file: "prop1.spool.inflight.1001", want: false},
+		{name: "unrelated file", file: "something.txt", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isActiveFile(tt.file))
+		})
+	}
+}
+
+func TestKeyFromInflight(t *testing.T) {
+	tests := []struct {
+		name string
+		file string
+		want string
+	}{
+		{name: "normal inflight", file: "prop1.spool.inflight.1001", want: "prop1"},
+		{name: "sanitized key", file: "org_prop_123.spool.inflight.5000", want: "org_prop_123"},
+		{name: "not inflight", file: "prop1.spool", want: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, keyFromInflight(tt.file))
+		})
+	}
+}
+
+func TestInflightFilesAreSortedByTimestamp(t *testing.T) {
+	// given — inflight files with varying timestamps
+	names := []string{
+		"/data/spools/prop1.spool.inflight.3000",
+		"/data/spools/prop1.spool.inflight.1000",
+		"/data/spools/prop1.spool.inflight.2000",
+	}
+
+	// when — sorted lexicographically
+	sort.Strings(names)
+
+	// then — oldest first
+	assert.Equal(t, "/data/spools/prop1.spool.inflight.1000", names[0])
+	assert.Equal(t, "/data/spools/prop1.spool.inflight.2000", names[1])
+	assert.Equal(t, "/data/spools/prop1.spool.inflight.3000", names[2])
 }

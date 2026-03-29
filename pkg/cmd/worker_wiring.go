@@ -96,22 +96,22 @@ func buildWorkerRuntime(
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
 		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
 
-		sp, err := spools.New(afero.NewOsFs(), spoolDir)
+		mode := cmd.String(deliveryModeFlag.Name)
+		var failStrat spools.FailureStrategy
+		if mode == "at_least_once" {
+			failStrat = spools.NewQuarantineStrategy()
+		} else {
+			failStrat = spools.NewDeleteStrategy()
+		}
+
+		sp, err := spools.New(afero.NewOsFs(), spoolDir, spools.WithFailureStrategy(failStrat))
 		if err != nil {
 			cleanup()
 			return nil, fmt.Errorf("create spool: %w", err)
 		}
 
-		mode := cmd.String(deliveryModeFlag.Name)
-		var fs sessions.SpoolFailureStrategy
-		if mode == "at_least_once" {
-			fs = sessions.NewQuarantineSpoolStrategy()
-		} else {
-			fs = sessions.NewDeleteSpoolStrategy()
-		}
-
 		persistentWriter, persistentCleanup, err := sessions.NewPersistentSpoolWriter(
-			ctx, sp, sessionWriter, fs,
+			ctx, sp, sessionWriter,
 		)
 		if err != nil {
 			cleanup()

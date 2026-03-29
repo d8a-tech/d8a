@@ -5,32 +5,103 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 )
 
 const (
-	headerSize   = 4
-	spoolExt     = ".spool"
-	inflightExt  = ".spool.inflight"
-	filePerms    = 0o644
-	maxPayloadSz = 0xFFFFFFFF
+	headerSize        = 4
+	spoolExt          = ".spool"
+	inflightMarker    = ".spool.inflight."
+	filePerms         = 0o644
+	maxPayloadSz      = 0xFFFFFFFF
+	defaultMaxFailure = 20
 )
 
 // Spool is a crash-safe keyed append-only framed-file store.
 // Append and Flush are safe to call concurrently with each other.
 type Spool interface {
 	Append(key string, payload []byte) error
-	Flush(fn func(key string, inflightPath string, frames [][]byte) error) error
+	Flush(fn func(key string, frames [][]byte) error) error
 	Recover() error
 	Close() error
 }
 
+// FailureStrategy defines the action to take when an inflight spool file
+// exceeds the maximum number of consecutive flush failures.
+type FailureStrategy interface {
+	OnExceededFailures(fs afero.Fs, inflightPath string) error
+}
+
+// deleteStrategy removes the inflight file on exceeded failures (best-effort delivery).
+type deleteStrategy struct{}
+
+// NewDeleteStrategy creates a FailureStrategy that deletes inflight files
+// when consecutive flush failures exceed the threshold.
+func NewDeleteStrategy() FailureStrategy {
+	return &deleteStrategy{}
+}
+
+// OnExceededFailures implements FailureStrategy.
+func (s *deleteStrategy) OnExceededFailures(fs afero.Fs, inflightPath string) error {
+	if err := fs.Remove(inflightPath); err != nil {
+		return fmt.Errorf("removing discarded spool file %q: %w", inflightPath, err)
+	}
+	return nil
+}
+
+// quarantineStrategy renames the inflight file to .quarantine on exceeded failures (at-least-once delivery).
+type quarantineStrategy struct{}
+
+// NewQuarantineStrategy creates a FailureStrategy that quarantines inflight files
+// by renaming them with a .quarantine suffix when consecutive flush failures
+// exceed the threshold.
+func NewQuarantineStrategy() FailureStrategy {
+	return &quarantineStrategy{}
+}
+
+// OnExceededFailures implements FailureStrategy.
+func (s *quarantineStrategy) OnExceededFailures(fs afero.Fs, inflightPath string) error {
+	quarantinePath := inflightPath + ".quarantine"
+	if err := fs.Rename(inflightPath, quarantinePath); err != nil {
+		return fmt.Errorf("quarantining spool file %q: %w", inflightPath, err)
+	}
+	logrus.Warnf("quarantined spool file %q to %q after exceeding failure threshold", inflightPath, quarantinePath)
+	return nil
+}
+
 // Option configures a fileSpool.
 type Option func(*fileSpool)
+
+// WithFailureStrategy sets the strategy invoked when an inflight file
+// exceeds the maximum number of consecutive flush failures.
+// When nil (the default), inflight files are deleted on threshold breach.
+func WithFailureStrategy(s FailureStrategy) Option {
+	return func(f *fileSpool) {
+		f.failureStrategy = s
+	}
+}
+
+// WithMaxFailures sets the per-key consecutive failure threshold
+// before the failure strategy is invoked. Default is 20.
+func WithMaxFailures(n int) Option {
+	return func(f *fileSpool) {
+		f.maxFailures = n
+	}
+}
+
+// WithNowFunc overrides the clock used to generate inflight timestamps.
+// Intended for testing.
+func WithNowFunc(fn func() time.Time) Option {
+	return func(f *fileSpool) {
+		f.nowFunc = fn
+	}
+}
 
 // New creates a Spool backed by fs in the given directory.
 // It calls Recover before returning to re-ingest any crash remnants.
@@ -40,8 +111,12 @@ func New(fs afero.Fs, dir string, opts ...Option) (Spool, error) {
 	}
 
 	s := &fileSpool{
-		fs:  fs,
-		dir: dir,
+		fs:              fs,
+		dir:             dir,
+		failureStrategy: &deleteStrategy{},
+		maxFailures:     defaultMaxFailure,
+		failuresByKey:   make(map[string]int),
+		nowFunc:         time.Now,
 	}
 	for _, o := range opts {
 		o(s)
@@ -54,10 +129,14 @@ func New(fs afero.Fs, dir string, opts ...Option) (Spool, error) {
 }
 
 type fileSpool struct {
-	fs     afero.Fs
-	dir    string
-	mu     sync.Mutex
-	closed bool
+	fs              afero.Fs
+	dir             string
+	failureStrategy FailureStrategy
+	maxFailures     int
+	nowFunc         func() time.Time
+	mu              sync.Mutex
+	closed          bool
+	failuresByKey   map[string]int
 }
 
 func sanitizeKey(key string) string {
@@ -68,9 +147,24 @@ func (s *fileSpool) activePath(key string) string {
 	return s.dir + "/" + sanitizeKey(key) + spoolExt
 }
 
-// keyFromFilename extracts the original sanitized key from a spool filename.
-func keyFromFilename(name, ext string) string {
-	return strings.TrimSuffix(name, ext)
+// isInflightFile reports whether name is an inflight spool file.
+func isInflightFile(name string) bool {
+	return strings.Contains(name, inflightMarker)
+}
+
+// isActiveFile reports whether name is an active spool file (not inflight).
+func isActiveFile(name string) bool {
+	return strings.HasSuffix(name, spoolExt) && !isInflightFile(name)
+}
+
+// keyFromInflight extracts the key from an inflight filename
+// (everything before the inflightMarker).
+func keyFromInflight(name string) string {
+	idx := strings.Index(name, inflightMarker)
+	if idx < 0 {
+		return ""
+	}
+	return name[:idx]
 }
 
 // Append implements Spool.
@@ -118,104 +212,135 @@ func (s *fileSpool) appendToFile(path string, payload []byte) error {
 	return nil
 }
 
+// collectInflight renames active spool files to inflight and collects all
+// inflight files grouped by key. Must be called with s.mu held; the caller
+// must release it after this returns.
+// Returns a map of key -> sorted inflight paths (oldest first).
+func (s *fileSpool) collectInflight() (map[string][]string, error) {
+	entries, err := afero.ReadDir(s.fs, s.dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading spool directory: %w", err)
+	}
+
+	// Rename every active file to a timestamped inflight — no deferral.
+	for _, entry := range entries {
+		name := entry.Name()
+		if !isActiveFile(name) {
+			continue
+		}
+		key := strings.TrimSuffix(name, spoolExt)
+		active := s.dir + "/" + name
+		inflight := fmt.Sprintf("%s/%s%s%d", s.dir, key, inflightMarker, s.nowFunc().UnixNano())
+
+		if err := s.fs.Rename(active, inflight); err != nil {
+			return nil, fmt.Errorf("renaming %q to inflight: %w", active, err)
+		}
+	}
+
+	// Re-read to pick up all inflight files (old + just-renamed).
+	entries, err = afero.ReadDir(s.fs, s.dir)
+	if err != nil {
+		return nil, fmt.Errorf("reading spool directory after rename: %w", err)
+	}
+
+	byKey := make(map[string][]string)
+	for _, entry := range entries {
+		name := entry.Name()
+		if !isInflightFile(name) {
+			continue
+		}
+		key := keyFromInflight(name)
+		byKey[key] = append(byKey[key], s.dir+"/"+name)
+	}
+
+	// Sort each key's inflight paths lexicographically (oldest tsnano first).
+	for _, paths := range byKey {
+		sort.Strings(paths)
+	}
+
+	return byKey, nil
+}
+
 // Flush implements Spool.
-func (s *fileSpool) Flush(fn func(key string, inflightPath string, frames [][]byte) error) error {
+func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return fmt.Errorf("spool is closed")
 	}
 
-	entries, err := afero.ReadDir(s.fs, s.dir)
+	byKey, err := s.collectInflight()
 	if err != nil {
 		s.mu.Unlock()
-		return fmt.Errorf("reading spool directory: %w", err)
-	}
-
-	// Collect active files and rename them to inflight while holding the lock.
-	// Also pick up pre-existing inflight files left by a prior failed flush.
-	type pending struct {
-		key          string
-		inflightPath string
-	}
-	var toFlush []pending
-	seen := make(map[string]bool)
-
-	// Build a set of keys that already have inflight files from prior failed flushes.
-	inflightKeys := make(map[string]bool)
-	for _, entry := range entries {
-		name := entry.Name()
-		if strings.HasSuffix(name, inflightExt) {
-			inflightKeys[keyFromFilename(name, inflightExt)] = true
-		}
-	}
-
-	// First pass: rename active files to inflight, but skip keys that already
-	// have an inflight file — those get retried first; the active file stays
-	// for a future flush cycle.
-	for _, entry := range entries {
-		name := entry.Name()
-		if !strings.HasSuffix(name, spoolExt) || strings.HasSuffix(name, inflightExt) {
-			continue
-		}
-		key := keyFromFilename(name, spoolExt)
-		if inflightKeys[key] {
-			continue // active file deferred; inflight retry takes priority
-		}
-		active := s.dir + "/" + name
-		inflight := active + ".inflight"
-
-		if err := s.fs.Rename(active, inflight); err != nil {
-			s.mu.Unlock()
-			return fmt.Errorf("renaming %q to inflight: %w", active, err)
-		}
-		toFlush = append(toFlush, pending{key: key, inflightPath: inflight})
-		seen[inflight] = true
-	}
-
-	// Second pass: collect pre-existing inflight files from prior failed flushes.
-	for _, entry := range entries {
-		name := entry.Name()
-		if !strings.HasSuffix(name, inflightExt) {
-			continue
-		}
-		inflightPath := s.dir + "/" + name
-		if seen[inflightPath] {
-			continue
-		}
-		key := keyFromFilename(name, inflightExt)
-		toFlush = append(toFlush, pending{key: key, inflightPath: inflightPath})
+		return err
 	}
 	s.mu.Unlock()
 
-	// Process inflight files without holding the lock.
+	// Process each key's inflight files in order (oldest first).
 	var flushErr error
-	for _, p := range toFlush {
-		frames, readErr := readFrames(s.fs, p.inflightPath)
-		if readErr != nil {
-			return fmt.Errorf("reading inflight file %q: %w", p.inflightPath, readErr)
-		}
-		if len(frames) == 0 {
-			// Empty file — just remove it.
-			if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil && !os.IsNotExist(removeErr) {
-				logrus.Errorf("removing empty inflight file %q: %v", p.inflightPath, removeErr)
-			}
-			continue
-		}
-
-		if fnErr := fn(p.key, p.inflightPath, frames); fnErr != nil {
-			// Leave inflight file in place for retry on next flush cycle.
-			logrus.Warnf("flush callback failed for key %q: %v", p.key, fnErr)
-			flushErr = fnErr
-			continue
-		}
-
-		if removeErr := s.fs.Remove(p.inflightPath); removeErr != nil && !os.IsNotExist(removeErr) {
-			logrus.Errorf("removing inflight file %q after successful flush: %v", p.inflightPath, removeErr)
+	for key, paths := range byKey {
+		if err := s.flushKey(key, paths, fn); err != nil {
+			flushErr = err
 		}
 	}
 
 	return flushErr
+}
+
+// flushKey processes inflight files for a single key in order.
+// Stops on the first failure (preserves per-key ordering).
+func (s *fileSpool) flushKey(key string, paths []string, fn func(string, [][]byte) error) error {
+	for i, path := range paths {
+		frames, readErr := readFrames(s.fs, path)
+		if readErr != nil {
+			return fmt.Errorf("reading inflight file %q: %w", path, readErr)
+		}
+		if len(frames) == 0 {
+			s.removeInflight(path)
+			continue
+		}
+
+		if fnErr := fn(key, frames); fnErr != nil {
+			// Pass only the remaining (unprocessed) paths to the failure handler.
+			return s.handleFlushFailure(key, paths[i:], fnErr)
+		}
+
+		// Success — reset failure counter and remove the inflight file.
+		delete(s.failuresByKey, key)
+		s.removeInflight(path)
+	}
+	return nil
+}
+
+func (s *fileSpool) removeInflight(path string) {
+	if err := s.fs.Remove(path); err != nil && !os.IsNotExist(err) {
+		logrus.Errorf("removing inflight file %q: %v", path, err)
+	}
+}
+
+func (s *fileSpool) handleFlushFailure(key string, allPaths []string, fnErr error) error {
+	s.failuresByKey[key]++
+	count := s.failuresByKey[key]
+
+	if count >= s.maxFailures {
+		logrus.Errorf(
+			"exceeded failure threshold for key %q after %d consecutive failures (threshold: %d)",
+			key, count, s.maxFailures,
+		)
+		// Invoke strategy on ALL inflight files for this key.
+		for _, p := range allPaths {
+			if stratErr := s.failureStrategy.OnExceededFailures(s.fs, p); stratErr != nil {
+				logrus.Errorf("failure strategy error for key %q, file %q: %v", key, p, stratErr)
+				return fmt.Errorf("failure strategy for key %q: %w", key, stratErr)
+			}
+		}
+		delete(s.failuresByKey, key)
+		return nil
+	}
+
+	// Leave inflight files in place for retry on next flush cycle.
+	logrus.Warnf("flush callback failed for key %q (%d/%d): %v", key, count, s.maxFailures, fnErr)
+	return fnErr
 }
 
 // Recover implements Spool.
@@ -227,11 +352,11 @@ func (s *fileSpool) Recover() error {
 
 	for _, entry := range entries {
 		name := entry.Name()
-		if !strings.HasSuffix(name, inflightExt) {
+		if !isInflightFile(name) {
 			continue
 		}
 
-		key := keyFromFilename(name, inflightExt)
+		key := keyFromInflight(name)
 		inflightPath := s.dir + "/" + name
 
 		frames, readErr := readFrames(s.fs, inflightPath)
