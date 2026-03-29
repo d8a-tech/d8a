@@ -119,6 +119,7 @@ func TestHandleRequest(t *testing.T) {
 				})),
 				tt.protocols,
 				8080,
+				WithTrustAllProxies(),
 			)
 
 			// when
