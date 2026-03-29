@@ -93,6 +93,30 @@ var airgappedFlag *cli.BoolFlag = &cli.BoolFlag{
 	Destination: &airgapped,
 }
 
+var deliveryMode string
+
+var deliveryModeFlag *cli.StringFlag = &cli.StringFlag{
+	Name:        "delivery-mode",
+	Usage:       "Delivery mode (best_effort or at_least_once)",
+	Sources:     defaultSourceChain("DELIVERY_MODE", "delivery.mode"),
+	Value:       "best_effort",
+	Destination: &deliveryMode,
+}
+
+var receiverBatchingBackendFlag *cli.StringFlag = &cli.StringFlag{
+	Name: "receiver-batching-backend",
+	Usage: "Backend used by receiver batching storage staging before queue publish " +
+		"(memory or filesystem)",
+	Sources: defaultDeliveryModeStringSourceChain(
+		"receiver-batching-backend",
+		"RECEIVER_BATCHING_BACKEND",
+		"receiver.batching_backend",
+		"filesystem",
+		"memory",
+	),
+	Value: "memory",
+}
+
 var dbipEnabled *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "dbip-enabled",
 	Usage:   "When enabled, geolocation columns use DB-IP lookups. If no local DB-IP dataset is available yet, geolocation values are null until a local file appears or a background refresh succeeds.", //nolint:lll // it's a description
@@ -475,10 +499,16 @@ var (
 )
 
 var storageSpoolEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
-	Name:    "storage-spool-enabled",
-	Usage:   "Enable spooling of sessions to a filesystem-based spool before writing to the warehouse. This can improve performance by deferring the writes to the warehouse.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("STORAGE_SPOOL_ENABLED", "storage.spool_enabled"),
-	Value:   true,
+	Name:  "storage-spool-enabled",
+	Usage: "Enable spooling of sessions to a filesystem-based spool before writing to the warehouse. This can improve performance by deferring the writes to the warehouse.", //nolint:lll // it's a description
+	Sources: defaultDeliveryModeBoolSourceChain(
+		"storage-spool-enabled",
+		"STORAGE_SPOOL_ENABLED",
+		"storage.spool_enabled",
+		true,
+		true,
+	),
+	Value: true,
 }
 
 var storageSpoolDirectoryFlag *cli.StringFlag = &cli.StringFlag{
@@ -489,10 +519,16 @@ var storageSpoolDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 }
 
 var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
-	Name:    "storage-spool-write-chan-buffer",
-	Usage:   "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
-	Sources: defaultSourceChain("STORAGE_SPOOL_WRITE_CHAN_BUFFER", "storage.spool_write_chan_buffer"),
-	Value:   1000,
+	Name:  "storage-spool-write-chan-buffer",
+	Usage: "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
+	Sources: defaultDeliveryModeIntSourceChain(
+		"storage-spool-write-chan-buffer",
+		"STORAGE_SPOOL_WRITE_CHAN_BUFFER",
+		"storage.spool_write_chan_buffer",
+		0,
+		1000,
+	),
+	Value: 1000,
 }
 
 var protocolFlag *cli.StringFlag = &cli.StringFlag{
@@ -628,11 +664,13 @@ var warehouseConfigFlags = []cli.Flag{
 func getServerFlags() []cli.Flag {
 	return mergeFlags(
 		[]cli.Flag{
+			deliveryModeFlag,
 			serverHostFlag,
 			serverPortFlag,
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
 			receiverMaxHitKbytesFlag,
+			receiverBatchingBackendFlag,
 			sessionsTimeoutFlag,
 			skipCatchUpFlag,
 			sessionsJoinBySessionStampFlag,

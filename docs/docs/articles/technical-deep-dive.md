@@ -10,27 +10,25 @@ This document briefly describes the abstractions and mechanisms used in d8a trac
 
 Most important packages and abstractions of the tracker project:
 
-- `pkg/receiver` - receives hits from the http endpoint and places them into the message queue as tasks
-  - `Storage` - interface for storing a collection of hits, implementations include `receiver.BatchingStorage`, `receiver.dropToStdoutStorage`
-- `pkg/protosessions` - reads tasks from the queue and groups hits into protosessions, then closes them into sessions
-- `pkg/sessions` - handles session closing, column processing, and writing to warehouse
+- `pkg/receiver` - receives hits from the HTTP endpoint and places them into the message queue as tasks
+- `pkg/protosessions` - reads tasks from the queue and groups hits into proto-sessions, then closes them into sessions
+- `pkg/sessions` - handles session closing, column processing, spooling, and writing to the warehouse
+- `pkg/columns` and `pkg/schema` - column definitions (interfaces) and column implementations (how values are computed and written)
 - `pkg/warehouse` - provides abstractions for writing data to various data warehouses
-
+- `pkg/splitter` - splits and filters sessions based on configurable conditions (UTM change, user ID change, max events, time limit)
+- `pkg/spools` - crash-safe keyed framed-file append+flush primitive used for persistent session spooling
 
 Other, utility packages:
 
-- `pkg/cmd` - command line arguments parsing and configuration loading. 
-- `pkg/worker` - abstractions for the queue logic
-  - `Publisher` - interface for publishing tasks to the queue
-  - `Consumer` - interface for consuming tasks from the queue
-  - `Task` (struct) - a unit of work with type, headers and data
-  - `Worker` (struct) - a worker that can process tasks, accepts a list of handlers and a list of middlewares, receives a single task at a time to be processed
-  - `Middleware` (interface) - a middleware for the worker, can be used to modify the task or the result of the task, designed similar to how git middleware is designed
-  - `Encoder` and `Decoder` - functions for encoding and decoding task bodies
-- `pkg/bolt` - implementations for the queue logic using `etcd/bbolt` package
-    - `bolt.Publisher` - a publisher that uses `etcd/bbolt` to store tasks
-    - `bolt.Consumer` - a consumer that uses `etcd/bbolt` to load tasks
-
+- `pkg/cmd` - command line arguments parsing, configuration loading, and full pipeline wiring
+- `pkg/worker` - abstractions for the queue logic (publisher, consumer, task, worker, middleware)
+- `pkg/bolt` - BoltDB-backed implementations for queue, KV, and set primitives
+- `pkg/storage` - generic KV and set storage interfaces with in-memory and monitoring implementations
+- `pkg/protocol` - tracking protocol abstractions and implementations (GA4, Matomo, D8A)
+- `pkg/properties` - property settings registry and configuration
+- `pkg/hits` - core `Hit` data structure representing a single tracking request
+- `pkg/encoding` - pluggable encoder/decoder function pairs (CBOR+zlib, JSON, gzip+JSON, gob)
+- `pkg/storagepublisher` - thin adapter that serializes a batch of hits into a worker task and publishes it
 
 
 ## The essence
@@ -41,7 +39,8 @@ flowchart LR
     A[HTTP Request] --> B[Hit Creation<br/>Server + Protocol]
     B --> C[Storage & Batching<br/>Queue Processing]
     C --> D[Protosession Logic<br/>Group Related Hits]
-    D --> E[Session Closing<br/>Columns + Warehouse]
+    D --> E[Session Closing<br/>Columns + Splitting]
+    E --> F[Session Writing<br/>Spooling + Warehouse]
 ```
 
 The tracking pipeline, in its essence looks as follows:
@@ -54,9 +53,9 @@ The tracking pipeline, in its essence looks as follows:
 
 4. A protosession is a collection of hits, that may form a session in the future. It's perfectly possible, that a collection of hits will be split into multiple sessions. The logic in `protosessions` in essence groups the potentially related hits into a single collection. When a given period of time since the last hit was added to given protosession is reached, the protosession is closed using `protosessions.Closer` implementation.
 
-5. In the future we'll have asynchronous closers, that publish ready sessions to queues. Now, we have an in-place closer, that closes the session and immediately writes it to the warehouse. Logic in `session` handles that, specifically `sessions.NewDirectCloser` interface. Session closing executes the columns machinery and writes the session to the warehouse configured for given property. The columns machinery allows defining dependencies between columns, including columns that may be contributed by other parts of the system (for example `core.d8a.tech/events/type` is defined in `columns` package, but as it's not possible to extract event type in a generic way, the implementation is contributed by respective `protocol` implementation).
+5. The `sessions` package handles closing. `DirectCloser` converts proto-sessions (groups of `*hits.Hit`) into `schema.Session` objects and delegates to a `SessionWriter`. The writer runs the columns machinery, splits sessions via the `splitter` package, converts results to rows via a `Layout`, and writes them to the warehouse. The writer may be decorated with spooling layers (`inMemSpoolWriter` for in-memory buffering, `persistentSpoolWriter` for crash-safe disk spooling via `pkg/spools`) before the actual warehouse write.
 
-6. After the columns machinery creates rows for specific tables, it writes it to `warehouse.Driver` implementation. The types of columns are defined in columns machinery using Apache Arrow types, the drivers are responsible for mapping them to their native types. 
+6. After the columns machinery creates rows for specific tables, it writes them to `warehouse.Driver` implementation. The types of columns are defined in columns machinery using Apache Arrow types, the drivers are responsible for mapping them to their native types.
 
 ## 1. Hit creation
 
@@ -100,6 +99,31 @@ Basically it wraps all the HTTP request fields with some additional info, usable
 
 The two above are obviously protocol-specific, that's why `receiver` delegates the parsing of HTTP request when creating those, to the respective `protocol.Protocol` implementation.
 
+### Key interfaces
+
+**`protocol.Protocol`** - defines a tracking protocol implementation (GA4, Matomo, D8A). Parses HTTP requests into hits, provides protocol-specific columns and endpoints.
+- `ga4Protocol` - GA4-compatible protocol that parses Google Analytics 4 Measurement Protocol requests
+- `matomoProtocol` - Matomo/Piwik protocol that parses single and bulk tracking requests
+- `d8aProtocol` - D8A native protocol wrapping GA4 with rewritten endpoints and interface IDs
+
+**`protocol.Registry`** - resolves the appropriate `Protocol` for a given property ID.
+- `staticProtocolRegistry` - map-based registry with a default protocol fallback
+
+**`protocol.PropertyIDExtractor`** - extracts property ID from a parsed request.
+- `fromTidByMeasurementIDExtractor` - extracts from GA4 `tid` query parameter
+- `fromIDSiteExtractor` - extracts from Matomo `idsite` query parameter
+
+**`receiver.HitValidatingRule`** - validation strategy for incoming hits; rules are composable.
+- `multipleHitValidatingRule` - composite rule that runs all child rules and joins errors
+- `simpleHitValidatingRule` - wraps a plain function as a validation rule
+- Pre-built rules: `ClientIDNotEmpty`, `PropertyIDNotEmpty`, `HitHeadersNotEmpty`, `EventNameNotEmpty`, `TotalHitSizeDoesNotExceed(max)`, etc.
+
+**`receiver.RawLogStorage`** - optional side-channel for storing raw requests before hit conversion (debugging/auditing).
+- `NoopRawLogStorage` - discards all data
+
+**`properties.SettingsRegistry`** - looks up property configuration by measurement ID or property ID.
+- `StaticSettingsRegistry` - static in-memory registry backed by two maps with optional default fallback
+
 ## 2. Receiver storage & batching
 
 ```mermaid
@@ -119,6 +143,17 @@ type Storage interface {
 
 In theory it can be any storage, which gives a lot of flexibility in future configurations. Currently, all the passed hits are batched  and pushed to a `worker.Publisher` implementation. This means, that you can have as many `receivers` as you want, but on the other side of the queue (`worker.Consumer`) you'll have only one instance.
 
+### Key interfaces
+
+**`receiver.Storage`** - core abstraction for persisting/forwarding hits after they are received.
+- `BatchingStorage` - accumulates hits in a `BatchingBackend` and flushes to a child `Storage` on batch-size or timeout threshold
+- `storagepublisher.Adapter` - serializes hits into a `worker.Task` and publishes them via `worker.Publisher` (production child storage)
+- `dropToStdoutStorage` - writes each hit as pretty-printed JSON to stdout (debug)
+
+**`receiver.BatchingBackend`** - pluggable persistence layer for staging hits between arrival and flush.
+- `memoryBatchingBackend` - in-memory slice, clears after flush (default)
+- `fileBatchingBackend` - durable staging to disk using an append-only framed-JSON file
+
 ## 3. Queue processing
 
 ```mermaid
@@ -133,7 +168,7 @@ flowchart LR
 
 Queue implemented for `tracker-api` is generic, and can be used in later steps (for example after session is closed and before it's written to the warehouse - currently it's not - for quicker MVP delivery). It's implemented in `worker` package.
 
-The semantics are dead simple - you publish to named queue, that accepts only one type of task, something on the other side consumes it. There are no sophisticated features like AMQP's bindings, exponential backoff and such. Such dead simple approach is limiting, but offers a wide range of possible implementations (currently we have `bolt` implementation, but for sure we'll have more). The interfaces are again very simple. There are two interfaces, that operate on `Task` objects, that are really generic:
+The semantics are dead simple - you publish to named queue, that accepts only one type of task, something on the other side consumes it. There are no sophisticated features like AMQP's bindings, exponential backoff and such. Such dead simple approach is limiting, but offers a wide range of possible implementations (currently we have `bolt` and filesystem implementations). The interfaces are again very simple. There are two interfaces, that operate on `Task` objects, that are really generic:
 
 ```go
 // Consumer defines an interface for task consumers
@@ -178,6 +213,26 @@ w := worker.NewWorker(
 )
 ```
 
+### Key interfaces
+
+**`worker.Publisher`** - publishes a single task to a queue.
+- `bolt.publisher` - stores tasks in BoltDB under nanosecond-timestamp keys
+- `FilesystemDirectoryPublisher` - writes tasks atomically to timestamped `.task` files in a directory
+- `monitoringPublisher` - decorator that records OpenTelemetry metrics, then delegates
+
+**`worker.Consumer`** - consumes tasks from a queue via a handler callback.
+- `bolt.consumer` - reads tasks from BoltDB in batches, deserializes, calls handler, then deletes
+- `FilesystemDirectoryConsumer` - polls a directory for `.task` files, processes in timestamp order
+
+**`worker.Middleware`** - wraps task processing with a next-chain pattern (similar to HTTP middleware).
+- No production implementations in core packages currently
+
+**`worker.TaskHandler`** - handler for a specific task type.
+- `genericTaskHandler[T]` - type-parameterized handler that decodes the body into `T` and calls a typed processor
+
+**`worker.MessageFormat`** - serialization/deserialization of `*Task` to/from `[]byte`.
+- `binaryMessageFormat` - binary wire format with type-length prefix, JSON-encoded headers, and raw body
+
 ## 4. Protosession logic
 
 ```mermaid
@@ -198,11 +253,11 @@ There's a specific handler for tasks containing `hits.Hit` objects. It's impleme
 
 It's connected to how the session closing logic works. For each `ClientID`, the `protosessions.Handler` holds a clock. If 30 minutes (configurable) passed since the last hit was added to the proto-session, the session is closed.
 
-This is implemented using concept loosly based on [timing wheels](https://zbysiu.dev/til/hierarchical-timing-wheels/). Every second a `tick` is emmited, that checks if for given second, any proto-sessions are ready to be closed. More detailed description is in the code itself, in `protosessions/trigger.go` file.
+This is implemented using concept loosely based on [timing wheels](https://zbysiu.dev/til/hierarchical-timing-wheels/). Every second a `tick` is emitted, that checks if for given second, any proto-sessions are ready to be closed. More detailed description is in the code itself, in `protosessions/trigger.go` file.
 
 The current implementation doesn't allow a single proto-session to be processed by multiple workers, hence the requirement above. Due to this property, we introduced partitioning in d8a cloud.
 
-The `protesessions` package also handles some dynamic logic via `protosessions.Middleware` interface:
+The `protosessions` package also handles some dynamic logic via `protosessions.Middleware` interface:
 
 * **Evicting** - a proto-session may be evicted from given worker if the system detects, that it should be connected to another proto-session. This may happen for example if the system detects, that two proto-sessions are coming from the same device (have the same session stamp). This may mean, that user removed cookies or used different browser, and two proto-sessions are preliminarily connected into one.
 * **Compaction** - all the information about proto-sessions is stored in simple and generic data-structures - a `storage.Set` and `storage.KV` implementations (currently `bolt`). If a - future - `storage.Set` or `storage.KV` is memory-constrained (for example Redis), it may happen that even in 30-minute window, the system will have too many proto-sessions to process. To avoid that, `protosessions` calculates the size of each proto-session and compacts it if it's too big. Currently the compaction is done in-place, by replacing raw hits with compressed ones in the same `storage.Set`. Nevertheless, the interfaces are already laid in a way, that allows adding layered storage, that would allow for more efficient compaction (for example, storing compressed proto-sessions in a separate `storage.Set` backed by Object Storage).
@@ -212,11 +267,39 @@ The closing of protosessions happens by the `protosessions.Closer` interface.
 ```go
 // Closer defines an interface for closing and processing hit sessions
 type Closer interface {
-	Close(protosession []*hits.Hit) error
+	Close(protosession [][]*hits.Hit) error
 }
 ```
 
 It's prepared for asynchronous closing, where the task system described in [Queue Processing](#3-queue-processing) is used. Currently, the closing is done in-place, the `Close` method synchronously writes the session to the warehouse. This is not perfect, but it's a good compromise for now.
+
+### Key interfaces
+
+**`protosessions.Closer`** - processes and closes proto-sessions (groups of hits that form a session).
+- `shardingCloser` - distributes batches of proto-sessions across N child closers using FNV hash-based sharding on isolated client ID
+- `sessions.DirectCloser` - converts proto-sessions into `schema.Session` objects, groups by property, and writes them to a `SessionWriter` (production closer)
+- `printingCloser` - logs each hit to stdout for debugging
+
+**`protosessions.BatchedIOBackend`** - batched I/O for proto-session storage (identifier conflict detection, hit append/get, timing-wheel bucket marking, cleanup).
+- `bolt.boltBatchedIOBackend` - BoltDB-backed backend with in-memory session-to-bucket cache; all operations run in single transactions
+- `deduplicatingBatchedIOBackend` - decorator that deduplicates identical requests before forwarding
+
+**`protosessions.TimingWheelStateBackend`** - persistence for the timing wheel's cursor position.
+- `genericKVTimingWheelBackend` - stores bucket state in a `storage.KV` under a prefixed key
+
+**`protosessions.IdentifierIsolationGuardFactory`** / **`IdentifierIsolationGuard`** - ensures cross-property data isolation by hashing client IDs with property ID.
+- `defaultIdentifierIsolationFactory` / `defaultIdentifierIsolationGuard` - SHA-256 hashes client IDs with property ID for isolation
+- `noIsolationFactory` / `noIsolationGuard` - returns IDs as-is, no isolation (single-tenant only)
+
+**`storage.KV`** - simple key-value store abstraction.
+- `bolt.boltKV` - BoltDB-backed persistent KV store
+- `storage.InMemoryKV` - in-memory map-based KV with RWMutex
+- `monitoringKV` - decorator that records OpenTelemetry latency histograms
+
+**`storage.Set`** - set-of-values-per-key storage.
+- `bolt.boltSet` - BoltDB-backed persistent set using nested buckets
+- `storage.InMemorySet` - in-memory map-of-sets
+- `monitoringSet` - decorator that records OpenTelemetry latency histograms
 
 ### 4.1 Isolation
 
@@ -269,6 +352,11 @@ classDiagram
         +Write(session *Session) error
     }
     
+    class SessionScopedEventColumn {
+        <<interface>>
+        +Write(session *Session, i int) error
+    }
+    
     class Event {
         +map[string]any values
     }
@@ -287,13 +375,16 @@ classDiagram
     Column --> DependsOnEntry : depends on
     EventColumn --|> Column : extends
     SessionColumn --|> Column : extends
+    SessionScopedEventColumn --|> Column : extends
     EventColumn --> Event : writes to
     SessionColumn --> Session : writes to
+    SessionScopedEventColumn --> Session : reads session context
     Session --> Event : contains
     
     note for Column "Core abstraction separating\n'what' from 'how'"
     note for EventColumn "Event-level processing\n(per hit)"
     note for SessionColumn "Session-level processing\n(aggregate data)"
+    note for SessionScopedEventColumn "Per-event processing\nwith session context"
 ```
 
 Columns machinery is quite complex, it offers the following capabilities:
@@ -305,7 +396,7 @@ Columns machinery is quite complex, it offers the following capabilities:
 	* Column type
 * Ability to separately define the behavior, that writes data to this column from a given hit.
 	* `Write` method
-	* Separate interfaces for `Session` and `Event` columns
+	* Separate interfaces for `Event`, `Session`, and `SessionScopedEvent` columns
 
 This decouples the concept of
 	* What is the column name and what it stores
@@ -338,6 +429,12 @@ type SessionColumn interface {
 	Write(session *Session) error // As Event, but also has the collection of all the events in the session as a separate field (only for reading)
 }
 
+// SessionScopedEventColumn represents a column that writes per-event values with session-wide context.
+type SessionScopedEventColumn interface {
+	Column
+	Write(session *Session, i int) error // Takes the session and event index
+}
+
 ```
 
 It also allows parallel implementations for the same column interface, for example as paid extras (competing geoip implementations - we don't need to select between MaxMind or DbIP - we can use both and let the user decide which one to use).
@@ -346,9 +443,41 @@ Most column implementations are in `columns/eventcolumns` and `columns/sessionco
 
 Most of the machinery itself is implemented in `sessions` package, both the `Closer` implementation and utilities for combining everything together.
 
-:::warning
-	The logic in columns machinery lacks a critical feature - session splitting. Currently it takes all the protosession events and makes them a session. In reality there will be multiple cases, where such protosession should be split into multiple sessions.
-:::	
+### Key interfaces
+
+**`schema.Column`** (base) / **`schema.EventColumn`** / **`schema.SessionColumn`** / **`schema.SessionScopedEventColumn`** - the three column types.
+- `simpleEventColumn` - generic event column; constructed via `NewSimpleEventColumn`, `FromQueryParamEventColumn`, `URLElementColumn`, `AlwaysNilEventColumn`, etc.
+- `simpleSessionColumn` - generic session column; constructed via `NewSimpleSessionColumn`, `FromQueryParamSessionColumn`, `NthEventMatchingPredicateValueColumn`, etc.
+- `simpleSessionScopedEventColumn` - generic session-scoped event column; constructed via `NewSimpleSessionScopedEventColumn`, `NewValueTransitionColumn`, `NewFirstLastMatchingEventColumn`, etc.
+
+**`schema.ColumnsRegistry`** - resolves the full set of columns for a given property ID.
+- `staticColumnsRegistry` - maps property IDs to columns with a default fallback
+- `merger` - merges multiple `ColumnsRegistry` instances and topologically sorts the result
+
+**`schema.OrderKeeper`** - determines output column ordering for stable Arrow schemas.
+- `InterfaceOrdering` - derives order from Go struct field positions
+- `noParticicularOrderKeeper` - assigns order in first-seen order (for testing)
+
+**`schema.D8AColumnWriteError`** - error interface for column write operations with retryability semantics.
+- `BrokenSessionError` - non-retryable, marks the session as broken
+- `BrokenEventError` - non-retryable, marks the event as broken
+- `RetryableError` - retryable, the pipeline retries the whole batch
+
+**Notable pre-built columns:**
+- Event: `EventIDColumn`, `EventNameColumn`, `ClientIDColumn`, `UserIDColumn`, `IPAddressColumn`, UTM columns, click ID columns, device columns (dd2-based)
+- Session: `SessionIDColumn`, `DurationColumn`, `TotalEventsColumn`, `ReferrerColumn`, `SplitCauseColumn`, source/medium/term columns
+- Session-scoped event: `SSESessionHitNumber`, `SSESessionPageNumber`, `SSETrafficFilterName`
+
+**`columns.SourceMediumTermDetector`** - detects session source, medium, and term from events.
+- `compositeSourceMediumTermDetector` - runs a chain of child detectors in priority order
+- `directSourceMediumTermDetector` - returns `(direct) / none` when no referrer
+- `pageLocationParamsDetector` - detects from URL query params (gclid, fbclid, etc.)
+- `searchEngineDetector` - matches referrer against search engine database
+- `socialsDetector` - matches referrer against social networks database
+- `aiDetector` - matches referrer against AI tools database
+- `videoDetector` - matches referrer against video sites database
+- `emailDetector` - matches referrer against email provider database
+- `genericReferralDetector` - fallback: any referrer hostname becomes `source=hostname / medium=referral`
 
 ### 5.2 Tables
 
@@ -377,12 +506,80 @@ type TableRows struct {
 
 Basically, `Layout` interface tells what tables and with what schema should be created, and `ToRows` method takes the columns and sessions and returns a collection of rows to write to given tables.
 
-This allows for a lot of flexibility, but in practice two approaches will probably ever be used:
+**`schema.Layout`** - controls final schema and dictates the format of writing session data to tables.
+- `eventsWithEmbeddedSessionColumnsLayout` - single-table layout that embeds session columns into the events table with a configurable prefix
+- `batchingLayout` - decorator that merges rows from the same table into a single batch entry
+- `brokenFilteringLayout` - decorator that filters out broken sessions and events before writing
 
-* Currently the only implemented one - `schema.NewEmbeddedSessionColumnsLayout` - creates a single table, with all the session columns embedded in the event table, with given prefix.
-* To be implemented in the future - a layout for separate tables for sessions and events.
+**`schema.LayoutRegistry`** - resolves a `Layout` for a given property ID.
+- `staticLayoutRegistry` - maps property IDs to layouts with a default fallback
 
-## 6. Warehouse
+## 6. Session closing and writing
+
+```mermaid
+flowchart TB
+    A[protosessions.Closer.Close] --> B[DirectCloser<br/>Hits → Sessions]
+    B --> C[SessionWriter.Write]
+    C --> D{Spooling?}
+    D -->|In-Memory| E[inMemSpoolWriter<br/>Buffer by count/age]
+    D -->|Persistent| F[persistentSpoolWriter<br/>Disk spool via pkg/spools]
+    D -->|Direct| G[sessionWriterImpl]
+    E --> G
+    F --> G
+    G --> H[Run Columns Pipeline]
+    H --> I[Split Sessions<br/>via splitter]
+    I --> J[Layout.ToRows]
+    J --> K[warehouse.Driver.Write]
+```
+
+When a protosession is closed, the `sessions.DirectCloser` converts proto-sessions (groups of `*hits.Hit`) into `*schema.Session` objects, groups them by property, and delegates to a `SessionWriter`.
+
+The `SessionWriter` may be wrapped with spooling decorators for resilience:
+
+1. **`inMemSpoolWriter`** - buffers sessions in memory per property and flushes to a child writer when a count threshold (`maxSessions`) or age threshold (`maxAge`) is reached. A background goroutine sweeps periodically.
+
+2. **`persistentSpoolWriter`** - encodes sessions via `encoding.EncoderFunc`, appends to a crash-safe `spools.Spool` keyed by property, and periodically flushes via a background actor loop that decodes and delegates to the child writer. Uses a `SpoolFailureStrategy` when consecutive failures are exceeded.
+
+The core `sessionWriterImpl` then:
+1. Resolves warehouse driver, layout, and columns per property (cached with TTL)
+2. Runs event columns (`EventColumn.Write`) for each event
+3. Splits sessions via the `splitter` package
+4. Runs session-scoped event columns (`SessionScopedEventColumn.Write`) for each event in context
+5. Runs session columns (`SessionColumn.Write`) for each session
+6. Converts to rows via `Layout.ToRows`
+7. Writes rows to each table in parallel via `warehouse.Driver`
+
+### Key interfaces
+
+**`sessions.SessionWriter`** - core interface for writing closed sessions through the column pipeline to the warehouse.
+- `sessionWriterImpl` - the main writer: resolves layout/columns/warehouse per property, runs columns, splits, converts to rows, writes to warehouse
+- `inMemSpoolWriter` - decorator that buffers sessions in memory and flushes on count/age thresholds
+- `persistentSpoolWriter` - decorator that encodes sessions to disk spool and flushes periodically
+- `noopWriter` - does nothing (testing)
+
+**`sessions.SpoolFailureStrategy`** - defines behavior when a spool file exceeds maximum consecutive failures.
+- `deleteSpoolStrategy` - deletes the spool file (best-effort, data loss acceptable)
+- `quarantineSpoolStrategy` - renames spool file to `.quarantine` suffix (preserves for manual recovery)
+
+**`spools.Spool`** - crash-safe keyed framed-file append+flush primitive.
+- `fileSpool` - `afero.Fs`-backed implementation using length-prefixed binary frames, rename-before-read flush isolation, and mutex-protected concurrent access
+
+**`splitter.SessionModifier`** - takes a session and returns zero or more split/filtered sessions.
+- `splitterImpl` - core splitter that evaluates a list of `Condition`s sequentially against events
+- `filterModifier` - filters events from a session using compiled expr-lang expressions
+- `MultiModifier` - chains multiple modifiers, feeding output of one into the next
+
+**`splitter.Condition`** - decides whether a session should be split at a given event.
+- `nullableStringColumnValueChangedCondition` - splits when a nullable-string column value changes (UTM, user ID)
+- `maxXEventsCondition` - splits when event count exceeds a threshold
+- `timeSinceFirstEventCondition` - splits when elapsed time since first event exceeds a duration
+
+**`splitter.Registry`** - provides a `SessionModifier` for a given property ID.
+- `fromPropertySettingsRegistry` - builds a modifier from property settings (conditions + optional filter)
+- `cachingRegistry` - wraps another registry with a ristretto TTL cache
+- `staticRegistry` - always returns the same modifier regardless of property
+
+## 7. Warehouse
 
 ```mermaid
 flowchart LR
@@ -395,7 +592,7 @@ flowchart LR
 
 The `warehouse` package provides a unified interface for writing session data to various data warehouses. It abstracts away warehouse-specific details while maintaining compatibility with Apache Arrow schemas used throughout the columns machinery.
 
-### 6.1 Driver interface
+### 7.1 Driver interface
 
 The core abstraction is the `Driver` interface, which defines operations for table management and data ingestion:
 
@@ -405,30 +602,25 @@ The core abstraction is the `Driver` interface, which defines operations for tab
 // compatibility with Apache Arrow schemas.
 type Driver interface {
 	// CreateTable creates a new table with the specified Arrow schema.
-	// Returns error if table exists or schema conversion fails.
-	// Implementation must convert Arrow types to warehouse-native types.
 	CreateTable(table string, schema *arrow.Schema) error
 
 	// AddColumn adds a new column to an existing table.
 	AddColumn(table string, field *arrow.Field) error
 
 	// Write inserts batch data into the specified table.
-	// Schema must match table structure. Rows contain column_name -> value mappings.
-	// Implementation handles type conversion and batch optimization.
-	// Returns error on type mismatch, constraint violation, or connection issues.
 	Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error
 
 	// MissingColumns compares provided schema against existing table structure.
-	// Returns fields that exist in schema but not in table.
-	// Used for schema drift detection before writes.
-	// Returns TableNotFoundError if table doesn't exist.
 	MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error)
+
+	// Close releases resources held by the driver.
+	Close() error
 }
 ```
 
 The `Write` method accepts rows as `[]map[string]any`, where each map represents a row with column names as keys. This format is produced by the `Layout.ToRows` method from the columns machinery.
 
-### 6.2 Type mapping
+### 7.2 Type mapping
 
 Warehouse drivers must convert between Apache Arrow types and warehouse-native types. This is handled through the `FieldTypeMapper` interface:
 
@@ -446,9 +638,9 @@ Each relevant warehouse driver implementation (BigQuery, ClickHouse) provides it
 - Nullability handling
 - Type-specific formatting for data insertion
 
-The type mapping system also supports compatibility rules, allowing certain type conversions (e.g., INT32 ↔ INT64) to be considered valid during schema comparisons.
+The type mapping system also supports compatibility rules, allowing certain type conversions (e.g., INT32 <-> INT64) to be considered valid during schema comparisons.
 
-### 6.3 Schema management
+### 7.3 Schema management
 
 Drivers handle schema evolution through three main operations:
 
@@ -460,44 +652,44 @@ Drivers handle schema evolution through three main operations:
 
 The `FindMissingColumns` function provides common logic for comparing schemas, handling both missing columns and type incompatibilities. It uses a `FieldCompatibilityChecker` to determine if existing columns are compatible with expected types.
 
-### 6.4 Implementations
+### 7.4 Key interfaces and implementations
 
-Currently, three warehouse driver implementations are provided:
+**`warehouse.Driver`** - the central abstraction for table DDL and data ingestion.
+- `bigQueryTableDriver` - full BigQuery driver with partitioning, streaming insert or load job write strategies, type compatibility rules
+- `clickhouseDriver` - full ClickHouse driver using native protocol batch inserts, column ordering, TTL cache
+- `SpoolDriver` - file-based driver that writes rows to local disk via a `Format`, seals segments by size/age, and uploads via an `Uploader`
+- `noopDriver` - silent no-op, all methods return nil
+- `consoleDriver` - prints rows as JSON to stdout, delegates to noop
+- `loggingDriver` - logs operation summaries via logrus, then delegates to a wrapped driver
 
-- **BigQuery** (`pkg/warehouse/bigquery`) - Uses the BigQuery Go client library. Supports time partitioning configuration and handles BigQuery-specific features like nested/repeated fields. Uses streaming inserts for data writes.
+**`warehouse.Registry`** - looks up a `Driver` by property ID.
+- `staticDriverRegistry` - returns the same driver for all properties (single-tenant deployments)
 
-- **ClickHouse** (`pkg/warehouse/clickhouse`) - Uses the ClickHouse Go driver. Generates SQL DDL statements using a `QueryMapper` implementation. Uses batch inserts for efficient data loading. Supports ClickHouse-specific types and table engines.
+**`warehouse.QueryMapper`** - generates warehouse-specific SQL DDL fragments from Arrow schemas.
+- `clickhouseQueryMapper` - generates ClickHouse DDL with configurable ENGINE, PARTITION BY, ORDER BY
 
-- **Files** (`pkg/warehouse/files`) - Writes session rows as CSV files to a local spool directory, then uploads sealed segments to S3/MinIO, GCS, or a local filesystem destination. `CreateTable` and `AddColumn` are no-ops; schema evolution is handled by the consumer of the files.
+**`warehouse.FieldTypeMapper[T]`** - bidirectional Arrow <-> warehouse type conversion (generic interface).
+- BigQuery: 11 mappers covering string, int32/64, float32/64, bool, timestamp, date32, arrays, nested, nullable
+- ClickHouse: 13 mappers covering the above plus low-cardinality, nullability-as-default, restricted nested
+- `TypeMapperImpl[T]` - composite mapper that chains multiple mappers, returning the first successful mapping
+- `deferredMapper[T]` - lazy proxy for breaking circular dependencies during construction
 
-All implementations handle:
-- Connection management and timeouts
-- Error handling with warehouse-specific error types
-- Schema caching for performance
-- Type conversion and validation
+**`warehouse.FieldCompatibilityChecker`** - determines whether two Arrow fields are type-compatible.
+- `bigQueryTableDriver` - checks compatibility with int32/int64 and float32/float64 leniency
+- `clickhouseDriver` - relaxed scalar nullability, strict struct/list nullability
 
-### 6.5 Batching
+**`files.Format`** - defines how data is serialized to files.
+- `csvFormat` - writes data as CSV with optional gzip compression
 
-The `NewBatchingDriver` function wraps any driver to provide automatic batching of writes. It accumulates writes in memory and flushes them either:
-- When the batch size reaches a configured maximum (default: 5000 rows)
-- After a time interval (default: 1 second)
-- When the context is cancelled (final flush)
+**`files.Uploader`** - handles uploading local files to a destination.
+- `blobUploader` - uploads to cloud blob storage via `gocloud.dev/blob`, then deletes local
+- `filesystemUploader` - moves files to a local destination directory
 
-This reduces the number of write operations to the warehouse, improving throughput for high-volume scenarios.
+**`bigquery.Writer`** - BigQuery-specific write strategy.
+- `streamingWriter` - uses BigQuery streaming insert API
+- `loadJobWriter` - uses BigQuery load jobs with NDJSON (free-tier compatible)
 
-### 6.6 Registry pattern
-
-The `Registry` interface allows different properties to use different warehouse configurations:
-
-```go
-type Registry interface {
-	Get(propertyID string) (Driver, error)
-}
-```
-
-The `NewStaticDriverRegistry` creates a registry that returns the same driver for all properties, suitable for single-tenant deployments. The registry automatically wraps drivers with logging for observability.
-
-### 6.7 Integration with session closing
+### 7.5 Integration with session closing
 
 When a protosession is closed, the `sessions.SessionWriter` uses the warehouse registry to get the appropriate driver for the property. It then:
 

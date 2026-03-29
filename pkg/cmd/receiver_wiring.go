@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -40,9 +41,25 @@ func buildReceiverStorage(ctx context.Context, cmd *cli.Command, publisher worke
 
 	publisher = worker.NewMonitoringPublisher(publisher)
 
+	var opts []receiver.BatchingOption
+
+	batchingBackend := strings.ToLower(cmd.String(receiverBatchingBackendFlag.Name))
+	if batchingBackend == "filesystem" {
+		opts = append(opts, receiver.WithBackend(
+			receiver.NewFileBatchingBackend(receiver.FileBatchingBackendConfig{
+				Dir: filepath.Join(
+					cmd.String(storageQueueDirectoryFlag.Name),
+					"receiver-batching",
+				),
+				FlushFileName: "pending_hits.json.gz",
+			}),
+		))
+	}
+
 	return receiver.NewBatchingStorage(
 		storagepublisher.NewAdapter(encoding.GzipJSONEncoder, publisher),
 		cmd.Int(receiverBatchSizeFlag.Name),
 		cmd.Duration(receiverBatchTimeoutFlag.Name),
+		opts...,
 	)
 }

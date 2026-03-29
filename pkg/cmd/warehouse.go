@@ -41,15 +41,9 @@ func warehouseRegistry(ctx context.Context, cmd *cli.Command) warehouse.Registry
 	case "files":
 		return createFilesWarehouse(ctx, cmd)
 	case "console", "":
-		return warehouse.NewStaticBatchedDriverRegistry(
-			ctx,
-			warehouse.NewConsoleDriver(),
-		)
+		return warehouse.NewStaticDriverRegistry(warehouse.NewConsoleDriver())
 	case "noop":
-		return warehouse.NewStaticBatchedDriverRegistry(
-			ctx,
-			warehouse.NewNoopDriver(),
-		)
+		return warehouse.NewStaticDriverRegistry(warehouse.NewNoopDriver())
 	default:
 		logrus.Fatalf("unsupported warehouse %s", warehouseType)
 		return nil
@@ -101,8 +95,7 @@ func createBigQueryWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Re
 
 	partitionOpt := createBigQueryPartitionOption(cmd)
 
-	return warehouse.NewStaticBatchedDriverRegistry(
-		ctx,
+	return warehouse.NewStaticDriverRegistry(
 		whBigQuery.NewBigQueryTableDriver(
 			client,
 			datasetName,
@@ -229,8 +222,7 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		opts = append(opts, whClickhouse.WithPartitionBy(partitionByStr))
 	}
 
-	return warehouse.NewStaticBatchedDriverRegistry(
-		ctx,
+	return warehouse.NewStaticDriverRegistry(
 		whClickhouse.NewClickHouseTableDriver(
 			options,
 			database,

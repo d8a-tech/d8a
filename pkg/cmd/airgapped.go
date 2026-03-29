@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -15,59 +14,7 @@ var airgapped bool
 
 var currentRunArgs []string
 
-type airgappedValueSource struct {
-	airgapped    *bool
-	forcedValue  string
-	defaultValue string
-	fallback     cli.ValueSourceChain
-	normalize    func(string) string
-}
-
-type airgappedOverrideRule struct {
-	flagName     string
-	configKey    string
-	forcedValue  string
-	source       *airgappedValueSource
-	currentValue func(*cli.Command) string
-}
-
-var airgappedOverrideRules []*airgappedOverrideRule
-
-func (s *airgappedValueSource) Lookup() (string, bool) {
-	if !isAirgappedModeEnabled() {
-		return "", false
-	}
-
-	if s.rawValue() == s.forcedValue {
-		return "", false
-	}
-
-	return s.forcedValue, true
-}
-
-func (s *airgappedValueSource) rawValue() string {
-	if value, found := s.fallback.Lookup(); found {
-		return s.normalizeValue(value)
-	}
-
-	return s.normalizeValue(s.defaultValue)
-}
-
-func (s *airgappedValueSource) normalizeValue(value string) string {
-	if s.normalize == nil {
-		return value
-	}
-
-	return s.normalize(value)
-}
-
-func (s *airgappedValueSource) String() string {
-	return fmt.Sprintf("airgapped override %q", s.forcedValue)
-}
-
-func (s *airgappedValueSource) GoString() string {
-	return fmt.Sprintf("airgappedValueSource{forcedValue:%q}", s.forcedValue)
-}
+var airgappedOverrideRules []*modeOverrideRule
 
 func customAirgappedSourceChain(
 	flagName, configKey, forcedValue, defaultValue string,
@@ -75,25 +22,18 @@ func customAirgappedSourceChain(
 	normalize func(string) string,
 	currentValue func(*cli.Command) string,
 ) cli.ValueSourceChain {
-	overrideSource := &airgappedValueSource{
-		airgapped:    &airgapped,
-		forcedValue:  normalize(valueOrDefault(forcedValue)),
-		defaultValue: normalize(valueOrDefault(defaultValue)),
-		fallback:     sourceChain,
-		normalize:    normalize,
-	}
-
-	airgappedOverrideRules = append(airgappedOverrideRules, &airgappedOverrideRule{
-		flagName:     flagName,
-		configKey:    configKey,
-		forcedValue:  overrideSource.forcedValue,
-		source:       overrideSource,
-		currentValue: currentValue,
-	})
-
-	combined := cli.NewValueSourceChain(overrideSource)
-	combined.Append(sourceChain)
-	return combined
+	return customModeSourceChain(
+		"airgapped",
+		isAirgappedModeEnabled,
+		&airgappedOverrideRules,
+		flagName,
+		configKey,
+		forcedValue,
+		defaultValue,
+		sourceChain,
+		normalize,
+		currentValue,
+	)
 }
 
 func defaultAirgappedStringSourceChain(
@@ -140,33 +80,16 @@ func applyAirgappedOverridesBefore(ctx context.Context, cmd *cli.Command) (conte
 }
 
 func applyAirgappedOverrides(cmd *cli.Command) error {
-	if !isAirgappedModeEnabled() {
-		return nil
-	}
-
-	for _, rule := range airgappedOverrideRules {
-		currentValue := rule.currentValue(cmd)
-		if currentValue != rule.forcedValue {
-			if err := cmd.Set(rule.flagName, rule.forcedValue); err != nil {
-				return fmt.Errorf("set %s for airgapped mode: %w", rule.flagName, err)
-			}
-			logAirgappedOverride(rule)
-			continue
-		}
-
-		if cliFlagProvided(rule.flagName) {
-			continue
-		}
-
-		if rule.source.rawValue() != rule.forcedValue {
-			logAirgappedOverride(rule)
-		}
-	}
-
-	return nil
+	return applyModeOverrides(
+		cmd,
+		isAirgappedModeEnabled(),
+		airgappedOverrideRules,
+		"airgapped mode",
+		logAirgappedOverride,
+	)
 }
 
-func logAirgappedOverride(rule *airgappedOverrideRule) {
+func logAirgappedOverride(rule *modeOverrideRule) {
 	logrus.Warnf(
 		"airgapped mode sets '%s' to '%s'. Set '%s: %s' explicitly to remove this warning.",
 		rule.flagName,

@@ -1,0 +1,73 @@
+package cmd
+
+import (
+	"context"
+	"reflect"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v3"
+)
+
+func TestWarehouseRegistry_WiresDriversWithoutBatchingWrapper(t *testing.T) {
+	testCases := []struct {
+		name               string
+		args               func(t *testing.T) []string
+		expectedDriverType string
+	}{
+		{
+			name: "console driver is registered directly",
+			args: func(_ *testing.T) []string {
+				return []string{"d8a-test", "--warehouse-driver=console"}
+			},
+			expectedDriverType: "*warehouse.consoleDriver",
+		},
+		{
+			name: "noop driver is registered directly",
+			args: func(_ *testing.T) []string {
+				return []string{"d8a-test", "--warehouse-driver=noop"}
+			},
+			expectedDriverType: "*warehouse.noopDriver",
+		},
+		{
+			name: "files driver is registered directly",
+			args: func(t *testing.T) []string {
+				baseDir := t.TempDir()
+				return []string{
+					"d8a-test",
+					"--warehouse-driver=files",
+					"--storage-spool-enabled=true",
+					"--storage-spool-directory=" + baseDir + "/spool",
+					"--warehouse-files-storage=filesystem",
+					"--warehouse-files-filesystem-path=" + baseDir + "/out",
+				}
+			},
+			expectedDriverType: "*files.SpoolDriver",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// given
+			args := testCase.args(t)
+
+			app := &cli.Command{
+				Name:  "d8a-test",
+				Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					// when
+					registry := warehouseRegistry(ctx, cmd)
+					driver, err := registry.Get("property-id")
+					require.NoError(t, err)
+
+					// then
+					assert.Equal(t, testCase.expectedDriverType, reflect.TypeOf(driver).String())
+					return registry.Close()
+				},
+			}
+
+			require.NoError(t, app.Run(context.Background(), args))
+		})
+	}
+}

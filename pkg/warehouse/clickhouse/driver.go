@@ -19,12 +19,18 @@ import (
 type clickhouseDriver struct {
 	db                *sql.DB
 	conn              clickhouse.Conn
+	prepareBatch      func(ctx context.Context, query string) (clickhouseWriteBatch, error)
 	database          string
 	queryMapper       warehouse.QueryMapper
 	fieldTypeMapper   warehouse.FieldTypeMapper[SpecificClickhouseType]
 	queryTimeout      time.Duration
 	typeComparer      *warehouse.TypeComparer
 	tableColumnsCache *util.TTLCache[[]*arrow.Field]
+}
+
+type clickhouseWriteBatch interface {
+	Append(v ...any) error
+	Send() error
 }
 
 // NewClickHouseTableDriver creates a new ClickHouse table driver.
@@ -36,11 +42,7 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		logrus.Fatalf("failed to open ClickHouse connection: %v", err)
 	}
 
-	if err != nil {
-		logrus.Fatalf("failed to create table columns cache: %v", err)
-	}
-
-	return &clickhouseDriver{
+	driver := &clickhouseDriver{
 		db:                db,
 		conn:              conn,
 		database:          database,
@@ -50,6 +52,11 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		typeComparer:      warehouse.NewTypeComparer(),
 		tableColumnsCache: util.NewTTLCache[[]*arrow.Field](1 * time.Minute),
 	}
+	driver.prepareBatch = func(ctx context.Context, query string) (clickhouseWriteBatch, error) {
+		return driver.conn.PrepareBatch(ctx, query)
+	}
+
+	return driver
 }
 
 func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error {
@@ -232,15 +239,10 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 	}
 
 	// Create batch
-	batch, err := d.conn.PrepareBatch(ctx, fmt.Sprintf("INSERT INTO %s", fullTableName))
+	batch, err := d.prepareBatch(ctx, fmt.Sprintf("INSERT INTO %s", fullTableName))
 	if err != nil {
 		return fmt.Errorf("error preparing batch: %w", err)
 	}
-	defer func() {
-		if err := batch.Send(); err != nil {
-			logrus.Error("failed to send batch: ", err)
-		}
-	}()
 
 	// Process each row
 	for _, row := range rows {
@@ -264,6 +266,10 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 		if err := batch.Append(values...); err != nil {
 			return fmt.Errorf("error appending row to batch: %w", err)
 		}
+	}
+
+	if err := batch.Send(); err != nil {
+		return fmt.Errorf("error sending batch: %w", err)
 	}
 
 	return nil

@@ -58,7 +58,8 @@ func TestFilesystemDirectoryPublisher_Publish(t *testing.T) {
 			files, err := os.ReadDir(dir)
 			assert.NoError(t, err)
 			assert.Len(t, files, 1)
-			assert.True(t, filepath.Ext(files[0].Name()) == ".task")
+			assert.Equal(t, ".task", filepath.Ext(files[0].Name()))
+			assert.NotEqual(t, ".tmp", filepath.Ext(files[0].Name()))
 		})
 	}
 }
@@ -138,6 +139,110 @@ func TestFilesystemDirectoryConsumer_Consume(t *testing.T) {
 			assert.Empty(t, files)
 		})
 	}
+}
+
+func TestFilesystemDirectoryConsumer_ProcessNextBatchIgnoresTmpFiles(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	format := NewBinaryMessageFormat()
+	ctx := context.Background()
+
+	consumer, err := NewFilesystemDirectoryConsumer(ctx, dir, format)
+	assert.NoError(t, err)
+
+	tmpPath := filepath.Join(dir, "123.tmp")
+	err = os.WriteFile(tmpPath, []byte("orphan"), 0o600)
+	assert.NoError(t, err)
+
+	handlerCalled := false
+
+	// when
+	processed, err := consumer.processNextBatch(func(_ *Task) error {
+		handlerCalled = true
+		return nil
+	})
+
+	// then
+	assert.NoError(t, err)
+	assert.False(t, processed)
+	assert.False(t, handlerCalled)
+
+	_, err = os.Stat(tmpPath)
+	assert.NoError(t, err)
+}
+
+func TestFilesystemDirectoryConsumer_ProcessNextBatchDiscardsEmptyTaskFile(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	format := NewBinaryMessageFormat()
+	ctx := context.Background()
+
+	consumer, err := NewFilesystemDirectoryConsumer(ctx, dir, format)
+	assert.NoError(t, err)
+
+	emptyTaskPath := filepath.Join(dir, "123.task")
+	err = os.WriteFile(emptyTaskPath, nil, 0o600)
+	assert.NoError(t, err)
+
+	handlerCalled := false
+
+	// when
+	processed, err := consumer.processNextBatch(func(_ *Task) error {
+		handlerCalled = true
+		return nil
+	})
+
+	// then
+	assert.NoError(t, err)
+	assert.True(t, processed)
+	assert.False(t, handlerCalled)
+
+	_, err = os.Stat(emptyTaskPath)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestFilesystemDirectoryConsumer_ProcessNextBatchDoesNotDiscardValidTask(t *testing.T) {
+	// given
+	dir := t.TempDir()
+	format := NewBinaryMessageFormat()
+	ctx := context.Background()
+
+	consumer, err := NewFilesystemDirectoryConsumer(ctx, dir, format)
+	assert.NoError(t, err)
+
+	emptyTaskPath := filepath.Join(dir, "100.task")
+	err = os.WriteFile(emptyTaskPath, nil, 0o600)
+	assert.NoError(t, err)
+
+	validTask := &Task{Type: "valid", Headers: map[string]string{"k": "v"}, Body: []byte("body")}
+	data, err := format.Serialize(validTask)
+	assert.NoError(t, err)
+
+	validTaskPath := filepath.Join(dir, "101.task")
+	err = os.WriteFile(validTaskPath, data, 0o600)
+	assert.NoError(t, err)
+
+	var received []*Task
+
+	// when
+	processed, err := consumer.processNextBatch(func(task *Task) error {
+		received = append(received, task)
+		return nil
+	})
+
+	// then
+	assert.NoError(t, err)
+	assert.True(t, processed)
+	assert.Len(t, received, 1)
+	assert.Equal(t, validTask.Type, received[0].Type)
+	assert.Equal(t, validTask.Headers, received[0].Headers)
+	assert.Equal(t, validTask.Body, received[0].Body)
+
+	_, err = os.Stat(emptyTaskPath)
+	assert.ErrorIs(t, err, os.ErrNotExist)
+
+	_, err = os.Stat(validTaskPath)
+	assert.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func TestFilesystemDirectoryConsumer_ConsumeOrder(t *testing.T) {

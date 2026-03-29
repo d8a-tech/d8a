@@ -308,7 +308,7 @@ func createTempConfig(t *testing.T, port int) string {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 
-	configContent := fmt.Sprintf(`warehouse: noop
+	configContent := fmt.Sprintf(`warehouse: console
 
 receiver:
   batch_size: 100

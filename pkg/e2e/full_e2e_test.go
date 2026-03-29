@@ -40,7 +40,7 @@ func TestFullE2EWroteToWarehouse(t *testing.T) {
 
 		require.True(
 			t,
-			runningServer.logs.waitFor("flushing batch of size", 10*time.Second),
+			runningServer.logs.waitFor(`"session_id"`, 10*time.Second),
 			"warehouse should be flushed",
 		)
 	})

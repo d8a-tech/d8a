@@ -16,9 +16,11 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/sessions"
 	"github.com/d8a-tech/d8a/pkg/splitter"
+	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/urfave/cli/v3"
 	"go.etcd.io/bbolt"
 )
@@ -92,18 +94,43 @@ func buildWorkerRuntime(
 		splitterRegistry,
 	)
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
-		batchedWriter, c, err := sessions.NewBackgroundBatchingWriter(
-			ctx,
-			sessionWriter,
-			sessions.WithSpoolDir(filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")),
-			sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
+		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
+
+		mode := cmd.String(deliveryModeFlag.Name)
+		var failStrat spools.FailureStrategy
+		if mode == "at_least_once" {
+			failStrat = spools.NewQuarantineStrategy()
+		} else {
+			failStrat = spools.NewDeleteStrategy()
+		}
+
+		sp, err := spools.New(afero.NewOsFs(), spoolDir, spools.WithFailureStrategy(failStrat))
+		if err != nil {
+			cleanup()
+			return nil, fmt.Errorf("create spool: %w", err)
+		}
+
+		persistentWriter, persistentCleanup, err := sessions.NewPersistentSpoolWriter(
+			ctx, sp, sessionWriter,
 		)
 		if err != nil {
 			cleanup()
-			return nil, fmt.Errorf("create background batching writer: %w", err)
+			return nil, fmt.Errorf("create persistent spool writer: %w", err)
 		}
-		sessionWriter = batchedWriter
-		batchingCleanup = c
+
+		if mode == "at_least_once" {
+			sessionWriter = persistentWriter
+			batchingCleanup = persistentCleanup
+		} else {
+			inMemWriter, inMemCleanup, err := sessions.NewInMemSpoolWriter(persistentWriter)
+			if err != nil {
+				persistentCleanup()
+				cleanup()
+				return nil, fmt.Errorf("create in-mem spool writer: %w", err)
+			}
+			sessionWriter = inMemWriter
+			batchingCleanup = func() { inMemCleanup(); persistentCleanup() }
+		}
 	}
 
 	w := worker.NewWorker(

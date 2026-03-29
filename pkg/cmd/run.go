@@ -86,6 +86,15 @@ func configDocsFlags() []cli.Flag {
 	return append([]cli.Flag{airgappedFlag}, getServerFlags()...)
 }
 
+func applyModeOverridesBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+	updatedCtx, err := applyAirgappedOverridesBefore(ctx, cmd)
+	if err != nil {
+		return updatedCtx, err
+	}
+
+	return applyDeliveryModeOverridesBefore(updatedCtx, cmd)
+}
+
 func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { // nolint:funlen,gocognit,gocyclo,lll // it's an entrypoint
 	currentRunArgs = append([]string(nil), args...)
 	defer func() {
@@ -103,6 +112,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			traceFlag,
 			configFlag,
 			airgappedFlag,
+			deliveryModeFlag,
 		},
 		Version: version,
 		Before:  configureLogging,
@@ -110,7 +120,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			{
 				Name:   "columns",
 				Usage:  "Display all the columns for given property ID",
-				Before: applyAirgappedOverridesBefore,
+				Before: applyModeOverridesBefore,
 				Flags: mergeFlags(
 					[]cli.Flag{
 						&cli.StringFlag{
@@ -178,7 +188,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			{
 				Name:   "server",
 				Usage:  "Start D8A server. Full configuration reference: https://docs.d8a.tech/articles/config",
-				Before: applyAirgappedOverridesBefore,
+				Before: applyModeOverridesBefore,
 				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("server", cmd); err != nil {
@@ -270,7 +280,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			{
 				Name:   "receiver",
 				Usage:  "Start receiver-only mode (HTTP server; publishes to queue)",
-				Before: applyAirgappedOverridesBefore,
+				Before: applyModeOverridesBefore,
 				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("receiver", cmd); err != nil {
@@ -319,7 +329,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			{
 				Name:   "worker",
 				Usage:  "Start worker-only mode (consumes from queue; no HTTP server)",
-				Before: applyAirgappedOverridesBefore,
+				Before: applyModeOverridesBefore,
 				Flags:  getServerFlags(),
 				Action: func(_ context.Context, cmd *cli.Command) error {
 					if err := validateHAFlags("worker", cmd); err != nil {
@@ -389,7 +399,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 			{
 				Name:   "migrate",
 				Usage:  "Migrate given property to the new schema",
-				Before: applyAirgappedOverridesBefore,
+				Before: applyModeOverridesBefore,
 				Flags: mergeFlags(
 					[]cli.Flag{
 						&cli.StringFlag{
