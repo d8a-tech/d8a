@@ -1,7 +1,6 @@
 package protosessions
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -53,82 +52,67 @@ func (m *mockCloser) Close(protosessions [][]*hits.Hit) error {
 	return nil
 }
 
-func TestShardingCloser_AggregatesAllShardErrors(t *testing.T) {
+func TestShardingCloser_ShardErrors(t *testing.T) {
 	t.Parallel()
 
-	// given: two shards that each return a distinct error
 	errShard0 := fmt.Errorf("shard-0 failed")
 	errShard1 := fmt.Errorf("shard-1 failed")
 
-	closer := NewShardingCloser(2, func(shardIndex int) Closer {
-		return &mockCloser{
-			closeFunc: func(_ [][]*hits.Hit) error {
-				if shardIndex == 0 {
-					return errShard0
+	cases := []struct {
+		name        string
+		shardErrors map[int]error // shard index → error it returns
+		wantErr     bool
+		wantWrapped []error // errors that must be present via errors.Is
+	}{
+		{
+			name:        "all shards error",
+			shardErrors: map[int]error{0: errShard0, 1: errShard1},
+			wantErr:     true,
+			wantWrapped: []error{errShard0, errShard1},
+		},
+		{
+			name:        "single shard error",
+			shardErrors: map[int]error{0: errShard0},
+			wantErr:     true,
+			wantWrapped: []error{errShard0},
+		},
+		{
+			name:        "no errors",
+			shardErrors: map[int]error{},
+			wantErr:     false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// given
+			closer := NewShardingCloser(2, func(shardIndex int) Closer {
+				return &mockCloser{
+					closeFunc: func(_ [][]*hits.Hit) error {
+						return tc.shardErrors[shardIndex]
+					},
 				}
-				return errShard1
-			},
-		}
-	})
+			})
 
-	// Build proto-sessions that hash to different shards so both children execute.
-	protosessions := buildProtosessionsForAllShards(t, 2)
+			protosessions := buildProtosessionsForAllShards(t, 2)
 
-	// when
-	err := closer.Close(protosessions)
+			// when
+			err := closer.Close(protosessions)
 
-	// then
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, errShard0), "should contain shard-0 error")
-	assert.True(t, errors.Is(err, errShard1), "should contain shard-1 error")
-}
+			// then
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
 
-func TestShardingCloser_SingleShardError(t *testing.T) {
-	t.Parallel()
-
-	// given: one shard errors, the other succeeds
-	errShard0 := fmt.Errorf("shard-0 failed")
-
-	closer := NewShardingCloser(2, func(shardIndex int) Closer {
-		return &mockCloser{
-			closeFunc: func(_ [][]*hits.Hit) error {
-				if shardIndex == 0 {
-					return errShard0
-				}
-				return nil
-			},
-		}
-	})
-
-	protosessions := buildProtosessionsForAllShards(t, 2)
-
-	// when
-	err := closer.Close(protosessions)
-
-	// then
-	require.Error(t, err)
-	assert.True(t, errors.Is(err, errShard0), "should contain shard-0 error")
-}
-
-func TestShardingCloser_NoErrors(t *testing.T) {
-	t.Parallel()
-
-	// given: all shards succeed
-	closer := NewShardingCloser(2, func(_ int) Closer {
-		return &mockCloser{
-			closeFunc: func(_ [][]*hits.Hit) error {
-				return nil
-			},
-		}
-	})
-
-	protosessions := buildProtosessionsForAllShards(t, 2)
-
-	// when
-	err := closer.Close(protosessions)
-
-	// then
-	require.NoError(t, err)
+			require.Error(t, err)
+			for _, wrapped := range tc.wantWrapped {
+				assert.ErrorIs(t, err, wrapped)
+			}
+		})
+	}
 }
 
 // buildProtosessionsForAllShards creates proto-sessions that are guaranteed to
