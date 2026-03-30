@@ -34,12 +34,14 @@ type clickhouseWriteBatch interface {
 }
 
 // NewClickHouseTableDriver creates a new ClickHouse table driver.
-func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, opts ...Options) warehouse.Driver {
+func NewClickHouseTableDriver(
+	chOptions *clickhouse.Options, database string, opts ...Options,
+) (warehouse.Driver, error) {
 	chOptions.Settings["flatten_nested"] = false
 	db := clickhouse.OpenDB(chOptions)
 	conn, err := clickhouse.Open(chOptions)
 	if err != nil {
-		logrus.Fatalf("failed to open ClickHouse connection: %v", err)
+		return nil, fmt.Errorf("opening ClickHouse connection: %w", err)
 	}
 
 	driver := &clickhouseDriver{
@@ -56,7 +58,7 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		return driver.conn.PrepareBatch(ctx, query)
 	}
 
-	return driver
+	return driver, nil
 }
 
 func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error {

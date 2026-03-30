@@ -88,9 +88,11 @@ func (suite *ClickHouseTestSuite) SetupSuite() {
 	}
 
 	// Create a default driver instance for the suite
-	suite.driver = NewClickHouseTableDriver(suite.opts, "testdb",
+	var err2 error
+	suite.driver, err2 = NewClickHouseTableDriver(suite.opts, "testdb",
 		WithOrderBy([]string{"tuple()"}),
 	)
+	suite.Require().NoError(err2, "should create ClickHouse driver")
 }
 
 // TearDownSuite runs once after all tests in the suite
@@ -105,9 +107,11 @@ func (suite *ClickHouseTestSuite) TearDownSuite() {
 // SetupTest runs before each individual test
 func (suite *ClickHouseTestSuite) SetupTest() {
 	// Recreate driver for each test to ensure clean state
-	suite.driver = NewClickHouseTableDriver(suite.opts, "testdb",
+	var err error
+	suite.driver, err = NewClickHouseTableDriver(suite.opts, "testdb",
 		WithOrderBy([]string{"tuple()"}),
 	)
+	suite.Require().NoError(err, "should create ClickHouse driver")
 }
 
 // TearDownTest runs after each individual test to clean up tables
