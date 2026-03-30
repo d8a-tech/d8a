@@ -318,7 +318,7 @@ func (d *clickhouseDriver) sortSchemaFieldsForWriting(
 
 // Close implements warehouse.Driver.
 func (d *clickhouseDriver) Close() error {
-	return nil
+	return errors.Join(d.conn.Close(), d.db.Close())
 }
 
 // AreFieldsCompatible implements warehouse.FieldCompatibilityChecker
