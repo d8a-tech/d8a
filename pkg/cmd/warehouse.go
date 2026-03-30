@@ -228,7 +228,7 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		opts...,
 	)
 	if err != nil {
-		logrus.Fatalf("failed to create ClickHouse warehouse driver: %v", err)
+		logrus.Panicf("failed to create ClickHouse warehouse driver: %v", err)
 	}
 
 	return warehouse.NewStaticDriverRegistry(driver)
