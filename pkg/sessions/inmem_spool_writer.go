@@ -4,23 +4,23 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/sirupsen/logrus"
 )
 
 type inMemSpoolWriter struct {
-	child          SessionWriter
-	maxSessions    int
-	maxAge         time.Duration
-	sweepInterval  time.Duration
-	maxBufferBytes int64
-	writeChan      chan inMemWriteRequest
-	stopped        chan struct{}
-	mu             sync.RWMutex
-	closed         bool
-	closeOnce      sync.Once
+	child               SessionWriter
+	maxSessions         int
+	maxAge              time.Duration
+	sweepInterval       time.Duration
+	maxBufferEvents     int
+	maxBufferedSessions int
+	writeChan           chan inMemWriteRequest
+	stopped             chan struct{}
+	mu                  sync.RWMutex
+	closed              bool
+	closeOnce           sync.Once
 }
 
 type inMemWriteRequest struct {
@@ -52,12 +52,21 @@ func WithSweepInterval(d time.Duration) InMemSpoolOption {
 	}
 }
 
-// WithMaxBufferBytes sets the maximum total buffered size in bytes across all
-// property buffers. When the limit is reached, incoming sessions are discarded
-// with an error log. Zero (the default) means unlimited.
-func WithMaxBufferBytes(n int64) InMemSpoolOption {
+// WithMaxBufferEvents sets the maximum total number of events (across all
+// property buffers) that can be buffered before incoming sessions are discarded.
+// Zero means unlimited. Default is 50000.
+func WithMaxBufferEvents(n int) InMemSpoolOption {
 	return func(w *inMemSpoolWriter) {
-		w.maxBufferBytes = n
+		w.maxBufferEvents = n
+	}
+}
+
+// WithMaxBufferedSessions sets the maximum total number of sessions (across all
+// property buffers) that can be buffered before incoming sessions are discarded.
+// Zero means unlimited. Default is 10000.
+func WithMaxBufferedSessions(n int) InMemSpoolOption {
+	return func(w *inMemSpoolWriter) {
+		w.maxBufferedSessions = n
 	}
 }
 
@@ -70,12 +79,14 @@ func NewInMemSpoolWriter(child SessionWriter, opts ...InMemSpoolOption) (Session
 	}
 
 	w := &inMemSpoolWriter{
-		child:         child,
-		maxSessions:   100,
-		maxAge:        30 * time.Second,
-		sweepInterval: 5 * time.Second,
-		writeChan:     make(chan inMemWriteRequest, 256),
-		stopped:       make(chan struct{}),
+		child:               child,
+		maxSessions:         100,
+		maxAge:              30 * time.Second,
+		sweepInterval:       5 * time.Second,
+		maxBufferEvents:     50000,
+		maxBufferedSessions: 10000,
+		writeChan:           make(chan inMemWriteRequest, 256),
+		stopped:             make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -121,7 +132,7 @@ func (w *inMemSpoolWriter) Write(sessions ...*schema.Session) error {
 
 type propertyBuffer struct {
 	sessions  []*schema.Session
-	sizeBytes int64
+	numEvents int
 	createdAt time.Time
 }
 
@@ -129,7 +140,8 @@ func (w *inMemSpoolWriter) loop() {
 	defer close(w.stopped)
 
 	buffers := make(map[string]*propertyBuffer)
-	var totalBytes int64
+	var totalEvents int
+	var totalSessions int
 	ticker := time.NewTicker(w.sweepInterval)
 	defer ticker.Stop()
 
@@ -141,18 +153,18 @@ func (w *inMemSpoolWriter) loop() {
 				w.flushAll(buffers)
 				return
 			}
-			totalBytes = w.bufferSessions(buffers, req.sessions, totalBytes)
-			totalBytes = w.flushByCount(buffers, totalBytes)
+			totalEvents, totalSessions = w.bufferSessions(buffers, req.sessions, totalEvents, totalSessions)
+			totalEvents, totalSessions = w.flushByCount(buffers, totalEvents, totalSessions)
 
 		case <-ticker.C:
-			totalBytes = w.flushByAge(buffers, totalBytes)
+			totalEvents, totalSessions = w.flushByAge(buffers, totalEvents, totalSessions)
 		}
 	}
 }
 
 func (w *inMemSpoolWriter) bufferSessions(
-	buffers map[string]*propertyBuffer, sessions []*schema.Session, totalBytes int64,
-) int64 {
+	buffers map[string]*propertyBuffer, sessions []*schema.Session, totalEvents, totalSessions int,
+) (events, sess int) {
 	now := time.Now()
 	for _, sess := range sessions {
 		propID := sess.PropertyID
@@ -161,10 +173,16 @@ func (w *inMemSpoolWriter) bufferSessions(
 			continue
 		}
 
-		sessBytes := estimateSessionBytes(sess)
-		if w.maxBufferBytes > 0 && totalBytes+sessBytes > w.maxBufferBytes {
-			logrus.Errorf("in-mem spool buffer limit reached (%d/%d bytes), discarding session for property %q",
-				totalBytes, w.maxBufferBytes, propID)
+		eventCount := len(sess.Events)
+
+		if w.maxBufferedSessions > 0 && totalSessions >= w.maxBufferedSessions {
+			logrus.Errorf("in-mem spool session limit reached (%d/%d sessions), discarding session for property %q",
+				totalSessions, w.maxBufferedSessions, propID)
+			continue
+		}
+		if w.maxBufferEvents > 0 && totalEvents+eventCount > w.maxBufferEvents {
+			logrus.Errorf("in-mem spool event limit reached (%d/%d events), discarding session for property %q",
+				totalEvents, w.maxBufferEvents, propID)
 			continue
 		}
 
@@ -174,42 +192,48 @@ func (w *inMemSpoolWriter) bufferSessions(
 			buffers[propID] = buf
 		}
 		buf.sessions = append(buf.sessions, sess)
-		buf.sizeBytes += sessBytes
-		totalBytes += sessBytes
+		buf.numEvents += eventCount
+		totalEvents += eventCount
+		totalSessions++
 	}
-	return totalBytes
+	return totalEvents, totalSessions
 }
 
-func (w *inMemSpoolWriter) flushByCount(buffers map[string]*propertyBuffer, totalBytes int64) int64 {
+func (w *inMemSpoolWriter) flushByCount(
+	buffers map[string]*propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	for propID, buf := range buffers {
 		if len(buf.sessions) >= w.maxSessions {
-			totalBytes = w.flushProperty(buffers, propID, buf, totalBytes)
+			totalEvents, totalSessions = w.flushProperty(buffers, propID, buf, totalEvents, totalSessions)
 		}
 	}
-	return totalBytes
+	return totalEvents, totalSessions
 }
 
-func (w *inMemSpoolWriter) flushByAge(buffers map[string]*propertyBuffer, totalBytes int64) int64 {
+func (w *inMemSpoolWriter) flushByAge(
+	buffers map[string]*propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	now := time.Now()
 	for propID, buf := range buffers {
 		if now.Sub(buf.createdAt) >= w.maxAge {
-			totalBytes = w.flushProperty(buffers, propID, buf, totalBytes)
+			totalEvents, totalSessions = w.flushProperty(buffers, propID, buf, totalEvents, totalSessions)
 		}
 	}
-	return totalBytes
+	return totalEvents, totalSessions
 }
 
 func (w *inMemSpoolWriter) flushProperty(
-	buffers map[string]*propertyBuffer, propID string, buf *propertyBuffer, totalBytes int64,
-) int64 {
+	buffers map[string]*propertyBuffer, propID string, buf *propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	if err := w.child.Write(buf.sessions...); err != nil {
 		logrus.Errorf("in-mem spool flush for property %q: %v", propID, err)
 		// Keep sessions in the buffer for retry on the next sweep cycle.
-		return totalBytes
+		return totalEvents, totalSessions
 	}
-	totalBytes -= buf.sizeBytes
+	totalEvents -= buf.numEvents
+	totalSessions -= len(buf.sessions)
 	delete(buffers, propID)
-	return totalBytes
+	return totalEvents, totalSessions
 }
 
 func (w *inMemSpoolWriter) flushAll(buffers map[string]*propertyBuffer) {
@@ -221,35 +245,4 @@ func (w *inMemSpoolWriter) flushAll(buffers map[string]*propertyBuffer) {
 		}
 		delete(buffers, propID)
 	}
-}
-
-// estimateSessionBytes returns an approximate byte cost of a session for
-// buffer-limit accounting. It uses Hit.Size() for each event's bound hit
-// and adds fixed overhead for the Session/Event structs, slice headers,
-// and map shells. The estimate is deliberately conservative (slightly
-// over-counting) to prevent OOM rather than be perfectly precise.
-func estimateSessionBytes(sess *schema.Session) int64 {
-	if sess == nil {
-		return 0
-	}
-
-	// Session struct overhead: struct shell + PropertyID string data +
-	// BrokenReason string data + slice header + two map headers.
-	const sessionOverhead = int64(unsafe.Sizeof(schema.Session{}))
-	var size int64
-	size += sessionOverhead
-	size += int64(len(sess.PropertyID))
-	size += int64(len(sess.BrokenReason))
-
-	for _, ev := range sess.Events {
-		// Event struct overhead.
-		size += int64(unsafe.Sizeof(schema.Event{}))
-		size += int64(len(ev.BrokenReason))
-
-		if ev.BoundHit != nil {
-			size += int64(ev.BoundHit.Size())
-		}
-	}
-
-	return size
 }
