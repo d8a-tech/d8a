@@ -490,6 +490,7 @@ func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter c
 		[]protocol.Protocol{currentProtocol},
 		cmd.Int(serverPortFlag.Name),
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
 }
 
