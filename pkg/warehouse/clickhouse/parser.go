@@ -59,8 +59,27 @@ func (p *clickhouseParser) tokenize(input string) ([]clickhouseToken, error) {
 		case ',':
 			tokens = append(tokens, clickhouseToken{Type: "comma", Value: ",", Pos: i})
 			i++
+		case '`':
+			// Parse backtick-quoted identifier
+			start := i
+			i++ // Skip opening backtick
+			var ident strings.Builder
+			for i < len(input) {
+				if input[i] == '`' {
+					if i+1 < len(input) && input[i+1] == '`' {
+						ident.WriteByte('`') // Escaped backtick
+						i += 2
+						continue
+					}
+					i++ // Skip closing backtick
+					break
+				}
+				ident.WriteByte(input[i])
+				i++
+			}
+			tokens = append(tokens, clickhouseToken{Type: "identifier", Value: ident.String(), Pos: start})
 		default:
-			// Parse identifier
+			// Parse unquoted identifier
 			start := i
 			for i < len(input) && (isAlphaNumeric(input[i]) || input[i] == '_') {
 				i++

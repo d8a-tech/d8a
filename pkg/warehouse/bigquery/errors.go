@@ -1,24 +1,24 @@
 package bigquery
 
-import "strings"
+import (
+	"errors"
+	"net/http"
+
+	"google.golang.org/api/googleapi"
+)
 
 func isNotFoundErr(err error) bool {
-	if err == nil {
-		return false
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.Code == http.StatusNotFound
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "404") ||
-		strings.Contains(errStr, "not found") ||
-		strings.Contains(errStr, "notFound")
+	return false
 }
 
 func isAlreadyExistsErr(err error) bool {
-	if err == nil {
-		return false
+	var apiErr *googleapi.Error
+	if errors.As(err, &apiErr) {
+		return apiErr.Code == http.StatusConflict
 	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "already exists") ||
-		strings.Contains(errStr, "duplicate") ||
-		strings.Contains(errStr, "Already exists") ||
-		strings.Contains(errStr, "code: 57")
+	return false
 }

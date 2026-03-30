@@ -242,7 +242,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						}
 					}()
 
-					serverStorage, cleanupReceiverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					serverStorage, cleanupReceiverStorage, err := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					if err != nil {
+						return err
+					}
 					defer cleanupReceiverStorage()
 					runtime, err := buildWorkerRuntime(ctx, cmd, serverStorage, whr, converter, geoProvider)
 					if err != nil {
@@ -258,7 +261,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 							select {
 							case <-ctx.Done():
 								logrus.Debug("context cancelled, skipping task processing")
-								return nil
+								return ctx.Err()
 							default:
 								return runtime.Worker.Process(task)
 							}
@@ -322,7 +325,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						}
 					}()
 
-					serverStorage, cleanupReceiverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					serverStorage, cleanupReceiverStorage, err := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					if err != nil {
+						return err
+					}
 					defer cleanupReceiverStorage()
 					server := buildReceiverServer(cmd, serverStorage, converter)
 					return server.Run(ctx)
@@ -373,7 +379,10 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						}
 					}()
 
-					serverStorage, cleanupReceiverStorage := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					serverStorage, cleanupReceiverStorage, err := buildReceiverStorage(ctx, cmd, queue.Publisher)
+					if err != nil {
+						return err
+					}
 					defer cleanupReceiverStorage()
 					whr := warehouseRegistry(ctx, cmd)
 					defer func() {
@@ -392,7 +401,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						select {
 						case <-ctx.Done():
 							logrus.Debug("context cancelled, skipping task processing")
-							return nil
+							return ctx.Err()
 						default:
 							return runtime.Worker.Process(task)
 						}
@@ -481,6 +490,7 @@ func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter c
 		[]protocol.Protocol{currentProtocol},
 		cmd.Int(serverPortFlag.Name),
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
 }
 

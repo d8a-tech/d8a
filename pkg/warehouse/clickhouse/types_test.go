@@ -193,7 +193,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "value", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(key String, value Int64)",
+			expectedCHType: "Nested(`key` String, `value` Int64)",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -208,7 +208,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(id Int32, score Float64, active Bool, name String)",
+			expectedCHType: "Nested(`id` Int32, `score` Float64, `active` Bool, `name` String)",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -221,7 +221,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "timestamp", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: false},
 				)),
 			},
-			expectedCHType: "Nested(event_name String, timestamp DateTime64(0))",
+			expectedCHType: "Nested(`event_name` String, `timestamp` DateTime64(0))",
 		},
 		{
 			BaseTestCase: BaseTestCase{
@@ -239,9 +239,9 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "timestamp_field", Type: arrow.FixedWidthTypes.Timestamp_s, Nullable: false},
 				)),
 			},
-			expectedCHType: "Nested(str_field String, int32_field Int32, int64_field Int64, " +
-				"float32_field Float32, float64_field Float64, bool_field Bool, " +
-				"timestamp_field DateTime64(0))",
+			expectedCHType: "Nested(`str_field` String, `int32_field` Int32, `int64_field` Int64, " +
+				"`float32_field` Float32, `float64_field` Float64, `bool_field` Bool, " +
+				"`timestamp_field` DateTime64(0))",
 		},
 
 		// === LOWCARDINALITY TESTS ===
@@ -427,7 +427,7 @@ func getTestCases() []TypeMappingTestCase {
 					arrow.Field{Name: "birth_date", Type: arrow.FixedWidthTypes.Date32, Nullable: true},
 				)),
 			},
-			expectedCHType: "Nested(name String, score Float64, birth_date Date32)",
+			expectedCHType: "Nested(`name` String, `score` Float64, `birth_date` Date32)",
 		},
 	}
 }

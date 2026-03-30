@@ -34,12 +34,14 @@ type clickhouseWriteBatch interface {
 }
 
 // NewClickHouseTableDriver creates a new ClickHouse table driver.
-func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, opts ...Options) warehouse.Driver {
+func NewClickHouseTableDriver(
+	chOptions *clickhouse.Options, database string, opts ...Options,
+) (warehouse.Driver, error) {
 	chOptions.Settings["flatten_nested"] = false
 	db := clickhouse.OpenDB(chOptions)
 	conn, err := clickhouse.Open(chOptions)
 	if err != nil {
-		logrus.Fatalf("failed to open ClickHouse connection: %v", err)
+		return nil, fmt.Errorf("opening ClickHouse connection: %w", err)
 	}
 
 	driver := &clickhouseDriver{
@@ -56,12 +58,13 @@ func NewClickHouseTableDriver(chOptions *clickhouse.Options, database string, op
 		return driver.conn.PrepareBatch(ctx, query)
 	}
 
-	return driver
+	return driver, nil
 }
 
 func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error {
-	// Construct full table name with database
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
+	// Construct full table name with database (quoted for SQL, raw for errors)
+	fullTableName := quoteFullTableName(d.database, table)
+	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
 	query, err := warehouse.CreateTableQuery(d.queryMapper, fullTableName, schema)
 	if err != nil {
 		return err
@@ -70,7 +73,7 @@ func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error
 	_, err = d.db.Exec(query)
 	if err != nil {
 		if isAlreadyExistsErr(err) {
-			return warehouse.NewTableAlreadyExistsError(fullTableName)
+			return warehouse.NewTableAlreadyExistsError(rawTableName)
 		}
 		return err
 	}
@@ -107,15 +110,16 @@ func (d *clickhouseDriver) AddColumn(table string, field *arrow.Field) error {
 	}
 
 	// Build ALTER TABLE ADD COLUMN query
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
-	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", fullTableName, field.Name, columnType)
+	fullTableName := quoteFullTableName(d.database, table)
+	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
+	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", fullTableName, quoteIdentifier(field.Name), columnType)
 
 	// Execute the ALTER TABLE query
 	_, err = d.db.ExecContext(ctx, alterQuery)
 	if err != nil {
 		// Check if this is a duplicate column error from ClickHouse
 		if strings.Contains(err.Error(), "already exists") || strings.Contains(err.Error(), "duplicate") {
-			return warehouse.NewColumnAlreadyExistsError(fullTableName, field.Name)
+			return warehouse.NewColumnAlreadyExistsError(rawTableName, field.Name)
 		}
 		return fmt.Errorf("error adding column: %w", err)
 	}
@@ -219,7 +223,7 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 	}
 
 	// Construct full table name with database
-	fullTableName := fmt.Sprintf("%s.%s", d.database, table)
+	fullTableName := quoteFullTableName(d.database, table)
 
 	// Get column names and types from schema
 	columns := make([]string, len(schemaFields))
@@ -255,7 +259,7 @@ func (d *clickhouseDriver) Write(ctx context.Context, table string, schema *arro
 			}
 
 			// Format value according to column type
-			formattedValue, err := columnTypes[i].Format(value, schema.Field(i).Metadata)
+			formattedValue, err := columnTypes[i].Format(value, schemaFields[i].Metadata)
 			if err != nil {
 				return fmt.Errorf("error formatting value for column %s: %w", col, err)
 			}
@@ -314,7 +318,7 @@ func (d *clickhouseDriver) sortSchemaFieldsForWriting(
 
 // Close implements warehouse.Driver.
 func (d *clickhouseDriver) Close() error {
-	return nil
+	return errors.Join(d.conn.Close(), d.db.Close())
 }
 
 // AreFieldsCompatible implements warehouse.FieldCompatibilityChecker

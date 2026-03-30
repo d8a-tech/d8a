@@ -1,6 +1,7 @@
 package protosessions
 
 import (
+	"errors"
 	"hash/fnv"
 	"sync"
 
@@ -67,12 +68,7 @@ func (c *shardingCloser) Close(protosessions [][]*hits.Hit) error {
 
 	wg.Wait()
 
-	for _, err := range errs {
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 func (c *shardingCloser) shardFor(clientID hits.ClientID) int {

@@ -105,6 +105,12 @@ func extractTrackingLibrary(queryParams url.Values) string {
 	return dtn + "@" + dtv
 }
 
+const (
+	defaultReadTimeout    = 5 * time.Second
+	defaultWriteTimeout   = 10 * time.Second
+	defaultMaxConcurrency = 256 * 1024
+)
+
 // Server holds all server-related dependencies and configuration
 type Server struct {
 	protocols       []protocol.Protocol
@@ -113,11 +119,39 @@ type Server struct {
 	validationRules HitValidatingRule
 	host            string
 	port            int
+	proxyTrust      proxyTrust
+	readTimeout     time.Duration
+	writeTimeout    time.Duration
+	maxConcurrency  int
 }
 
 func WithHost(host string) ServerOption {
 	return func(s *Server) {
 		s.host = host
+	}
+}
+
+// WithReadTimeout sets the maximum duration for reading the full request
+// (including body). Zero means no timeout. Default is 5s.
+func WithReadTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		s.readTimeout = d
+	}
+}
+
+// WithWriteTimeout sets the maximum duration for writing the full response.
+// Zero means no timeout. Default is 10s.
+func WithWriteTimeout(d time.Duration) ServerOption {
+	return func(s *Server) {
+		s.writeTimeout = d
+	}
+}
+
+// WithMaxConcurrency sets the maximum number of concurrent connections the
+// server will accept. Zero means fasthttp's default. Default is 256 * 1024.
+func WithMaxConcurrency(n int) ServerOption {
+	return func(s *Server) {
+		s.maxConcurrency = n
 	}
 }
 
@@ -139,6 +173,10 @@ func NewServer(
 		validationRules: validationRules,
 		host:            "0.0.0.0",
 		port:            port,
+		proxyTrust:      noProxyTrust{},
+		readTimeout:     defaultReadTimeout,
+		writeTimeout:    defaultWriteTimeout,
+		maxConcurrency:  defaultMaxConcurrency,
 	}
 
 	for _, opt := range opts {
@@ -157,15 +195,15 @@ func (s *Server) handleRequest(
 
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
-		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		logrus.WithError(err).Warn("failed to create hits from request")
+		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
 		return
 	}
 
 	for _, hit := range hits {
 		if hit.Request == nil {
-			err := fmt.Errorf("server attributes are nil for hit %s", hit.ID)
-			logrus.Error(err)
-			ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+			logrus.Errorf("server attributes are nil for hit %s", hit.ID)
+			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
@@ -177,7 +215,8 @@ func (s *Server) handleRequest(
 	}
 	err = s.storage.Push(hits)
 	if err != nil {
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
+		logrus.WithError(err).Error("failed to push hits to storage")
+		ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 		return
 	}
 
@@ -210,7 +249,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 	bodyCopy := make([]byte, len(ctx.Request.Body()))
 	copy(bodyCopy, ctx.Request.Body())
 	request := &hits.ParsedRequest{
-		IP:                 realIP(ctx),
+		IP:                 s.realIP(ctx),
 		Method:             string(ctx.Method()),
 		Host:               string(ctx.Host()),
 		Path:               string(ctx.Path()),
@@ -245,6 +284,9 @@ func (s *Server) Run(ctx context.Context) error {
 		Logger:                newFastHTTPServerLogger(logrus.StandardLogger()),
 		Name:                  "Tracker API",
 		SecureErrorLogMessage: true,
+		ReadTimeout:           s.readTimeout,
+		WriteTimeout:          s.writeTimeout,
+		Concurrency:           s.maxConcurrency,
 	}
 	// Create a channel to signal server shutdown
 	shutdownChan := make(chan struct{})

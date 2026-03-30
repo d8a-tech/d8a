@@ -54,6 +54,14 @@ func session(propID string) *schema.Session {
 	return &schema.Session{PropertyID: propID}
 }
 
+func sessionWithEvents(propID string, numEvents int) *schema.Session {
+	events := make([]*schema.Event, numEvents)
+	for i := range events {
+		events[i] = &schema.Event{}
+	}
+	return &schema.Session{PropertyID: propID, Events: events}
+}
+
 // failingWriter is a test double that fails a configurable number of times
 // then succeeds, recording all successful writes.
 type failingWriter struct {
@@ -366,4 +374,141 @@ func TestInMemSpoolWriter_RacingWriteIsDeliveredOrRejected(t *testing.T) {
 	assert.Equal(t, expectedCount, len(all),
 		"every accepted Write (returned nil) must be drained to child; got %d delivered vs %d accepted",
 		len(all), expectedCount)
+}
+
+func TestInMemSpoolWriter_DiscardsSessionsWhenSessionLimitReached(t *testing.T) {
+	// given — allow only 2 buffered sessions total
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+		WithMaxBufferedSessions(2),
+		WithMaxBufferEvents(0), // unlimited events
+	)
+	require.NoError(t, err)
+
+	// when — write 5 sessions (only 2 should be kept)
+	require.NoError(t, w.Write(
+		session("A"), session("A"), session("A"), session("A"), session("A"),
+	))
+
+	// Allow the write to be picked up by the loop.
+	time.Sleep(50 * time.Millisecond)
+
+	// then — close and check that only 2 sessions were buffered
+	cleanup()
+	all := child.allSessions()
+	assert.Len(t, all, 2, "only sessions within the session count limit should be kept")
+}
+
+func TestInMemSpoolWriter_DiscardsSessionsWhenEventLimitReached(t *testing.T) {
+	// given — allow only 3 total buffered events
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+		WithMaxBufferedSessions(0), // unlimited sessions
+		WithMaxBufferEvents(3),
+	)
+	require.NoError(t, err)
+
+	// when — write sessions with events: 2 events + 2 events (second would exceed limit)
+	require.NoError(t, w.Write(
+		sessionWithEvents("A", 2),
+		sessionWithEvents("A", 2),
+	))
+
+	// Allow the write to be picked up by the loop.
+	time.Sleep(50 * time.Millisecond)
+
+	// then — only the first session (2 events) fits; second (2+2=4 > 3) is discarded
+	cleanup()
+	all := child.allSessions()
+	assert.Len(t, all, 1, "second session should be discarded because total events would exceed limit")
+}
+
+func TestInMemSpoolWriter_BufferReclaimedAfterFlush(t *testing.T) {
+	// given — session limit allows 2; flush by count at 2
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(2),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+		WithMaxBufferedSessions(2),
+		WithMaxBufferEvents(0),
+	)
+	require.NoError(t, err)
+	defer cleanup()
+
+	// when — write 2 sessions (triggers flush, reclaims space)
+	require.NoError(t, w.Write(session("A"), session("A")))
+
+	// Wait for flush to happen
+	assert.Eventually(t, func() bool {
+		return child.callCount() >= 1
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// Write 2 more — should succeed because buffer was reclaimed
+	require.NoError(t, w.Write(session("A"), session("A")))
+
+	// Wait for second flush
+	assert.Eventually(t, func() bool {
+		return child.callCount() >= 2
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// then — all 4 sessions should have been delivered
+	all := child.allSessions()
+	assert.Len(t, all, 4)
+}
+
+func TestInMemSpoolWriter_ZeroLimitsAreUnlimited(t *testing.T) {
+	// given — both limits set to 0 (unlimited)
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+		WithMaxBufferedSessions(0),
+		WithMaxBufferEvents(0),
+	)
+	require.NoError(t, err)
+
+	// when — write many sessions
+	for i := 0; i < 100; i++ {
+		require.NoError(t, w.Write(session("A")))
+	}
+
+	// Allow writes to be picked up
+	time.Sleep(50 * time.Millisecond)
+
+	// then — close and verify all sessions were buffered
+	cleanup()
+	all := child.allSessions()
+	assert.Len(t, all, 100, "with zero limits, all sessions should be buffered")
+}
+
+func TestInMemSpoolWriter_SessionLimitAcrossProperties(t *testing.T) {
+	// given — limit allows 3 sessions total across properties
+	child := &recordingWriter{}
+	w, cleanup, err := NewInMemSpoolWriter(child,
+		WithMaxSessions(1000),
+		WithMaxAge(10*time.Minute),
+		WithSweepInterval(10*time.Minute),
+		WithMaxBufferedSessions(3),
+		WithMaxBufferEvents(0),
+	)
+	require.NoError(t, err)
+
+	// when — write 2 for "A" and 2 for "B" (4 total, only 3 fit)
+	require.NoError(t, w.Write(session("A"), session("A"), session("B"), session("B")))
+
+	// Allow the write to be picked up
+	time.Sleep(50 * time.Millisecond)
+
+	// then — close and verify only 3 sessions total were buffered
+	cleanup()
+	all := child.allSessions()
+	assert.Len(t, all, 3, "session limit applies across all properties")
 }

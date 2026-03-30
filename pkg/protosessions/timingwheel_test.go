@@ -159,6 +159,40 @@ func TestTimingWheel_SkipCatchUpOnStartup_OnlyRebasesOnce(t *testing.T) {
 	assert.Equal(t, int64(1006), backend.nextBucket)
 }
 
+func TestTimingWheel_ConcurrentUpdateTimeAndTick(t *testing.T) {
+	// given
+	backend := &mockTickerBackend{
+		nextBucket: 1000,
+	}
+	processor := func(_ context.Context, _ int64) error {
+		return nil
+	}
+	tw := NewTimingWheel(backend, 1*time.Second, processor)
+	tw.UpdateTime(time.Unix(1001, 0))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// when — concurrent UpdateTime and tick; the race detector will flag
+	// unsynchronized access if the mutex is missing.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for i := 0; i < 500; i++ {
+			tw.UpdateTime(time.Unix(int64(1002+i), 0))
+		}
+	}()
+
+	for i := 0; i < 500; i++ {
+		_ = tw.tick(ctx)
+	}
+	<-done
+
+	// then — just verify no panic / race; CurrentTime should be monotonic.
+	ct := tw.CurrentTime()
+	assert.False(t, ct.IsZero())
+}
+
 type mockTickerBackend struct {
 	nextBucket int64
 	err        error

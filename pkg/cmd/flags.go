@@ -36,6 +36,14 @@ var serverPortFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   8080,
 }
 
+var serverTrustedProxiesFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "server-trusted-proxies",
+	Usage: "CIDRs or IPs of trusted reverse proxies whose forwarded-IP headers are honoured. " +
+		"Empty (default) means no proxies are trusted. " +
+		"Set to 0.0.0.0/0 and ::/0 to trust all proxies (use only when every request traverses a sanitising reverse proxy).", //nolint:lll // it's a description
+	Sources: defaultSourceChain("SERVER_TRUSTED_PROXIES", "server.trusted_proxies"),
+}
+
 var receiverBatchSizeFlag *cli.IntFlag = &cli.IntFlag{
 	Name:    "receiver-batch-size",
 	Usage:   "Maximum number of hits to accumulate before flushing to the queue storage. When this many hits are received, they are immediately flushed even if the timeout hasn't been reached.", //nolint:lll // it's a description
@@ -667,6 +675,7 @@ func getServerFlags() []cli.Flag {
 			deliveryModeFlag,
 			serverHostFlag,
 			serverPortFlag,
+			serverTrustedProxiesFlag,
 			receiverBatchSizeFlag,
 			receiverBatchTimeoutFlag,
 			receiverMaxHitKbytesFlag,

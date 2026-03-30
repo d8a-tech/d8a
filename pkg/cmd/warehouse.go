@@ -222,13 +222,16 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		opts = append(opts, whClickhouse.WithPartitionBy(partitionByStr))
 	}
 
-	return warehouse.NewStaticDriverRegistry(
-		whClickhouse.NewClickHouseTableDriver(
-			options,
-			database,
-			opts...,
-		),
+	driver, err := whClickhouse.NewClickHouseTableDriver(
+		options,
+		database,
+		opts...,
 	)
+	if err != nil {
+		logrus.Panicf("failed to create ClickHouse warehouse driver: %v", err)
+	}
+
+	return warehouse.NewStaticDriverRegistry(driver)
 }
 
 func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Registry {

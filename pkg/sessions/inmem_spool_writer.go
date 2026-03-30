@@ -10,15 +10,17 @@ import (
 )
 
 type inMemSpoolWriter struct {
-	child         SessionWriter
-	maxSessions   int
-	maxAge        time.Duration
-	sweepInterval time.Duration
-	writeChan     chan inMemWriteRequest
-	stopped       chan struct{}
-	mu            sync.RWMutex
-	closed        bool
-	closeOnce     sync.Once
+	child               SessionWriter
+	maxSessions         int
+	maxAge              time.Duration
+	sweepInterval       time.Duration
+	maxBufferEvents     int
+	maxBufferedSessions int
+	writeChan           chan inMemWriteRequest
+	stopped             chan struct{}
+	mu                  sync.RWMutex
+	closed              bool
+	closeOnce           sync.Once
 }
 
 type inMemWriteRequest struct {
@@ -50,6 +52,24 @@ func WithSweepInterval(d time.Duration) InMemSpoolOption {
 	}
 }
 
+// WithMaxBufferEvents sets the maximum total number of events (across all
+// property buffers) that can be buffered before incoming sessions are discarded.
+// Zero means unlimited. Default is 50000.
+func WithMaxBufferEvents(n int) InMemSpoolOption {
+	return func(w *inMemSpoolWriter) {
+		w.maxBufferEvents = n
+	}
+}
+
+// WithMaxBufferedSessions sets the maximum total number of sessions (across all
+// property buffers) that can be buffered before incoming sessions are discarded.
+// Zero means unlimited. Default is 10000.
+func WithMaxBufferedSessions(n int) InMemSpoolOption {
+	return func(w *inMemSpoolWriter) {
+		w.maxBufferedSessions = n
+	}
+}
+
 // NewInMemSpoolWriter creates a SessionWriter decorator that accumulates
 // *schema.Session objects per property in memory and flushes to child on
 // count or age thresholds. Returns the writer, a cleanup function, and an error.
@@ -59,12 +79,14 @@ func NewInMemSpoolWriter(child SessionWriter, opts ...InMemSpoolOption) (Session
 	}
 
 	w := &inMemSpoolWriter{
-		child:         child,
-		maxSessions:   100,
-		maxAge:        30 * time.Second,
-		sweepInterval: 5 * time.Second,
-		writeChan:     make(chan inMemWriteRequest, 256),
-		stopped:       make(chan struct{}),
+		child:               child,
+		maxSessions:         100,
+		maxAge:              30 * time.Second,
+		sweepInterval:       5 * time.Second,
+		maxBufferEvents:     50000,
+		maxBufferedSessions: 10000,
+		writeChan:           make(chan inMemWriteRequest, 256),
+		stopped:             make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(w)
@@ -110,6 +132,7 @@ func (w *inMemSpoolWriter) Write(sessions ...*schema.Session) error {
 
 type propertyBuffer struct {
 	sessions  []*schema.Session
+	numEvents int
 	createdAt time.Time
 }
 
@@ -117,6 +140,8 @@ func (w *inMemSpoolWriter) loop() {
 	defer close(w.stopped)
 
 	buffers := make(map[string]*propertyBuffer)
+	var totalEvents int
+	var totalSessions int
 	ticker := time.NewTicker(w.sweepInterval)
 	defer ticker.Stop()
 
@@ -128,16 +153,18 @@ func (w *inMemSpoolWriter) loop() {
 				w.flushAll(buffers)
 				return
 			}
-			w.bufferSessions(buffers, req.sessions)
-			w.flushByCount(buffers)
+			totalEvents, totalSessions = w.bufferSessions(buffers, req.sessions, totalEvents, totalSessions)
+			totalEvents, totalSessions = w.flushByCount(buffers, totalEvents, totalSessions)
 
 		case <-ticker.C:
-			w.flushByAge(buffers)
+			totalEvents, totalSessions = w.flushByAge(buffers, totalEvents, totalSessions)
 		}
 	}
 }
 
-func (w *inMemSpoolWriter) bufferSessions(buffers map[string]*propertyBuffer, sessions []*schema.Session) {
+func (w *inMemSpoolWriter) bufferSessions(
+	buffers map[string]*propertyBuffer, sessions []*schema.Session, totalEvents, totalSessions int,
+) (events, sess int) {
 	now := time.Now()
 	for _, sess := range sessions {
 		propID := sess.PropertyID
@@ -145,39 +172,68 @@ func (w *inMemSpoolWriter) bufferSessions(buffers map[string]*propertyBuffer, se
 			logrus.Warn("session has empty PropertyID, skipping")
 			continue
 		}
+
+		eventCount := len(sess.Events)
+
+		if w.maxBufferedSessions > 0 && totalSessions >= w.maxBufferedSessions {
+			logrus.Errorf("in-mem spool session limit reached (%d/%d sessions), discarding session for property %q",
+				totalSessions, w.maxBufferedSessions, propID)
+			continue
+		}
+		if w.maxBufferEvents > 0 && totalEvents+eventCount > w.maxBufferEvents {
+			logrus.Errorf("in-mem spool event limit reached (%d/%d events), discarding session for property %q",
+				totalEvents, w.maxBufferEvents, propID)
+			continue
+		}
+
 		buf, ok := buffers[propID]
 		if !ok {
 			buf = &propertyBuffer{createdAt: now}
 			buffers[propID] = buf
 		}
 		buf.sessions = append(buf.sessions, sess)
+		buf.numEvents += eventCount
+		totalEvents += eventCount
+		totalSessions++
 	}
+	return totalEvents, totalSessions
 }
 
-func (w *inMemSpoolWriter) flushByCount(buffers map[string]*propertyBuffer) {
+func (w *inMemSpoolWriter) flushByCount(
+	buffers map[string]*propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	for propID, buf := range buffers {
 		if len(buf.sessions) >= w.maxSessions {
-			w.flushProperty(buffers, propID, buf)
+			totalEvents, totalSessions = w.flushProperty(buffers, propID, buf, totalEvents, totalSessions)
 		}
 	}
+	return totalEvents, totalSessions
 }
 
-func (w *inMemSpoolWriter) flushByAge(buffers map[string]*propertyBuffer) {
+func (w *inMemSpoolWriter) flushByAge(
+	buffers map[string]*propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	now := time.Now()
 	for propID, buf := range buffers {
 		if now.Sub(buf.createdAt) >= w.maxAge {
-			w.flushProperty(buffers, propID, buf)
+			totalEvents, totalSessions = w.flushProperty(buffers, propID, buf, totalEvents, totalSessions)
 		}
 	}
+	return totalEvents, totalSessions
 }
 
-func (w *inMemSpoolWriter) flushProperty(buffers map[string]*propertyBuffer, propID string, buf *propertyBuffer) {
+func (w *inMemSpoolWriter) flushProperty(
+	buffers map[string]*propertyBuffer, propID string, buf *propertyBuffer, totalEvents, totalSessions int,
+) (events, sess int) {
 	if err := w.child.Write(buf.sessions...); err != nil {
 		logrus.Errorf("in-mem spool flush for property %q: %v", propID, err)
 		// Keep sessions in the buffer for retry on the next sweep cycle.
-		return
+		return totalEvents, totalSessions
 	}
+	totalEvents -= buf.numEvents
+	totalSessions -= len(buf.sessions)
 	delete(buffers, propID)
+	return totalEvents, totalSessions
 }
 
 func (w *inMemSpoolWriter) flushAll(buffers map[string]*propertyBuffer) {
