@@ -294,7 +294,7 @@ func (d *bigQueryTableDriver) Write(
 
 // Close implements warehouse.Driver.
 func (d *bigQueryTableDriver) Close() error {
-	return nil
+	return d.db.Close()
 }
 
 type dynamicRowSaver struct {
