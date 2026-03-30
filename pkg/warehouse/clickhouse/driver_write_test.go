@@ -114,17 +114,6 @@ func TestClickHouseDriverWriteBatchErrorSemantics(t *testing.T) {
 }
 
 func TestWrite_MetadataAlignedWithReorderedFields(t *testing.T) {
-	// Regression test for H10: when ClickHouse physical column order differs
-	// from the Arrow schema order, metadata must come from the reordered field,
-	// not the original Arrow schema index.
-	//
-	// Arrow schema order:  [timestamp (DateTime64 with precision metadata), name (String)]
-	// Physical CH order:   [name (String), timestamp (DateTime64 with precision metadata)]
-	//
-	// Before the fix, Format() for physical column 0 ("name") would receive
-	// schema.Field(0).Metadata — the timestamp's precision metadata instead of
-	// the string's empty metadata, and vice versa for column 1.
-
 	// given
 	tableName := "events"
 
