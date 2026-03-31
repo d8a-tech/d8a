@@ -19,7 +19,6 @@ const (
 	headerSize        = 4
 	spoolExt          = ".spool"
 	inflightMarker    = ".spool.inflight."
-	quarantineSuffix  = ".quarantine"
 	filePerms         = 0o644
 	maxPayloadSz      = 0xFFFFFFFF
 	defaultMaxFailure = 20
@@ -74,7 +73,7 @@ func NewQuarantineStrategy() FailureStrategy {
 
 // OnExceededFailures implements FailureStrategy.
 func (s *quarantineStrategy) OnExceededFailures(fs afero.Fs, inflightPath string) error {
-	quarantinePath := inflightPath + quarantineSuffix
+	quarantinePath := inflightPath + ".quarantine"
 	if err := fs.Rename(inflightPath, quarantinePath); err != nil {
 		return fmt.Errorf("quarantining spool file %q: %w", inflightPath, err)
 	}
@@ -178,7 +177,7 @@ func (s *fileSpool) activePath(key string) string {
 
 // isInflightFile reports whether name is an inflight spool file.
 func isInflightFile(name string) bool {
-	return strings.Contains(name, inflightMarker) && !strings.HasSuffix(name, quarantineSuffix)
+	return strings.Contains(name, inflightMarker)
 }
 
 // isActiveFile reports whether name is an active spool file (not inflight).

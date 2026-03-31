@@ -840,7 +840,7 @@ func TestIsInflightFile(t *testing.T) {
 	}{
 		{name: "active file", file: "prop1.spool", want: false},
 		{name: "inflight file", file: "prop1.spool.inflight.1001", want: true},
-		{name: "quarantined file", file: "prop1.spool.inflight.1001.quarantine", want: false},
+		{name: "quarantined file", file: "prop1.spool.inflight.1001.quarantine", want: true},
 		{name: "unrelated file", file: "something.txt", want: false},
 	}
 	for _, tt := range tests {

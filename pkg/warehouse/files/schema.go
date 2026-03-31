@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -48,6 +50,41 @@ func escapeTableName(table string) string {
 	return builder.String()
 }
 
+// streamDir returns the stream directory for a table+schema fingerprint.
+func streamDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(spoolDir, "streams", tableEsc, fingerprint)
+}
+
+// activePath returns the active segment path for a stream.
+func activePath(spoolDir, tableEsc, fingerprint, ext string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "active."+ext)
+}
+
+// sealedDir returns the sealed segments directory for a stream.
+func sealedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "sealed")
+}
+
+// uploadingDir returns the uploading segments directory for a stream.
+func uploadingDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "uploading")
+}
+
+// failedDir returns the failed segments directory for a stream.
+func failedDir(spoolDir, tableEsc, fingerprint string) string {
+	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "failed")
+}
+
+// segmentPath returns the path for a segment ID within a directory.
+func segmentPath(dir, segmentID, ext string) string {
+	return filepath.Join(dir, fmt.Sprintf("%s.%s", segmentID, ext))
+}
+
+// failCountPath returns the path for a segment fail counter within the stream directory.
+func failCountPath(streamDir, segmentID string) string {
+	return filepath.Join(streamDir, fmt.Sprintf("%s.failcount", segmentID))
+}
+
 // pathTemplateData holds the data available for path template execution.
 type pathTemplateData struct {
 	Table       string
@@ -90,51 +127,45 @@ func segmentRemoteKey(
 	return buf.String(), nil
 }
 
-// parsePathTemplate parses and validates a path template string.
-// It returns an error if the template is empty, has invalid syntax,
-// or contains path traversal sequences (..).
-func parsePathTemplate(tmplStr string) (*template.Template, error) {
-	tmplStr = strings.TrimSpace(tmplStr)
-	if tmplStr == "" {
-		return nil, fmt.Errorf("template string cannot be empty")
+// ensureStreamDirs creates the directory structure for a stream.
+func ensureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
+	paths := []string{
+		streamDir(spoolDir, tableEsc, fingerprint),
+		sealedDir(spoolDir, tableEsc, fingerprint),
+		uploadingDir(spoolDir, tableEsc, fingerprint),
+		failedDir(spoolDir, tableEsc, fingerprint),
 	}
 
-	tmpl, err := template.New("path").Parse(tmplStr)
+	for _, path := range paths {
+		if err := os.MkdirAll(path, 0o750); err != nil {
+			return fmt.Errorf("creating stream dir %s: %w", path, err)
+		}
+	}
+
+	return nil
+}
+
+func findSealedSegments(sealedDir, ext string) ([]string, error) {
+	entries, err := os.ReadDir(sealedDir)
 	if err != nil {
-		return nil, fmt.Errorf("parsing template: %w", err)
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
+		return nil, fmt.Errorf("reading sealed dir %s: %w", sealedDir, err)
 	}
 
-	// Validate template doesn't produce path traversal by executing with sample data
-	sampleData := struct {
-		Table       string
-		Schema      string
-		SegmentID   string
-		Extension   string
-		Year        int
-		Month       int
-		MonthPadded string
-		Day         int
-		DayPadded   string
-	}{
-		Table:       "test",
-		Schema:      "abc123",
-		SegmentID:   "12345_uuid",
-		Extension:   "csv",
-		Year:        2026,
-		Month:       3,
-		MonthPadded: "03",
-		Day:         1,
-		DayPadded:   "01",
+	dotExt := "." + ext
+	segments := make([]string, 0)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasSuffix(name, dotExt) {
+			continue
+		}
+		segments = append(segments, strings.TrimSuffix(name, dotExt))
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, sampleData); err != nil {
-		return nil, fmt.Errorf("executing template with sample data: %w", err)
-	}
-
-	if strings.Contains(buf.String(), "..") {
-		return nil, fmt.Errorf("template output contains path traversal sequence (..)")
-	}
-
-	return tmpl, nil
+	return segments, nil
 }
