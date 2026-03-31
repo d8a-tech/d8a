@@ -2,6 +2,7 @@ package spools
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,9 +26,14 @@ const (
 
 // Spool is a crash-safe keyed append-only framed-file store.
 // Append and Flush are safe to call concurrently with each other.
+//
+// The Flush callback receives a next function that yields successive [][]byte
+// batches from the current inflight file. next returns io.EOF when the file
+// is exhausted. If the callback returns an error, the entire inflight file is
+// retained for retry on the next Flush cycle.
 type Spool interface {
 	Append(key string, payload []byte) error
-	Flush(fn func(key string, frames [][]byte) error) error
+	Flush(fn func(key string, next func() ([][]byte, error)) error) error
 	Recover() error
 	Close() error
 }
@@ -103,6 +109,25 @@ func WithNowFunc(fn func() time.Time) Option {
 	}
 }
 
+// WithMaxActiveSize sets the maximum size (in bytes) for an active spool
+// file. When an Append would cause the active file to exceed this limit,
+// the current active file is rotated to a sealed inflight file and a fresh
+// active file is started. Zero (default) means no size limit.
+func WithMaxActiveSize(bytes int64) Option {
+	return func(f *fileSpool) {
+		f.maxActiveSize = bytes
+	}
+}
+
+// WithFlushBatchSize sets the maximum number of frames returned per call
+// to the next function passed to the Flush callback. Zero (default) means
+// all frames in the inflight file are returned in a single batch.
+func WithFlushBatchSize(n int) Option {
+	return func(f *fileSpool) {
+		f.flushBatchSize = n
+	}
+}
+
 // New creates a Spool backed by fs in the given directory.
 // It calls Recover before returning to re-ingest any crash remnants.
 func New(fs afero.Fs, dir string, opts ...Option) (Spool, error) {
@@ -133,6 +158,8 @@ type fileSpool struct {
 	dir             string
 	failureStrategy FailureStrategy
 	maxFailures     int
+	maxActiveSize   int64
+	flushBatchSize  int
 	nowFunc         func() time.Time
 	mu              sync.Mutex
 	closed          bool
@@ -181,7 +208,38 @@ func (s *fileSpool) Append(key string, payload []byte) error {
 		return fmt.Errorf("payload too large for key %q: %d bytes", key, len(payload))
 	}
 
-	return s.appendToFile(s.activePath(key), payload)
+	if err := s.appendToFile(s.activePath(key), payload); err != nil {
+		return err
+	}
+
+	if s.maxActiveSize > 0 {
+		if err := s.maybeRotateActive(key); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// maybeRotateActive checks if the active file for key exceeds maxActiveSize
+// and renames it to an inflight file if so. Must be called with s.mu held.
+func (s *fileSpool) maybeRotateActive(key string) error {
+	path := s.activePath(key)
+	info, err := s.fs.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat active file %q: %w", path, err)
+	}
+	if info.Size() < s.maxActiveSize {
+		return nil
+	}
+	inflight := fmt.Sprintf("%s/%s%s%d", s.dir, sanitizeKey(key), inflightMarker, s.nowFunc().UnixNano())
+	if err := s.fs.Rename(path, inflight); err != nil {
+		return fmt.Errorf("rotating active file %q: %w", path, err)
+	}
+	return nil
 }
 
 func (s *fileSpool) appendToFile(path string, payload []byte) error {
@@ -263,7 +321,7 @@ func (s *fileSpool) collectInflight() (map[string][]string, error) {
 }
 
 // Flush implements Spool.
-func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
+func (s *fileSpool) Flush(fn func(key string, next func() ([][]byte, error)) error) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -290,18 +348,17 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 
 // flushKey processes inflight files for a single key in order.
 // Stops on the first failure (preserves per-key ordering).
-func (s *fileSpool) flushKey(key string, paths []string, fn func(string, [][]byte) error) error {
+func (s *fileSpool) flushKey(key string, paths []string, fn func(string, func() ([][]byte, error)) error) error {
 	for i, path := range paths {
-		frames, readErr := readFrames(s.fs, path)
-		if readErr != nil {
-			return fmt.Errorf("reading inflight file %q: %w", path, readErr)
-		}
-		if len(frames) == 0 {
-			s.removeInflight(path)
-			continue
+		if err := s.flushOneInflight(key, path); err != nil {
+			if errors.Is(err, errEmptyInflight) {
+				continue
+			}
+			return fmt.Errorf("reading inflight file %q: %w", path, err)
 		}
 
-		if fnErr := fn(key, frames); fnErr != nil {
+		next := s.makeNextFunc(path)
+		if fnErr := fn(key, next); fnErr != nil {
 			// Pass only the remaining (unprocessed) paths to the failure handler.
 			return s.handleFlushFailure(key, paths[i:], fnErr)
 		}
@@ -313,6 +370,64 @@ func (s *fileSpool) flushKey(key string, paths []string, fn func(string, [][]byt
 		s.removeInflight(path)
 	}
 	return nil
+}
+
+// sentinel for empty inflight files that should be skipped and removed.
+var errEmptyInflight = fmt.Errorf("empty inflight file")
+
+// flushOneInflight checks whether an inflight file has frames. If empty,
+// it removes the file and returns errEmptyInflight.
+func (s *fileSpool) flushOneInflight(key, path string) error {
+	_ = key
+	info, err := s.fs.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat inflight %q: %w", path, err)
+	}
+	if info.Size() == 0 {
+		s.removeInflight(path)
+		return errEmptyInflight
+	}
+	return nil
+}
+
+// makeNextFunc returns a closure that reads frames from the inflight file in
+// batches of s.flushBatchSize. When all frames are consumed it returns io.EOF.
+// If flushBatchSize is 0 (default), all frames are returned in a single batch.
+func (s *fileSpool) makeNextFunc(path string) func() ([][]byte, error) {
+	var (
+		allFrames [][]byte
+		loaded    bool
+		offset    int
+	)
+
+	return func() ([][]byte, error) {
+		if !loaded {
+			var err error
+			allFrames, err = readFrames(s.fs, path)
+			if err != nil {
+				return nil, fmt.Errorf("reading frames from %q: %w", path, err)
+			}
+			loaded = true
+		}
+
+		if offset >= len(allFrames) {
+			return nil, io.EOF
+		}
+
+		if s.flushBatchSize <= 0 {
+			batch := allFrames[offset:]
+			offset = len(allFrames)
+			return batch, nil
+		}
+
+		end := offset + s.flushBatchSize
+		if end > len(allFrames) {
+			end = len(allFrames)
+		}
+		batch := allFrames[offset:end]
+		offset = end
+		return batch, nil
+	}
 }
 
 func (s *fileSpool) removeInflight(path string) {
