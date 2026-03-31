@@ -3,7 +3,9 @@ package sessions
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"io"
 	"sync"
 	"time"
 
@@ -151,8 +153,8 @@ func (w *persistentSpoolWriter) actorLoop() {
 }
 
 func (w *persistentSpoolWriter) flush() {
-	flushErr := w.spool.Flush(func(key string, frames [][]byte) error {
-		allSessions, decodeErr := w.decodeFrames(frames)
+	flushErr := w.spool.Flush(func(key string, next func() ([][]byte, error)) error {
+		allSessions, decodeErr := w.drainAndDecode(next)
 		if decodeErr != nil {
 			return fmt.Errorf("decoding frames for key %q: %w", key, decodeErr)
 		}
@@ -172,14 +174,24 @@ func (w *persistentSpoolWriter) flush() {
 	}
 }
 
-func (w *persistentSpoolWriter) decodeFrames(frames [][]byte) ([]*schema.Session, error) {
+// drainAndDecode repeatedly calls next to obtain frame batches until io.EOF,
+// decoding each batch into sessions and concatenating the results.
+func (w *persistentSpoolWriter) drainAndDecode(next func() ([][]byte, error)) ([]*schema.Session, error) {
 	var all []*schema.Session
-	for _, frame := range frames {
-		var sessions []*schema.Session
-		if err := w.decoder(bytes.NewReader(frame), &sessions); err != nil {
-			return nil, fmt.Errorf("decoding frame: %w", err)
+	for {
+		frames, err := next()
+		if errors.Is(err, io.EOF) {
+			return all, nil
 		}
-		all = append(all, sessions...)
+		if err != nil {
+			return nil, fmt.Errorf("reading next batch: %w", err)
+		}
+		for _, frame := range frames {
+			var sessions []*schema.Session
+			if decErr := w.decoder(bytes.NewReader(frame), &sessions); decErr != nil {
+				return nil, fmt.Errorf("decoding frame: %w", decErr)
+			}
+			all = append(all, sessions...)
+		}
 	}
-	return all, nil
 }
