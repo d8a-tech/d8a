@@ -2,8 +2,6 @@ package files
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"text/template"
@@ -113,32 +111,6 @@ func TestEscapeTableName(t *testing.T) {
 	}
 }
 
-func TestStreamPaths(t *testing.T) {
-	spoolDir := "/spool"
-	tableEsc := "events"
-	fingerprint := "abc123"
-	segmentID := "seg-1"
-
-	assert.Equal(t, activePath(spoolDir, tableEsc, fingerprint, "csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
-	assert.Equal(t, sealedDir(spoolDir, tableEsc, fingerprint), sealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, uploadingDir(spoolDir, tableEsc, fingerprint), uploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, failedDir(spoolDir, tableEsc, fingerprint), failedDir(spoolDir, tableEsc, fingerprint))
-
-	streamDir := streamDir(spoolDir, tableEsc, fingerprint)
-	assert.Equal(t, filepath.Join(spoolDir, "streams", tableEsc, fingerprint), streamDir)
-
-	assert.Equal(t, filepath.Join(streamDir, "active.csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
-	assert.Equal(t, filepath.Join(streamDir, "sealed"), sealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "uploading"), uploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "failed"), failedDir(spoolDir, tableEsc, fingerprint))
-
-	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
-	assert.Equal(t, filepath.Join(streamDir, "sealed", "seg-1.csv"), sealedPath)
-
-	failCountPath := failCountPath(streamDir, segmentID)
-	assert.Equal(t, filepath.Join(streamDir, "seg-1.failcount"), failCountPath)
-}
-
 func TestSegmentRemoteKey(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -219,23 +191,6 @@ func TestSegmentRemoteKey(t *testing.T) {
 	}
 }
 
-// TestFindSealedSegments_CompoundExtension verifies csv.gz files are matched correctly.
-func TestFindSealedSegments_CompoundExtension(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	// create test files
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg1.csv.gz"), []byte("data"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg2.csv.gz"), []byte("data"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "other.csv"), []byte("data"), 0o600)) // should not match
-
-	// when
-	segments, err := findSealedSegments(tmpDir, "csv.gz")
-
-	// then
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"seg1", "seg2"}, segments)
-}
-
 // mockUploaderForTest is a test double for Uploader interface
 type mockUploaderForTest struct {
 	calls []struct {
@@ -283,7 +238,7 @@ func TestSpoolDriverPathTemplate(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Trigger seal and upload by closing with flush-on-close
+	// Trigger flush by closing with flush-on-close
 	err = driver.Close()
 	require.NoError(t, err)
 
@@ -295,10 +250,8 @@ func TestSpoolDriverPathTemplate(t *testing.T) {
 	assert.Equal(t, 1, len(uploader.calls), "Should upload exactly one segment")
 
 	// Verify remote key matches custom template format
-	// The segment ID is dynamic (timestamp_uuid), so we check the structure
 	remoteKey := uploader.calls[0].remoteKey
 	assert.Contains(t, remoteKey, "custom/events/year=", "Path should start with custom/events/year=")
 	assert.Contains(t, remoteKey, ".csv", "Path should end with .csv extension")
-	// Extract year from path to verify it's present
 	assert.Contains(t, remoteKey, "year=2026", "Path should contain year=2026 (current year in test)")
 }

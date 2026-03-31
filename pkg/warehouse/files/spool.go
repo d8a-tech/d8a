@@ -3,19 +3,20 @@ package files
 import (
 	"bytes"
 	"context"
+	"encoding/gob"
 	"errors"
 	"fmt"
+	"io"
 	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"text/template"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 )
 
 // SpoolOption is a functional option for configuring SpoolDriver.
@@ -28,30 +29,29 @@ func withManualCycle() SpoolOption {
 	}
 }
 
-// WithMaxSegmentSize sets the maximum segment size in bytes before sealing.
+// WithMaxSegmentSize sets the maximum active spool file size in bytes before
+// rotation. Maps to spools.WithMaxActiveSize.
 func WithMaxSegmentSize(n int64) SpoolOption {
 	return func(sd *SpoolDriver) {
 		sd.maxSegmentSize = n
 	}
 }
 
-// WithMaxSegmentAge sets the maximum segment age before sealing.
-func WithMaxSegmentAge(d time.Duration) SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.maxSegmentAge = d
-	}
+// WithMaxSegmentAge is accepted for configuration compatibility but has no
+// effect in the new spool-based design. Active file rotation is driven solely
+// by size; periodic flushing is handled by the seal-check timer.
+func WithMaxSegmentAge(_ time.Duration) SpoolOption {
+	return func(*SpoolDriver) {}
 }
 
-// WithSealCheckInterval sets how often to evaluate sealing triggers.
+// WithSealCheckInterval sets how often to run periodic flushes.
 func WithSealCheckInterval(d time.Duration) SpoolOption {
 	return func(sd *SpoolDriver) {
 		sd.sealCheckInterval = d
 	}
 }
 
-// WithFlushOnClose configures whether Close seals and uploads all active segments.
-// Enable this for ephemeral storage where data would be lost on shutdown.
-// With persistent storage, active segments are recovered on next startup.
+// WithFlushOnClose configures whether Close forces a final flush.
 func WithFlushOnClose(v bool) SpoolOption {
 	return func(sd *SpoolDriver) {
 		sd.flushOnClose = v
@@ -59,7 +59,6 @@ func WithFlushOnClose(v bool) SpoolOption {
 }
 
 // WithPathTemplate sets the path template string for remote object keys.
-// The template is parsed during driver construction.
 func WithPathTemplate(tmplStr string) SpoolOption {
 	return func(sd *SpoolDriver) {
 		sd.pathTemplateStr = tmplStr
@@ -80,90 +79,149 @@ type realTicker struct {
 func (r *realTicker) C() <-chan time.Time { return r.t.C }
 func (r *realTicker) Stop()               { r.t.Stop() }
 
-// SpoolDriver is a warehouse.Driver that writes analytics data directly to disk
-// files and periodically uploads them to object storage.
-//
-// Disk is the source of truth for persisted data. An in-memory streams map
-// maintains per-stream state (createdAt, activeSizeBytes) used to evaluate
-// sealing triggers.
+// SpoolDriver is a warehouse.Driver that serializes analytics rows into a
+// pkg/spools spool and periodically flushes them to object storage via Format
+// encoding and an Uploader.
 type SpoolDriver struct {
 	ctx               context.Context
 	uploader          Uploader
 	format            Format
-	ext               string // file extension without leading dot, derived from format
+	ext               string // file extension without leading dot
 	spoolDir          string
 	pathTemplate      *template.Template
 	pathTemplateStr   string
 	maxSegmentSize    int64
-	maxSegmentAge     time.Duration
 	sealCheckInterval time.Duration
-	stopCh            chan struct{}  // signal to stop timer
-	stopOnce          sync.Once      // ensures stopCh is closed only once
-	wg                sync.WaitGroup // wait for timer goroutine
-	mu                sync.Mutex     // protects concurrent file operations
-	streams           map[string]*streamState
+	stopCh            chan struct{}
+	stopOnce          sync.Once
+	wg                sync.WaitGroup
+	spool             spools.Spool
 	newTicker         func(time.Duration) ticker
 	flushOnClose      bool
+
+	// schemas caches the most recent arrow.Schema per spool key so the
+	// flush callback can encode the final output format. Entries are set
+	// on Write and read during flush.
+	schemas   map[string]*arrow.Schema
+	schemasMu sync.RWMutex
 }
 
 var _ warehouse.Driver = (*SpoolDriver)(nil)
 
-type streamState struct {
-	createdAt       time.Time
-	activeSizeBytes int64
+// spoolFrame is the self-describing payload serialized into each spool frame.
+// It carries enough metadata for the flush callback to produce a formatted
+// upload file without consulting any in-memory maps.
+type spoolFrame struct {
+	TableEsc    string
+	Fingerprint string
+	Schema      []serializedField
+	Rows        []map[string]any
 }
 
-// parsePathTemplate parses and validates a path template string.
-// It returns an error if the template is empty, has invalid syntax,
-// or contains path traversal sequences (..).
-func parsePathTemplate(tmplStr string) (*template.Template, error) {
-	tmplStr = strings.TrimSpace(tmplStr)
-	if tmplStr == "" {
-		return nil, fmt.Errorf("template string cannot be empty")
-	}
+// serializedField is a gob-friendly representation of an arrow.Field.
+type serializedField struct {
+	Name    string
+	TypeStr string
+}
 
-	tmpl, err := template.New("path").Parse(tmplStr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing template: %w", err)
-	}
+func init() {
+	// Register map[string]any and common value types for gob encoding
+	// so that spoolFrame.Rows can be round-tripped.
+	gob.Register(map[string]any{})
+	gob.Register(time.Time{})
+	gob.Register([]any{})
+	gob.Register(int64(0))
+	gob.Register(float64(0))
+}
 
-	// Validate template doesn't produce path traversal by executing with sample data
-	sampleData := struct {
-		Table       string
-		Schema      string
-		SegmentID   string
-		Extension   string
-		Year        int
-		Month       int
-		MonthPadded string
-		Day         int
-		DayPadded   string
-	}{
-		Table:       "test",
-		Schema:      "abc123",
-		SegmentID:   "12345_uuid",
-		Extension:   "csv",
-		Year:        2026,
-		Month:       3,
-		MonthPadded: "03",
-		Day:         1,
-		DayPadded:   "01",
-	}
-
+func encodeFrame(f *spoolFrame) ([]byte, error) {
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, sampleData); err != nil {
-		return nil, fmt.Errorf("executing template with sample data: %w", err)
+	if err := gob.NewEncoder(&buf).Encode(f); err != nil {
+		return nil, fmt.Errorf("encoding spool frame: %w", err)
 	}
-
-	if strings.Contains(buf.String(), "..") {
-		return nil, fmt.Errorf("template output contains path traversal sequence (..)")
-	}
-
-	return tmpl, nil
+	return buf.Bytes(), nil
 }
 
-// NewSpoolDriver creates a new spool driver that writes rows directly to disk
-// and periodically uploads files.
+func decodeFrame(data []byte) (*spoolFrame, error) {
+	var f spoolFrame
+	if err := gob.NewDecoder(bytes.NewReader(data)).Decode(&f); err != nil {
+		return nil, fmt.Errorf("decoding spool frame: %w", err)
+	}
+	return &f, nil
+}
+
+// rebuildSchema reconstructs an arrow.Schema from serialized fields.
+// Only types actually used in warehouse output are supported.
+func rebuildSchema(fields []serializedField) *arrow.Schema {
+	arrowFields := make([]arrow.Field, len(fields))
+	for i, sf := range fields {
+		arrowFields[i] = arrow.Field{
+			Name: sf.Name,
+			Type: arrowTypeFromString(sf.TypeStr),
+		}
+	}
+	return arrow.NewSchema(arrowFields, nil)
+}
+
+func serializeFields(schema *arrow.Schema) []serializedField {
+	fields := make([]serializedField, len(schema.Fields()))
+	for i, f := range schema.Fields() {
+		fields[i] = serializedField{
+			Name:    f.Name,
+			TypeStr: f.Type.String(),
+		}
+	}
+	return fields
+}
+
+// arrowTypeFromString returns the arrow.DataType for a type string.
+// Falls back to string for unknown types — the Format layer handles
+// conversion to the wire representation.
+func arrowTypeFromString(s string) arrow.DataType {
+	switch s {
+	case "int8":
+		return arrow.PrimitiveTypes.Int8
+	case "int16":
+		return arrow.PrimitiveTypes.Int16
+	case "int32":
+		return arrow.PrimitiveTypes.Int32
+	case "int64":
+		return arrow.PrimitiveTypes.Int64
+	case "uint8":
+		return arrow.PrimitiveTypes.Uint8
+	case "uint16":
+		return arrow.PrimitiveTypes.Uint16
+	case "uint32":
+		return arrow.PrimitiveTypes.Uint32
+	case "uint64":
+		return arrow.PrimitiveTypes.Uint64
+	case "float32":
+		return arrow.PrimitiveTypes.Float32
+	case "float64":
+		return arrow.PrimitiveTypes.Float64
+	case "bool":
+		return arrow.FixedWidthTypes.Boolean
+	case "utf8":
+		return arrow.BinaryTypes.String
+	case "timestamp[ns, tz=UTC]":
+		return arrow.FixedWidthTypes.Timestamp_ns
+	case "timestamp[us, tz=UTC]":
+		return arrow.FixedWidthTypes.Timestamp_us
+	case "timestamp[ms, tz=UTC]":
+		return arrow.FixedWidthTypes.Timestamp_ms
+	case "timestamp[s, tz=UTC]":
+		return arrow.FixedWidthTypes.Timestamp_s
+	case "date32":
+		return arrow.FixedWidthTypes.Date32
+	case "date64":
+		return arrow.FixedWidthTypes.Date64
+	default:
+		return arrow.BinaryTypes.String
+	}
+}
+
+// NewSpoolDriver creates a new spool driver that serializes rows into a
+// pkg/spools spool and periodically flushes formatted files to object storage.
 func NewSpoolDriver(
 	ctx context.Context,
 	uploader Uploader,
@@ -177,11 +235,10 @@ func NewSpoolDriver(
 		format:            format,
 		ext:               format.Extension(),
 		spoolDir:          spoolDir,
-		maxSegmentSize:    1 << 30,   // 1 GiB
-		maxSegmentAge:     time.Hour, // 1 hour
+		maxSegmentSize:    1 << 30, // 1 GiB
 		sealCheckInterval: 15 * time.Second,
 		stopCh:            make(chan struct{}),
-		streams:           make(map[string]*streamState),
+		schemas:           make(map[string]*arrow.Schema),
 	}
 
 	sd.newTicker = func(d time.Duration) ticker {
@@ -204,11 +261,22 @@ func NewSpoolDriver(
 	}
 	sd.pathTemplate = tmpl
 
-	// Unrecoverable initialization failure - if we can't recover streams,
-	// the driver cannot safely operate or ensure data consistency.
-	if err := sd.recoverStreams(); err != nil {
-		logrus.WithError(err).Panic("failed to recover streams on startup")
+	// Construct the underlying spool with quarantine strategy and failure
+	// threshold of 3 to match prior behavior.
+	var spoolOpts []spools.Option
+	spoolOpts = append(spoolOpts,
+		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
+		spools.WithMaxFailures(3),
+	)
+	if sd.maxSegmentSize > 0 {
+		spoolOpts = append(spoolOpts, spools.WithMaxActiveSize(sd.maxSegmentSize))
 	}
+
+	sp, spErr := spools.New(afero.NewOsFs(), spoolDir, spoolOpts...)
+	if spErr != nil {
+		logrus.WithError(spErr).Panic("failed to create spool")
+	}
+	sd.spool = sp
 
 	sd.startTimer()
 
@@ -232,7 +300,7 @@ func (sd *SpoolDriver) startTimer() {
 		for {
 			select {
 			case <-tk.C():
-				if err := sd.runFlushCycle(sd.ctx, false); err != nil {
+				if err := sd.runFlush(sd.ctx); err != nil {
 					logrus.WithError(err).Error("automatic flush cycle failed")
 				}
 			case <-sd.ctx.Done():
@@ -244,74 +312,39 @@ func (sd *SpoolDriver) startTimer() {
 	}()
 }
 
-// Write appends rows to disk file immediately.
-// All file operations are mutex-protected to prevent concurrent writes.
-func (sd *SpoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
+// Write serializes rows into a self-describing spool frame and appends it to
+// the underlying spool keyed by escaped-table + schema-fingerprint.
+func (sd *SpoolDriver) Write(_ context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	fingerprint := schemaFingerprint(schema)
 	tableEsc := escapeTableName(table)
-	filePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
 	key := streamKey(tableEsc, fingerprint)
 
-	sd.mu.Lock()
-	defer sd.mu.Unlock()
-
-	if err := ensureStreamDirs(sd.spoolDir, tableEsc, fingerprint); err != nil {
-		return fmt.Errorf("ensuring stream directories: %w", err)
+	frame := &spoolFrame{
+		TableEsc:    tableEsc,
+		Fingerprint: fingerprint,
+		Schema:      serializeFields(schema),
+		Rows:        rows,
 	}
 
-	// Check if file exists to determine open flags
-	_, statErr := os.Stat(filePath)
-	fileExists := !os.IsNotExist(statErr)
-
-	var openFlags int
-	if fileExists {
-		openFlags = os.O_APPEND | os.O_WRONLY
-	} else {
-		openFlags = os.O_CREATE | os.O_WRONLY
-	}
-
-	//nolint:gosec // G304: filePath from controlled inputs
-	file, err := os.OpenFile(filePath, openFlags, 0o600)
+	payload, err := encodeFrame(frame)
 	if err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"table":       table,
-			"fingerprint": fingerprint,
-			"path":        filePath,
-		}).Error("failed to open active file")
-		return fmt.Errorf("opening active file: %w", err)
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			logrus.WithError(closeErr).Error("failed to close active file")
-		}
-	}()
-
-	if err := sd.format.Write(file, schema, rows); err != nil {
-		logrus.WithError(err).WithFields(logrus.Fields{
-			"table":       table,
-			"fingerprint": fingerprint,
-			"row_count":   len(rows),
-		}).Error("failed to write rows to file")
-		return fmt.Errorf("writing rows to file: %w", err)
+		return fmt.Errorf("encoding warehouse frame: %w", err)
 	}
 
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return fmt.Errorf("statting active file: %w", err)
+	if err := sd.spool.Append(key, payload); err != nil {
+		return fmt.Errorf("appending to spool: %w", err)
 	}
 
-	state, exists := sd.streams[key]
-	if !exists {
-		state = &streamState{createdAt: time.Now().UTC()}
-		sd.streams[key] = state
-	}
-	state.activeSizeBytes = fileInfo.Size()
+	// Cache schema for potential in-memory lookups during flush.
+	sd.schemasMu.Lock()
+	sd.schemas[key] = schema
+	sd.schemasMu.Unlock()
 
 	logrus.WithFields(logrus.Fields{
 		"table":       table,
 		"fingerprint": fingerprint,
 		"row_count":   len(rows),
-	}).Debug("wrote rows to file")
+	}).Debug("wrote rows to spool")
 
 	return nil
 }
@@ -320,354 +353,119 @@ func streamKey(tableEsc, fingerprint string) string {
 	return fmt.Sprintf("%s/%s", tableEsc, fingerprint)
 }
 
-func (sd *SpoolDriver) recoverUploading(tableEsc, fingerprint string) error {
-	uploadingDir := uploadingDir(sd.spoolDir, tableEsc, fingerprint)
-	entries, err := os.ReadDir(uploadingDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("reading uploading dir %s: %w", uploadingDir, err)
-	}
-
-	sealedDir := sealedDir(sd.spoolDir, tableEsc, fingerprint)
-	dotExt := "." + sd.ext
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		if !strings.HasSuffix(name, dotExt) {
-			continue
-		}
-
-		segmentID := name[:len(name)-len(dotExt)]
-		uploadingPath := filepath.Join(uploadingDir, name)
-		sealedPath := filepath.Join(sealedDir, name)
-		if err := os.Rename(uploadingPath, sealedPath); err != nil {
-			return fmt.Errorf("moving uploading segment %s: %w", uploadingPath, err)
-		}
-
-		logrus.WithFields(logrus.Fields{
-			"table":       tableEsc,
-			"fingerprint": fingerprint,
-			"segment_id":  segmentID,
-		}).Info("recovered uploading segment")
-	}
-
-	return nil
-}
-
-func cleanTempFiles(dir string) error {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("reading dir %s: %w", dir, err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if filepath.Ext(name) != ".tmp" {
-			continue
-		}
-		path := filepath.Join(dir, name)
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("removing temp file %s: %w", path, err)
-		}
-	}
-
-	return nil
-}
-
 // CreateTable is a no-op for spool drivers.
-func (sd *SpoolDriver) CreateTable(table string, schema *arrow.Schema) error {
+func (sd *SpoolDriver) CreateTable(_ string, _ *arrow.Schema) error {
 	return nil
 }
 
 // AddColumn is a no-op for spool drivers.
-func (sd *SpoolDriver) AddColumn(table string, field *arrow.Field) error {
+func (sd *SpoolDriver) AddColumn(_ string, _ *arrow.Field) error {
 	return nil
 }
 
 // MissingColumns always returns an empty slice for spool drivers.
-func (sd *SpoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
+func (sd *SpoolDriver) MissingColumns(_ string, _ *arrow.Schema) ([]*arrow.Field, error) {
 	return []*arrow.Field{}, nil
 }
 
-type sealedSegment struct {
-	tableEsc  string
-	fp        string
-	segmentID string
-	sealTime  time.Time
+// runFlush triggers a spool flush, encoding each inflight file into a
+// formatted output and uploading it.
+func (sd *SpoolDriver) runFlush(ctx context.Context) error {
+	return sd.spool.Flush(func(key string, next func() ([][]byte, error)) error {
+		return sd.handleFlush(ctx, key, next)
+	})
 }
 
-// runFlushCycle evaluates triggers, seals segments, and uploads sealed segments.
-func (sd *SpoolDriver) runFlushCycle(ctx context.Context, forceAll bool) error {
-	justSealed, err := sd.evaluateAndSeal(forceAll)
-	if err != nil {
-		return err
-	}
+// handleFlush processes one inflight spool file: decodes all frames,
+// aggregates rows by (tableEsc, fingerprint), and produces one formatted
+// upload per inflight file.
+func (sd *SpoolDriver) handleFlush(ctx context.Context, _ string, next func() ([][]byte, error)) error {
+	var allRows []map[string]any
+	var tableEsc, fingerprint string
+	var schema *arrow.Schema
 
-	toUpload, err := sd.discoverAllSealed(justSealed)
-	if err != nil {
-		return err
-	}
-
-	var errs []error
-	for _, seg := range toUpload {
-		if err := sd.uploadSegment(ctx, seg); err != nil {
-			errs = append(errs, err)
-		}
-	}
-
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
-
-// evaluateAndSeal checks all active streams for seal triggers and seals those that match.
-func (sd *SpoolDriver) evaluateAndSeal(forceAll bool) ([]sealedSegment, error) {
-	var toSeal []sealedSegment
-
-	sd.mu.Lock()
-	defer sd.mu.Unlock()
-
-	for key, state := range sd.streams {
-		parts := strings.SplitN(key, "/", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		tableEsc, fp := parts[0], parts[1]
-
-		shouldSeal := forceAll ||
-			(state.activeSizeBytes > 0 &&
-				(state.activeSizeBytes >= sd.maxSegmentSize ||
-					time.Since(state.createdAt) >= sd.maxSegmentAge))
-
-		if shouldSeal {
-			segmentID, sealTime, err := sd.sealStream(tableEsc, fp)
-			if err != nil {
-				return nil, fmt.Errorf("sealing stream %s: %w", key, err)
-			}
-			toSeal = append(toSeal, sealedSegment{
-				tableEsc:  tableEsc,
-				fp:        fp,
-				segmentID: segmentID,
-				sealTime:  sealTime,
-			})
-		}
-	}
-	return toSeal, nil
-}
-
-// discoverAllSealed merges justSealed with any crash-recovered segments on disk.
-func (sd *SpoolDriver) discoverAllSealed(justSealed []sealedSegment) ([]sealedSegment, error) {
-	toUpload := make([]sealedSegment, 0, len(justSealed))
-	sealedSet := make(map[string]struct{})
-	for _, s := range justSealed {
-		sealedSet[s.tableEsc+"/"+s.fp+"/"+s.segmentID] = struct{}{}
-		toUpload = append(toUpload, s)
-	}
-
-	streamsRoot := filepath.Join(sd.spoolDir, "streams")
-	tableEntries, err := os.ReadDir(streamsRoot)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("reading streams root: %w", err)
-	}
-
-	for _, tableEntry := range tableEntries {
-		if !tableEntry.IsDir() {
-			continue
-		}
-		tableEsc := tableEntry.Name()
-		tableDir := filepath.Join(streamsRoot, tableEsc)
-		fpEntries, err := os.ReadDir(tableDir)
+	for {
+		batch, err := next()
 		if err != nil {
-			return nil, fmt.Errorf("reading table dir %s: %w", tableDir, err)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return fmt.Errorf("reading spool batch: %w", err)
 		}
-
-		for _, fpEntry := range fpEntries {
-			if !fpEntry.IsDir() {
-				continue
+		for _, payload := range batch {
+			frame, decErr := decodeFrame(payload)
+			if decErr != nil {
+				return fmt.Errorf("decoding spool frame: %w", decErr)
 			}
-			fp := fpEntry.Name()
-			sealedDir := sealedDir(sd.spoolDir, tableEsc, fp)
-			segments, err := findSealedSegments(sealedDir, sd.ext)
-			if err != nil {
-				return nil, fmt.Errorf("finding sealed segments in %s: %w", sealedDir, err)
+			// Use metadata from the first frame; all frames in one key share
+			// the same table+fingerprint.
+			if schema == nil {
+				tableEsc = frame.TableEsc
+				fingerprint = frame.Fingerprint
+				schema = rebuildSchema(frame.Schema)
 			}
-
-			for _, segmentID := range segments {
-				key := tableEsc + "/" + fp + "/" + segmentID
-				if _, ok := sealedSet[key]; ok {
-					continue // already in toUpload from justSealed
-				}
-				sealTime, ok := parseSealTimeFromSegmentID(segmentID)
-				if !ok {
-					// Legacy bare-UUID segment: use file modtime for stable dt= partitioning.
-					segPath := segmentPath(sealedDir, segmentID, sd.ext)
-					info, statErr := os.Stat(segPath)
-					if statErr == nil {
-						sealTime = info.ModTime().UTC()
-					} else {
-						sealTime = time.Now().UTC()
-					}
-				}
-				toUpload = append(toUpload, sealedSegment{
-					tableEsc:  tableEsc,
-					fp:        fp,
-					segmentID: segmentID,
-					sealTime:  sealTime,
-				})
-			}
+			allRows = append(allRows, frame.Rows...)
 		}
 	}
-	return toUpload, nil
-}
 
-func (sd *SpoolDriver) uploadSegment(ctx context.Context, seg sealedSegment) error {
-	streamDir := streamDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	sealedDir := sealedDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	uploadingDir := uploadingDir(sd.spoolDir, seg.tableEsc, seg.fp)
-	sealedPath := segmentPath(sealedDir, seg.segmentID, sd.ext)
-	uploadingPath := segmentPath(uploadingDir, seg.segmentID, sd.ext)
-
-	// Move sealed -> uploading under lock
-	sd.mu.Lock()
-	if err := os.Rename(sealedPath, uploadingPath); err != nil {
-		sd.mu.Unlock()
-		if os.IsNotExist(err) {
-			// Segment was already uploaded or moved by another process
-			return nil
-		}
-		return fmt.Errorf("moving segment to uploading: %w", err)
-	}
-	sd.mu.Unlock()
-
-	// Upload outside lock
-	remoteKey, err := segmentRemoteKey(sd.pathTemplate, seg.tableEsc, seg.fp, seg.segmentID, sd.ext, seg.sealTime)
-	if err != nil {
-		return fmt.Errorf("generating remote key: %w", err)
-	}
-	uploadErr := sd.uploader.Upload(ctx, uploadingPath, remoteKey)
-
-	if uploadErr == nil {
-		// Success: remove the uploaded file
-		if err := os.Remove(uploadingPath); err != nil && !os.IsNotExist(err) {
-			logrus.WithError(err).WithField("path", uploadingPath).Warn("failed to remove uploaded file")
-		}
-		logrus.WithFields(logrus.Fields{
-			"remote_key": remoteKey,
-		}).Info("uploaded segment")
+	if len(allRows) == 0 || schema == nil {
 		return nil
 	}
 
-	// Failure: move back to sealed, increment fail count
-	sd.mu.Lock()
-	if err := os.Rename(uploadingPath, sealedPath); err != nil {
-		sd.mu.Unlock()
-		return fmt.Errorf("moving segment back to sealed after upload failure: %w", err)
-	}
-	sd.mu.Unlock()
-
-	failCount := readFailCount(streamDir, seg.segmentID) + 1
-	if writeErr := writeFailCount(streamDir, seg.segmentID, failCount); writeErr != nil {
-		logrus.WithError(writeErr).WithField("segment_id", seg.segmentID).Warn("failed to write fail count")
-	}
-
-	if failCount >= 3 {
-		if err := sd.quarantine(seg.tableEsc, seg.fp, seg.segmentID); err != nil {
-			logrus.WithError(err).WithField("segment_id", seg.segmentID).Error("failed to quarantine segment")
-		} else {
-			logrus.WithFields(logrus.Fields{
-				"table":      seg.tableEsc,
-				"fp":         seg.fp,
-				"segment_id": seg.segmentID,
-			}).Warn("quarantined segment after 3 failures")
-		}
-	} else {
-		logrus.WithFields(logrus.Fields{
-			"table":      seg.tableEsc,
-			"fp":         seg.fp,
-			"segment_id": seg.segmentID,
-			"fail_count": failCount,
-			"error":      uploadErr,
-		}).Warn("upload failed, will retry")
-	}
-
-	return uploadErr
+	return sd.uploadFormatted(ctx, tableEsc, fingerprint, schema, allRows)
 }
 
-func readFailCount(streamDir, segmentID string) int {
-	path := failCountPath(streamDir, segmentID)
-	data, err := os.ReadFile(path) //nolint:gosec // path is controlled
-	if err != nil {
-		return 0
-	}
-	n, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil {
-		return 0
-	}
-	return n
-}
+// uploadFormatted writes rows through the Format encoder into a temp file
+// and uploads it via the Uploader.
+func (sd *SpoolDriver) uploadFormatted(
+	ctx context.Context,
+	tableEsc, fingerprint string,
+	schema *arrow.Schema,
+	rows []map[string]any,
+) error {
+	now := time.Now().UTC()
+	segmentID := segmentIDFromSealTime(now)
 
-func writeFailCount(streamDir, segmentID string, n int) error {
-	path := failCountPath(streamDir, segmentID)
-	tmpPath := path + ".tmp"
-	content := []byte(strconv.Itoa(n))
-	if err := os.WriteFile(tmpPath, content, 0o600); err != nil {
-		return fmt.Errorf("writing fail count temp file: %w", err)
+	remoteKey, err := segmentRemoteKey(sd.pathTemplate, tableEsc, fingerprint, segmentID, sd.ext, now)
+	if err != nil {
+		return fmt.Errorf("generating remote key: %w", err)
 	}
-	if err := os.Rename(tmpPath, path); err != nil {
+
+	// Write to a temp file in the spool directory so that filesystem
+	// uploaders can use rename instead of copy.
+	tmpFile, err := os.CreateTemp(sd.spoolDir, "upload-*."+sd.ext)
+	if err != nil {
+		return fmt.Errorf("creating temp upload file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+
+	writeErr := sd.format.Write(tmpFile, schema, rows)
+	closeErr := tmpFile.Close()
+	if writeErr != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("renaming fail count file: %w", err)
+		return fmt.Errorf("writing formatted output: %w", writeErr)
 	}
+	if closeErr != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("closing temp file: %w", closeErr)
+	}
+
+	uploadErr := sd.uploader.Upload(ctx, tmpPath, remoteKey)
+	if uploadErr != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("uploading segment: %w", uploadErr)
+	}
+
+	// The uploader may have already removed the file (e.g. filesystem
+	// uploader uses rename). Remove only if still present.
+	_ = os.Remove(tmpPath)
+
+	logrus.WithFields(logrus.Fields{
+		"remote_key": remoteKey,
+		"rows":       len(rows),
+	}).Info("uploaded segment")
+
 	return nil
-}
-
-func (sd *SpoolDriver) quarantine(tableEsc, fp, segmentID string) error {
-	sealedDir := sealedDir(sd.spoolDir, tableEsc, fp)
-	failedDir := failedDir(sd.spoolDir, tableEsc, fp)
-	streamDir := streamDir(sd.spoolDir, tableEsc, fp)
-
-	sealedPath := segmentPath(sealedDir, segmentID, sd.ext)
-	failedPath := segmentPath(failedDir, segmentID, sd.ext)
-
-	if err := os.Rename(sealedPath, failedPath); err != nil {
-		return fmt.Errorf("moving segment to failed: %w", err)
-	}
-
-	// Remove failcount file
-	failCountPath := failCountPath(streamDir, segmentID)
-	if err := os.Remove(failCountPath); err != nil && !os.IsNotExist(err) {
-		logrus.WithError(err).WithField("segment_id", segmentID).Warn("failed to remove failcount file")
-	}
-
-	return nil
-}
-
-// sealStream must be called with sd.mu held.
-func (sd *SpoolDriver) sealStream(tableEsc, fingerprint string) (segmentID string, sealTime time.Time, err error) {
-	sealTime = time.Now().UTC()
-	segmentID = segmentIDFromSealTime(sealTime)
-
-	activePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
-	sealedDir := sealedDir(sd.spoolDir, tableEsc, fingerprint)
-	sealedPath := segmentPath(sealedDir, segmentID, sd.ext)
-	if err := os.Rename(activePath, sealedPath); err != nil {
-		return "", time.Time{}, fmt.Errorf("sealing active segment: %w", err)
-	}
-
-	delete(sd.streams, streamKey(tableEsc, fingerprint))
-
-	return segmentID, sealTime, nil
 }
 
 // Close gracefully shuts down the driver.
@@ -675,68 +473,15 @@ func (sd *SpoolDriver) Close() error {
 	sd.stopOnce.Do(func() { close(sd.stopCh) })
 	sd.wg.Wait()
 	if sd.flushOnClose {
-		if err := sd.runFlushCycle(context.Background(), true); err != nil {
+		if err := sd.runFlush(context.Background()); err != nil {
 			return err
 		}
 	}
+
+	if err := sd.spool.Close(); err != nil {
+		return fmt.Errorf("closing spool: %w", err)
+	}
+
 	logrus.Info("driver closed")
-	return nil
-}
-
-func (sd *SpoolDriver) recoverStreams() error {
-	streamsRoot := filepath.Join(sd.spoolDir, "streams")
-	entries, err := os.ReadDir(streamsRoot)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("reading streams root: %w", err)
-	}
-
-	for _, tableEntry := range entries {
-		if !tableEntry.IsDir() {
-			continue
-		}
-
-		tableEsc := tableEntry.Name()
-		tableDir := filepath.Join(streamsRoot, tableEsc)
-		fpEntries, err := os.ReadDir(tableDir)
-		if err != nil {
-			return fmt.Errorf("reading table directory %s: %w", tableDir, err)
-		}
-
-		for _, fpEntry := range fpEntries {
-			if !fpEntry.IsDir() {
-				continue
-			}
-
-			fingerprint := fpEntry.Name()
-			streamDir := filepath.Join(tableDir, fingerprint)
-
-			if err := cleanTempFiles(streamDir); err != nil {
-				return fmt.Errorf("cleaning temp files for %s: %w", streamDir, err)
-			}
-
-			if err := sd.recoverUploading(tableEsc, fingerprint); err != nil {
-				return fmt.Errorf("recovering uploading segments for %s: %w", streamDir, err)
-			}
-
-			activePath := activePath(sd.spoolDir, tableEsc, fingerprint, sd.ext)
-			activeInfo, err := os.Stat(activePath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return fmt.Errorf("statting active file %s: %w", activePath, err)
-			}
-
-			key := streamKey(tableEsc, fingerprint)
-			sd.streams[key] = &streamState{
-				createdAt:       activeInfo.ModTime().UTC(),
-				activeSizeBytes: activeInfo.Size(),
-			}
-		}
-	}
-
 	return nil
 }
