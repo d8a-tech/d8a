@@ -357,8 +357,11 @@ func (s *fileSpool) flushKey(key string, paths []string, fn func(string, func() 
 			return fmt.Errorf("reading inflight file %q: %w", path, err)
 		}
 
-		next := s.makeNextFunc(path)
-		if fnErr := fn(key, next); fnErr != nil {
+		next, cleanup := s.makeNextFunc(path)
+		fnErr := fn(key, next)
+		cleanup()
+
+		if fnErr != nil {
 			// Pass only the remaining (unprocessed) paths to the failure handler.
 			return s.handleFlushFailure(key, paths[i:], fnErr)
 		}
@@ -390,43 +393,141 @@ func (s *fileSpool) flushOneInflight(key, path string) error {
 	return nil
 }
 
-// makeNextFunc returns a closure that reads frames from the inflight file in
-// batches of s.flushBatchSize. When all frames are consumed it returns io.EOF.
-// If flushBatchSize is 0 (default), all frames are returned in a single batch.
-func (s *fileSpool) makeNextFunc(path string) func() ([][]byte, error) {
+// frameReader reads framed records incrementally from an open file.
+type frameReader struct {
+	file   afero.File
+	path   string
+	header []byte
+	done   bool
+}
+
+// newFrameReader opens the file at path for incremental frame reading.
+func newFrameReader(fs afero.Fs, path string) (*frameReader, error) {
+	f, err := fs.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening %q: %w", path, err)
+	}
+	return &frameReader{
+		file:   f,
+		path:   path,
+		header: make([]byte, headerSize),
+	}, nil
+}
+
+// readFrame reads a single frame from the file. Returns io.EOF when there are
+// no more frames. Truncated trailing frames are tolerated: a warning is logged
+// and io.EOF is returned.
+func (r *frameReader) readFrame() ([]byte, error) {
+	if r.done {
+		return nil, io.EOF
+	}
+
+	_, err := io.ReadFull(r.file, r.header)
+	if err != nil {
+		if err == io.EOF {
+			r.done = true
+			return nil, io.EOF
+		}
+		if err == io.ErrUnexpectedEOF {
+			logrus.Warnf("truncated frame header in %q; stopping incremental read", r.path)
+			r.done = true
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("reading frame header from %q: %w", r.path, err)
+	}
+
+	size := binary.LittleEndian.Uint32(r.header)
+	payload := make([]byte, size)
+	_, err = io.ReadFull(r.file, payload)
+	if err != nil {
+		if err == io.ErrUnexpectedEOF || err == io.EOF {
+			logrus.Warnf("truncated frame payload in %q (expected %d bytes); stopping incremental read",
+				r.path, size)
+			r.done = true
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("reading frame payload from %q: %w", r.path, err)
+	}
+
+	return payload, nil
+}
+
+// close closes the underlying file.
+func (r *frameReader) close() {
+	if err := r.file.Close(); err != nil {
+		logrus.Errorf("closing frame reader for %q: %v", r.path, err)
+	}
+}
+
+// makeNextFunc returns a next closure that reads frames from the inflight file
+// incrementally, plus a cleanup function that must be called when the caller is
+// done with the iterator (regardless of whether it was fully drained).
+// The file is opened lazily on the first next() call.
+// When all frames are consumed next returns io.EOF.
+// If flushBatchSize is 0 (default), all remaining frames are returned in a single batch.
+func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cleanup func()) {
 	var (
-		allFrames [][]byte
-		loaded    bool
-		offset    int
+		reader    *frameReader
+		exhausted bool
 	)
 
-	return func() ([][]byte, error) {
-		if !loaded {
-			var err error
-			allFrames, err = readFrames(s.fs, path)
-			if err != nil {
-				return nil, fmt.Errorf("reading frames from %q: %w", path, err)
-			}
-			loaded = true
+	closeReader := func() {
+		if reader != nil {
+			reader.close()
+			reader = nil
 		}
+	}
 
-		if offset >= len(allFrames) {
+	next = func() ([][]byte, error) {
+		if exhausted {
 			return nil, io.EOF
 		}
 
-		if s.flushBatchSize <= 0 {
-			batch := allFrames[offset:]
-			offset = len(allFrames)
-			return batch, nil
+		if reader == nil {
+			var err error
+			reader, err = newFrameReader(s.fs, path)
+			if err != nil {
+				return nil, fmt.Errorf("reading frames from %q: %w", path, err)
+			}
 		}
 
-		end := offset + s.flushBatchSize
-		if end > len(allFrames) {
-			end = len(allFrames)
+		batch, err := s.readBatch(reader)
+		if err != nil {
+			closeReader()
+			return nil, err
 		}
-		batch := allFrames[offset:end]
-		offset = end
+
+		if len(batch) == 0 {
+			closeReader()
+			exhausted = true
+			return nil, io.EOF
+		}
+
 		return batch, nil
+	}
+
+	return next, closeReader
+}
+
+// readBatch reads up to s.flushBatchSize frames from the reader.
+// Returns an empty slice when no more frames are available.
+func (s *fileSpool) readBatch(r *frameReader) ([][]byte, error) {
+	var batch [][]byte
+
+	for {
+		frame, err := r.readFrame()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return batch, nil
+			}
+			return nil, err
+		}
+
+		batch = append(batch, frame)
+
+		if s.flushBatchSize > 0 && len(batch) >= s.flushBatchSize {
+			return batch, nil
+		}
 	}
 }
 

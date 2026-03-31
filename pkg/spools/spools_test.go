@@ -1314,3 +1314,102 @@ func TestFlushBatchSize_MultipleInflightFiles(t *testing.T) {
 	require.Len(t, calls[1].batches, 1)
 	assert.Equal(t, []string{"file2-a"}, calls[1].batches[0])
 }
+
+func TestFlushBatchSize_TruncatedTrailingFrameDuringFlush(t *testing.T) {
+	// given — spool with one valid frame; we manually append garbage to
+	// the inflight file before flushing. The incremental reader must
+	// tolerate the truncation and still deliver the valid frame.
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)),
+		WithFlushBatchSize(1))
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("valid")))
+
+	// Rotate active → inflight manually via a failing flush.
+	err = s.Flush(func(_ string, _ func() ([][]byte, error)) error {
+		return fmt.Errorf("force-fail")
+	})
+	require.Error(t, err)
+
+	// Find the inflight file and append a truncated header.
+	entries, dirErr := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, dirErr)
+	var inflightPath string
+	for _, e := range entries {
+		if isInflightFile(e.Name()) {
+			inflightPath = "/data/spools/" + e.Name()
+		}
+	}
+	require.NotEmpty(t, inflightPath)
+
+	f, err := fs.OpenFile(inflightPath, os.O_WRONLY|os.O_APPEND, filePerms)
+	require.NoError(t, err)
+	_, err = f.Write([]byte{0xFF, 0x00}) // partial header (2 of 4 bytes)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	// when — flush reads incrementally
+	var frames [][]byte
+	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
+		var drainErr error
+		frames, drainErr = drainNext(next)
+		return drainErr
+	})
+
+	// then — one valid frame recovered, truncated frame dropped
+	require.NoError(t, err)
+	require.Len(t, frames, 1)
+	assert.Equal(t, []byte("valid"), frames[0])
+}
+
+func TestFlushBatchSize_TruncatedPayloadDuringFlush(t *testing.T) {
+	// given — spool with one valid frame and a second frame with a valid
+	// header claiming 100 bytes but only 3 bytes of payload.
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)),
+		WithFlushBatchSize(1))
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("ok")))
+
+	// Rotate active → inflight via failing flush.
+	err = s.Flush(func(_ string, _ func() ([][]byte, error)) error {
+		return fmt.Errorf("force-fail")
+	})
+	require.Error(t, err)
+
+	// Append corrupt frame to the inflight file.
+	entries, dirErr := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, dirErr)
+	var inflightPath string
+	for _, e := range entries {
+		if isInflightFile(e.Name()) {
+			inflightPath = "/data/spools/" + e.Name()
+		}
+	}
+	require.NotEmpty(t, inflightPath)
+
+	f, err := fs.OpenFile(inflightPath, os.O_WRONLY|os.O_APPEND, filePerms)
+	require.NoError(t, err)
+	header := make([]byte, headerSize)
+	binary.LittleEndian.PutUint32(header, 100) // claims 100 bytes
+	_, err = f.Write(header)
+	require.NoError(t, err)
+	_, err = f.Write([]byte{0x01, 0x02, 0x03}) // only 3 bytes
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	// when — flush reads incrementally
+	var frames [][]byte
+	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
+		var drainErr error
+		frames, drainErr = drainNext(next)
+		return drainErr
+	})
+
+	// then — only the valid frame is delivered
+	require.NoError(t, err)
+	require.Len(t, frames, 1)
+	assert.Equal(t, []byte("ok"), frames[0])
+}
