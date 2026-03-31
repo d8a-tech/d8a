@@ -29,14 +29,6 @@ func withManualCycle() SpoolOption {
 	}
 }
 
-// withNowFunc overrides the clock used for segment identity and age
-// evaluation (test-only).
-func withNowFunc(fn func() time.Time) SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.nowFunc = fn
-	}
-}
-
 // WithMaxSegmentSize sets the maximum active spool file size in bytes before
 // rotation. Maps to spools.WithMaxActiveSize.
 func WithMaxSegmentSize(n int64) SpoolOption {
@@ -45,15 +37,11 @@ func WithMaxSegmentSize(n int64) SpoolOption {
 	}
 }
 
-// WithMaxSegmentAge sets the maximum age of pending data before a periodic
-// flush uploads it. When set to a positive duration, the timer-based flush
-// cycle only triggers an upload when the oldest unflushed write for any key
-// exceeds this age. When zero, every timer tick triggers a flush (backwards
-// compatible).
-func WithMaxSegmentAge(d time.Duration) SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.maxSegmentAge = d
-	}
+// WithMaxSegmentAge is accepted for configuration compatibility but has no
+// effect in the new spool-based design. Active file rotation is driven solely
+// by size; periodic flushing is handled by the seal-check timer.
+func WithMaxSegmentAge(_ time.Duration) SpoolOption {
+	return func(*SpoolDriver) {}
 }
 
 // WithSealCheckInterval sets how often to run periodic flushes.
@@ -103,7 +91,6 @@ type SpoolDriver struct {
 	pathTemplate      *template.Template
 	pathTemplateStr   string
 	maxSegmentSize    int64
-	maxSegmentAge     time.Duration
 	sealCheckInterval time.Duration
 	stopCh            chan struct{}
 	stopOnce          sync.Once
@@ -111,18 +98,12 @@ type SpoolDriver struct {
 	spool             spools.Spool
 	newTicker         func(time.Duration) ticker
 	flushOnClose      bool
-	nowFunc           func() time.Time
 
 	// schemas caches the most recent arrow.Schema per spool key so the
 	// flush callback can encode the final output format. Entries are set
 	// on Write and read during flush.
 	schemas   map[string]*arrow.Schema
 	schemasMu sync.RWMutex
-
-	// oldestPending tracks the timestamp of the earliest unflushed write
-	// per spool key, used to evaluate maxSegmentAge.
-	oldestPending   map[string]time.Time
-	oldestPendingMu sync.Mutex
 }
 
 var _ warehouse.Driver = (*SpoolDriver)(nil)
@@ -130,16 +111,11 @@ var _ warehouse.Driver = (*SpoolDriver)(nil)
 // spoolFrame is the self-describing payload serialized into each spool frame.
 // It carries enough metadata for the flush callback to produce a formatted
 // upload file without consulting any in-memory maps.
-//
-// SegmentID and SealTimeUnix are set at write time so that retries of the
-// same inflight file produce an identical remote key.
 type spoolFrame struct {
-	TableEsc     string
-	Fingerprint  string
-	Schema       []serializedField
-	Rows         []map[string]any
-	SegmentID    string
-	SealTimeUnix int64
+	TableEsc    string
+	Fingerprint string
+	Schema      []serializedField
+	Rows        []map[string]any
 }
 
 // serializedField is a gob-friendly representation of an arrow.Field.
@@ -263,8 +239,6 @@ func NewSpoolDriver(
 		sealCheckInterval: 15 * time.Second,
 		stopCh:            make(chan struct{}),
 		schemas:           make(map[string]*arrow.Schema),
-		oldestPending:     make(map[string]time.Time),
-		nowFunc:           time.Now,
 	}
 
 	sd.newTicker = func(d time.Duration) ticker {
@@ -326,9 +300,6 @@ func (sd *SpoolDriver) startTimer() {
 		for {
 			select {
 			case <-tk.C():
-				if !sd.shouldFlushByAge() {
-					continue
-				}
 				if err := sd.runFlush(sd.ctx); err != nil {
 					logrus.WithError(err).Error("automatic flush cycle failed")
 				}
@@ -341,23 +312,6 @@ func (sd *SpoolDriver) startTimer() {
 	}()
 }
 
-// shouldFlushByAge returns true when any key has pending data older than
-// maxSegmentAge, or when maxSegmentAge is zero (always flush).
-func (sd *SpoolDriver) shouldFlushByAge() bool {
-	if sd.maxSegmentAge <= 0 {
-		return true
-	}
-	cutoff := sd.nowFunc().Add(-sd.maxSegmentAge)
-	sd.oldestPendingMu.Lock()
-	defer sd.oldestPendingMu.Unlock()
-	for _, ts := range sd.oldestPending {
-		if ts.Before(cutoff) || ts.Equal(cutoff) {
-			return true
-		}
-	}
-	return false
-}
-
 // Write serializes rows into a self-describing spool frame and appends it to
 // the underlying spool keyed by escaped-table + schema-fingerprint.
 func (sd *SpoolDriver) Write(_ context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
@@ -365,14 +319,11 @@ func (sd *SpoolDriver) Write(_ context.Context, table string, schema *arrow.Sche
 	tableEsc := escapeTableName(table)
 	key := streamKey(tableEsc, fingerprint)
 
-	now := sd.nowFunc().UTC()
 	frame := &spoolFrame{
-		TableEsc:     tableEsc,
-		Fingerprint:  fingerprint,
-		Schema:       serializeFields(schema),
-		Rows:         rows,
-		SegmentID:    segmentIDFromSealTime(now),
-		SealTimeUnix: now.Unix(),
+		TableEsc:    tableEsc,
+		Fingerprint: fingerprint,
+		Schema:      serializeFields(schema),
+		Rows:        rows,
 	}
 
 	payload, err := encodeFrame(frame)
@@ -388,13 +339,6 @@ func (sd *SpoolDriver) Write(_ context.Context, table string, schema *arrow.Sche
 	sd.schemasMu.Lock()
 	sd.schemas[key] = schema
 	sd.schemasMu.Unlock()
-
-	// Track oldest pending write for age-based flush evaluation.
-	sd.oldestPendingMu.Lock()
-	if _, exists := sd.oldestPending[key]; !exists {
-		sd.oldestPending[key] = now
-	}
-	sd.oldestPendingMu.Unlock()
 
 	logrus.WithFields(logrus.Fields{
 		"table":       table,
@@ -427,30 +371,17 @@ func (sd *SpoolDriver) MissingColumns(_ string, _ *arrow.Schema) ([]*arrow.Field
 // runFlush triggers a spool flush, encoding each inflight file into a
 // formatted output and uploading it.
 func (sd *SpoolDriver) runFlush(ctx context.Context) error {
-	err := sd.spool.Flush(func(key string, next func() ([][]byte, error)) error {
+	return sd.spool.Flush(func(key string, next func() ([][]byte, error)) error {
 		return sd.handleFlush(ctx, key, next)
 	})
-	if err == nil {
-		// Clear oldest-pending timestamps: all active files were rotated
-		// and processed successfully.
-		sd.oldestPendingMu.Lock()
-		for k := range sd.oldestPending {
-			delete(sd.oldestPending, k)
-		}
-		sd.oldestPendingMu.Unlock()
-	}
-	return err
 }
 
 // handleFlush processes one inflight spool file: decodes all frames,
 // aggregates rows by (tableEsc, fingerprint), and produces one formatted
-// upload per inflight file. The segment identity (segmentID, sealTime) is
-// taken from the first frame so that retries of the same inflight file
-// produce an identical remote key.
+// upload per inflight file.
 func (sd *SpoolDriver) handleFlush(ctx context.Context, _ string, next func() ([][]byte, error)) error {
 	var allRows []map[string]any
-	var tableEsc, fingerprint, segmentID string
-	var sealTime time.Time
+	var tableEsc, fingerprint string
 	var schema *arrow.Schema
 
 	for {
@@ -467,14 +398,11 @@ func (sd *SpoolDriver) handleFlush(ctx context.Context, _ string, next func() ([
 				return fmt.Errorf("decoding spool frame: %w", decErr)
 			}
 			// Use metadata from the first frame; all frames in one key share
-			// the same table+fingerprint. The first frame's segment identity
-			// is stable across retries.
+			// the same table+fingerprint.
 			if schema == nil {
 				tableEsc = frame.TableEsc
 				fingerprint = frame.Fingerprint
 				schema = rebuildSchema(frame.Schema)
-				segmentID = frame.SegmentID
-				sealTime = time.Unix(frame.SealTimeUnix, 0).UTC()
 			}
 			allRows = append(allRows, frame.Rows...)
 		}
@@ -484,20 +412,21 @@ func (sd *SpoolDriver) handleFlush(ctx context.Context, _ string, next func() ([
 		return nil
 	}
 
-	return sd.uploadFormatted(ctx, tableEsc, fingerprint, segmentID, sealTime, schema, allRows)
+	return sd.uploadFormatted(ctx, tableEsc, fingerprint, schema, allRows)
 }
 
 // uploadFormatted writes rows through the Format encoder into a temp file
-// and uploads it via the Uploader. The segmentID and sealTime are taken from
-// the persisted spool frame so that retries produce the same remote key.
+// and uploads it via the Uploader.
 func (sd *SpoolDriver) uploadFormatted(
 	ctx context.Context,
-	tableEsc, fingerprint, segmentID string,
-	sealTime time.Time,
+	tableEsc, fingerprint string,
 	schema *arrow.Schema,
 	rows []map[string]any,
 ) error {
-	remoteKey, err := segmentRemoteKey(sd.pathTemplate, tableEsc, fingerprint, segmentID, sd.ext, sealTime)
+	now := time.Now().UTC()
+	segmentID := segmentIDFromSealTime(now)
+
+	remoteKey, err := segmentRemoteKey(sd.pathTemplate, tableEsc, fingerprint, segmentID, sd.ext, now)
 	if err != nil {
 		return fmt.Errorf("generating remote key: %w", err)
 	}
