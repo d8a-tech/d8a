@@ -17,6 +17,65 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type testSpool struct {
+	factory Factory
+	spool   *fileSpool
+
+	handlerMu sync.Mutex
+	handler   FlushHandler
+}
+
+func New(fs afero.Fs, dir string, opts ...FileFactoryOption) (*testSpool, error) {
+	ts := &testSpool{}
+
+	factory, err := NewFileFactory(fs, dir, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	spool, err := factory.Create(func(key string, next func() ([][]byte, error)) error {
+		ts.handlerMu.Lock()
+		h := ts.handler
+		ts.handlerMu.Unlock()
+		if h == nil {
+			return nil
+		}
+		return h(key, next)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	fileSpool, ok := spool.(*fileSpool)
+	if !ok {
+		return nil, fmt.Errorf("unexpected spool type %T", spool)
+	}
+
+	ts.factory = factory
+	ts.spool = fileSpool
+
+	return ts, nil
+}
+
+func (s *testSpool) setHandler(handler FlushHandler) {
+	s.handlerMu.Lock()
+	s.handler = handler
+	s.handlerMu.Unlock()
+}
+
+func (s *testSpool) Append(key string, payload []byte) error {
+	return s.spool.Append(key, payload)
+}
+
+func (s *testSpool) Flush(fn func(key string, next func() ([][]byte, error)) error) error {
+	s.setHandler(fn)
+	return s.spool.flush()
+}
+
+func (s *testSpool) Close() error {
+	return s.factory.Close()
+}
+
 func writeRawFrame(t *testing.T, fs afero.Fs, path string, payload []byte) {
 	t.Helper()
 	f, err := fs.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, filePerms)
