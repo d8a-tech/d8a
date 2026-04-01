@@ -71,10 +71,16 @@ func buildWorkerRuntime(
 		logrus.Panicf("failed to create session modifier: %v", err)
 	}
 
-	var batchingCleanup func()
+	var inMemCleanup func()
+	var spoolFactory spools.Factory
 	cleanup := func() {
-		if batchingCleanup != nil {
-			batchingCleanup()
+		if inMemCleanup != nil {
+			inMemCleanup()
+		}
+		if spoolFactory != nil {
+			if closeErr := spoolFactory.Close(); closeErr != nil {
+				logrus.Error("failed to close spool factory:", closeErr)
+			}
 		}
 		if closeErr := boltDB.Close(); closeErr != nil {
 			logrus.Error("failed to close bolt db:", closeErr)
@@ -104,14 +110,21 @@ func buildWorkerRuntime(
 			failStrat = spools.NewDeleteStrategy()
 		}
 
-		sp, err := spools.New(afero.NewOsFs(), spoolDir, spools.WithFailureStrategy(failStrat))
+		factory, err := spools.NewFileFactory(
+			afero.NewOsFs(),
+			spoolDir,
+			spools.WithFailureStrategy(failStrat),
+			spools.WithFlushInterval(1*time.Minute),
+		)
 		if err != nil {
 			cleanup()
-			return nil, fmt.Errorf("create spool: %w", err)
+			return nil, fmt.Errorf("create spool factory: %w", err)
 		}
+		spoolFactory = factory
 
-		persistentWriter, persistentCleanup, err := sessions.NewPersistentSpoolWriter(
-			ctx, sp, sessionWriter,
+		persistentWriter, err := sessions.NewPersistentSpoolWriter(
+			factory,
+			sessionWriter,
 		)
 		if err != nil {
 			cleanup()
@@ -120,16 +133,14 @@ func buildWorkerRuntime(
 
 		if mode == "at_least_once" {
 			sessionWriter = persistentWriter
-			batchingCleanup = persistentCleanup
 		} else {
-			inMemWriter, inMemCleanup, err := sessions.NewInMemSpoolWriter(persistentWriter)
+			inMemWriter, inMemCleanupFn, err := sessions.NewInMemSpoolWriter(persistentWriter)
 			if err != nil {
-				persistentCleanup()
 				cleanup()
 				return nil, fmt.Errorf("create in-mem spool writer: %w", err)
 			}
 			sessionWriter = inMemWriter
-			batchingCleanup = func() { inMemCleanup(); persistentCleanup() }
+			inMemCleanup = inMemCleanupFn
 		}
 	}
 

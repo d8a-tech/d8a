@@ -2,12 +2,9 @@ package sessions
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"io"
-	"sync"
-	"time"
 
 	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/schema"
@@ -16,30 +13,14 @@ import (
 )
 
 type persistentSpoolWriter struct {
-	child         SessionWriter
-	spool         spools.Spool
-	encoder       encoding.EncoderFunc
-	decoder       encoding.DecoderFunc
-	flushInterval time.Duration
-
-	stopChan     chan struct{}
-	cleanupDone  chan struct{}
-	actorStopped sync.WaitGroup
-	ctx          context.Context
-	mu           sync.RWMutex
-	closed       bool
-	closeOnce    sync.Once
+	child   SessionWriter
+	spool   spools.Spool
+	encoder encoding.EncoderFunc
+	decoder encoding.DecoderFunc
 }
 
 // PersistentSpoolOption configures a persistentSpoolWriter.
 type PersistentSpoolOption func(*persistentSpoolWriter)
-
-// WithFlushInterval sets the background flush interval.
-func WithFlushInterval(d time.Duration) PersistentSpoolOption {
-	return func(w *persistentSpoolWriter) {
-		w.flushInterval = d
-	}
-}
 
 // WithEncoderDecoder sets the encoder and decoder functions.
 func WithEncoderDecoder(encoder encoding.EncoderFunc, decoder encoding.DecoderFunc) PersistentSpoolOption {
@@ -50,64 +31,55 @@ func WithEncoderDecoder(encoder encoding.EncoderFunc, decoder encoding.DecoderFu
 }
 
 // NewPersistentSpoolWriter creates a SessionWriter decorator that encodes
-// sessions, appends them to a Spool keyed by PropertyID, and periodically
-// flushes via a background actor loop that decodes and delegates to child.
-// Returns the writer, a cleanup function, and an error.
+// sessions and appends them to a Spool keyed by PropertyID.
 func NewPersistentSpoolWriter(
-	ctx context.Context,
-	spool spools.Spool,
+	spoolFactory spools.Factory,
 	child SessionWriter,
 	opts ...PersistentSpoolOption,
-) (SessionWriter, func(), error) {
-	if spool == nil {
-		return nil, nil, fmt.Errorf("spool is required")
+) (SessionWriter, error) {
+	if spoolFactory == nil {
+		return nil, fmt.Errorf("spool factory is required")
 	}
 	if child == nil {
-		return nil, nil, fmt.Errorf("child writer is required")
+		return nil, fmt.Errorf("child writer is required")
 	}
 
 	w := &persistentSpoolWriter{
-		child:         child,
-		spool:         spool,
-		encoder:       encoding.GobEncoder,
-		decoder:       encoding.GobDecoder,
-		flushInterval: 1 * time.Minute,
-		stopChan:      make(chan struct{}),
-		cleanupDone:   make(chan struct{}),
-		ctx:           ctx,
+		child:   child,
+		encoder: encoding.GobEncoder,
+		decoder: encoding.GobDecoder,
 	}
 	for _, opt := range opts {
 		opt(w)
 	}
 
-	w.actorStopped.Add(1)
-	go w.actorLoop()
+	spool, err := spoolFactory.Create(func(key string, next func() ([][]byte, error)) error {
+		allSessions, decodeErr := w.drainAndDecode(next)
+		if decodeErr != nil {
+			return fmt.Errorf("decoding frames for key %q: %w", key, decodeErr)
+		}
 
-	cleanup := func() {
-		w.closeOnce.Do(func() {
-			w.mu.Lock()
-			w.closed = true
-			w.mu.Unlock()
+		if len(allSessions) == 0 {
+			return nil
+		}
 
-			close(w.stopChan)
-			w.actorStopped.Wait()
-			close(w.cleanupDone)
-		})
+		if writeErr := w.child.Write(allSessions...); writeErr != nil {
+			return fmt.Errorf("child write for key %q: %w", key, writeErr)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating spool: %w", err)
 	}
+	w.spool = spool
 
-	return w, cleanup, nil
+	return w, nil
 }
 
 // Write implements SessionWriter by grouping sessions per PropertyID,
 // encoding each group, and appending to the spool.
 func (w *persistentSpoolWriter) Write(sessions ...*schema.Session) error {
-	w.mu.RLock()
-	if w.closed {
-		w.mu.RUnlock()
-		return fmt.Errorf("writer is stopped")
-	}
-	w.mu.RUnlock()
-
 	if len(sessions) == 0 {
 		return nil
 	}
@@ -133,45 +105,6 @@ func (w *persistentSpoolWriter) Write(sessions ...*schema.Session) error {
 	}
 
 	return nil
-}
-
-func (w *persistentSpoolWriter) actorLoop() {
-	defer w.actorStopped.Done()
-
-	ticker := time.NewTicker(w.flushInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-w.stopChan:
-			// Appended data is assumed durable enough in the spool; no final flush here.
-			return
-		case <-ticker.C:
-			w.flush()
-		}
-	}
-}
-
-func (w *persistentSpoolWriter) flush() {
-	flushErr := w.spool.Flush(func(key string, next func() ([][]byte, error)) error {
-		allSessions, decodeErr := w.drainAndDecode(next)
-		if decodeErr != nil {
-			return fmt.Errorf("decoding frames for key %q: %w", key, decodeErr)
-		}
-
-		if len(allSessions) == 0 {
-			return nil
-		}
-
-		if writeErr := w.child.Write(allSessions...); writeErr != nil {
-			return fmt.Errorf("child write for key %q: %w", key, writeErr)
-		}
-
-		return nil
-	})
-	if flushErr != nil {
-		logrus.Warnf("spool flush error: %v", flushErr)
-	}
 }
 
 // drainAndDecode repeatedly calls next to obtain frame batches until io.EOF,
