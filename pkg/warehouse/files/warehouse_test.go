@@ -214,10 +214,10 @@ func nextFromFrames(frames ...[]byte) func() ([][]byte, error) {
 	}
 }
 
-func TestNewSpoolDriver_ReturnsErrorWhenFactoryCreateFails(t *testing.T) {
+func TestNewFilesDriver_ReturnsErrorWhenFactoryCreateFails(t *testing.T) {
 	factoryErr := errors.New("create failed")
 
-	driver, err := NewSpoolDriver(
+	driver, err := NewFilesDriver(
 		context.Background(),
 		&stubFactory{createErr: factoryErr},
 		newMockKV(),
@@ -230,12 +230,12 @@ func TestNewSpoolDriver_ReturnsErrorWhenFactoryCreateFails(t *testing.T) {
 	assert.ErrorIs(t, err, factoryErr)
 }
 
-func TestSpoolDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
+func TestFilesDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
 	ctx := context.Background()
 	spool := &stubSpool{}
 	factory := &stubFactory{spool: spool}
 	kv := newMockKV()
-	driver, err := NewSpoolDriver(ctx, factory, kv, &mockStreamUploader{}, NewCSVFormat())
+	driver, err := NewFilesDriver(ctx, factory, kv, &mockStreamUploader{}, NewCSVFormat())
 	require.NoError(t, err)
 
 	schema := testSchema()
@@ -257,13 +257,13 @@ func TestSpoolDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
 	assert.Equal(t, float64(1), decoded[0]["id"])
 }
 
-func TestSpoolDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
+func TestFilesDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
 	ctx := context.Background()
 	spool := &stubSpool{}
 	factory := &stubFactory{spool: spool}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	driver, err := NewSpoolDriver(ctx, factory, kv, uploader, NewCSVFormat())
+	driver, err := NewFilesDriver(ctx, factory, kv, uploader, NewCSVFormat())
 	require.NoError(t, err)
 
 	schema := testSchema()
@@ -295,12 +295,12 @@ func TestSpoolDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
 	_ = driver
 }
 
-func TestSpoolDriver_FlushHandlerAbortsOnFormatWriterError(t *testing.T) {
+func TestFilesDriver_FlushHandlerAbortsOnFormatWriterError(t *testing.T) {
 	ctx := context.Background()
 	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	_, err := NewSpoolDriver(ctx, factory, kv, uploader, &failFormat{err: errors.New("write failed")})
+	_, err := NewFilesDriver(ctx, factory, kv, uploader, &failFormat{err: errors.New("write failed")})
 	require.NoError(t, err)
 
 	schema := testSchema()
@@ -323,12 +323,12 @@ func TestSpoolDriver_FlushHandlerAbortsOnFormatWriterError(t *testing.T) {
 	assert.Equal(t, 1, uploader.uploads[0].upload.aborts)
 }
 
-func TestSpoolDriver_FlushHandlerAbortsOnCommitError(t *testing.T) {
+func TestFilesDriver_FlushHandlerAbortsOnCommitError(t *testing.T) {
 	ctx := context.Background()
 	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{nextCommitErr: errors.New("commit failed")}
-	_, err := NewSpoolDriver(ctx, factory, kv, uploader, NewCSVFormat())
+	_, err := NewFilesDriver(ctx, factory, kv, uploader, NewCSVFormat())
 	require.NoError(t, err)
 
 	schema := testSchema()
@@ -351,12 +351,12 @@ func TestSpoolDriver_FlushHandlerAbortsOnCommitError(t *testing.T) {
 	assert.Equal(t, 1, uploader.uploads[0].upload.aborts)
 }
 
-func TestSpoolDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
+func TestFilesDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
 	ctx := context.Background()
 	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	driver, err := NewSpoolDriver(
+	driver, err := NewFilesDriver(
 		ctx,
 		factory,
 		kv,
@@ -390,20 +390,20 @@ func TestSpoolDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
 	_ = driver
 }
 
-func TestSpoolDriver_CloseClosesKVWhenClosable(t *testing.T) {
+func TestFilesDriver_CloseClosesKVWhenClosable(t *testing.T) {
 	ctx := context.Background()
 	kv := newMockClosableKV(nil)
-	driver, err := NewSpoolDriver(ctx, &stubFactory{spool: &stubSpool{}}, kv, &mockStreamUploader{}, NewCSVFormat())
+	driver, err := NewFilesDriver(ctx, &stubFactory{spool: &stubSpool{}}, kv, &mockStreamUploader{}, NewCSVFormat())
 	require.NoError(t, err)
 
 	require.NoError(t, driver.Close())
 	assert.True(t, kv.closed)
 }
 
-func TestSpoolDriver_CloseReturnsKVCloseError(t *testing.T) {
+func TestFilesDriver_CloseReturnsKVCloseError(t *testing.T) {
 	ctx := context.Background()
 	kvErr := errors.New("kv close failed")
-	driver, err := NewSpoolDriver(
+	driver, err := NewFilesDriver(
 		ctx,
 		&stubFactory{spool: &stubSpool{}},
 		newMockClosableKV(kvErr),

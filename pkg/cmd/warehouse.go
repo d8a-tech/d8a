@@ -267,7 +267,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.WithError(err).Fatal("failed to create files warehouse metadata kv")
 	}
 
-	driver, err := whFiles.NewSpoolDriver(ctx, factory, kv, uploader, fmt,
+	driver, err := whFiles.NewFilesDriver(ctx, factory, kv, uploader, fmt,
 		whFiles.WithPathTemplate(tmplStr),
 	)
 	if err != nil {

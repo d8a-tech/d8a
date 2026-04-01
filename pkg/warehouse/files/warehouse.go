@@ -17,18 +17,18 @@ import (
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 )
 
-// SpoolOption is a functional option for configuring SpoolDriver.
-type SpoolOption func(*SpoolDriver)
+// FilesOption is a functional option for configuring FilesDriver.
+type FilesOption func(*FilesDriver)
 
 // WithPathTemplate sets the path template string for remote object keys.
-func WithPathTemplate(tmplStr string) SpoolOption {
-	return func(sd *SpoolDriver) {
+func WithPathTemplate(tmplStr string) FilesOption {
+	return func(sd *FilesDriver) {
 		sd.pathTemplateStr = tmplStr
 	}
 }
 
-// SpoolDriver writes warehouse rows into a keyed spool and flushes them to remote storage.
-type SpoolDriver struct {
+// FilesDriver writes warehouse rows into a keyed spool and flushes them to remote storage.
+type FilesDriver struct {
 	spool           spools.Spool
 	kv              storage.KV
 	uploader        StreamUploader
@@ -38,7 +38,7 @@ type SpoolDriver struct {
 	pathTemplateStr string
 }
 
-var _ warehouse.Driver = (*SpoolDriver)(nil)
+var _ warehouse.Driver = (*FilesDriver)(nil)
 
 // parsePathTemplate parses and validates a path template string.
 func parsePathTemplate(tmplStr string) (*template.Template, error) {
@@ -76,15 +76,15 @@ func parsePathTemplate(tmplStr string) (*template.Template, error) {
 	return tmpl, nil
 }
 
-func NewSpoolDriver(
+func NewFilesDriver(
 	_ context.Context,
 	spoolFactory spools.Factory,
 	kv storage.KV,
 	uploader StreamUploader,
 	format Format,
-	opts ...SpoolOption,
-) (*SpoolDriver, error) {
-	sd := &SpoolDriver{
+	opts ...FilesOption,
+) (*FilesDriver, error) {
+	sd := &FilesDriver{
 		kv:       kv,
 		uploader: uploader,
 		format:   format,
@@ -119,7 +119,7 @@ func NewSpoolDriver(
 }
 
 //nolint:contextcheck // flush handler signature has no context; use non-canceled context per invocation.
-func buildFlushHandler(sd *SpoolDriver) spools.FlushHandler {
+func buildFlushHandler(sd *FilesDriver) spools.FlushHandler {
 	return func(key string, next func() ([][]byte, error)) error {
 		tableEsc, fingerprint, err := parseSpoolKey(key)
 		if err != nil {
@@ -198,7 +198,7 @@ func buildFlushHandler(sd *SpoolDriver) spools.FlushHandler {
 	}
 }
 
-func (sd *SpoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
+func (sd *FilesDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
 	_ = ctx
 
 	fingerprint := schemaFingerprint(schema)
@@ -253,22 +253,22 @@ func parseSpoolKey(key string) (tableEsc, fingerprint string, err error) {
 }
 
 // CreateTable is a no-op for spool drivers.
-func (sd *SpoolDriver) CreateTable(table string, schema *arrow.Schema) error {
+func (sd *FilesDriver) CreateTable(table string, schema *arrow.Schema) error {
 	return nil
 }
 
 // AddColumn is a no-op for spool drivers.
-func (sd *SpoolDriver) AddColumn(table string, field *arrow.Field) error {
+func (sd *FilesDriver) AddColumn(table string, field *arrow.Field) error {
 	return nil
 }
 
 // MissingColumns always returns an empty slice for spool drivers.
-func (sd *SpoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
+func (sd *FilesDriver) MissingColumns(table string, schema *arrow.Schema) ([]*arrow.Field, error) {
 	return []*arrow.Field{}, nil
 }
 
 // Close gracefully shuts down the driver.
-func (sd *SpoolDriver) Close() error {
+func (sd *FilesDriver) Close() error {
 	if c, ok := sd.kv.(interface{ Close() error }); ok {
 		return c.Close()
 	}

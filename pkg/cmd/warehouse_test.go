@@ -89,7 +89,7 @@ func TestWarehouseRegistry_WiresDriversWithoutBatchingWrapper(t *testing.T) {
 					"--warehouse-files-filesystem-path=" + baseDir + "/out",
 				}
 			},
-			expectedDriverType: "*files.SpoolDriver",
+			expectedDriverType: "*files.FilesDriver",
 		},
 	}
 
@@ -137,7 +137,7 @@ func TestCreateFilesWarehouse_ConfiguresQuarantineAfterThreeFailures(t *testing.
 			driver, err := registry.Get("property-id")
 			require.NoError(t, err)
 
-			filesDriver, ok := driver.(*whFiles.SpoolDriver)
+			filesDriver, ok := driver.(*whFiles.FilesDriver)
 			require.True(t, ok)
 
 			driverValue := reflect.ValueOf(filesDriver).Elem()
@@ -196,7 +196,7 @@ func TestCreateFilesWarehouse_UsesMaxSegmentAgeForFlushInterval(t *testing.T) {
 			driver, err := registry.Get("property-id")
 			require.NoError(t, err)
 
-			filesDriver, ok := driver.(*whFiles.SpoolDriver)
+			filesDriver, ok := driver.(*whFiles.FilesDriver)
 			require.True(t, ok)
 
 			driverValue := reflect.ValueOf(filesDriver).Elem()
