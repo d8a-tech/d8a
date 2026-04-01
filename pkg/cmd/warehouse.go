@@ -248,67 +248,13 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	baseSpoolDir := cmd.String(storageSpoolDirectoryFlag.Name)
 	spoolDir := filepath.Join(baseSpoolDir, "warehouse", "files")
 
-	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
-	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
-
-	var csvOpts []whFiles.CSVFormatOption
-	switch compression {
-	case "":
-		// no compression
-	case "gzip":
-		csvOpts = append(csvOpts, whFiles.WithCompression(whFiles.Gzip(level)))
-	default:
-		logrus.Fatalf("unsupported files compression: %s", compression)
-	}
-
-	var fmt whFiles.Format
-	switch format {
-	case "csv":
-		fmt = whFiles.NewCSVFormat(csvOpts...)
-	default:
-		logrus.Fatalf("unsupported files format: %s", format)
-	}
-
-	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
-	var uploader whFiles.StreamUploader
-
-	switch storageType {
-	case storageTypeS3, storageTypeGCS:
-		bucket, err := createWarehouseCDKBucket(ctx, storageType, cmd)
-		if err != nil {
-			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
-		}
-
-		uploader = whFiles.NewBlobUploader(bucket)
-
-	case storageTypeFilesystem:
-		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
-		if filesystemPath == "" {
-			logrus.Fatal("--warehouse-files-filesystem-path is required when warehouse-files-storage=filesystem")
-		}
-
-		var err error
-		uploader, err = whFiles.NewFilesystemUploader(filesystemPath)
-		if err != nil {
-			logrus.WithError(err).Fatal("failed to create filesystem uploader")
-		}
-
-	default:
-		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
-	}
+	fmt := filesWarehouseFormat(cmd, format)
+	uploader := filesWarehouseUploader(ctx, cmd)
 
 	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
 	validateFilesPathTemplate(tmplStr)
 
-	factory, err := spools.NewFileFactory(
-		afero.NewOsFs(),
-		filepath.Join(spoolDir, "spool"),
-		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
-		spools.WithMaxFailures(3),
-		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
-		spools.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
-		spools.WithFlushOnClose(true),
-	)
+	factory, err := filesWarehouseFactory(cmd, spoolDir)
 	if err != nil {
 		logrus.WithError(err).Fatal("failed to create files warehouse spool factory")
 	}
@@ -337,6 +283,72 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	}
 
 	return &filesRegistryWithFactoryClose{driver: driver, factory: factory}
+}
+
+func filesWarehouseFormat(cmd *cli.Command, format string) whFiles.Format {
+	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
+	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
+
+	var csvOpts []whFiles.CSVFormatOption
+	switch compression {
+	case "":
+		// no compression
+	case "gzip":
+		csvOpts = append(csvOpts, whFiles.WithCompression(whFiles.Gzip(level)))
+	default:
+		logrus.Fatalf("unsupported files compression: %s", compression)
+	}
+
+	switch format {
+	case "csv":
+		return whFiles.NewCSVFormat(csvOpts...)
+	default:
+		logrus.Fatalf("unsupported files format: %s", format)
+		return nil
+	}
+}
+
+func filesWarehouseUploader(ctx context.Context, cmd *cli.Command) whFiles.StreamUploader {
+	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
+
+	switch storageType {
+	case storageTypeS3, storageTypeGCS:
+		bucket, err := createWarehouseCDKBucket(ctx, storageType, cmd)
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
+		}
+
+		return whFiles.NewBlobUploader(bucket)
+
+	case storageTypeFilesystem:
+		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
+		if filesystemPath == "" {
+			logrus.Fatal("--warehouse-files-filesystem-path is required when warehouse-files-storage=filesystem")
+		}
+
+		uploader, err := whFiles.NewFilesystemUploader(filesystemPath)
+		if err != nil {
+			logrus.WithError(err).Fatal("failed to create filesystem uploader")
+		}
+
+		return uploader
+
+	default:
+		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
+		return nil
+	}
+}
+
+func filesWarehouseFactory(cmd *cli.Command, spoolDir string) (spools.Factory, error) {
+	return spools.NewFileFactory(
+		afero.NewOsFs(),
+		filepath.Join(spoolDir, "spool"),
+		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
+		spools.WithMaxFailures(3),
+		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
+		spools.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
+		spools.WithFlushOnClose(true),
+	)
 }
 
 type filesRegistryWithFactoryClose struct {
