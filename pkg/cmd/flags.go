@@ -472,16 +472,9 @@ var (
 
 	warehouseFilesMaxSegmentAgeFlag = &cli.DurationFlag{
 		Name:    "warehouse-files-max-segment-age",
-		Usage:   "Maximum segment age before sealing (default: 1h)",
+		Usage:   "How often to flush and seal active warehouse file segments (default: 1h)",
 		Value:   time.Hour,
 		Sources: defaultSourceChain("WAREHOUSE_FILES_MAX_SEGMENT_AGE", "warehouse.files.max_segment_age"),
-	}
-
-	warehouseFilesSealCheckIntervalFlag = &cli.DurationFlag{
-		Name:    "warehouse-files-seal-check-interval",
-		Usage:   "How often to evaluate sealing triggers (default: 15s)",
-		Value:   15 * time.Second,
-		Sources: defaultSourceChain("WAREHOUSE_FILES_SEAL_CHECK_INTERVAL", "warehouse.files.seal_check_interval"),
 	}
 
 	warehouseFilesCompressionFlag = &cli.StringFlag{
@@ -527,16 +520,10 @@ var storageSpoolDirectoryFlag *cli.StringFlag = &cli.StringFlag{
 }
 
 var storageSpoolWriteChanBufferFlag *cli.IntFlag = &cli.IntFlag{
-	Name:  "storage-spool-write-chan-buffer",
-	Usage: "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
-	Sources: defaultDeliveryModeIntSourceChain(
-		"storage-spool-write-chan-buffer",
-		"STORAGE_SPOOL_WRITE_CHAN_BUFFER",
-		"storage.spool_write_chan_buffer",
-		0,
-		1000,
-	),
-	Value: 1000,
+	Name:    "storage-spool-write-chan-buffer",
+	Usage:   "Capacity of the spool writer's input channel. Larger values reduce blocking of close path when L2 flush runs (improves close p99) at the cost of more sessions in memory on crash. Zero = unbuffered.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("STORAGE_SPOOL_WRITE_CHAN_BUFFER", "storage.spool_write_chan_buffer"),
+	Value:   1000,
 }
 
 var protocolFlag *cli.StringFlag = &cli.StringFlag{
@@ -663,7 +650,6 @@ var warehouseConfigFlags = []cli.Flag{
 	warehouseFilesFilesystemPathFlag,
 	warehouseFilesMaxSegmentSizeFlag,
 	warehouseFilesMaxSegmentAgeFlag,
-	warehouseFilesSealCheckIntervalFlag,
 	warehouseFilesCompressionFlag,
 	warehouseFilesCompressionLevelFlag,
 	warehouseFilesPathTemplateFlag,

@@ -2,12 +2,14 @@ package spools
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -21,14 +23,21 @@ const (
 	filePerms         = 0o644
 	maxPayloadSz      = 0xFFFFFFFF
 	defaultMaxFailure = 20
+	defaultBufferSize = 1
+	flushRetryDelay   = 10 * time.Millisecond
 )
 
+// FlushHandler is called during flush cycles for each inflight file.
+type FlushHandler func(key string, next func() ([][]byte, error)) error
+
 // Spool is a crash-safe keyed append-only framed-file store.
-// Append and Flush are safe to call concurrently with each other.
 type Spool interface {
 	Append(key string, payload []byte) error
-	Flush(fn func(key string, frames [][]byte) error) error
-	Recover() error
+}
+
+// Factory creates and manages spool lifecycle.
+type Factory interface {
+	Create(handler FlushHandler) (Spool, error)
 	Close() error
 }
 
@@ -75,57 +84,190 @@ func (s *quarantineStrategy) OnExceededFailures(fs afero.Fs, inflightPath string
 	return nil
 }
 
-// Option configures a fileSpool.
-type Option func(*fileSpool)
+// FileFactoryOption configures a fileFactory.
+type FileFactoryOption func(*fileFactory)
 
 // WithFailureStrategy sets the strategy invoked when an inflight file
 // exceeds the maximum number of consecutive flush failures.
 // When nil (the default), inflight files are deleted on threshold breach.
-func WithFailureStrategy(s FailureStrategy) Option {
-	return func(f *fileSpool) {
+func WithFailureStrategy(s FailureStrategy) FileFactoryOption {
+	return func(f *fileFactory) {
 		f.failureStrategy = s
 	}
 }
 
 // WithMaxFailures sets the per-key consecutive failure threshold
 // before the failure strategy is invoked. Default is 20.
-func WithMaxFailures(n int) Option {
-	return func(f *fileSpool) {
+func WithMaxFailures(n int) FileFactoryOption {
+	return func(f *fileFactory) {
 		f.maxFailures = n
 	}
 }
 
 // WithNowFunc overrides the clock used to generate inflight timestamps.
 // Intended for testing.
-func WithNowFunc(fn func() time.Time) Option {
-	return func(f *fileSpool) {
+func WithNowFunc(fn func() time.Time) FileFactoryOption {
+	return func(f *fileFactory) {
 		f.nowFunc = fn
 	}
 }
 
-// New creates a Spool backed by fs in the given directory.
-// It calls Recover before returning to re-ingest any crash remnants.
-func New(fs afero.Fs, dir string, opts ...Option) (Spool, error) {
+// WithMaxActiveSize sets the maximum size (in bytes) for an active spool
+// file. When an Append would cause the active file to exceed this limit,
+// the current active file is rotated to a sealed inflight file and a fresh
+// active file is started. Zero (default) means no size limit.
+func WithMaxActiveSize(bytes int64) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.maxActiveSize = bytes
+	}
+}
+
+// WithFlushBatchSize sets the maximum number of frames returned per call
+// to the next function passed to the Flush callback. Zero (default) means
+// all frames in the inflight file are returned in a single batch.
+func WithFlushBatchSize(n int) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.flushBatchSize = n
+	}
+}
+
+// WithFlushInterval sets periodic flush interval. Zero disables the timer.
+func WithFlushInterval(interval time.Duration) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.flushInterval = interval
+	}
+}
+
+// WithFlushOnClose enables final flush during Close. Default is true.
+func WithFlushOnClose(enabled bool) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.flushOnClose = enabled
+	}
+}
+
+// WithMaxBytesBeforeFlush triggers flush after this many appended bytes.
+// Zero disables this trigger.
+func WithMaxBytesBeforeFlush(bytes int64) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.maxBytesBeforeFlush = bytes
+	}
+}
+
+// WithMaxAppendsBeforeFlush triggers flush after this many append calls.
+// Zero disables this trigger.
+func WithMaxAppendsBeforeFlush(n int) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.maxAppendsBeforeFlush = n
+	}
+}
+
+type fileFactory struct {
+	fs                    afero.Fs
+	dir                   string
+	failureStrategy       FailureStrategy
+	maxFailures           int
+	maxActiveSize         int64
+	flushBatchSize        int
+	nowFunc               func() time.Time
+	flushInterval         time.Duration
+	flushOnClose          bool
+	maxBytesBeforeFlush   int64
+	maxAppendsBeforeFlush int
+	newTicker             func(time.Duration) ticker
+
+	mu      sync.Mutex
+	created bool
+	closed  bool
+	spool   *fileSpool
+
+	closeOnce sync.Once
+	closeErr  error
+}
+
+// NewFileFactory creates a file-backed spool factory.
+func NewFileFactory(fs afero.Fs, dir string, opts ...FileFactoryOption) (Factory, error) {
 	if err := fs.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating spool directory: %w", err)
 	}
 
-	s := &fileSpool{
+	f := &fileFactory{
 		fs:              fs,
 		dir:             dir,
 		failureStrategy: &deleteStrategy{},
 		maxFailures:     defaultMaxFailure,
-		failuresByKey:   make(map[string]int),
 		nowFunc:         time.Now,
-	}
-	for _, o := range opts {
-		o(s)
+		flushOnClose:    true,
+		newTicker:       newRealTicker,
 	}
 
-	if err := s.Recover(); err != nil {
+	for _, opt := range opts {
+		opt(f)
+	}
+
+	return f, nil
+}
+
+// Create implements Factory.
+func (f *fileFactory) Create(handler FlushHandler) (Spool, error) {
+	if handler == nil {
+		return nil, fmt.Errorf("flush handler is required")
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if f.closed {
+		return nil, fmt.Errorf("factory is closed")
+	}
+
+	if f.created {
+		return nil, fmt.Errorf("spool already created")
+	}
+	f.created = true
+
+	s := &fileSpool{
+		fs:                    f.fs,
+		dir:                   f.dir,
+		failureStrategy:       f.failureStrategy,
+		maxFailures:           f.maxFailures,
+		maxActiveSize:         f.maxActiveSize,
+		flushBatchSize:        f.flushBatchSize,
+		nowFunc:               f.nowFunc,
+		failuresByKey:         make(map[string]int),
+		handler:               handler,
+		flushInterval:         f.flushInterval,
+		flushOnClose:          f.flushOnClose,
+		stopCh:                make(chan struct{}),
+		triggerCh:             make(chan struct{}, defaultBufferSize),
+		newTicker:             f.newTicker,
+		maxBytesBeforeFlush:   f.maxBytesBeforeFlush,
+		maxAppendsBeforeFlush: f.maxAppendsBeforeFlush,
+	}
+
+	if err := s.recover(); err != nil {
 		return nil, fmt.Errorf("recovering spool: %w", err)
 	}
+
+	s.start()
+	f.spool = s
+
 	return s, nil
+}
+
+// Close implements Factory.
+func (f *fileFactory) Close() error {
+	f.closeOnce.Do(func() {
+		f.mu.Lock()
+		f.closed = true
+		s := f.spool
+		f.mu.Unlock()
+
+		if s != nil {
+			f.closeErr = s.close()
+		}
+	})
+
+	return f.closeErr
 }
 
 type fileSpool struct {
@@ -133,11 +275,44 @@ type fileSpool struct {
 	dir             string
 	failureStrategy FailureStrategy
 	maxFailures     int
+	maxActiveSize   int64
+	flushBatchSize  int
 	nowFunc         func() time.Time
-	mu              sync.Mutex
-	closed          bool
-	failMu          sync.Mutex // guards failuresByKey independently of mu
-	failuresByKey   map[string]int
+
+	mu     sync.Mutex
+	closed bool
+
+	failMu        sync.Mutex
+	failuresByKey map[string]int
+
+	handler               FlushHandler
+	flushInterval         time.Duration
+	flushOnClose          bool
+	stopCh                chan struct{}
+	wg                    sync.WaitGroup
+	newTicker             func(time.Duration) ticker
+	triggerCh             chan struct{}
+	appendBytes           atomic.Int64
+	appendCount           atomic.Int32
+	maxBytesBeforeFlush   int64
+	maxAppendsBeforeFlush int
+	closeOnce             sync.Once
+}
+
+type ticker interface {
+	C() <-chan time.Time
+	Stop()
+}
+
+type realTicker struct {
+	t *time.Ticker
+}
+
+func (r *realTicker) C() <-chan time.Time { return r.t.C }
+func (r *realTicker) Stop()               { r.t.Stop() }
+
+func newRealTicker(d time.Duration) ticker {
+	return &realTicker{t: time.NewTicker(d)}
 }
 
 func sanitizeKey(key string) string {
@@ -181,7 +356,170 @@ func (s *fileSpool) Append(key string, payload []byte) error {
 		return fmt.Errorf("payload too large for key %q: %d bytes", key, len(payload))
 	}
 
-	return s.appendToFile(s.activePath(key), payload)
+	if err := s.appendToFile(s.activePath(key), payload); err != nil {
+		return err
+	}
+
+	if s.maxActiveSize > 0 {
+		if err := s.maybeRotateActive(key); err != nil {
+			return err
+		}
+	}
+
+	s.appendBytes.Add(int64(len(payload)))
+	s.appendCount.Add(1)
+
+	if s.shouldTriggerFlush() {
+		signalNonBlocking(s.triggerCh)
+	}
+
+	return nil
+}
+
+func (s *fileSpool) shouldTriggerFlush() bool {
+	if s.maxBytesBeforeFlush > 0 && s.appendBytes.Load() >= s.maxBytesBeforeFlush {
+		return true
+	}
+	if s.maxAppendsBeforeFlush > 0 && int(s.appendCount.Load()) >= s.maxAppendsBeforeFlush {
+		return true
+	}
+	return false
+}
+
+func signalNonBlocking(ch chan struct{}) {
+	select {
+	case ch <- struct{}{}:
+	default:
+	}
+}
+
+func (s *fileSpool) start() {
+	if s.flushInterval <= 0 && s.maxBytesBeforeFlush <= 0 && s.maxAppendsBeforeFlush <= 0 {
+		return
+	}
+
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		var tickC <-chan time.Time
+		var tk ticker
+		if s.flushInterval > 0 {
+			tk = s.newTicker(s.flushInterval)
+			tickC = tk.C()
+		}
+		if tk != nil {
+			defer tk.Stop()
+		}
+
+		for {
+			select {
+			case <-tickC:
+				s.runFlushCycle()
+			case <-s.triggerCh:
+				s.runFlushCycle()
+			case <-s.stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func (s *fileSpool) runFlushCycle() {
+	bytesAtStart := s.appendBytes.Load()
+	countAtStart := s.appendCount.Load()
+
+	if err := s.flush(); err != nil {
+		logrus.Errorf("flush cycle failed: %v", err)
+		s.scheduleRetryAfterFailedFlush()
+		return
+	}
+
+	s.subtractAppendBytes(bytesAtStart)
+	s.subtractAppendCount(countAtStart)
+}
+
+func (s *fileSpool) scheduleRetryAfterFailedFlush() {
+	if s.flushInterval > 0 {
+		return
+	}
+	if s.maxBytesBeforeFlush <= 0 && s.maxAppendsBeforeFlush <= 0 {
+		return
+	}
+	if !s.shouldTriggerFlush() {
+		return
+	}
+
+	go func() {
+		timer := time.NewTimer(flushRetryDelay)
+		defer timer.Stop()
+
+		select {
+		case <-timer.C:
+			select {
+			case <-s.stopCh:
+				return
+			default:
+			}
+			signalNonBlocking(s.triggerCh)
+		case <-s.stopCh:
+		}
+	}()
+}
+
+func (s *fileSpool) subtractAppendBytes(delta int64) {
+	if delta <= 0 {
+		return
+	}
+
+	for {
+		current := s.appendBytes.Load()
+		next := current - delta
+		if next < 0 {
+			next = 0
+		}
+		if s.appendBytes.CompareAndSwap(current, next) {
+			return
+		}
+	}
+}
+
+func (s *fileSpool) subtractAppendCount(delta int32) {
+	if delta <= 0 {
+		return
+	}
+
+	for {
+		current := s.appendCount.Load()
+		next := current - delta
+		if next < 0 {
+			next = 0
+		}
+		if s.appendCount.CompareAndSwap(current, next) {
+			return
+		}
+	}
+}
+
+// maybeRotateActive checks if the active file for key exceeds maxActiveSize
+// and renames it to an inflight file if so. Must be called with s.mu held.
+func (s *fileSpool) maybeRotateActive(key string) error {
+	path := s.activePath(key)
+	info, err := s.fs.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("stat active file %q: %w", path, err)
+	}
+	if info.Size() < s.maxActiveSize {
+		return nil
+	}
+	inflight := fmt.Sprintf("%s/%s%s%d", s.dir, sanitizeKey(key), inflightMarker, s.nowFunc().UnixNano())
+	if err := s.fs.Rename(path, inflight); err != nil {
+		return fmt.Errorf("rotating active file %q: %w", path, err)
+	}
+	return nil
 }
 
 func (s *fileSpool) appendToFile(path string, payload []byte) error {
@@ -223,7 +561,6 @@ func (s *fileSpool) collectInflight() (map[string][]string, error) {
 		return nil, fmt.Errorf("reading spool directory: %w", err)
 	}
 
-	// Rename every active file to a timestamped inflight — no deferral.
 	for _, entry := range entries {
 		name := entry.Name()
 		if !isActiveFile(name) {
@@ -238,7 +575,6 @@ func (s *fileSpool) collectInflight() (map[string][]string, error) {
 		}
 	}
 
-	// Re-read to pick up all inflight files (old + just-renamed).
 	entries, err = afero.ReadDir(s.fs, s.dir)
 	if err != nil {
 		return nil, fmt.Errorf("reading spool directory after rename: %w", err)
@@ -254,7 +590,6 @@ func (s *fileSpool) collectInflight() (map[string][]string, error) {
 		byKey[key] = append(byKey[key], s.dir+"/"+name)
 	}
 
-	// Sort each key's inflight paths lexicographically (oldest tsnano first).
 	for _, paths := range byKey {
 		sort.Strings(paths)
 	}
@@ -262,8 +597,7 @@ func (s *fileSpool) collectInflight() (map[string][]string, error) {
 	return byKey, nil
 }
 
-// Flush implements Spool.
-func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
+func (s *fileSpool) flush() error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
@@ -277,10 +611,9 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 	}
 	s.mu.Unlock()
 
-	// Process each key's inflight files in order (oldest first).
 	var flushErr error
 	for key, paths := range byKey {
-		if err := s.flushKey(key, paths, fn); err != nil {
+		if err := s.flushKey(key, paths, s.handler); err != nil {
 			flushErr = err
 		}
 	}
@@ -288,31 +621,162 @@ func (s *fileSpool) Flush(fn func(key string, frames [][]byte) error) error {
 	return flushErr
 }
 
-// flushKey processes inflight files for a single key in order.
-// Stops on the first failure (preserves per-key ordering).
-func (s *fileSpool) flushKey(key string, paths []string, fn func(string, [][]byte) error) error {
+func (s *fileSpool) flushKey(key string, paths []string, fn FlushHandler) error {
 	for i, path := range paths {
-		frames, readErr := readFrames(s.fs, path)
-		if readErr != nil {
-			return fmt.Errorf("reading inflight file %q: %w", path, readErr)
-		}
-		if len(frames) == 0 {
-			s.removeInflight(path)
-			continue
+		if err := s.flushOneInflight(path); err != nil {
+			if errors.Is(err, errEmptyInflight) {
+				continue
+			}
+			return fmt.Errorf("reading inflight file %q: %w", path, err)
 		}
 
-		if fnErr := fn(key, frames); fnErr != nil {
-			// Pass only the remaining (unprocessed) paths to the failure handler.
+		next, cleanup := s.makeNextFunc(path)
+		fnErr := fn(key, next)
+		cleanup()
+
+		if fnErr != nil {
 			return s.handleFlushFailure(key, paths[i:], fnErr)
 		}
 
-		// Success — reset failure counter and remove the inflight file.
 		s.failMu.Lock()
 		delete(s.failuresByKey, key)
 		s.failMu.Unlock()
 		s.removeInflight(path)
 	}
 	return nil
+}
+
+var errEmptyInflight = fmt.Errorf("empty inflight file")
+
+func (s *fileSpool) flushOneInflight(path string) error {
+	info, err := s.fs.Stat(path)
+	if err != nil {
+		return fmt.Errorf("stat inflight %q: %w", path, err)
+	}
+	if info.Size() == 0 {
+		s.removeInflight(path)
+		return errEmptyInflight
+	}
+	return nil
+}
+
+type frameReader struct {
+	file   afero.File
+	path   string
+	header []byte
+	done   bool
+}
+
+func newFrameReader(fs afero.Fs, path string) (*frameReader, error) {
+	f, err := fs.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening %q: %w", path, err)
+	}
+	return &frameReader{file: f, path: path, header: make([]byte, headerSize)}, nil
+}
+
+func (r *frameReader) readFrame() ([]byte, error) {
+	if r.done {
+		return nil, io.EOF
+	}
+
+	_, err := io.ReadFull(r.file, r.header)
+	if err != nil {
+		if err == io.EOF {
+			r.done = true
+			return nil, io.EOF
+		}
+		if err == io.ErrUnexpectedEOF {
+			logrus.Warnf("truncated frame header in %q; stopping incremental read", r.path)
+			r.done = true
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("reading frame header from %q: %w", r.path, err)
+	}
+
+	size := binary.LittleEndian.Uint32(r.header)
+	payload := make([]byte, size)
+	_, err = io.ReadFull(r.file, payload)
+	if err != nil {
+		if err == io.ErrUnexpectedEOF || err == io.EOF {
+			logrus.Warnf("truncated frame payload in %q (expected %d bytes); stopping incremental read", r.path, size)
+			r.done = true
+			return nil, io.EOF
+		}
+		return nil, fmt.Errorf("reading frame payload from %q: %w", r.path, err)
+	}
+
+	return payload, nil
+}
+
+func (r *frameReader) close() {
+	if err := r.file.Close(); err != nil {
+		logrus.Errorf("closing frame reader for %q: %v", r.path, err)
+	}
+}
+
+func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cleanup func()) {
+	var (
+		reader    *frameReader
+		exhausted bool
+	)
+
+	closeReader := func() {
+		if reader != nil {
+			reader.close()
+			reader = nil
+		}
+	}
+
+	next = func() ([][]byte, error) {
+		if exhausted {
+			return nil, io.EOF
+		}
+
+		if reader == nil {
+			var err error
+			reader, err = newFrameReader(s.fs, path)
+			if err != nil {
+				return nil, fmt.Errorf("reading frames from %q: %w", path, err)
+			}
+		}
+
+		batch, err := s.readBatch(reader)
+		if err != nil {
+			closeReader()
+			return nil, err
+		}
+
+		if len(batch) == 0 {
+			closeReader()
+			exhausted = true
+			return nil, io.EOF
+		}
+
+		return batch, nil
+	}
+
+	return next, closeReader
+}
+
+func (s *fileSpool) readBatch(r *frameReader) ([][]byte, error) {
+	var batch [][]byte
+
+	for {
+		frame, err := r.readFrame()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return batch, nil
+			}
+			return nil, err
+		}
+
+		batch = append(batch, frame)
+
+		if s.flushBatchSize > 0 && len(batch) >= s.flushBatchSize {
+			return batch, nil
+		}
+	}
 }
 
 func (s *fileSpool) removeInflight(path string) {
@@ -332,7 +796,6 @@ func (s *fileSpool) handleFlushFailure(key string, allPaths []string, fnErr erro
 			"exceeded failure threshold for key %q after %d consecutive failures (threshold: %d)",
 			key, count, s.maxFailures,
 		)
-		// Invoke strategy on ALL inflight files for this key.
 		for _, p := range allPaths {
 			if stratErr := s.failureStrategy.OnExceededFailures(s.fs, p); stratErr != nil {
 				logrus.Errorf("failure strategy error for key %q, file %q: %v", key, p, stratErr)
@@ -345,13 +808,11 @@ func (s *fileSpool) handleFlushFailure(key string, allPaths []string, fnErr erro
 		return nil
 	}
 
-	// Leave inflight files in place for retry on next flush cycle.
 	logrus.Warnf("flush callback failed for key %q (%d/%d): %v", key, count, s.maxFailures, fnErr)
 	return fnErr
 }
 
-// Recover implements Spool.
-func (s *fileSpool) Recover() error {
+func (s *fileSpool) recover() error {
 	entries, err := afero.ReadDir(s.fs, s.dir)
 	if err != nil {
 		return fmt.Errorf("reading spool directory for recovery: %w", err)
@@ -386,16 +847,45 @@ func (s *fileSpool) Recover() error {
 	return nil
 }
 
-// Close implements Spool.
-func (s *fileSpool) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.closed = true
-	return nil
+func (s *fileSpool) close() error {
+	var closeErr error
+	s.closeOnce.Do(func() {
+		s.mu.Lock()
+		if s.closed {
+			s.mu.Unlock()
+			return
+		}
+		s.closed = true
+		s.mu.Unlock()
+
+		close(s.stopCh)
+		s.wg.Wait()
+
+		if s.flushOnClose {
+			closeErr = s.flushClosed()
+		}
+	})
+
+	return closeErr
 }
 
-// readFrames reads all framed records from the file at path.
-// On a truncated trailing frame it logs a warning and returns the frames read so far.
+func (s *fileSpool) flushClosed() error {
+	s.mu.Lock()
+	byKey, err := s.collectInflight()
+	s.mu.Unlock()
+	if err != nil {
+		return err
+	}
+
+	var flushErr error
+	for key, paths := range byKey {
+		if err := s.flushKey(key, paths, s.handler); err != nil {
+			flushErr = err
+		}
+	}
+	return flushErr
+}
+
 func readFrames(fs afero.Fs, path string) ([][]byte, error) {
 	f, err := fs.Open(path)
 	if err != nil {
@@ -416,7 +906,6 @@ func readFrames(fs afero.Fs, path string) ([][]byte, error) {
 			if err == io.EOF {
 				break
 			}
-			// Short header read — truncated trailing frame.
 			if err == io.ErrUnexpectedEOF {
 				logrus.Warnf("truncated frame header in %q; stopping read with %d frames recovered", path, len(frames))
 				break
@@ -429,8 +918,12 @@ func readFrames(fs afero.Fs, path string) ([][]byte, error) {
 		_, err = io.ReadFull(f, payload)
 		if err != nil {
 			if err == io.ErrUnexpectedEOF || err == io.EOF {
-				logrus.Warnf("truncated frame payload in %q (expected %d bytes); stopping read with %d frames recovered",
-					path, size, len(frames))
+				logrus.Warnf(
+					"truncated frame payload in %q (expected %d bytes); stopping read with %d frames recovered",
+					path,
+					size,
+					len(frames),
+				)
 				break
 			}
 			return nil, fmt.Errorf("reading frame payload from %q: %w", path, err)

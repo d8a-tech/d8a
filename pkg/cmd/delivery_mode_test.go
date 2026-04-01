@@ -92,7 +92,6 @@ storage:
 
 	var observedReceiverBatchingBackend string
 	var observedStorageSpoolEnabled bool
-	var observedStorageSpoolWriteChanBuffer int
 
 	app := &cli.Command{
 		Name:   "d8a-test",
@@ -102,7 +101,6 @@ storage:
 			// when
 			observedReceiverBatchingBackend = cmd.String(receiverBatchingBackendFlag.Name)
 			observedStorageSpoolEnabled = cmd.Bool(storageSpoolEnabledFlag.Name)
-			observedStorageSpoolWriteChanBuffer = cmd.Int(storageSpoolWriteChanBufferFlag.Name)
 			return nil
 		},
 	}
@@ -111,10 +109,8 @@ storage:
 	require.NoError(t, app.Run(context.Background(), args))
 	assert.Equal(t, "filesystem", observedReceiverBatchingBackend)
 	assert.Equal(t, true, observedStorageSpoolEnabled)
-	assert.Equal(t, 0, observedStorageSpoolWriteChanBuffer)
 	assert.Contains(t, logs.String(), "delivery mode 'at_least_once' sets 'receiver-batching-backend' to 'filesystem'")
 	assert.Contains(t, logs.String(), "delivery mode 'at_least_once' sets 'storage-spool-enabled' to 'true'")
-	assert.Contains(t, logs.String(), "delivery mode 'at_least_once' sets 'storage-spool-write-chan-buffer' to '0'")
 }
 
 func TestDeliveryModeOverrides_WarningsOnlyForConflictingNonCLIValues(t *testing.T) {
@@ -140,7 +136,6 @@ storage:
 				"d8a-test",
 				"--receiver-batching-backend=filesystem",
 				"--storage-spool-enabled=true",
-				"--storage-spool-write-chan-buffer=0",
 			},
 			expectedWarningPart: "delivery mode 'at_least_once' sets",
 			wantWarning:         false,
@@ -219,7 +214,6 @@ func TestDeliveryModeDetection_CLIArgPrecedenceOverEnv(t *testing.T) {
 
 	var observedReceiverBatchingBackend string
 	var observedStorageSpoolEnabled bool
-	var observedStorageSpoolWriteChanBuffer int
 
 	app := &cli.Command{
 		Name:   "d8a-test",
@@ -229,7 +223,6 @@ func TestDeliveryModeDetection_CLIArgPrecedenceOverEnv(t *testing.T) {
 			// when
 			observedReceiverBatchingBackend = cmd.String(receiverBatchingBackendFlag.Name)
 			observedStorageSpoolEnabled = cmd.Bool(storageSpoolEnabledFlag.Name)
-			observedStorageSpoolWriteChanBuffer = cmd.Int(storageSpoolWriteChanBufferFlag.Name)
 			return nil
 		},
 	}
@@ -238,7 +231,6 @@ func TestDeliveryModeDetection_CLIArgPrecedenceOverEnv(t *testing.T) {
 	require.NoError(t, app.Run(context.Background(), args))
 	assert.Equal(t, "memory", observedReceiverBatchingBackend)
 	assert.Equal(t, true, observedStorageSpoolEnabled)
-	assert.Equal(t, 1000, observedStorageSpoolWriteChanBuffer)
 }
 
 func TestRunSubcommands_UseCombinedModeOverridesBeforeHook(t *testing.T) {
@@ -342,7 +334,6 @@ storage:
 
 	var observedReceiverBatchingBackend string
 	var observedStorageSpoolEnabled bool
-	var observedStorageSpoolWriteChanBuffer int
 
 	// Command with all receiver/storage flags. This simulates server/receiver/worker commands.
 	app := &cli.Command{
@@ -356,7 +347,6 @@ storage:
 			// when
 			observedReceiverBatchingBackend = cmd.String(receiverBatchingBackendFlag.Name)
 			observedStorageSpoolEnabled = cmd.Bool(storageSpoolEnabledFlag.Name)
-			observedStorageSpoolWriteChanBuffer = cmd.Int(storageSpoolWriteChanBufferFlag.Name)
 			return nil
 		},
 	}
@@ -365,7 +355,6 @@ storage:
 	require.NoError(t, app.Run(context.Background(), args))
 	assert.Equal(t, "filesystem", observedReceiverBatchingBackend)
 	assert.Equal(t, true, observedStorageSpoolEnabled)
-	assert.Equal(t, 0, observedStorageSpoolWriteChanBuffer)
 }
 
 func TestDeliveryModeOverrideSources_CanReadConfigValues(t *testing.T) {

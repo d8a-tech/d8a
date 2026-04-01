@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -11,11 +12,14 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/d8a-tech/d8a/pkg/bolt"
+	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	whBigQuery "github.com/d8a-tech/d8a/pkg/warehouse/bigquery"
 	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
 	whFiles "github.com/d8a-tech/d8a/pkg/warehouse/files"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -244,6 +248,44 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	baseSpoolDir := cmd.String(storageSpoolDirectoryFlag.Name)
 	spoolDir := filepath.Join(baseSpoolDir, "warehouse", "files")
 
+	fmt := filesWarehouseFormat(cmd, format)
+	uploader := filesWarehouseUploader(ctx, cmd)
+
+	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
+	validateFilesPathTemplate(tmplStr)
+
+	factory, err := filesWarehouseFactory(cmd, spoolDir)
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create files warehouse spool factory")
+	}
+
+	kv, err := bolt.NewBoltKV(filepath.Join(spoolDir, "metadata.db"))
+	if err != nil {
+		if closeErr := factory.Close(); closeErr != nil {
+			logrus.WithError(closeErr).Error("failed to close files warehouse spool factory")
+		}
+		logrus.WithError(err).Fatal("failed to create files warehouse metadata kv")
+	}
+
+	driver, err := whFiles.NewFilesDriver(ctx, factory, kv, uploader, fmt,
+		whFiles.WithPathTemplate(tmplStr),
+	)
+	if err != nil {
+		if c, ok := kv.(interface{ Close() error }); ok {
+			if closeErr := c.Close(); closeErr != nil {
+				logrus.WithError(closeErr).Error("failed to close files warehouse metadata kv")
+			}
+		}
+		if closeErr := factory.Close(); closeErr != nil {
+			logrus.WithError(closeErr).Error("failed to close files warehouse spool factory")
+		}
+		logrus.WithError(err).Fatal("failed to create files warehouse spool driver")
+	}
+
+	return &filesRegistryWithFactoryClose{driver: driver, factory: factory}
+}
+
+func filesWarehouseFormat(cmd *cli.Command, format string) whFiles.Format {
 	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
 	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
 
@@ -257,16 +299,17 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 		logrus.Fatalf("unsupported files compression: %s", compression)
 	}
 
-	var fmt whFiles.Format
 	switch format {
 	case "csv":
-		fmt = whFiles.NewCSVFormat(csvOpts...)
+		return whFiles.NewCSVFormat(csvOpts...)
 	default:
 		logrus.Fatalf("unsupported files format: %s", format)
+		return nil
 	}
+}
 
+func filesWarehouseUploader(ctx context.Context, cmd *cli.Command) whFiles.StreamUploader {
 	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
-	var uploader whFiles.Uploader
 
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
@@ -275,7 +318,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 			logrus.WithError(err).Fatal("failed to create warehouse object storage bucket")
 		}
 
-		uploader = whFiles.NewBlobUploader(bucket)
+		return whFiles.NewBlobUploader(bucket)
 
 	case storageTypeFilesystem:
 		filesystemPath := cmd.String(warehouseFilesFilesystemPathFlag.Name)
@@ -283,27 +326,48 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 			logrus.Fatal("--warehouse-files-filesystem-path is required when warehouse-files-storage=filesystem")
 		}
 
-		var err error
-		uploader, err = whFiles.NewFilesystemUploader(filesystemPath)
+		uploader, err := whFiles.NewFilesystemUploader(filesystemPath)
 		if err != nil {
 			logrus.WithError(err).Fatal("failed to create filesystem uploader")
 		}
 
+		return uploader
+
 	default:
 		logrus.Fatal("--warehouse-files-storage must be set to s3, gcs, or filesystem")
+		return nil
+	}
+}
+
+func filesWarehouseFactory(cmd *cli.Command, spoolDir string) (spools.Factory, error) {
+	return spools.NewFileFactory(
+		afero.NewOsFs(),
+		filepath.Join(spoolDir, "spool"),
+		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
+		spools.WithMaxFailures(3),
+		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
+		spools.WithFlushInterval(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
+		spools.WithFlushOnClose(true),
+	)
+}
+
+type filesRegistryWithFactoryClose struct {
+	driver  warehouse.Driver
+	factory spools.Factory
+}
+
+func (r *filesRegistryWithFactoryClose) Get(_ string) (warehouse.Driver, error) {
+	return r.driver, nil
+}
+
+func (r *filesRegistryWithFactoryClose) Close() error {
+	factoryErr := r.factory.Close()
+	driverErr := r.driver.Close()
+	if driverErr != nil || factoryErr != nil {
+		return fmt.Errorf("closing files warehouse resources: %w", errors.Join(driverErr, factoryErr))
 	}
 
-	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
-	validateFilesPathTemplate(tmplStr)
-
-	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir,
-		whFiles.WithPathTemplate(tmplStr),
-		whFiles.WithSealCheckInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
-		whFiles.WithMaxSegmentSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
-		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
-	)
-
-	return warehouse.NewStaticDriverRegistry(driver)
+	return nil
 }
 
 func validateFilesPathTemplate(tmplStr string) {

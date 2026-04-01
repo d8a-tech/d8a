@@ -4,9 +4,9 @@ import (
 	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"os"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -15,7 +15,13 @@ import (
 // Format defines how data is serialized to files.
 type Format interface {
 	Extension() string
-	Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error
+	NewWriter(w io.Writer, schema *arrow.Schema) (FormatWriter, error)
+}
+
+// FormatWriter writes rows for a single output stream.
+type FormatWriter interface {
+	WriteRows(rows []map[string]any) error
+	Close() error
 }
 
 type csvFormat struct {
@@ -53,45 +59,54 @@ func (f *csvFormat) Extension() string {
 	return "csv"
 }
 
-func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]any) error {
-	// Write header only for empty files
-	// For os.File: check size via Stat()
-	// For other writers (e.g., bytes.Buffer in tests): assume empty and write header
-	shouldWriteHeader := true
-	if file, ok := w.(*os.File); ok {
-		info, err := file.Stat()
-		if err == nil && info.Size() > 0 {
-			shouldWriteHeader = false
-		}
-	}
-
-	var writer *csv.Writer
+func (f *csvFormat) NewWriter(w io.Writer, schema *arrow.Schema) (FormatWriter, error) {
 	var gz *gzip.Writer
+	var writer *csv.Writer
 	if f.compressionLevel == nil {
 		writer = csv.NewWriter(w)
 	} else {
 		var err error
 		gz, err = gzip.NewWriterLevel(w, *f.compressionLevel)
 		if err != nil {
-			return fmt.Errorf("creating gzip writer: %w", err)
+			return nil, fmt.Errorf("creating gzip writer: %w", err)
 		}
 		writer = csv.NewWriter(gz)
 	}
 
-	if shouldWriteHeader {
-		header := make([]string, len(schema.Fields()))
-		for i, field := range schema.Fields() {
-			header[i] = field.Name
-		}
-		if err := writer.Write(header); err != nil {
-			return fmt.Errorf("writing CSV header: %w", err)
-		}
+	return &csvFormatWriter{
+		schema: schema,
+		writer: writer,
+		gz:     gz,
+	}, nil
+}
+
+type csvFormatWriter struct {
+	schema        *arrow.Schema
+	writer        *csv.Writer
+	gz            *gzip.Writer
+	headerWritten bool
+	closed        bool
+}
+
+func (w *csvFormatWriter) WriteRows(rows []map[string]any) error {
+	if w.closed {
+		return errors.New("format writer is closed")
 	}
 
-	// Write data rows
+	if !w.headerWritten {
+		header := make([]string, len(w.schema.Fields()))
+		for i, field := range w.schema.Fields() {
+			header[i] = field.Name
+		}
+		if err := w.writer.Write(header); err != nil {
+			return fmt.Errorf("writing CSV header: %w", err)
+		}
+		w.headerWritten = true
+	}
+
 	for _, row := range rows {
-		record := make([]string, len(schema.Fields()))
-		for i, field := range schema.Fields() {
+		record := make([]string, len(w.schema.Fields()))
+		for i, field := range w.schema.Fields() {
 			val := row[field.Name]
 			strVal, err := valueToString(val, field.Type)
 			if err != nil {
@@ -99,17 +114,27 @@ func (f *csvFormat) Write(w io.Writer, schema *arrow.Schema, rows []map[string]a
 			}
 			record[i] = strVal
 		}
-		if err := writer.Write(record); err != nil {
+		if err := w.writer.Write(record); err != nil {
 			return fmt.Errorf("writing CSV row: %w", err)
 		}
 	}
 
-	writer.Flush()
-	if err := writer.Error(); err != nil {
+	return nil
+}
+
+func (w *csvFormatWriter) Close() error {
+	if w.closed {
+		return nil
+	}
+	w.closed = true
+
+	w.writer.Flush()
+	if err := w.writer.Error(); err != nil {
 		return fmt.Errorf("flushing CSV writer: %w", err)
 	}
-	if gz != nil {
-		if err := gz.Close(); err != nil {
+
+	if w.gz != nil {
+		if err := w.gz.Close(); err != nil {
 			return fmt.Errorf("closing gzip writer: %w", err)
 		}
 	}

@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/apache/arrow-go/v18/arrow/array"
+	"github.com/apache/arrow-go/v18/arrow/ipc"
+	"github.com/apache/arrow-go/v18/arrow/memory"
 )
 
 // schemaFingerprint returns a 16-character SHA256-based fingerprint for the schema.
@@ -50,39 +51,39 @@ func escapeTableName(table string) string {
 	return builder.String()
 }
 
-// streamDir returns the stream directory for a table+schema fingerprint.
-func streamDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(spoolDir, "streams", tableEsc, fingerprint)
+func marshalSchema(schema *arrow.Schema) ([]byte, error) {
+	bldr := array.NewRecordBuilder(memory.DefaultAllocator, schema)
+	defer bldr.Release()
+	rec := bldr.NewRecordBatch()
+	defer rec.Release()
+
+	var buf bytes.Buffer
+	w := ipc.NewWriter(&buf, ipc.WithSchema(schema))
+	if err := w.Write(rec); err != nil {
+		return nil, fmt.Errorf("writing IPC record: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return nil, fmt.Errorf("closing IPC writer: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
-// activePath returns the active segment path for a stream.
-func activePath(spoolDir, tableEsc, fingerprint, ext string) string {
-	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "active."+ext)
-}
+func unmarshalSchema(data []byte) (*arrow.Schema, error) {
+	r, err := ipc.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("creating IPC reader: %w", err)
+	}
+	defer r.Release()
 
-// sealedDir returns the sealed segments directory for a stream.
-func sealedDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "sealed")
-}
-
-// uploadingDir returns the uploading segments directory for a stream.
-func uploadingDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "uploading")
-}
-
-// failedDir returns the failed segments directory for a stream.
-func failedDir(spoolDir, tableEsc, fingerprint string) string {
-	return filepath.Join(streamDir(spoolDir, tableEsc, fingerprint), "failed")
-}
-
-// segmentPath returns the path for a segment ID within a directory.
-func segmentPath(dir, segmentID, ext string) string {
-	return filepath.Join(dir, fmt.Sprintf("%s.%s", segmentID, ext))
-}
-
-// failCountPath returns the path for a segment fail counter within the stream directory.
-func failCountPath(streamDir, segmentID string) string {
-	return filepath.Join(streamDir, fmt.Sprintf("%s.failcount", segmentID))
+	schema := r.Schema()
+	if schema == nil {
+		return nil, fmt.Errorf("reading IPC schema: nil schema returned")
+	}
+	if r.Err() != nil {
+		return nil, fmt.Errorf("reading IPC schema: %w", r.Err())
+	}
+	return schema, nil
 }
 
 // pathTemplateData holds the data available for path template execution.
@@ -125,47 +126,4 @@ func segmentRemoteKey(
 	}
 
 	return buf.String(), nil
-}
-
-// ensureStreamDirs creates the directory structure for a stream.
-func ensureStreamDirs(spoolDir, tableEsc, fingerprint string) error {
-	paths := []string{
-		streamDir(spoolDir, tableEsc, fingerprint),
-		sealedDir(spoolDir, tableEsc, fingerprint),
-		uploadingDir(spoolDir, tableEsc, fingerprint),
-		failedDir(spoolDir, tableEsc, fingerprint),
-	}
-
-	for _, path := range paths {
-		if err := os.MkdirAll(path, 0o750); err != nil {
-			return fmt.Errorf("creating stream dir %s: %w", path, err)
-		}
-	}
-
-	return nil
-}
-
-func findSealedSegments(sealedDir, ext string) ([]string, error) {
-	entries, err := os.ReadDir(sealedDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, fmt.Errorf("reading sealed dir %s: %w", sealedDir, err)
-	}
-
-	dotExt := "." + ext
-	segments := make([]string, 0)
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasSuffix(name, dotExt) {
-			continue
-		}
-		segments = append(segments, strings.TrimSuffix(name, dotExt))
-	}
-
-	return segments, nil
 }

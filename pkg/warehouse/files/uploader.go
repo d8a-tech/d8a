@@ -8,89 +8,241 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
 	"gocloud.dev/blob"
 )
 
-// Uploader handles uploading files to a destination.
-type Uploader interface {
-	Upload(ctx context.Context, localPath, remoteKey string) error
+// StreamUploader handles uploading streams to a destination.
+type StreamUploader interface {
+	Begin(ctx context.Context, key string) (Upload, error)
 }
 
-// blobUploader implements Uploader for cloud blob storage.
-type blobUploader struct {
+// Upload represents a single upload transaction.
+type Upload interface {
+	Writer() io.Writer
+	Commit() error
+	Abort() error
+}
+
+// blobStreamUploader implements StreamUploader for cloud blob storage.
+type blobStreamUploader struct {
 	bucket *blob.Bucket
 }
 
-// NewBlobUploader creates a new Uploader that uploads files to a blob bucket.
-func NewBlobUploader(bucket *blob.Bucket) Uploader {
-	return &blobUploader{bucket: bucket}
+// NewBlobUploader creates a new StreamUploader that uploads files to a blob bucket.
+func NewBlobUploader(bucket *blob.Bucket) StreamUploader {
+	return &blobStreamUploader{bucket: bucket}
 }
 
-func (u *blobUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
-	filename := filepath.Base(localPath)
-
-	data, err := os.ReadFile(localPath) //nolint:gosec // localPath is intentionally provided by caller
+func (u *blobStreamUploader) Begin(ctx context.Context, key string) (Upload, error) {
+	childCtx, cancel := context.WithCancel(ctx)
+	bw, err := u.bucket.NewWriter(childCtx, key, nil)
 	if err != nil {
-		logrus.WithError(err).WithField("file", filename).Error("failed to read file for upload")
-		return fmt.Errorf("reading file for upload: %w", err)
+		cancel()
+		return nil, fmt.Errorf("creating blob writer: %w", err)
 	}
 
-	if err := u.bucket.WriteAll(ctx, remoteKey, data, nil); err != nil {
-		return fmt.Errorf("uploading file to blob storage: %w", err)
+	return &blobUpload{
+		writer: bw,
+		cancel: cancel,
+	}, nil
+}
+
+type blobUpload struct {
+	writer io.WriteCloser
+	cancel context.CancelFunc
+
+	mu        sync.Mutex
+	state     uploadState
+	commitErr error
+	abortErr  error
+}
+
+func (u *blobUpload) Writer() io.Writer {
+	return u.writer
+}
+
+func (u *blobUpload) Commit() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.state == uploadStateAborted {
+		return errors.New("upload already aborted")
+	}
+	if u.state == uploadStateCommitted {
+		return nil
+	}
+	if u.commitErr != nil {
+		return u.commitErr
 	}
 
-	if err := os.Remove(localPath); err != nil {
-		logrus.WithError(err).WithField("file", filename).Warn("uploaded but failed to delete local file")
-		return fmt.Errorf("deleting local file after upload: %w", err)
+	if err := u.writer.Close(); err != nil {
+		u.commitErr = fmt.Errorf("closing blob writer: %w", err)
+		return u.commitErr
 	}
-
+	u.cancel()
+	u.state = uploadStateCommitted
 	return nil
 }
 
-// filesystemUploader implements Uploader for local filesystem storage.
-type filesystemUploader struct {
+func (u *blobUpload) Abort() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.state == uploadStateCommitted {
+		return errors.New("upload already committed")
+	}
+	if u.state == uploadStateAborted {
+		return u.abortErr
+	}
+	u.commitErr = nil
+
+	u.cancel()
+	closeErr := u.writer.Close()
+	u.state = uploadStateAborted
+
+	if closeErr == nil || errors.Is(closeErr, context.Canceled) {
+		u.abortErr = nil
+		return nil
+	}
+
+	u.abortErr = fmt.Errorf("closing blob writer: %w", closeErr)
+	return u.abortErr
+}
+
+// filesystemStreamUploader implements StreamUploader for local filesystem storage.
+type filesystemStreamUploader struct {
 	destDir  string
 	renameFn func(string, string) error
 }
 
-// NewFilesystemUploader creates a new Uploader that moves files to a destination directory.
-func NewFilesystemUploader(destDir string) (Uploader, error) {
+// NewFilesystemUploader creates a new StreamUploader that writes to a destination directory.
+func NewFilesystemUploader(destDir string) (StreamUploader, error) {
 	if err := os.MkdirAll(destDir, 0o750); err != nil {
 		return nil, fmt.Errorf("creating destination directory: %w", err)
 	}
-	return &filesystemUploader{destDir: destDir, renameFn: os.Rename}, nil
+	return &filesystemStreamUploader{destDir: destDir, renameFn: os.Rename}, nil
 }
 
-func (u *filesystemUploader) Upload(ctx context.Context, localPath, remoteKey string) error {
+func (u *filesystemStreamUploader) Begin(ctx context.Context, remoteKey string) (Upload, error) {
 	_ = ctx
 
 	relPath := filepath.Clean(filepath.FromSlash(remoteKey))
 	if relPath == "." || filepath.IsAbs(relPath) || relPath == ".." ||
 		strings.HasPrefix(relPath, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("invalid filesystem destination key: %s", remoteKey)
+		return nil, fmt.Errorf("invalid filesystem destination key: %s", remoteKey)
 	}
 
 	destPath := filepath.Join(u.destDir, relPath)
-	if err := os.MkdirAll(filepath.Dir(destPath), 0o750); err != nil {
-		return fmt.Errorf("creating destination directory: %w", err)
+	tmpFile, err := os.CreateTemp(u.destDir, "upload-*.tmp")
+	if err != nil {
+		return nil, fmt.Errorf("creating temp upload file: %w", err)
 	}
 
-	if err := u.renameFn(localPath, destPath); err != nil {
+	return &filesystemUpload{
+		tempPath: tmpFile.Name(),
+		file:     tmpFile,
+		destPath: destPath,
+		renameFn: u.renameFn,
+	}, nil
+}
+
+type uploadState uint8
+
+const (
+	uploadStateOpen uploadState = iota
+	uploadStateCommitted
+	uploadStateAborted
+)
+
+type filesystemUpload struct {
+	tempPath string
+	destPath string
+	file     *os.File
+	renameFn func(string, string) error
+
+	mu        sync.Mutex
+	state     uploadState
+	commitErr error
+	abortErr  error
+}
+
+func (u *filesystemUpload) Writer() io.Writer {
+	return u.file
+}
+
+func (u *filesystemUpload) Commit() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.state == uploadStateAborted {
+		return errors.New("upload already aborted")
+	}
+	if u.state == uploadStateCommitted {
+		return nil
+	}
+	if u.commitErr != nil {
+		return u.commitErr
+	}
+
+	if err := u.file.Close(); err != nil {
+		u.commitErr = fmt.Errorf("closing temp upload file: %w", err)
+		return u.commitErr
+	}
+
+	if err := os.MkdirAll(filepath.Dir(u.destPath), 0o750); err != nil {
+		u.commitErr = fmt.Errorf("creating destination directory: %w", err)
+		return u.commitErr
+	}
+
+	if err := u.renameFn(u.tempPath, u.destPath); err != nil {
 		var linkErr *os.LinkError
 		if errors.As(err, &linkErr) && errors.Is(linkErr.Err, syscall.EXDEV) {
-			// Cross-device move: fall back to copy-then-delete
-			if copyErr := copyAndDelete(localPath, destPath); copyErr != nil {
-				return fmt.Errorf("copy fallback after EXDEV: %w", copyErr)
+			if copyErr := copyAndDelete(u.tempPath, u.destPath); copyErr != nil {
+				u.commitErr = fmt.Errorf("copy fallback after EXDEV: %w", copyErr)
+				return u.commitErr
 			}
-			logrus.Infof("moved file to filesystem destination (copy fallback)")
+			u.state = uploadStateCommitted
 			return nil
 		}
-		return fmt.Errorf("moving file to filesystem destination: %w", err)
+
+		u.commitErr = fmt.Errorf("moving file to filesystem destination: %w", err)
+		return u.commitErr
 	}
-	logrus.Infof("moved file to filesystem destination")
+
+	u.state = uploadStateCommitted
+	return nil
+}
+
+func (u *filesystemUpload) Abort() error {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	if u.state == uploadStateCommitted {
+		return errors.New("upload already committed")
+	}
+	if u.state == uploadStateAborted {
+		return u.abortErr
+	}
+	u.commitErr = nil
+
+	closeErr := u.file.Close()
+	removeErr := os.Remove(u.tempPath)
+	u.state = uploadStateAborted
+
+	if closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
+		u.abortErr = fmt.Errorf("closing temp upload file: %w", closeErr)
+		return u.abortErr
+	}
+
+	if removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		u.abortErr = fmt.Errorf("removing temp upload file: %w", removeErr)
+		return u.abortErr
+	}
+
+	u.abortErr = nil
 	return nil
 }
 

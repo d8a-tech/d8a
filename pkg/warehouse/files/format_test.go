@@ -5,8 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/csv"
 	"encoding/json"
-	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -120,7 +118,11 @@ func TestCSVFormat_Write_WithVariousTypes(t *testing.T) {
 			var buf bytes.Buffer
 
 			// when: writing rows
-			err := format.Write(&buf, tt.schema, tt.rows)
+			writer, err := format.NewWriter(&buf, tt.schema)
+			require.NoError(t, err)
+			err = writer.WriteRows(tt.rows)
+			require.NoError(t, err)
+			err = writer.Close()
 
 			// then: no error and correct output
 			assert.NoError(t, err)
@@ -194,7 +196,11 @@ func TestCSVFormat_Write_RFC4180Quoting(t *testing.T) {
 			// when: writing to CSV
 			format := NewCSVFormat()
 			var buf bytes.Buffer
-			err := format.Write(&buf, schema, rows)
+			writer, err := format.NewWriter(&buf, schema)
+			require.NoError(t, err)
+			err = writer.WriteRows(rows)
+			require.NoError(t, err)
+			err = writer.Close()
 
 			// then: proper quoting applied and value preserved
 			assert.NoError(t, err)
@@ -211,7 +217,7 @@ func TestCSVFormat_Write_RFC4180Quoting(t *testing.T) {
 }
 
 // TestCSVFormat_Write_AppendBehavior verifies header only written once on append.
-func TestCSVFormat_Write_AppendBehavior(t *testing.T) {
+func TestCSVFormatWriter_WriteRows_MultiBatchWritesSingleHeader(t *testing.T) {
 	// given: schema and data
 	schema := arrow.NewSchema(
 		[]arrow.Field{
@@ -231,31 +237,17 @@ func TestCSVFormat_Write_AppendBehavior(t *testing.T) {
 		{"id": int64(4), "name": "Diana"},
 	}
 
-	// when: writing first batch to new file
-	tmpDir := t.TempDir()
-	filePath := tmpDir + "/test.csv"
-
-	file1, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0o644)
-	assert.NoError(t, err)
-
+	// when
 	format := NewCSVFormat()
-	err = format.Write(file1, schema, batch1)
-	assert.NoError(t, err)
-	assert.NoError(t, file1.Close())
+	var buf bytes.Buffer
+	writer, err := format.NewWriter(&buf, schema)
+	require.NoError(t, err)
+	require.NoError(t, writer.WriteRows(batch1))
+	require.NoError(t, writer.WriteRows(batch2))
+	require.NoError(t, writer.Close())
 
-	// when: appending second batch
-	file2, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0o644)
-	assert.NoError(t, err)
-
-	err = format.Write(file2, schema, batch2)
-	assert.NoError(t, err)
-	assert.NoError(t, file2.Close())
-
-	// then: file contains header once and all rows
-	content, err := os.ReadFile(filePath)
-	assert.NoError(t, err)
-
-	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
+	// then
+	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	assert.Equal(t, 5, len(lines), "should have 1 header + 4 data rows")
 	assert.Equal(t, "id,name", lines[0], "header should be first line")
 	assert.Equal(t, "1,Alice", lines[1])
@@ -279,7 +271,11 @@ func TestCSVFormat_Write_EmptyRows(t *testing.T) {
 	// when: writing empty rows
 	format := NewCSVFormat()
 	var buf bytes.Buffer
-	err := format.Write(&buf, schema, rows)
+	writer, err := format.NewWriter(&buf, schema)
+	require.NoError(t, err)
+	err = writer.WriteRows(rows)
+	require.NoError(t, err)
+	err = writer.Close()
 
 	// then: only header written
 	assert.NoError(t, err)
@@ -304,7 +300,11 @@ func TestCSVFormat_Write_NonSeekableWriter(t *testing.T) {
 	// when: writing to non-seekable writer
 	format := NewCSVFormat()
 	var buf bytes.Buffer
-	err := format.Write(&buf, schema, rows)
+	writer, err := format.NewWriter(&buf, schema)
+	require.NoError(t, err)
+	err = writer.WriteRows(rows)
+	require.NoError(t, err)
+	err = writer.Close()
 
 	// then: header is written (safe default for non-seekable)
 	assert.NoError(t, err)
@@ -430,7 +430,11 @@ func TestCSVFormat_Gzip_Write_RoundTrip(t *testing.T) {
 
 	// when
 	var buf bytes.Buffer
-	err := format.Write(&buf, schema, rows)
+	writer, err := format.NewWriter(&buf, schema)
+	require.NoError(t, err)
+	err = writer.WriteRows(rows)
+	require.NoError(t, err)
+	err = writer.Close()
 	require.NoError(t, err)
 
 	// then: decompress and parse
@@ -449,8 +453,8 @@ func TestCSVFormat_Gzip_Write_RoundTrip(t *testing.T) {
 	assert.Equal(t, []string{"2", "Bob"}, records[2])
 }
 
-// TestCSVFormat_Gzip_AppendBehavior verifies multi-stream gzip append: header written once.
-func TestCSVFormat_Gzip_AppendBehavior(t *testing.T) {
+// TestCSVFormat_Gzip_MultiBatch verifies one gzip stream across batches.
+func TestCSVFormat_Gzip_MultiBatch(t *testing.T) {
 	// given
 	schema := arrow.NewSchema(
 		[]arrow.Field{
@@ -468,45 +472,22 @@ func TestCSVFormat_Gzip_AppendBehavior(t *testing.T) {
 		{"id": int64(4), "name": "Diana"},
 	}
 	format := NewCSVFormat(WithCompression(Gzip(gzip.BestSpeed)))
-	tmpDir := t.TempDir()
-	filePath := tmpDir + "/test.csv.gz"
-
-	// when: write first batch to new file
-	file1, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0o644)
+	var buf bytes.Buffer
+	writer, err := format.NewWriter(&buf, schema)
 	require.NoError(t, err)
-	require.NoError(t, format.Write(file1, schema, batch1))
-	require.NoError(t, file1.Close())
+	require.NoError(t, writer.WriteRows(batch1))
+	require.NoError(t, writer.WriteRows(batch2))
+	require.NoError(t, writer.Close())
 
-	// when: append second batch
-	file2, err := os.OpenFile(filePath, os.O_APPEND|os.O_WRONLY, 0o644)
-	require.NoError(t, err)
-	require.NoError(t, format.Write(file2, schema, batch2))
-	require.NoError(t, file2.Close())
-
-	// then: read all gzip members and collect all CSV records
-	rawFile, err := os.Open(filePath)
-	require.NoError(t, err)
-	defer func() {
-		assert.NoError(t, rawFile.Close())
-	}()
-
-	var allRecords [][]string
-	gr, err := gzip.NewReader(rawFile)
+	gr, err := gzip.NewReader(&buf)
 	require.NoError(t, err)
 	defer func() {
 		assert.NoError(t, gr.Close())
 	}()
-	for {
-		csvData, readErr := io.ReadAll(gr)
-		require.NoError(t, readErr)
-		r := csv.NewReader(bytes.NewReader(csvData))
-		recs, parseErr := r.ReadAll()
-		require.NoError(t, parseErr)
-		allRecords = append(allRecords, recs...)
-		if err = gr.Reset(rawFile); err != nil {
-			break // no more gzip members
-		}
-	}
+
+	r := csv.NewReader(gr)
+	allRecords, err := r.ReadAll()
+	require.NoError(t, err)
 
 	// then: exactly one header row and all 4 data rows
 	assert.Equal(t, 5, len(allRecords), "1 header + 4 data rows")

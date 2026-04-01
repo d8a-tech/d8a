@@ -16,6 +16,7 @@ type inMemSpoolWriter struct {
 	sweepInterval       time.Duration
 	maxBufferEvents     int
 	maxBufferedSessions int
+	writeChanBuffer     int
 	writeChan           chan inMemWriteRequest
 	stopped             chan struct{}
 	mu                  sync.RWMutex
@@ -70,6 +71,13 @@ func WithMaxBufferedSessions(n int) InMemSpoolOption {
 	}
 }
 
+// WithWriteChanBuffer sets the input channel capacity for incoming write requests.
+func WithWriteChanBuffer(n int) InMemSpoolOption {
+	return func(w *inMemSpoolWriter) {
+		w.writeChanBuffer = n
+	}
+}
+
 // NewInMemSpoolWriter creates a SessionWriter decorator that accumulates
 // *schema.Session objects per property in memory and flushes to child on
 // count or age thresholds. Returns the writer, a cleanup function, and an error.
@@ -85,12 +93,13 @@ func NewInMemSpoolWriter(child SessionWriter, opts ...InMemSpoolOption) (Session
 		sweepInterval:       5 * time.Second,
 		maxBufferEvents:     50000,
 		maxBufferedSessions: 10000,
-		writeChan:           make(chan inMemWriteRequest, 256),
+		writeChanBuffer:     1000,
 		stopped:             make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(w)
 	}
+	w.writeChan = make(chan inMemWriteRequest, w.writeChanBuffer)
 
 	go w.loop()
 

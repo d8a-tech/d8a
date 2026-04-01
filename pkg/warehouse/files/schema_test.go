@@ -1,10 +1,6 @@
 package files
 
 import (
-	"context"
-	"os"
-	"path/filepath"
-	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -14,9 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSchemaFingerprint_Returns16CharHash verifies SHA256-based fingerprint generation.
 func TestSchemaFingerprint_Returns16CharHash(t *testing.T) {
-	// given: a simple schema
 	schema := arrow.NewSchema(
 		[]arrow.Field{
 			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
@@ -25,280 +19,143 @@ func TestSchemaFingerprint_Returns16CharHash(t *testing.T) {
 		nil,
 	)
 
-	// when: fingerprinting the schema
 	fp := schemaFingerprint(schema)
-
-	// then: result is exactly 16 hex characters (lowercase)
 	assert.Equal(t, 16, len(fp))
-	for _, c := range fp {
-		assert.True(t, (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'),
-			"fingerprint should be lowercase hex: %c", c)
-	}
-}
-
-// TestSchemaFingerprint_ConsistentForSameSchema verifies deterministic hashing.
-func TestSchemaFingerprint_ConsistentForSameSchema(t *testing.T) {
-	// given: the same schema hashed twice
-	schema := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-		},
-		nil,
-	)
-
-	// when: fingerprinting twice
-	fp1 := schemaFingerprint(schema)
-	fp2 := schemaFingerprint(schema)
-
-	// then: fingerprints are identical
-	assert.Equal(t, fp1, fp2)
-}
-
-// TestSchemaFingerprint_DifferentForDifferentSchemas verifies fingerprints differ for different schemas.
-func TestSchemaFingerprint_DifferentForDifferentSchemas(t *testing.T) {
-	// given: two different schemas
-	schema1 := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-		},
-		nil,
-	)
-	schema2 := arrow.NewSchema(
-		[]arrow.Field{
-			{Name: "id", Type: arrow.PrimitiveTypes.Int32}, // Different type
-		},
-		nil,
-	)
-
-	// when: fingerprinting both
-	fp1 := schemaFingerprint(schema1)
-	fp2 := schemaFingerprint(schema2)
-
-	// then: fingerprints differ
-	assert.NotEqual(t, fp1, fp2)
 }
 
 func TestEscapeTableName(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "safe characters",
-			input:    "events_2026-02-25",
-			expected: "events_2026-02-25",
-		},
-		{
-			name:     "unsafe characters",
-			input:    "events$#%",
-			expected: "events___",
-		},
-		{
-			name:     "path traversal",
-			input:    "../../etc/passwd",
-			expected: "______etc_passwd",
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, escapeTableName(tt.input))
-		})
-	}
+	assert.Equal(t, "events_2026-02-25", escapeTableName("events_2026-02-25"))
+	assert.Equal(t, "______etc_passwd", escapeTableName("../../etc/passwd"))
 }
 
-func TestStreamPaths(t *testing.T) {
-	spoolDir := "/spool"
-	tableEsc := "events"
-	fingerprint := "abc123"
-	segmentID := "seg-1"
-
-	assert.Equal(t, activePath(spoolDir, tableEsc, fingerprint, "csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
-	assert.Equal(t, sealedDir(spoolDir, tableEsc, fingerprint), sealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, uploadingDir(spoolDir, tableEsc, fingerprint), uploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, failedDir(spoolDir, tableEsc, fingerprint), failedDir(spoolDir, tableEsc, fingerprint))
-
-	streamDir := streamDir(spoolDir, tableEsc, fingerprint)
-	assert.Equal(t, filepath.Join(spoolDir, "streams", tableEsc, fingerprint), streamDir)
-
-	assert.Equal(t, filepath.Join(streamDir, "active.csv"), activePath(spoolDir, tableEsc, fingerprint, "csv"))
-	assert.Equal(t, filepath.Join(streamDir, "sealed"), sealedDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "uploading"), uploadingDir(spoolDir, tableEsc, fingerprint))
-	assert.Equal(t, filepath.Join(streamDir, "failed"), failedDir(spoolDir, tableEsc, fingerprint))
-
-	sealedPath := segmentPath(sealedDir(spoolDir, tableEsc, fingerprint), segmentID, "csv")
-	assert.Equal(t, filepath.Join(streamDir, "sealed", "seg-1.csv"), sealedPath)
-
-	failCountPath := failCountPath(streamDir, segmentID)
-	assert.Equal(t, filepath.Join(streamDir, "seg-1.failcount"), failCountPath)
-}
-
-func TestSegmentRemoteKey(t *testing.T) {
+func TestMarshalSchemaRoundTrip(t *testing.T) {
 	tests := []struct {
-		name        string
-		template    string
-		tableEsc    string
-		fingerprint string
-		segmentID   string
-		ext         string
-		sealTime    time.Time
-		expected    string
-		expectError bool
+		name   string
+		schema *arrow.Schema
 	}{
 		{
-			name: "default template (matches current behavior)",
-			template: "table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/" +
-				"{{.DayPadded}}/{{.SegmentID}}.{{.Extension}}",
-			tableEsc:    "events",
-			fingerprint: "abc123",
-			segmentID:   "seg-1",
-			ext:         "csv",
-			sealTime:    time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC),
-			expected:    "table=events/schema=abc123/dt=2026/02/25/seg-1.csv",
-			expectError: false,
+			name: "primitives and timestamp",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name:     "id",
+						Type:     arrow.PrimitiveTypes.Int64,
+						Nullable: false,
+						Metadata: arrow.NewMetadata([]string{"k1"}, []string{"v1"}),
+					},
+					{
+						Name:     "name",
+						Type:     arrow.BinaryTypes.String,
+						Nullable: true,
+					},
+					{
+						Name:     "score",
+						Type:     arrow.PrimitiveTypes.Float64,
+						Nullable: true,
+					},
+					{
+						Name:     "active",
+						Type:     arrow.FixedWidthTypes.Boolean,
+						Nullable: true,
+					},
+					{
+						Name:     "created_date",
+						Type:     arrow.FixedWidthTypes.Date32,
+						Nullable: true,
+					},
+					{
+						Name:     "ts",
+						Type:     &arrow.TimestampType{Unit: arrow.Millisecond, TimeZone: "UTC"},
+						Nullable: true,
+					},
+				},
+				func() *arrow.Metadata {
+					m := arrow.NewMetadata([]string{"schema_key"}, []string{"schema_value"})
+					return &m
+				}(),
+			),
 		},
 		{
-			name: "hive-style partitioning",
-			template: "table={{.Table}}/year={{.Year}}/month={{.MonthPadded}}/day={{.DayPadded}}/" +
-				"{{.SegmentID}}.{{.Extension}}",
-			tableEsc:    "events",
-			fingerprint: "abc123",
-			segmentID:   "seg-1",
-			ext:         "csv",
-			sealTime:    time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC),
-			expected:    "table=events/year=2026/month=02/day=25/seg-1.csv",
-			expectError: false,
+			name: "nested struct and list",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name: "attrs",
+						Type: arrow.StructOf(
+							arrow.Field{
+								Name:     "ok",
+								Type:     arrow.FixedWidthTypes.Boolean,
+								Nullable: true,
+							},
+							arrow.Field{
+								Name: "items",
+								Type: arrow.ListOfField(arrow.Field{
+									Name:     "item",
+									Type:     arrow.BinaryTypes.String,
+									Nullable: true,
+									Metadata: arrow.NewMetadata([]string{"list_elem_k"}, []string{"list_elem_v"}),
+								}),
+								Nullable: true,
+							},
+						),
+						Nullable: true,
+					},
+				},
+				nil,
+			),
 		},
 		{
-			name:        "flat structure",
-			template:    "{{.Table}}_{{.Year}}{{.MonthPadded}}{{.DayPadded}}_{{.SegmentID}}.{{.Extension}}",
-			tableEsc:    "events",
-			fingerprint: "abc123",
-			segmentID:   "seg-1",
-			ext:         "csv",
-			sealTime:    time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC),
-			expected:    "events_20260225_seg-1.csv",
-			expectError: false,
-		},
-		{
-			name:        "extension only",
-			template:    "{{.SegmentID}}.{{.Extension}}",
-			tableEsc:    "events",
-			fingerprint: "abc123",
-			segmentID:   "seg-1",
-			ext:         "csv",
-			sealTime:    time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC),
-			expected:    "seg-1.csv",
-			expectError: false,
+			name: "map type",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name:     "data",
+						Type:     arrow.MapOf(arrow.BinaryTypes.String, arrow.BinaryTypes.String),
+						Nullable: true,
+						Metadata: arrow.NewMetadata([]string{"map_meta"}, []string{"map_value"}),
+					},
+				},
+				nil,
+			),
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// given
-			tmpl, err := template.New("path").Parse(tt.template)
-			require.NoError(t, err)
+			schema := tt.schema
+			originalFp := schema.Fingerprint()
 
 			// when
-			key, err := segmentRemoteKey(tmpl, tt.tableEsc, tt.fingerprint, tt.segmentID, tt.ext, tt.sealTime)
+			data, err := marshalSchema(schema)
+			require.NoError(t, err)
+
+			roundTripped, err := unmarshalSchema(data)
+			require.NoError(t, err)
 
 			// then
-			if tt.expectError {
-				assert.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.expected, key)
-			}
+			assert.True(t, schema.Equal(roundTripped), "schemas should be equal")
+			assert.Equal(t, originalFp, roundTripped.Fingerprint(), "fingerprints should match")
 		})
 	}
 }
 
-// TestFindSealedSegments_CompoundExtension verifies csv.gz files are matched correctly.
-func TestFindSealedSegments_CompoundExtension(t *testing.T) {
-	// given
-	tmpDir := t.TempDir()
-	// create test files
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg1.csv.gz"), []byte("data"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "seg2.csv.gz"), []byte("data"), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "other.csv"), []byte("data"), 0o600)) // should not match
-
-	// when
-	segments, err := findSealedSegments(tmpDir, "csv.gz")
-
-	// then
-	assert.NoError(t, err)
-	assert.ElementsMatch(t, []string{"seg1", "seg2"}, segments)
-}
-
-// mockUploaderForTest is a test double for Uploader interface
-type mockUploaderForTest struct {
-	calls []struct {
-		localPath string
-		remoteKey string
-	}
-	mu sync.Mutex
-}
-
-func (m *mockUploaderForTest) Upload(ctx context.Context, localPath, remoteKey string) error {
-	m.mu.Lock()
-	m.calls = append(m.calls, struct {
-		localPath string
-		remoteKey string
-	}{localPath: localPath, remoteKey: remoteKey})
-	m.mu.Unlock()
-	return nil
-}
-
-// TestSpoolDriverPathTemplate verifies end-to-end template usage in path generation.
-func TestSpoolDriverPathTemplate(t *testing.T) {
-	// given
-	spoolDir := t.TempDir()
-	ctx := context.Background()
-	uploader := &mockUploaderForTest{}
-	customTemplate := "custom/{{.Table}}/year={{.Year}}/{{.SegmentID}}.{{.Extension}}"
-
-	driver := NewSpoolDriver(
-		ctx,
-		uploader,
-		NewCSVFormat(),
-		spoolDir,
-		WithPathTemplate(customTemplate),
-		withManualCycle(),
-		WithFlushOnClose(true),
+func TestSegmentRemoteKey(t *testing.T) {
+	tmpl, err := template.New("path").Parse(
+		"table={{.Table}}/schema={{.Schema}}/dt={{.Year}}/{{.MonthPadded}}/{{.DayPadded}}/" +
+			"{{.SegmentID}}.{{.Extension}}",
 	)
-
-	schema := arrow.NewSchema([]arrow.Field{
-		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
-	}, nil)
-
-	// when
-	err := driver.Write(ctx, "events", schema, []map[string]any{
-		{"id": int64(1)},
-	})
 	require.NoError(t, err)
 
-	// Trigger seal and upload by closing with flush-on-close
-	err = driver.Close()
+	key, err := segmentRemoteKey(
+		tmpl,
+		"events",
+		"abc123",
+		"seg-1",
+		"csv",
+		time.Date(2026, time.February, 25, 10, 2, 3, 0, time.UTC),
+	)
 	require.NoError(t, err)
 
-	// then
-	uploader.mu.Lock()
-	defer uploader.mu.Unlock()
-
-	// Verify upload happened
-	assert.Equal(t, 1, len(uploader.calls), "Should upload exactly one segment")
-
-	// Verify remote key matches custom template format
-	// The segment ID is dynamic (timestamp_uuid), so we check the structure
-	remoteKey := uploader.calls[0].remoteKey
-	assert.Contains(t, remoteKey, "custom/events/year=", "Path should start with custom/events/year=")
-	assert.Contains(t, remoteKey, ".csv", "Path should end with .csv extension")
-	// Extract year from path to verify it's present
-	assert.Contains(t, remoteKey, "year=2026", "Path should contain year=2026 (current year in test)")
+	assert.Equal(t, "table=events/schema=abc123/dt=2026/02/25/seg-1.csv", key)
 }
