@@ -361,8 +361,8 @@ func (r *filesRegistryWithFactoryClose) Get(_ string) (warehouse.Driver, error) 
 }
 
 func (r *filesRegistryWithFactoryClose) Close() error {
-	driverErr := r.driver.Close()
 	factoryErr := r.factory.Close()
+	driverErr := r.driver.Close()
 	if driverErr != nil || factoryErr != nil {
 		return fmt.Errorf("closing files warehouse resources: %w", errors.Join(driverErr, factoryErr))
 	}
