@@ -29,48 +29,115 @@ func TestEscapeTableName(t *testing.T) {
 }
 
 func TestMarshalSchemaRoundTrip(t *testing.T) {
-	schema := arrow.NewSchema(
-		[]arrow.Field{
-			{
-				Name:     "id",
-				Type:     arrow.PrimitiveTypes.Int64,
-				Nullable: false,
-				Metadata: arrow.NewMetadata([]string{"k1"}, []string{"v1"}),
-			},
-			{
-				Name:     "ts",
-				Type:     &arrow.TimestampType{Unit: arrow.Millisecond, TimeZone: "UTC"},
-				Nullable: true,
-			},
-			{
-				Name: "attrs",
-				Type: arrow.StructOf(
-					arrow.Field{Name: "ok", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
-					arrow.Field{
-						Name: "items",
-						Type: arrow.ListOfField(arrow.Field{
-							Name:     "item",
-							Type:     arrow.BinaryTypes.String,
-							Nullable: true,
-						}),
+	tests := []struct {
+		name   string
+		schema *arrow.Schema
+	}{
+		{
+			name: "primitives and timestamp",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name:     "id",
+						Type:     arrow.PrimitiveTypes.Int64,
+						Nullable: false,
+						Metadata: arrow.NewMetadata([]string{"k1"}, []string{"v1"}),
+					},
+					{
+						Name:     "name",
+						Type:     arrow.BinaryTypes.String,
 						Nullable: true,
 					},
-				),
-				Nullable: true,
-			},
-			{Name: "amount", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
-			{Name: "event_date", Type: arrow.FixedWidthTypes.Date32, Nullable: true},
+					{
+						Name:     "score",
+						Type:     arrow.PrimitiveTypes.Float64,
+						Nullable: true,
+					},
+					{
+						Name:     "active",
+						Type:     arrow.FixedWidthTypes.Boolean,
+						Nullable: true,
+					},
+					{
+						Name:     "created_date",
+						Type:     arrow.FixedWidthTypes.Date32,
+						Nullable: true,
+					},
+					{
+						Name:     "ts",
+						Type:     &arrow.TimestampType{Unit: arrow.Millisecond, TimeZone: "UTC"},
+						Nullable: true,
+					},
+				},
+				func() *arrow.Metadata {
+					m := arrow.NewMetadata([]string{"schema_key"}, []string{"schema_value"})
+					return &m
+				}(),
+			),
 		},
-		&arrow.Metadata{},
-	)
+		{
+			name: "nested struct and list",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name: "attrs",
+						Type: arrow.StructOf(
+							arrow.Field{
+								Name:     "ok",
+								Type:     arrow.FixedWidthTypes.Boolean,
+								Nullable: true,
+								Metadata: arrow.NewMetadata([]string{"inner_k"}, []string{"inner_v"}),
+							},
+							arrow.Field{
+								Name: "items",
+								Type: arrow.ListOfField(arrow.Field{
+									Name:     "item",
+									Type:     arrow.BinaryTypes.String,
+									Nullable: true,
+								}),
+								Nullable: true,
+							},
+						),
+						Nullable: true,
+					},
+				},
+				nil,
+			),
+		},
+		{
+			name: "map type",
+			schema: arrow.NewSchema(
+				[]arrow.Field{
+					{
+						Name:     "data",
+						Type:     arrow.MapOf(arrow.BinaryTypes.String, arrow.BinaryTypes.String),
+						Nullable: true,
+						Metadata: arrow.NewMetadata([]string{"map_meta"}, []string{"map_value"}),
+					},
+				},
+				nil,
+			),
+		},
+	}
 
-	data, err := marshalSchema(schema)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			schema := tt.schema
+			originalFp := schema.Fingerprint()
 
-	roundTripped, err := unmarshalSchema(data)
-	require.NoError(t, err)
+			// when
+			data, err := marshalSchema(schema)
+			require.NoError(t, err)
 
-	assert.Equal(t, schema.Fingerprint(), roundTripped.Fingerprint())
+			roundTripped, err := unmarshalSchema(data)
+			require.NoError(t, err)
+
+			// then
+			assert.True(t, schema.Equal(roundTripped), "schemas should be equal")
+			assert.Equal(t, originalFp, roundTripped.Fingerprint(), "fingerprints should match")
+		})
+	}
 }
 
 func TestSegmentRemoteKey(t *testing.T) {
