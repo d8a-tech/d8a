@@ -424,6 +424,7 @@ func (s *fileSpool) runFlushCycle() {
 
 	if err := s.flush(); err != nil {
 		logrus.Errorf("flush cycle failed: %v", err)
+		return
 	}
 
 	s.subtractAppendBytes(bytesAtStart)

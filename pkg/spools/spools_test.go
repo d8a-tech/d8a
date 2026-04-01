@@ -656,6 +656,45 @@ func TestRunFlushCycle_PreservesCountersForAppendsDuringFlush(t *testing.T) {
 	assert.Equal(t, int64(len("during-flush")), s.spool.appendBytes.Load())
 }
 
+func TestRunFlushCycle_TriggerOnlyFailureRetainsCountersForRetry(t *testing.T) {
+	// given — trigger-only flush configuration (no timer)
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools",
+		WithNowFunc(sequentialClock(1000)),
+		WithFlushInterval(0),
+		WithMaxAppendsBeforeFlush(1),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("frame-1")))
+
+	callCount := 0
+	s.setHandler(func(_ string, next func() ([][]byte, error)) error {
+		callCount++
+		if callCount == 1 {
+			return fmt.Errorf("transient failure")
+		}
+		_, drainErr := drainNext(next)
+		return drainErr
+	})
+
+	// when — first cycle fails
+	s.spool.runFlushCycle()
+
+	// then — counters remain, preserving trigger signaling for retry
+	assert.Equal(t, int32(1), s.spool.appendCount.Load())
+	assert.Equal(t, int64(len("frame-1")), s.spool.appendBytes.Load())
+	assert.True(t, s.spool.shouldTriggerFlush())
+
+	// when — retry cycle succeeds
+	s.spool.runFlushCycle()
+
+	// then — counters are cleared after successful retry
+	assert.Equal(t, 2, callCount)
+	assert.Equal(t, int32(0), s.spool.appendCount.Load())
+	assert.Equal(t, int64(0), s.spool.appendBytes.Load())
+}
+
 func TestCloseRejectsAppend(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()
