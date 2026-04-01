@@ -76,7 +76,14 @@ func unmarshalSchema(data []byte) (*arrow.Schema, error) {
 	}
 	defer r.Release()
 
-	return r.Schema(), nil
+	schema := r.Schema()
+	if schema == nil {
+		return nil, fmt.Errorf("reading IPC schema: nil schema returned")
+	}
+	if r.Err() != nil {
+		return nil, fmt.Errorf("reading IPC schema: %w", r.Err())
+	}
+	return schema, nil
 }
 
 // pathTemplateData holds the data available for path template execution.

@@ -86,7 +86,6 @@ func TestMarshalSchemaRoundTrip(t *testing.T) {
 								Name:     "ok",
 								Type:     arrow.FixedWidthTypes.Boolean,
 								Nullable: true,
-								Metadata: arrow.NewMetadata([]string{"inner_k"}, []string{"inner_v"}),
 							},
 							arrow.Field{
 								Name: "items",
@@ -94,6 +93,7 @@ func TestMarshalSchemaRoundTrip(t *testing.T) {
 									Name:     "item",
 									Type:     arrow.BinaryTypes.String,
 									Nullable: true,
+									Metadata: arrow.NewMetadata([]string{"list_elem_k"}, []string{"list_elem_v"}),
 								}),
 								Nullable: true,
 							},
