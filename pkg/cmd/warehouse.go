@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -299,28 +300,62 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
 	validateFilesPathTemplate(tmplStr)
 
-	spool, err := spools.New(
+	factory, err := spools.NewFileFactory(
 		afero.NewOsFs(),
 		filepath.Join(spoolDir, "spool"),
 		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
 		spools.WithMaxFailures(3),
 		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
+		spools.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
+		spools.WithFlushOnClose(true),
 	)
 	if err != nil {
-		logrus.WithError(err).Fatal("failed to create files warehouse spool")
+		logrus.WithError(err).Fatal("failed to create files warehouse spool factory")
 	}
 
 	kv, err := bolt.NewBoltKV(filepath.Join(spoolDir, "metadata.db"))
 	if err != nil {
+		if closeErr := factory.Close(); closeErr != nil {
+			logrus.WithError(closeErr).Error("failed to close files warehouse spool factory")
+		}
 		logrus.WithError(err).Fatal("failed to create files warehouse metadata kv")
 	}
 
-	driver := whFiles.NewSpoolDriver(ctx, spool, kv, uploader, fmt,
+	driver, err := whFiles.NewSpoolDriver(ctx, factory, kv, uploader, fmt,
 		whFiles.WithPathTemplate(tmplStr),
-		whFiles.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
 	)
+	if err != nil {
+		if c, ok := kv.(interface{ Close() error }); ok {
+			if closeErr := c.Close(); closeErr != nil {
+				logrus.WithError(closeErr).Error("failed to close files warehouse metadata kv")
+			}
+		}
+		if closeErr := factory.Close(); closeErr != nil {
+			logrus.WithError(closeErr).Error("failed to close files warehouse spool factory")
+		}
+		logrus.WithError(err).Fatal("failed to create files warehouse spool driver")
+	}
 
-	return warehouse.NewStaticDriverRegistry(driver)
+	return &filesRegistryWithFactoryClose{driver: driver, factory: factory}
+}
+
+type filesRegistryWithFactoryClose struct {
+	driver  warehouse.Driver
+	factory spools.Factory
+}
+
+func (r *filesRegistryWithFactoryClose) Get(_ string) (warehouse.Driver, error) {
+	return r.driver, nil
+}
+
+func (r *filesRegistryWithFactoryClose) Close() error {
+	driverErr := r.driver.Close()
+	factoryErr := r.factory.Close()
+	if driverErr != nil || factoryErr != nil {
+		return fmt.Errorf("closing files warehouse resources: %w", errors.Join(driverErr, factoryErr))
+	}
+
+	return nil
 }
 
 func validateFilesPathTemplate(tmplStr string) {

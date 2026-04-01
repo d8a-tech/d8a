@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 
@@ -16,32 +15,10 @@ import (
 	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
-	"github.com/sirupsen/logrus"
 )
 
 // SpoolOption is a functional option for configuring SpoolDriver.
 type SpoolOption func(*SpoolDriver)
-
-// withManualCycle disables automatic timer-based flush cycles (test-only).
-func withManualCycle() SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.flushInterval = 0
-	}
-}
-
-// WithFlushInterval sets how often periodic flushes run.
-func WithFlushInterval(d time.Duration) SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.flushInterval = d
-	}
-}
-
-// WithFlushOnClose configures whether Close flushes all pending frames.
-func WithFlushOnClose(v bool) SpoolOption {
-	return func(sd *SpoolDriver) {
-		sd.flushOnClose = v
-	}
-}
 
 // WithPathTemplate sets the path template string for remote object keys.
 func WithPathTemplate(tmplStr string) SpoolOption {
@@ -50,21 +27,8 @@ func WithPathTemplate(tmplStr string) SpoolOption {
 	}
 }
 
-type ticker interface {
-	C() <-chan time.Time
-	Stop()
-}
-
-type realTicker struct {
-	t *time.Ticker
-}
-
-func (r *realTicker) C() <-chan time.Time { return r.t.C }
-func (r *realTicker) Stop()               { r.t.Stop() }
-
 // SpoolDriver writes warehouse rows into a keyed spool and flushes them to remote storage.
 type SpoolDriver struct {
-	ctx             context.Context
 	spool           spools.Spool
 	kv              storage.KV
 	uploader        StreamUploader
@@ -72,12 +36,6 @@ type SpoolDriver struct {
 	ext             string
 	pathTemplate    *template.Template
 	pathTemplateStr string
-	flushInterval   time.Duration
-	stopCh          chan struct{}
-	stopOnce        sync.Once
-	wg              sync.WaitGroup
-	newTicker       func(time.Duration) ticker
-	flushOnClose    bool
 }
 
 var _ warehouse.Driver = (*SpoolDriver)(nil)
@@ -119,26 +77,18 @@ func parsePathTemplate(tmplStr string) (*template.Template, error) {
 }
 
 func NewSpoolDriver(
-	ctx context.Context,
-	spool spools.Spool,
+	_ context.Context,
+	spoolFactory spools.Factory,
 	kv storage.KV,
 	uploader StreamUploader,
 	format Format,
 	opts ...SpoolOption,
-) *SpoolDriver {
+) (*SpoolDriver, error) {
 	sd := &SpoolDriver{
-		ctx:           ctx,
-		spool:         spool,
-		kv:            kv,
-		uploader:      uploader,
-		format:        format,
-		ext:           format.Extension(),
-		flushInterval: 15 * time.Second,
-		stopCh:        make(chan struct{}),
-	}
-
-	sd.newTicker = func(d time.Duration) ticker {
-		return &realTicker{t: time.NewTicker(d)}
+		kv:       kv,
+		uploader: uploader,
+		format:   format,
+		ext:      format.Extension(),
 	}
 
 	for _, opt := range opts {
@@ -153,76 +103,24 @@ func NewSpoolDriver(
 
 	tmpl, err := parsePathTemplate(tmplStr)
 	if err != nil {
-		logrus.WithError(err).Panic("failed to parse path template")
+		return nil, fmt.Errorf("parsing path template: %w", err)
 	}
 	sd.pathTemplate = tmpl
 
-	sd.startTimer()
+	handler := buildFlushHandler(sd)
 
-	return sd
-}
-
-func (sd *SpoolDriver) startTimer() {
-	if sd.flushInterval <= 0 {
-		return
-	}
-
-	sd.wg.Add(1)
-	go func() {
-		defer sd.wg.Done()
-
-		tk := sd.newTicker(sd.flushInterval)
-		defer tk.Stop()
-
-		for {
-			select {
-			case <-tk.C():
-				if err := sd.flushOnce(sd.ctx); err != nil {
-					logrus.WithError(err).Error("automatic flush cycle failed")
-				}
-			case <-sd.ctx.Done():
-				return
-			case <-sd.stopCh:
-				return
-			}
-		}
-	}()
-}
-
-func (sd *SpoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
-	_ = ctx
-
-	fingerprint := schemaFingerprint(schema)
-	tableEsc := escapeTableName(table)
-	key := tableEsc + "/" + fingerprint
-
-	schemaData, err := marshalSchema(schema)
+	spool, err := spoolFactory.Create(handler)
 	if err != nil {
-		return fmt.Errorf("marshaling schema: %w", err)
+		return nil, fmt.Errorf("creating spool: %w", err)
 	}
+	sd.spool = spool
 
-	if _, err := sd.kv.Set(
-		[]byte(fingerprint),
-		schemaData,
-		storage.WithSkipIfKeyAlreadyExists(true),
-	); err != nil {
-		return fmt.Errorf("storing schema metadata for fingerprint %s: %w", fingerprint, err)
-	}
-
-	payload, err := json.Marshal(rows)
-	if err != nil {
-		return fmt.Errorf("marshaling rows payload: %w", err)
-	}
-
-	if err := sd.spool.Append(key, payload); err != nil {
-		return fmt.Errorf("appending rows to spool: %w", err)
-	}
-
-	return nil
+	return sd, nil
 }
 
-func (sd *SpoolDriver) flushOnce(ctx context.Context) error {
-	return sd.spool.Flush(func(key string, next func() ([][]byte, error)) error {
+//nolint:contextcheck // flush handler signature has no context; use non-canceled context per invocation.
+func buildFlushHandler(sd *SpoolDriver) spools.FlushHandler {
+	return func(key string, next func() ([][]byte, error)) error {
 		tableEsc, fingerprint, err := parseSpoolKey(key)
 		if err != nil {
 			return err
@@ -248,7 +146,7 @@ func (sd *SpoolDriver) flushOnce(ctx context.Context) error {
 			return fmt.Errorf("building remote key for %q: %w", key, err)
 		}
 
-		upload, err := sd.uploader.Begin(ctx, remoteKey)
+		upload, err := sd.uploader.Begin(context.Background(), remoteKey)
 		if err != nil {
 			return fmt.Errorf("beginning upload for key %s: %w", remoteKey, err)
 		}
@@ -297,7 +195,39 @@ func (sd *SpoolDriver) flushOnce(ctx context.Context) error {
 		}
 
 		return nil
-	})
+	}
+}
+
+func (sd *SpoolDriver) Write(ctx context.Context, table string, schema *arrow.Schema, rows []map[string]any) error {
+	_ = ctx
+
+	fingerprint := schemaFingerprint(schema)
+	tableEsc := escapeTableName(table)
+	key := tableEsc + "/" + fingerprint
+
+	schemaData, err := marshalSchema(schema)
+	if err != nil {
+		return fmt.Errorf("marshaling schema: %w", err)
+	}
+
+	if _, err := sd.kv.Set(
+		[]byte(fingerprint),
+		schemaData,
+		storage.WithSkipIfKeyAlreadyExists(true),
+	); err != nil {
+		return fmt.Errorf("storing schema metadata for fingerprint %s: %w", fingerprint, err)
+	}
+
+	payload, err := json.Marshal(rows)
+	if err != nil {
+		return fmt.Errorf("marshaling rows payload: %w", err)
+	}
+
+	if err := sd.spool.Append(key, payload); err != nil {
+		return fmt.Errorf("appending rows to spool: %w", err)
+	}
+
+	return nil
 }
 
 func parseSpoolKey(key string) (tableEsc, fingerprint string, err error) {
@@ -339,23 +269,8 @@ func (sd *SpoolDriver) MissingColumns(table string, schema *arrow.Schema) ([]*ar
 
 // Close gracefully shuts down the driver.
 func (sd *SpoolDriver) Close() error {
-	sd.stopOnce.Do(func() { close(sd.stopCh) })
-	sd.wg.Wait()
-
-	var flushErr error
-	if sd.flushOnClose {
-		flushErr = sd.flushOnce(context.Background())
-	}
-
-	closeErr := sd.spool.Close()
-
-	var kvCloseErr error
 	if c, ok := sd.kv.(interface{ Close() error }); ok {
-		kvCloseErr = c.Close()
-	}
-
-	if flushErr != nil || closeErr != nil || kvCloseErr != nil {
-		return errors.Join(flushErr, closeErr, kvCloseErr)
+		return c.Close()
 	}
 
 	return nil

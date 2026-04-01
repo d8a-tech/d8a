@@ -8,12 +8,10 @@ import (
 	"io"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/storage"
-	"github.com/spf13/afero"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -170,51 +168,80 @@ func (w *failFormatWriter) WriteRows(rows []map[string]any) error {
 }
 func (w *failFormatWriter) Close() error { return nil }
 
-type closeErrSpool struct {
-	closeErr error
+type stubSpool struct {
+	appendKey     string
+	appendPayload []byte
+	appendErr     error
 }
 
-func (s *closeErrSpool) Append(key string, payload []byte) error {
-	_ = key
-	_ = payload
+func (s *stubSpool) Append(key string, payload []byte) error {
+	s.appendKey = key
+	s.appendPayload = append([]byte(nil), payload...)
+	return s.appendErr
+}
+
+type stubFactory struct {
+	createErr error
+	spool     spools.Spool
+	handler   spools.FlushHandler
+}
+
+func (f *stubFactory) Create(handler spools.FlushHandler) (spools.Spool, error) {
+	f.handler = handler
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
+	return f.spool, nil
+}
+
+func (f *stubFactory) Close() error {
 	return nil
-}
-
-func (s *closeErrSpool) Flush(fn func(key string, next func() ([][]byte, error)) error) error {
-	_ = fn
-	return nil
-}
-
-func (s *closeErrSpool) Recover() error {
-	return nil
-}
-
-func (s *closeErrSpool) Close() error {
-	return s.closeErr
-}
-
-func mustSpool(t *testing.T) spools.Spool {
-	t.Helper()
-	s, err := spools.New(afero.NewMemMapFs(), "/spool")
-	require.NoError(t, err)
-	return s
 }
 
 func testSchema() *arrow.Schema {
 	return arrow.NewSchema([]arrow.Field{{Name: "id", Type: arrow.PrimitiveTypes.Int64}}, nil)
 }
 
+func nextFromFrames(frames ...[]byte) func() ([][]byte, error) {
+	index := 0
+	return func() ([][]byte, error) {
+		if index >= len(frames) {
+			return nil, io.EOF
+		}
+		frame := frames[index]
+		index++
+		return [][]byte{frame}, nil
+	}
+}
+
+func TestNewSpoolDriver_ReturnsErrorWhenFactoryCreateFails(t *testing.T) {
+	factoryErr := errors.New("create failed")
+
+	driver, err := NewSpoolDriver(
+		context.Background(),
+		&stubFactory{createErr: factoryErr},
+		newMockKV(),
+		&mockStreamUploader{},
+		NewCSVFormat(),
+	)
+
+	require.Error(t, err)
+	assert.Nil(t, driver)
+	assert.ErrorIs(t, err, factoryErr)
+}
+
 func TestSpoolDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
+	spool := &stubSpool{}
+	factory := &stubFactory{spool: spool}
 	kv := newMockKV()
-	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle())
+	driver, err := NewSpoolDriver(ctx, factory, kv, &mockStreamUploader{}, NewCSVFormat())
+	require.NoError(t, err)
 
 	schema := testSchema()
 	rows := []map[string]any{{"id": int64(1)}}
 
-	err := driver.Write(ctx, "events", schema, rows)
+	err = driver.Write(ctx, "events", schema, rows)
 	require.NoError(t, err)
 
 	fingerprint := schemaFingerprint(schema)
@@ -222,43 +249,37 @@ func TestSpoolDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, schemaBytes)
 
-	var gotFrames [][]byte
-	err = spool.Flush(func(key string, next func() ([][]byte, error)) error {
-		table, fp, parseErr := parseSpoolKey(key)
-		require.NoError(t, parseErr)
-		assert.Equal(t, "events", table)
-		assert.Equal(t, fingerprint, fp)
-		for {
-			frames, nextErr := next()
-			if errors.Is(nextErr, io.EOF) {
-				break
-			}
-			require.NoError(t, nextErr)
-			gotFrames = append(gotFrames, frames...)
-		}
-		return nil
-	})
-	require.NoError(t, err)
-	require.Len(t, gotFrames, 1)
+	assert.Equal(t, "events/"+fingerprint, spool.appendKey)
 
 	var decoded []map[string]any
-	require.NoError(t, json.Unmarshal(gotFrames[0], &decoded))
+	require.NoError(t, json.Unmarshal(spool.appendPayload, &decoded))
 	assert.Len(t, decoded, 1)
 	assert.Equal(t, float64(1), decoded[0]["id"])
 }
 
-func TestSpoolDriver_FlushOnceStreamsMultipleWritesAndCommits(t *testing.T) {
+func TestSpoolDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
+	spool := &stubSpool{}
+	factory := &stubFactory{spool: spool}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle())
+	driver, err := NewSpoolDriver(ctx, factory, kv, uploader, NewCSVFormat())
+	require.NoError(t, err)
 
 	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(2)}}))
+	fingerprint := schemaFingerprint(schema)
+	schemaBytes, err := marshalSchema(schema)
+	require.NoError(t, err)
+	_, err = kv.Set([]byte(fingerprint), schemaBytes)
+	require.NoError(t, err)
 
-	require.NoError(t, driver.flushOnce(ctx))
+	frame1, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	require.NoError(t, err)
+	frame2, err := json.Marshal([]map[string]any{{"id": int64(2)}})
+	require.NoError(t, err)
+
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame1, frame2))
+	require.NoError(t, err)
 
 	uploader.mu.Lock()
 	defer uploader.mu.Unlock()
@@ -271,19 +292,28 @@ func TestSpoolDriver_FlushOnceStreamsMultipleWritesAndCommits(t *testing.T) {
 	assert.Contains(t, content, "id")
 	assert.Contains(t, content, "1")
 	assert.Contains(t, content, "2")
+	_ = driver
 }
 
-func TestSpoolDriver_FlushOnceAbortsOnFormatWriterError(t *testing.T) {
+func TestSpoolDriver_FlushHandlerAbortsOnFormatWriterError(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
+	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, &failFormat{err: errors.New("write failed")}, withManualCycle())
+	_, err := NewSpoolDriver(ctx, factory, kv, uploader, &failFormat{err: errors.New("write failed")})
+	require.NoError(t, err)
 
 	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
+	fingerprint := schemaFingerprint(schema)
+	schemaBytes, err := marshalSchema(schema)
+	require.NoError(t, err)
+	_, err = kv.Set([]byte(fingerprint), schemaBytes)
+	require.NoError(t, err)
 
-	err := driver.flushOnce(ctx)
+	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	require.NoError(t, err)
+
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
 	require.Error(t, err)
 
 	uploader.mu.Lock()
@@ -293,17 +323,25 @@ func TestSpoolDriver_FlushOnceAbortsOnFormatWriterError(t *testing.T) {
 	assert.Equal(t, 1, uploader.uploads[0].upload.aborts)
 }
 
-func TestSpoolDriver_FlushOnceAbortsOnCommitError(t *testing.T) {
+func TestSpoolDriver_FlushHandlerAbortsOnCommitError(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
+	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{nextCommitErr: errors.New("commit failed")}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle())
+	_, err := NewSpoolDriver(ctx, factory, kv, uploader, NewCSVFormat())
+	require.NoError(t, err)
 
 	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
+	fingerprint := schemaFingerprint(schema)
+	schemaBytes, err := marshalSchema(schema)
+	require.NoError(t, err)
+	_, err = kv.Set([]byte(fingerprint), schemaBytes)
+	require.NoError(t, err)
 
-	err := driver.flushOnce(ctx)
+	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	require.NoError(t, err)
+
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
 	require.Error(t, err)
 
 	uploader.mu.Lock()
@@ -313,54 +351,33 @@ func TestSpoolDriver_FlushOnceAbortsOnCommitError(t *testing.T) {
 	assert.Equal(t, 1, uploader.uploads[0].upload.aborts)
 }
 
-func TestSpoolDriver_RepeatedWriteSameSchemaIsIdempotentKVSet(t *testing.T) {
-	ctx := context.Background()
-	spool := mustSpool(t)
-	kv := newMockKV()
-	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle())
-
-	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(2)}}))
-}
-
-func TestSpoolDriver_CloseFlushOnClose(t *testing.T) {
-	ctx := context.Background()
-	spool := mustSpool(t)
-	kv := newMockKV()
-	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle(), WithFlushOnClose(true))
-
-	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
-
-	require.NoError(t, driver.Close())
-
-	uploader.mu.Lock()
-	defer uploader.mu.Unlock()
-	require.Len(t, uploader.uploads, 1)
-	assert.Equal(t, 1, uploader.uploads[0].upload.commits)
-}
-
 func TestSpoolDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
+	factory := &stubFactory{spool: &stubSpool{}}
 	kv := newMockKV()
 	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(
+	driver, err := NewSpoolDriver(
 		ctx,
-		spool,
+		factory,
 		kv,
 		uploader,
 		NewCSVFormat(),
-		withManualCycle(),
 		WithPathTemplate("custom/{{.Table}}/{{.Schema}}/{{.SegmentID}}.{{.Extension}}"),
 	)
+	require.NoError(t, err)
 
 	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
-	require.NoError(t, driver.flushOnce(ctx))
+	fingerprint := schemaFingerprint(schema)
+	schemaBytes, err := marshalSchema(schema)
+	require.NoError(t, err)
+	_, err = kv.Set([]byte(fingerprint), schemaBytes)
+	require.NoError(t, err)
+
+	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	require.NoError(t, err)
+
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
+	require.NoError(t, err)
 
 	uploader.mu.Lock()
 	defer uploader.mu.Unlock()
@@ -370,56 +387,32 @@ func TestSpoolDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
 	assert.Contains(t, key, "custom/events/")
 	assert.Contains(t, key, ".csv")
 	assert.Contains(t, key, schemaFingerprint(schema))
-}
-
-func TestSpoolDriver_StartTimerFlushesPeriodically(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	spool := mustSpool(t)
-	kv := newMockKV()
-	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), WithFlushInterval(10*time.Millisecond))
-
-	schema := testSchema()
-	require.NoError(t, driver.Write(ctx, "events", schema, []map[string]any{{"id": int64(1)}}))
-
-	require.Eventually(t, func() bool {
-		uploader.mu.Lock()
-		defer uploader.mu.Unlock()
-		return len(uploader.uploads) > 0
-	}, time.Second, 10*time.Millisecond)
-
-	require.NoError(t, driver.Close())
+	_ = driver
 }
 
 func TestSpoolDriver_CloseClosesKVWhenClosable(t *testing.T) {
 	ctx := context.Background()
-	spool := mustSpool(t)
 	kv := newMockClosableKV(nil)
-	uploader := &mockStreamUploader{}
-	driver := NewSpoolDriver(ctx, spool, kv, uploader, NewCSVFormat(), withManualCycle())
+	driver, err := NewSpoolDriver(ctx, &stubFactory{spool: &stubSpool{}}, kv, &mockStreamUploader{}, NewCSVFormat())
+	require.NoError(t, err)
 
 	require.NoError(t, driver.Close())
 	assert.True(t, kv.closed)
 }
 
-func TestSpoolDriver_CloseReturnsJoinedErrorWhenSpoolAndKVCloseFail(t *testing.T) {
+func TestSpoolDriver_CloseReturnsKVCloseError(t *testing.T) {
 	ctx := context.Background()
-	spoolErr := errors.New("spool close failed")
 	kvErr := errors.New("kv close failed")
-
-	driver := NewSpoolDriver(
+	driver, err := NewSpoolDriver(
 		ctx,
-		&closeErrSpool{closeErr: spoolErr},
+		&stubFactory{spool: &stubSpool{}},
 		newMockClosableKV(kvErr),
 		&mockStreamUploader{},
 		NewCSVFormat(),
-		withManualCycle(),
 	)
+	require.NoError(t, err)
 
-	err := driver.Close()
+	err = driver.Close()
 	require.Error(t, err)
-	assert.ErrorIs(t, err, spoolErr)
 	assert.ErrorIs(t, err, kvErr)
 }
