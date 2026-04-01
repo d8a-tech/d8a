@@ -2,6 +2,8 @@ package files
 
 import (
 	"context"
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -12,247 +14,229 @@ import (
 	"gocloud.dev/blob/memblob"
 )
 
-const testCSVFilename = "test.csv"
 const testRemoteKey = "table=events/schema=abc123/dt=2026/02/25/seg-id.csv"
 
-func TestBlobUploader_Upload_Success(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	testContent := []byte("test,data\n1,2\n")
-	filePath := filepath.Join(tempDir, testCSVFilename)
-	err := os.WriteFile(filePath, testContent, 0o644)
-	assert.NoError(t, err)
-
+func TestBlobStreamUploader_BeginCommit_Success(t *testing.T) {
 	bucket := memblob.OpenBucket(nil)
 	t.Cleanup(func() { _ = bucket.Close() })
 
 	uploader := NewBlobUploader(bucket)
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
 
-	// when
-	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
+	_, err = upload.Writer().Write([]byte("test,data\n1,2\n"))
+	require.NoError(t, err)
+	require.NoError(t, upload.Commit())
 
-	// then
-	assert.NoError(t, err)
+	stored, err := bucket.ReadAll(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("test,data\n1,2\n"), stored)
 
-	// Verify data was written to bucket
-	storedData, err := bucket.ReadAll(context.Background(), testRemoteKey)
-	assert.NoError(t, err)
-	assert.Equal(t, testContent, storedData)
-
-	// Verify local file was deleted
-	_, err = os.Stat(filePath)
-	assert.Error(t, err)
-	assert.True(t, os.IsNotExist(err))
+	require.Error(t, upload.Abort())
 }
 
-func TestBlobUploader_Upload_UploadError(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	testContent := []byte("test,data\n1,2\n")
-	filePath := filepath.Join(tempDir, testCSVFilename)
-	err := os.WriteFile(filePath, testContent, 0o644)
-	assert.NoError(t, err)
-
-	bucket := memblob.OpenBucket(nil)
-	t.Cleanup(func() { _ = bucket.Close() })
-
-	// Close bucket to trigger write error
-	err = bucket.Close()
-	assert.NoError(t, err)
-
-	uploader := NewBlobUploader(bucket)
-
-	// when
-	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
-
-	// then
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "uploading file to blob storage")
-
-	// Verify local file was NOT deleted
-	_, err = os.Stat(filePath)
-	assert.NoError(t, err)
-}
-
-func TestBlobUploader_Upload_DeleteErrorAfterUpload(t *testing.T) {
-	// given
-	tempDir := t.TempDir()
-	testContent := []byte("test,data\n1,2\n")
-	filePath := filepath.Join(tempDir, testCSVFilename)
-	err := os.WriteFile(filePath, testContent, 0o644)
-	assert.NoError(t, err)
-
-	bucket := memblob.OpenBucket(nil)
-	t.Cleanup(func() { _ = bucket.Close() })
-
-	// Make file read-only in its directory by removing write permissions
-	err = os.Chmod(filePath, 0o444)
-	assert.NoError(t, err)
-	// Remove write permission from directory to prevent deletion
-	err = os.Chmod(tempDir, 0o555)
-	assert.NoError(t, err)
-	// Restore permissions in cleanup
-	t.Cleanup(func() {
-		_ = os.Chmod(tempDir, 0o755)
-		_ = os.Chmod(filePath, 0o644)
-	})
-
-	uploader := NewBlobUploader(bucket)
-
-	// when
-	err = uploader.Upload(context.Background(), filePath, testRemoteKey)
-
-	// then
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "deleting local file")
-
-	// Verify data was written to bucket
-	storedData, err := bucket.ReadAll(context.Background(), testRemoteKey)
-	assert.NoError(t, err)
-	assert.Equal(t, testContent, storedData)
-
-	// File should still exist (couldn't be deleted)
-	_, statErr := os.Stat(filePath)
-	assert.NoError(t, statErr)
-}
-
-func TestBlobUploader_Upload_NonExistentFile(t *testing.T) {
-	// given
+func TestBlobStreamUploader_Abort_Success(t *testing.T) {
 	bucket := memblob.OpenBucket(nil)
 	t.Cleanup(func() { _ = bucket.Close() })
 
 	uploader := NewBlobUploader(bucket)
-
-	// when
-	err := uploader.Upload(context.Background(), "/nonexistent/file/path.csv", testRemoteKey)
-
-	// then
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "reading file for upload")
-}
-
-func TestFilesystemUploader_Upload_Success(t *testing.T) {
-	// given
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
-
-	// Create a test file in the source directory
-	testFilename := "test.txt"
-	srcFilePath := filepath.Join(srcDir, testFilename)
-	testContent := []byte("test data")
-	err := os.WriteFile(srcFilePath, testContent, 0o644)
-	assert.NoError(t, err)
-
-	uploader, err := NewFilesystemUploader(destDir)
-	assert.NoError(t, err)
-	assert.NotNil(t, uploader)
-
-	// when
-	err = uploader.Upload(context.Background(), srcFilePath, testRemoteKey)
-
-	// then
-	assert.NoError(t, err)
-	// Verify the file was moved (no longer exists at source)
-	_, err = os.Stat(srcFilePath)
-	assert.Error(t, err)
-	assert.True(t, os.IsNotExist(err))
-	// Verify the file exists at destination
-	destFilePath := filepath.Join(destDir, filepath.FromSlash(testRemoteKey))
-	data, err := os.ReadFile(destFilePath)
-	assert.NoError(t, err)
-	assert.Equal(t, testContent, data)
-}
-
-func TestFilesystemUploader_Upload_CreatesNestedDestinationDirs(t *testing.T) {
-	// given
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
-	srcPath := filepath.Join(srcDir, "segment.csv")
-	testContent := []byte("test data")
-	require.NoError(t, os.WriteFile(srcPath, testContent, 0o644))
-
-	uploader, err := NewFilesystemUploader(destDir)
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
 	require.NoError(t, err)
 
-	remoteKey := "table=events/schema=abc123/y=2026/m=03/d=13/segment.csv"
-
-	// when
-	err = uploader.Upload(context.Background(), srcPath, remoteKey)
-
-	// then
+	_, err = upload.Writer().Write([]byte("test,data\n1,2\n"))
 	require.NoError(t, err)
-	destPath := filepath.Join(destDir, filepath.FromSlash(remoteKey))
-	data, err := os.ReadFile(destPath)
-	require.NoError(t, err)
-	assert.Equal(t, testContent, data)
-}
+	require.NoError(t, upload.Abort())
+	require.NoError(t, upload.Abort())
 
-func TestFilesystemUploader_Upload_RejectsPathTraversalRemoteKey(t *testing.T) {
-	// given
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
-	srcPath := filepath.Join(srcDir, "segment.csv")
-	require.NoError(t, os.WriteFile(srcPath, []byte("test data"), 0o644))
-
-	uploader, err := NewFilesystemUploader(destDir)
-	require.NoError(t, err)
-
-	// when
-	err = uploader.Upload(context.Background(), srcPath, "../segment.csv")
-
-	// then
+	_, err = bucket.ReadAll(context.Background(), testRemoteKey)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid filesystem destination key")
-	assert.FileExists(t, srcPath)
+
+	require.Error(t, upload.Commit())
 }
 
-func TestFilesystemUploader_Upload_NonExistentFile(t *testing.T) {
-	// given
-	destDir := t.TempDir()
+func TestBlobStreamUploader_Begin_Error(t *testing.T) {
+	bucket := memblob.OpenBucket(nil)
+	require.NoError(t, bucket.Close())
 
-	uploader, err := NewFilesystemUploader(destDir)
-	assert.NoError(t, err)
-
-	// when
-	err = uploader.Upload(context.Background(), "/nonexistent/file/path.txt", testRemoteKey)
-
-	// then
-	assert.Error(t, err)
+	uploader := &blobStreamUploader{bucket: bucket}
+	_, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "creating blob writer")
 }
 
-func TestFilesystemUploader_Upload_CrossDevice_CopyFallback(t *testing.T) {
-	// given
-	srcDir := t.TempDir()
-	destDir := t.TempDir()
-
-	testContent := []byte("cross-device test data")
-	srcPath := filepath.Join(srcDir, "test.csv")
-	require.NoError(t, os.WriteFile(srcPath, testContent, 0o644))
-
-	uploader, err := NewFilesystemUploader(destDir)
-	require.NoError(t, err)
-
-	// Override renameFn to simulate EXDEV
-	fsUp, ok := uploader.(*filesystemUploader)
-	require.True(t, ok)
-	fsUp.renameFn = func(src, dst string) error {
-		return &os.LinkError{Op: "rename", Old: src, New: dst, Err: syscall.EXDEV}
+func TestBlobStreamUploader_CommitFailure_AllowsAbort(t *testing.T) {
+	upload := &blobUpload{
+		writer: failingWriteCloser{err: errors.New("close failed")},
+		cancel: func() {},
 	}
 
-	// when
-	err = uploader.Upload(context.Background(), srcPath, testRemoteKey)
+	err := upload.Commit()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "closing blob writer")
 
-	// then
+	err = upload.Commit()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "closing blob writer")
+
+	err = upload.Abort()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "closing blob writer")
+
+	err = upload.Abort()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "closing blob writer")
+}
+
+func TestFilesystemStreamUploader_Commit_SuccessNestedDirs(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
 	require.NoError(t, err)
 
-	// Destination file should exist with correct content
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+
+	_, err = upload.Writer().Write([]byte("test data"))
+	require.NoError(t, err)
+	require.NoError(t, upload.Commit())
+
 	destPath := filepath.Join(destDir, filepath.FromSlash(testRemoteKey))
 	data, err := os.ReadFile(destPath)
 	require.NoError(t, err)
-	assert.Equal(t, testContent, data)
+	assert.Equal(t, []byte("test data"), data)
 
-	// Source file should be deleted
-	_, err = os.Stat(srcPath)
+	require.Error(t, upload.Abort())
+}
+
+func TestFilesystemStreamUploader_Abort_CleansUpTempFile(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+
+	fu, ok := upload.(*filesystemUpload)
+	require.True(t, ok)
+	tempPath := fu.tempPath
+
+	_, err = upload.Writer().Write([]byte("test data"))
+	require.NoError(t, err)
+	require.NoError(t, upload.Abort())
+	require.NoError(t, upload.Abort())
+
+	_, err = os.Stat(tempPath)
+	require.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
+
+	require.Error(t, upload.Commit())
+}
+
+func TestFilesystemStreamUploader_Begin_RejectsPathTraversal(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	_, err = uploader.Begin(context.Background(), "../segment.csv")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid filesystem destination key")
+}
+
+func TestFilesystemStreamUploader_Commit_CrossDeviceCopyFallback(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	fsUploader, ok := uploader.(*filesystemStreamUploader)
+	require.True(t, ok)
+	fsUploader.renameFn = func(src, dst string) error {
+		return &os.LinkError{Op: "rename", Old: src, New: dst, Err: syscall.EXDEV}
+	}
+
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+
+	fu, ok := upload.(*filesystemUpload)
+	require.True(t, ok)
+	tempPath := fu.tempPath
+
+	_, err = upload.Writer().Write([]byte("cross-device test data"))
+	require.NoError(t, err)
+	require.NoError(t, upload.Commit())
+
+	destPath := filepath.Join(destDir, filepath.FromSlash(testRemoteKey))
+	data, err := os.ReadFile(destPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("cross-device test data"), data)
+
+	_, err = os.Stat(tempPath)
 	require.Error(t, err)
 	assert.True(t, os.IsNotExist(err))
 }
+
+func TestFilesystemUpload_Abort_AlreadyClosedFile(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+
+	fu, ok := upload.(*filesystemUpload)
+	require.True(t, ok)
+	require.NoError(t, fu.file.Close())
+	require.NoError(t, upload.Abort())
+}
+
+func TestFilesystemStreamUploader_CommitFailure_AllowsAbortAndCleanup(t *testing.T) {
+	destDir := t.TempDir()
+	uploader, err := NewFilesystemUploader(destDir)
+	require.NoError(t, err)
+
+	fsUploader, ok := uploader.(*filesystemStreamUploader)
+	require.True(t, ok)
+	fsUploader.renameFn = func(src, dst string) error {
+		return &os.LinkError{Op: "rename", Old: src, New: dst, Err: syscall.EIO}
+	}
+
+	upload, err := uploader.Begin(context.Background(), testRemoteKey)
+	require.NoError(t, err)
+
+	fu, ok := upload.(*filesystemUpload)
+	require.True(t, ok)
+	tempPath := fu.tempPath
+
+	_, err = upload.Writer().Write([]byte("test data"))
+	require.NoError(t, err)
+
+	err = upload.Commit()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "moving file to filesystem destination")
+
+	err = upload.Commit()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "moving file to filesystem destination")
+
+	require.NoError(t, upload.Abort())
+
+	_, err = os.Stat(tempPath)
+	require.Error(t, err)
+	assert.True(t, os.IsNotExist(err))
+
+	err = upload.Commit()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "upload already aborted")
+}
+
+type failingWriteCloser struct {
+	err error
+}
+
+func (w failingWriteCloser) Write(p []byte) (n int, err error) {
+	return len(p), nil
+}
+
+func (w failingWriteCloser) Close() error {
+	return w.err
+}
+
+var _ io.WriteCloser = failingWriteCloser{}

@@ -11,11 +11,14 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/d8a-tech/d8a/pkg/bolt"
+	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	whBigQuery "github.com/d8a-tech/d8a/pkg/warehouse/bigquery"
 	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
 	whFiles "github.com/d8a-tech/d8a/pkg/warehouse/files"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/afero"
 	"github.com/urfave/cli/v3"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -266,7 +269,7 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	}
 
 	storageType := strings.ToLower(cmd.String(warehouseFilesStorageFlag.Name))
-	var uploader whFiles.Uploader
+	var uploader whFiles.StreamUploader
 
 	switch storageType {
 	case storageTypeS3, storageTypeGCS:
@@ -296,11 +299,25 @@ func createFilesWarehouse(ctx context.Context, cmd *cli.Command) warehouse.Regis
 	tmplStr := strings.TrimSpace(cmd.String(warehouseFilesPathTemplateFlag.Name))
 	validateFilesPathTemplate(tmplStr)
 
-	driver := whFiles.NewSpoolDriver(ctx, uploader, fmt, spoolDir,
+	spool, err := spools.New(
+		afero.NewOsFs(),
+		filepath.Join(spoolDir, "spool"),
+		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
+		spools.WithMaxFailures(3),
+		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
+	)
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create files warehouse spool")
+	}
+
+	kv, err := bolt.NewBoltKV(filepath.Join(spoolDir, "metadata.db"))
+	if err != nil {
+		logrus.WithError(err).Fatal("failed to create files warehouse metadata kv")
+	}
+
+	driver := whFiles.NewSpoolDriver(ctx, spool, kv, uploader, fmt,
 		whFiles.WithPathTemplate(tmplStr),
-		whFiles.WithSealCheckInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
-		whFiles.WithMaxSegmentSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
-		whFiles.WithMaxSegmentAge(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
+		whFiles.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
 	)
 
 	return warehouse.NewStaticDriverRegistry(driver)
