@@ -622,6 +622,40 @@ func TestConcurrentAppendDuringFlush(t *testing.T) {
 	assert.Equal(t, []byte("during-flush"), secondFrames[0])
 }
 
+func TestRunFlushCycle_PreservesCountersForAppendsDuringFlush(t *testing.T) {
+	// given
+	fs := afero.NewMemMapFs()
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(1000)))
+	require.NoError(t, err)
+
+	require.NoError(t, s.Append("prop1", []byte("before-flush")))
+
+	flushStarted := make(chan struct{})
+	allowFlush := make(chan struct{})
+	s.setHandler(func(_ string, next func() ([][]byte, error)) error {
+		close(flushStarted)
+		<-allowFlush
+		_, drainErr := drainNext(next)
+		return drainErr
+	})
+
+	// when — append happens while runFlushCycle is in progress
+	flushDone := make(chan struct{})
+	go func() {
+		s.spool.runFlushCycle()
+		close(flushDone)
+	}()
+
+	<-flushStarted
+	require.NoError(t, s.Append("prop1", []byte("during-flush")))
+	close(allowFlush)
+	<-flushDone
+
+	// then — counters still account for the append that happened during flush
+	assert.Equal(t, int32(1), s.spool.appendCount.Load())
+	assert.Equal(t, int64(len("during-flush")), s.spool.appendBytes.Load())
+}
+
 func TestCloseRejectsAppend(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()

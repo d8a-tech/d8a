@@ -419,11 +419,49 @@ func (s *fileSpool) start() {
 }
 
 func (s *fileSpool) runFlushCycle() {
+	bytesAtStart := s.appendBytes.Load()
+	countAtStart := s.appendCount.Load()
+
 	if err := s.flush(); err != nil {
 		logrus.Errorf("flush cycle failed: %v", err)
 	}
-	s.appendBytes.Store(0)
-	s.appendCount.Store(0)
+
+	s.subtractAppendBytes(bytesAtStart)
+	s.subtractAppendCount(countAtStart)
+}
+
+func (s *fileSpool) subtractAppendBytes(delta int64) {
+	if delta <= 0 {
+		return
+	}
+
+	for {
+		current := s.appendBytes.Load()
+		next := current - delta
+		if next < 0 {
+			next = 0
+		}
+		if s.appendBytes.CompareAndSwap(current, next) {
+			return
+		}
+	}
+}
+
+func (s *fileSpool) subtractAppendCount(delta int32) {
+	if delta <= 0 {
+		return
+	}
+
+	for {
+		current := s.appendCount.Load()
+		next := current - delta
+		if next < 0 {
+			next = 0
+		}
+		if s.appendCount.CompareAndSwap(current, next) {
+			return
+		}
+	}
 }
 
 // maybeRotateActive checks if the active file for key exceeds maxActiveSize
