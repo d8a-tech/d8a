@@ -346,7 +346,7 @@ func filesWarehouseFactory(cmd *cli.Command, spoolDir string) (spools.Factory, e
 		spools.WithFailureStrategy(spools.NewQuarantineStrategy()),
 		spools.WithMaxFailures(3),
 		spools.WithMaxActiveSize(cmd.Int64(warehouseFilesMaxSegmentSizeFlag.Name)),
-		spools.WithFlushInterval(cmd.Duration(warehouseFilesSealCheckIntervalFlag.Name)),
+		spools.WithFlushInterval(cmd.Duration(warehouseFilesMaxSegmentAgeFlag.Name)),
 		spools.WithFlushOnClose(true),
 	)
 }

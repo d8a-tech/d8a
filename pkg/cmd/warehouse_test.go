@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 	"unsafe"
 
 	"github.com/apache/arrow-go/v18/arrow"
@@ -151,6 +152,14 @@ func TestCreateFilesWarehouse_ConfiguresQuarantineAfterThreeFailures(t *testing.
 			maxFailuresValue := reflect.NewAt(maxFailuresField.Type(), unsafe.Pointer(maxFailuresField.UnsafeAddr())).Elem()
 			assert.Equal(t, int64(3), maxFailuresValue.Int())
 
+			flushIntervalField := concreteSpoolValue.FieldByName("flushInterval")
+			require.True(t, flushIntervalField.IsValid())
+			flushIntervalValue := reflect.NewAt(
+				flushIntervalField.Type(),
+				unsafe.Pointer(flushIntervalField.UnsafeAddr()),
+			).Elem()
+			assert.Equal(t, int64(time.Hour), flushIntervalValue.Int())
+
 			failureStrategyField := concreteSpoolValue.FieldByName("failureStrategy")
 			require.True(t, failureStrategyField.IsValid())
 			failureStrategyValue := reflect.NewAt(
@@ -158,6 +167,52 @@ func TestCreateFilesWarehouse_ConfiguresQuarantineAfterThreeFailures(t *testing.
 				unsafe.Pointer(failureStrategyField.UnsafeAddr()),
 			).Elem()
 			assert.Equal(t, "*spools.quarantineStrategy", reflect.TypeOf(failureStrategyValue.Interface()).String())
+
+			return registry.Close()
+		},
+	}
+
+	require.NoError(t, app.Run(context.Background(), args))
+}
+
+func TestCreateFilesWarehouse_UsesMaxSegmentAgeForFlushInterval(t *testing.T) {
+	// given
+	baseDir := t.TempDir()
+	args := []string{
+		"d8a-test",
+		"--warehouse-driver=files",
+		"--storage-spool-enabled=true",
+		"--storage-spool-directory=" + baseDir + "/spool",
+		"--warehouse-files-storage=filesystem",
+		"--warehouse-files-filesystem-path=" + baseDir + "/out",
+		"--warehouse-files-max-segment-age=37m",
+	}
+
+	app := &cli.Command{
+		Name:  "d8a-test",
+		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			registry := warehouseRegistry(ctx, cmd)
+			driver, err := registry.Get("property-id")
+			require.NoError(t, err)
+
+			filesDriver, ok := driver.(*whFiles.SpoolDriver)
+			require.True(t, ok)
+
+			driverValue := reflect.ValueOf(filesDriver).Elem()
+			spoolField := driverValue.FieldByName("spool")
+			require.True(t, spoolField.IsValid())
+
+			spoolValue := reflect.NewAt(spoolField.Type(), unsafe.Pointer(spoolField.UnsafeAddr())).Elem()
+			concreteSpoolValue := reflect.ValueOf(spoolValue.Interface()).Elem()
+
+			flushIntervalField := concreteSpoolValue.FieldByName("flushInterval")
+			require.True(t, flushIntervalField.IsValid())
+			flushIntervalValue := reflect.NewAt(
+				flushIntervalField.Type(),
+				unsafe.Pointer(flushIntervalField.UnsafeAddr()),
+			).Elem()
+			assert.Equal(t, int64(37*time.Minute), flushIntervalValue.Int())
 
 			return registry.Close()
 		},

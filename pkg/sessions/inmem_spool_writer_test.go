@@ -127,6 +127,21 @@ func TestInMemSpoolWriter_FlushOnCount(t *testing.T) {
 	}
 }
 
+func TestInMemSpoolWriter_WithWriteChanBuffer_ConfiguresChannelCapacity(t *testing.T) {
+	// given
+	child := &recordingWriter{}
+
+	// when
+	w, cleanup, err := NewInMemSpoolWriter(child, WithWriteChanBuffer(17))
+	require.NoError(t, err)
+	defer cleanup()
+
+	// then
+	concreteWriter, ok := w.(*inMemSpoolWriter)
+	require.True(t, ok)
+	assert.Equal(t, 17, cap(concreteWriter.writeChan))
+}
+
 func TestInMemSpoolWriter_FlushOnAge(t *testing.T) {
 	// given
 	child := &recordingWriter{}

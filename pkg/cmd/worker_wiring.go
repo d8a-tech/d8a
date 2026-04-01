@@ -104,7 +104,7 @@ func buildWorkerRuntime(
 
 		mode := cmd.String(deliveryModeFlag.Name)
 		var failStrat spools.FailureStrategy
-		if mode == "at_least_once" {
+		if mode == deliveryModeAtLeastOnce {
 			failStrat = spools.NewQuarantineStrategy()
 		} else {
 			failStrat = spools.NewDeleteStrategy()
@@ -131,10 +131,13 @@ func buildWorkerRuntime(
 			return nil, fmt.Errorf("create persistent spool writer: %w", err)
 		}
 
-		if mode == "at_least_once" {
+		if mode == deliveryModeAtLeastOnce {
 			sessionWriter = persistentWriter
 		} else {
-			inMemWriter, inMemCleanupFn, err := sessions.NewInMemSpoolWriter(persistentWriter)
+			inMemWriter, inMemCleanupFn, err := sessions.NewInMemSpoolWriter(
+				persistentWriter,
+				sessions.WithWriteChanBuffer(cmd.Int(storageSpoolWriteChanBufferFlag.Name)),
+			)
 			if err != nil {
 				cleanup()
 				return nil, fmt.Errorf("create in-mem spool writer: %w", err)

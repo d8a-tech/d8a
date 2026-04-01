@@ -66,23 +66,6 @@ func defaultDeliveryModeBoolSourceChain(
 	)
 }
 
-func defaultDeliveryModeIntSourceChain(
-	flagName, envVar, yamlPath string,
-	forcedValue, defaultValue int,
-) cli.ValueSourceChain {
-	return customDeliveryModeSourceChain(
-		flagName,
-		yamlPath,
-		strconv.Itoa(forcedValue),
-		strconv.Itoa(defaultValue),
-		defaultSourceChain(envVar, yamlPath),
-		normalizeIntValue,
-		func(cmd *cli.Command) string {
-			return normalizeIntValue(strconv.Itoa(cmd.Int(flagName)))
-		},
-	)
-}
-
 func applyDeliveryModeOverridesBefore(ctx context.Context, cmd *cli.Command) (context.Context, error) {
 	if err := applyDeliveryModeOverrides(cmd); err != nil {
 		return ctx, err
@@ -165,18 +148,4 @@ func normalizeBoolValue(value string) string {
 	}
 
 	return strconv.FormatBool(parsed)
-}
-
-func normalizeIntValue(value string) string {
-	trimmed := strings.TrimSpace(value)
-	if trimmed == "" {
-		return ""
-	}
-
-	parsed, err := strconv.Atoi(trimmed)
-	if err != nil {
-		return trimmed
-	}
-
-	return strconv.Itoa(parsed)
 }
