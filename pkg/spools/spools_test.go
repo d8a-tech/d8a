@@ -656,7 +656,7 @@ func TestRunFlushCycle_PreservesCountersForAppendsDuringFlush(t *testing.T) {
 	assert.Equal(t, int64(len("during-flush")), s.spool.appendBytes.Load())
 }
 
-func TestRunFlushCycle_TriggerOnlyFailureRetainsCountersForRetry(t *testing.T) {
+func TestTriggerOnlyFlushRetriesFailedCycleWithoutNewAppend(t *testing.T) {
 	// given — trigger-only flush configuration (no timer)
 	fs := afero.NewMemMapFs()
 	s, err := New(fs, "/data/spools",
@@ -665,31 +665,31 @@ func TestRunFlushCycle_TriggerOnlyFailureRetainsCountersForRetry(t *testing.T) {
 		WithMaxAppendsBeforeFlush(1),
 	)
 	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, s.Close()) })
 
-	require.NoError(t, s.Append("prop1", []byte("frame-1")))
-
+	firstCallDone := make(chan struct{})
+	secondCallDone := make(chan struct{})
 	callCount := 0
 	s.setHandler(func(_ string, next func() ([][]byte, error)) error {
 		callCount++
 		if callCount == 1 {
+			close(firstCallDone)
 			return fmt.Errorf("transient failure")
+		}
+		if callCount == 2 {
+			close(secondCallDone)
 		}
 		_, drainErr := drainNext(next)
 		return drainErr
 	})
 
-	// when — first cycle fails
-	s.spool.runFlushCycle()
+	// when — one append triggers first flush cycle, which fails
+	require.NoError(t, s.Append("prop1", []byte("frame-1")))
+	<-firstCallDone
 
-	// then — counters remain, preserving trigger signaling for retry
-	assert.Equal(t, int32(1), s.spool.appendCount.Load())
-	assert.Equal(t, int64(len("frame-1")), s.spool.appendBytes.Load())
-	assert.True(t, s.spool.shouldTriggerFlush())
+	// then — background loop retries without a second append and drains data
+	<-secondCallDone
 
-	// when — retry cycle succeeds
-	s.spool.runFlushCycle()
-
-	// then — counters are cleared after successful retry
 	assert.Equal(t, 2, callCount)
 	assert.Equal(t, int32(0), s.spool.appendCount.Load())
 	assert.Equal(t, int64(0), s.spool.appendBytes.Load())

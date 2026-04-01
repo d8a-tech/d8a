@@ -24,6 +24,7 @@ const (
 	maxPayloadSz      = 0xFFFFFFFF
 	defaultMaxFailure = 20
 	defaultBufferSize = 1
+	flushRetryDelay   = 10 * time.Millisecond
 )
 
 // FlushHandler is called during flush cycles for each inflight file.
@@ -424,11 +425,40 @@ func (s *fileSpool) runFlushCycle() {
 
 	if err := s.flush(); err != nil {
 		logrus.Errorf("flush cycle failed: %v", err)
+		s.scheduleRetryAfterFailedFlush()
 		return
 	}
 
 	s.subtractAppendBytes(bytesAtStart)
 	s.subtractAppendCount(countAtStart)
+}
+
+func (s *fileSpool) scheduleRetryAfterFailedFlush() {
+	if s.flushInterval > 0 {
+		return
+	}
+	if s.maxBytesBeforeFlush <= 0 && s.maxAppendsBeforeFlush <= 0 {
+		return
+	}
+	if !s.shouldTriggerFlush() {
+		return
+	}
+
+	go func() {
+		timer := time.NewTimer(flushRetryDelay)
+		defer timer.Stop()
+
+		select {
+		case <-timer.C:
+			select {
+			case <-s.stopCh:
+				return
+			default:
+			}
+			signalNonBlocking(s.triggerCh)
+		case <-s.stopCh:
+		}
+	}()
 }
 
 func (s *fileSpool) subtractAppendBytes(delta int64) {
