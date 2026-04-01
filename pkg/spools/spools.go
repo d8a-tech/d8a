@@ -177,6 +177,7 @@ type fileFactory struct {
 
 	mu      sync.Mutex
 	created bool
+	closed  bool
 	spool   *fileSpool
 
 	closeOnce sync.Once
@@ -214,6 +215,10 @@ func (f *fileFactory) Create(handler FlushHandler) (Spool, error) {
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	if f.closed {
+		return nil, fmt.Errorf("factory is closed")
+	}
 
 	if f.created {
 		return nil, fmt.Errorf("spool already created")
@@ -253,6 +258,7 @@ func (f *fileFactory) Create(handler FlushHandler) (Spool, error) {
 func (f *fileFactory) Close() error {
 	f.closeOnce.Do(func() {
 		f.mu.Lock()
+		f.closed = true
 		s := f.spool
 		f.mu.Unlock()
 

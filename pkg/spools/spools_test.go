@@ -725,6 +725,21 @@ func TestCloseRejectsFlush(t *testing.T) {
 	assert.Contains(t, err.Error(), "closed")
 }
 
+func TestFactoryCloseBeforeCreateRejectsCreate(t *testing.T) {
+	// given
+	fs := afero.NewMemMapFs()
+	factory, err := NewFileFactory(fs, "/data/spools")
+	require.NoError(t, err)
+
+	// when
+	require.NoError(t, factory.Close())
+
+	// then
+	_, err = factory.Create(func(_ string, _ func() ([][]byte, error)) error { return nil })
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "closed")
+}
+
 func TestKeySanitizationInFilenames(t *testing.T) {
 	// given
 	fs := afero.NewMemMapFs()
