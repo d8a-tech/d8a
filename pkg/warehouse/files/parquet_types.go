@@ -176,7 +176,12 @@ func (m *parquetBoolTypeMapper) WarehouseToArrow(SpecificParquetType) (warehouse
 type parquetTimestampTypeMapper struct{}
 
 func (m *parquetTimestampTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowType) (SpecificParquetType, error) {
-	if arrowType.ArrowDataType != arrow.FixedWidthTypes.Timestamp_s {
+	supported := false
+	if t, ok := arrowType.ArrowDataType.(*arrow.TimestampType); ok {
+		supported = t.Unit == arrow.Second && (t.TimeZone == "" || t.TimeZone == "UTC")
+	}
+
+	if !supported {
 		return SpecificParquetType{}, warehouse.NewUnsupportedMappingErr(arrowType.ArrowDataType, parquetMapperName)
 	}
 
@@ -223,7 +228,10 @@ func (m *parquetDate32TypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowType
 			case string:
 				t, err := time.Parse("2006-01-02", v)
 				if err != nil {
-					return nil, fmt.Errorf("parsing date32 string: %w", err)
+					t, err = time.Parse(time.RFC3339, v)
+					if err != nil {
+						return nil, fmt.Errorf("parsing date32 string: %w", err)
+					}
 				}
 				return dateOnlyUTC(t), nil
 			case time.Time:

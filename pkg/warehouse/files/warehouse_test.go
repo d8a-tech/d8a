@@ -2,6 +2,7 @@ package files
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/storage"
+	"github.com/d8a-tech/d8a/pkg/warehouse/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -180,6 +182,43 @@ func (s *stubSpool) Append(key string, payload []byte) error {
 	return s.appendErr
 }
 
+type immediateFlushSpool struct {
+	handler       spools.FlushHandler
+	appendKey     string
+	appendPayload []byte
+	appendErr     error
+}
+
+func (s *immediateFlushSpool) setHandler(handler spools.FlushHandler) {
+	s.handler = handler
+}
+
+func (s *immediateFlushSpool) Append(key string, payload []byte) error {
+	s.appendKey = key
+	s.appendPayload = append([]byte(nil), payload...)
+	if s.appendErr != nil {
+		return s.appendErr
+	}
+
+	if s.handler == nil {
+		return errors.New("flush handler is not set")
+	}
+
+	called := false
+	err := s.handler(key, func() ([][]byte, error) {
+		if called {
+			return nil, io.EOF
+		}
+		called = true
+		return [][]byte{append([]byte(nil), payload...)}, nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type stubFactory struct {
 	createErr error
 	spool     spools.Spool
@@ -190,6 +229,9 @@ func (f *stubFactory) Create(handler spools.FlushHandler) (spools.Spool, error) 
 	f.handler = handler
 	if f.createErr != nil {
 		return nil, f.createErr
+	}
+	if spoolWithHandler, ok := f.spool.(interface{ setHandler(spools.FlushHandler) }); ok {
+		spoolWithHandler.setHandler(handler)
 	}
 	return f.spool, nil
 }
@@ -228,6 +270,58 @@ func TestNewFilesDriver_ReturnsErrorWhenFactoryCreateFails(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, driver)
 	assert.ErrorIs(t, err, factoryErr)
+}
+
+func TestFilesDriver_SharedBasicWrites(t *testing.T) {
+	tests := []struct {
+		name      string
+		format    Format
+		extSuffix string
+		useShared bool
+	}{
+		{
+			name:      "csv",
+			format:    NewCSVFormat(),
+			extSuffix: ".csv",
+			useShared: true,
+		},
+		{
+			name:      "csv_gzip",
+			format:    NewCSVFormat(WithCompression(Gzip(gzip.BestSpeed))),
+			extSuffix: ".csv.gz",
+			useShared: true,
+		},
+		{
+			name:      "parquet",
+			format:    NewParquetFormat(),
+			extSuffix: ".parquet",
+			useShared: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spool := &immediateFlushSpool{}
+			uploader := &mockStreamUploader{}
+			driver, err := NewFilesDriver(
+				context.Background(),
+				&stubFactory{spool: spool},
+				newMockKV(),
+				uploader,
+				tt.format,
+			)
+			require.NoError(t, err)
+
+			testutils.TestBasicWrites(t, driver, "events")
+
+			uploader.mu.Lock()
+			defer uploader.mu.Unlock()
+			require.Len(t, uploader.uploads, 1)
+			assert.Equal(t, 1, uploader.uploads[0].upload.commits)
+			assert.Equal(t, 0, uploader.uploads[0].upload.aborts)
+			assert.Contains(t, uploader.uploads[0].key, tt.extSuffix)
+		})
+	}
 }
 
 func TestFilesDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {

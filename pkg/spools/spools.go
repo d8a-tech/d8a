@@ -325,7 +325,23 @@ func (s *fileSpool) activePath(key string) string {
 
 // isInflightFile reports whether name is an inflight spool file.
 func isInflightFile(name string) bool {
-	return strings.Contains(name, inflightMarker)
+	idx := strings.Index(name, inflightMarker)
+	if idx < 0 {
+		return false
+	}
+
+	timestamp := name[idx+len(inflightMarker):]
+	if timestamp == "" {
+		return false
+	}
+
+	for _, ch := range timestamp {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 // isActiveFile reports whether name is an active spool file (not inflight).

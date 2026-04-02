@@ -153,6 +153,24 @@ func TestParquetTimestampFormatting(t *testing.T) {
 	assert.Equal(t, time.Unix(1700000000, 0).UTC(), tFromUnix)
 }
 
+func TestParquetTimestampMapper_SupportsSecondResolutionWithUTCTimeZone(t *testing.T) {
+	mapper := NewParquetFieldTypeMapper()
+
+	_, err := mapper.ArrowToWarehouse(warehouse.ArrowType{
+		ArrowDataType: &arrow.TimestampType{Unit: arrow.Second, TimeZone: "UTC"},
+	})
+	require.NoError(t, err)
+}
+
+func TestParquetTimestampMapper_RejectsNonUTCSecondResolutionTimestamp(t *testing.T) {
+	mapper := NewParquetFieldTypeMapper()
+	timestampType := &arrow.TimestampType{Unit: arrow.Second, TimeZone: "America/New_York"}
+
+	_, err := mapper.ArrowToWarehouse(warehouse.ArrowType{ArrowDataType: timestampType})
+	require.Error(t, err)
+	assert.IsType(t, warehouse.NewUnsupportedMappingErr(timestampType, parquetMapperName), err)
+}
+
 func TestParquetDate32Formatting(t *testing.T) {
 	mapper := NewParquetFieldTypeMapper()
 	dateType, err := mapper.ArrowToWarehouse(warehouse.ArrowType{ArrowDataType: arrow.FixedWidthTypes.Date32})
@@ -166,6 +184,10 @@ func TestParquetDate32Formatting(t *testing.T) {
 	fromTime, err := dateType.Format(fromTimeValue, arrow.Metadata{})
 	require.NoError(t, err)
 	assert.Equal(t, time.Date(2026, 2, 24, 0, 0, 0, 0, time.UTC), fromTime)
+
+	fromRFC3339, err := dateType.Format("2024-01-15T00:00:00Z", arrow.Metadata{})
+	require.NoError(t, err)
+	assert.Equal(t, time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC), fromRFC3339)
 }
 
 func TestParquetNullableWrapper(t *testing.T) {

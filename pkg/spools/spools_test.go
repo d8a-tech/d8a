@@ -987,7 +987,9 @@ func TestIsInflightFile(t *testing.T) {
 	}{
 		{name: "active file", file: "prop1.spool", want: false},
 		{name: "inflight file", file: "prop1.spool.inflight.1001", want: true},
-		{name: "quarantined file", file: "prop1.spool.inflight.1001.quarantine", want: true},
+		{name: "quarantined file", file: "prop1.spool.inflight.1001.quarantine", want: false},
+		{name: "inflight without timestamp", file: "prop1.spool.inflight.", want: false},
+		{name: "inflight with non-digit suffix", file: "prop1.spool.inflight.1001.tmp", want: false},
 		{name: "unrelated file", file: "something.txt", want: false},
 	}
 	for _, tt := range tests {
@@ -995,6 +997,36 @@ func TestIsInflightFile(t *testing.T) {
 			assert.Equal(t, tt.want, isInflightFile(tt.file))
 		})
 	}
+}
+
+func TestFlushIgnoresQuarantinedInflightFiles(t *testing.T) {
+	// given — quarantined inflight file left from previous failure strategy run
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
+	writeRawFrame(t, fs, "/data/spools/prop1.spool.inflight.1000.quarantine", []byte("quarantined"))
+
+	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
+	require.NoError(t, err)
+
+	// and — a fresh active file should still flush normally
+	require.NoError(t, s.Append("prop1", []byte("active")))
+
+	var frames [][]byte
+	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
+		var drainErr error
+		frames, drainErr = drainNext(next)
+		return drainErr
+	})
+	require.NoError(t, err)
+
+	// then — only active inflight data is processed; quarantined file is untouched
+	require.Len(t, frames, 1)
+	assert.Equal(t, []byte("active"), frames[0])
+
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "prop1.spool.inflight.1000.quarantine", entries[0].Name())
 }
 
 func TestIsActiveFile(t *testing.T) {
