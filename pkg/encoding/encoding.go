@@ -56,6 +56,21 @@ func ZlibCBOREncoder(w io.Writer, v any) (int, error) {
 	return n, err
 }
 
+// CBORDecoder decodes CBOR data from a reader into a value
+func CBORDecoder(r io.Reader, v any) error {
+	decoder := cbor.NewDecoder(r)
+	return decoder.Decode(v)
+}
+
+// CBOREncoder encodes a value into CBOR and writes it to a writer
+func CBOREncoder(w io.Writer, v any) (int, error) {
+	countingWriter := &byteCountWriter{w: w}
+
+	err := cbor.NewEncoder(countingWriter).Encode(v)
+
+	return countingWriter.count, err
+}
+
 // JSONDecoder decodes JSON data from a reader into a value
 func JSONDecoder(r io.Reader, v any) error {
 	return json.NewDecoder(r).Decode(v)

@@ -157,8 +157,8 @@ func buildWorkerRuntime(
 					protosessions.NewDeduplicatingBatchedIOBackend(func() protosessions.BatchedIOBackend {
 						b, err := bolt.NewBatchedProtosessionsIOBackend(
 							boltDB,
-							encoding.GzipJSONEncoder,
-							encoding.GzipJSONDecoder,
+							encoding.CBOREncoder,
+							encoding.CBORDecoder,
 						)
 						if err != nil {
 							logrus.Panicf("failed to create bolt batched io backend: %v", err)

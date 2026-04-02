@@ -23,8 +23,8 @@ func TestBoltBatchedIOBackend(t *testing.T) {
 
 		backend, err := NewBatchedProtosessionsIOBackend(
 			db,
-			encoding.JSONEncoder,
-			encoding.JSONDecoder,
+			encoding.CBOREncoder,
+			encoding.CBORDecoder,
 		)
 		require.NoError(t, err)
 
