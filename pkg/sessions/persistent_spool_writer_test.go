@@ -313,11 +313,13 @@ func TestPersistentSpoolWriter_FlushHandlerDrainsMultipleBatches(t *testing.T) {
 
 	// then
 	calls := child.getCalls()
-	require.Len(t, calls, 1)
-	assert.Len(t, calls[0], 3)
+	require.Len(t, calls, 3)
+	assert.Len(t, calls[0], 1)
+	assert.Len(t, calls[1], 1)
+	assert.Len(t, calls[2], 1)
 	assert.Equal(t, "s1", calls[0][0].BrokenReason)
-	assert.Equal(t, "s2", calls[0][1].BrokenReason)
-	assert.Equal(t, "s3", calls[0][2].BrokenReason)
+	assert.Equal(t, "s2", calls[1][0].BrokenReason)
+	assert.Equal(t, "s3", calls[2][0].BrokenReason)
 }
 
 func TestPersistentSpoolWriter_FlushHandlerWriteError(t *testing.T) {

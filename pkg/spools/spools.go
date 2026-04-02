@@ -17,14 +17,15 @@ import (
 )
 
 const (
-	headerSize        = 4
-	spoolExt          = ".spool"
-	inflightMarker    = ".spool.inflight."
-	filePerms         = 0o644
-	maxPayloadSz      = 0xFFFFFFFF
-	defaultMaxFailure = 20
-	defaultBufferSize = 1
-	flushRetryDelay   = 10 * time.Millisecond
+	headerSize            = 4
+	spoolExt              = ".spool"
+	inflightMarker        = ".spool.inflight."
+	filePerms             = 0o644
+	maxPayloadSz          = 0xFFFFFFFF
+	defaultMaxFailure     = 20
+	defaultBufferSize     = 1
+	defaultFlushBatchSize = 5000
+	flushRetryDelay       = 10 * time.Millisecond
 )
 
 // FlushHandler is called during flush cycles for each inflight file.
@@ -123,8 +124,8 @@ func WithMaxActiveSize(bytes int64) FileFactoryOption {
 }
 
 // WithFlushBatchSize sets the maximum number of frames returned per call
-// to the next function passed to the Flush callback. Zero (default) means
-// all frames in the inflight file are returned in a single batch.
+// to the next function passed to the Flush callback. Zero disables batching,
+// causing all frames in the inflight file to be returned in a single batch.
 func WithFlushBatchSize(n int) FileFactoryOption {
 	return func(f *fileFactory) {
 		f.flushBatchSize = n
@@ -195,6 +196,7 @@ func NewFileFactory(fs afero.Fs, dir string, opts ...FileFactoryOption) (Factory
 		dir:             dir,
 		failureStrategy: &deleteStrategy{},
 		maxFailures:     defaultMaxFailure,
+		flushBatchSize:  defaultFlushBatchSize,
 		nowFunc:         time.Now,
 		flushOnClose:    true,
 		newTicker:       newRealTicker,
