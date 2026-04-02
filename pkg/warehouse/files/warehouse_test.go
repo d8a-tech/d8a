@@ -277,25 +277,21 @@ func TestFilesDriver_SharedBasicWrites(t *testing.T) {
 		name      string
 		format    Format
 		extSuffix string
-		useShared bool
 	}{
 		{
 			name:      "csv",
 			format:    NewCSVFormat(),
 			extSuffix: ".csv",
-			useShared: true,
 		},
 		{
 			name:      "csv_gzip",
 			format:    NewCSVFormat(WithCompression(Gzip(gzip.BestSpeed))),
 			extSuffix: ".csv.gz",
-			useShared: true,
 		},
 		{
 			name:      "parquet",
 			format:    NewParquetFormat(),
 			extSuffix: ".parquet",
-			useShared: true,
 		},
 	}
 
