@@ -18,6 +18,9 @@ import (
 	whBigQuery "github.com/d8a-tech/d8a/pkg/warehouse/bigquery"
 	whClickhouse "github.com/d8a-tech/d8a/pkg/warehouse/clickhouse"
 	whFiles "github.com/d8a-tech/d8a/pkg/warehouse/files"
+	pgGzip "github.com/parquet-go/parquet-go/compress/gzip"
+	"github.com/parquet-go/parquet-go/compress/snappy"
+	"github.com/parquet-go/parquet-go/compress/zstd"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/afero"
 	"github.com/urfave/cli/v3"
@@ -289,22 +292,50 @@ func filesWarehouseFormat(cmd *cli.Command, format string) whFiles.Format {
 	compression := strings.ToLower(cmd.String(warehouseFilesCompressionFlag.Name))
 	level := cmd.Int(warehouseFilesCompressionLevelFlag.Name)
 
-	var csvOpts []whFiles.CSVFormatOption
-	switch compression {
-	case "":
-		// no compression
-	case "gzip":
-		csvOpts = append(csvOpts, whFiles.WithCompression(whFiles.Gzip(level)))
-	default:
-		logrus.Fatalf("unsupported files compression: %s", compression)
+	fmt, err := resolveFilesWarehouseFormat(format, compression, level)
+	if err != nil {
+		logrus.Fatal(err)
 	}
+
+	return fmt
+}
+
+func resolveFilesWarehouseFormat(format, compression string, level int) (whFiles.Format, error) {
+	format = strings.ToLower(format)
 
 	switch format {
 	case "csv":
-		return whFiles.NewCSVFormat(csvOpts...)
+		var csvOpts []whFiles.CSVFormatOption
+		switch compression {
+		case "":
+			// no compression
+		case "gzip":
+			csvOpts = append(csvOpts, whFiles.WithCompression(whFiles.Gzip(level)))
+		default:
+			return nil, fmt.Errorf("unsupported compression for csv: %s", compression)
+		}
+
+		return whFiles.NewCSVFormat(csvOpts...), nil
+
+	case "parquet":
+		var parquetOpts []whFiles.ParquetFormatOption
+		switch compression {
+		case "":
+			// no compression
+		case "snappy":
+			parquetOpts = append(parquetOpts, whFiles.WithParquetCompression(&snappy.Codec{}))
+		case "gzip":
+			parquetOpts = append(parquetOpts, whFiles.WithParquetCompression(&pgGzip.Codec{Level: level}))
+		case "zstd":
+			parquetOpts = append(parquetOpts, whFiles.WithParquetCompression(&zstd.Codec{Level: zstd.SpeedDefault}))
+		default:
+			return nil, fmt.Errorf("unsupported compression for parquet: %s", compression)
+		}
+
+		return whFiles.NewParquetFormat(parquetOpts...), nil
+
 	default:
-		logrus.Fatalf("unsupported files format: %s", format)
-		return nil
+		return nil, fmt.Errorf("unsupported files format: %s", format)
 	}
 }
 

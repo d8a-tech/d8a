@@ -3,15 +3,17 @@ package files
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
@@ -27,6 +29,18 @@ func WithPathTemplate(tmplStr string) FilesOption {
 	}
 }
 
+// WithSpoolEncoderDecoder sets the spool payload codec used for frame
+// serialization/deserialization.
+func WithSpoolEncoderDecoder(
+	encoder encoding.EncoderFunc,
+	decoder encoding.DecoderFunc,
+) FilesOption {
+	return func(sd *FilesDriver) {
+		sd.encoder = encoder
+		sd.decoder = decoder
+	}
+}
+
 // FilesDriver writes warehouse rows into a keyed spool and flushes them to remote storage.
 type FilesDriver struct {
 	spool           spools.Spool
@@ -34,8 +48,27 @@ type FilesDriver struct {
 	uploader        StreamUploader
 	format          Format
 	ext             string
+	encoder         encoding.EncoderFunc
+	decoder         encoding.DecoderFunc
 	pathTemplate    *template.Template
 	pathTemplateStr string
+}
+
+var registerSpoolGobTypesOnce sync.Once
+
+func registerSpoolGobTypes() {
+	registerSpoolGobTypesOnce.Do(func() {
+		gob.Register(map[string]any{})
+		gob.Register([]any{})
+		gob.Register([]map[string]any{})
+		gob.Register(time.Time{})
+		gob.Register([]time.Time{})
+		gob.Register(map[string]string{})
+		gob.Register([]string{})
+		gob.Register([]int64{})
+		gob.Register([]float64{})
+		gob.Register([]bool{})
+	})
 }
 
 var _ warehouse.Driver = (*FilesDriver)(nil)
@@ -84,11 +117,15 @@ func NewFilesDriver(
 	format Format,
 	opts ...FilesOption,
 ) (*FilesDriver, error) {
+	registerSpoolGobTypes()
+
 	sd := &FilesDriver{
 		kv:       kv,
 		uploader: uploader,
 		format:   format,
 		ext:      format.Extension(),
+		encoder:  encoding.GobEncoder,
+		decoder:  encoding.GobDecoder,
 	}
 
 	for _, opt := range opts {
@@ -176,7 +213,7 @@ func buildFlushHandler(sd *FilesDriver) spools.FlushHandler {
 
 			for _, frame := range frames {
 				var decodedRows []map[string]any
-				if err := json.Unmarshal(frame, &decodedRows); err != nil {
+				if err := sd.decoder(bytes.NewReader(frame), &decodedRows); err != nil {
 					return abortWith(fmt.Errorf("decoding rows payload: %w", err))
 				}
 
@@ -218,12 +255,12 @@ func (sd *FilesDriver) Write(ctx context.Context, table string, schema *arrow.Sc
 		return fmt.Errorf("storing schema metadata for fingerprint %s: %w", fingerprint, err)
 	}
 
-	payload, err := json.Marshal(rows)
-	if err != nil {
+	var payload bytes.Buffer
+	if _, err := sd.encoder(&payload, rows); err != nil {
 		return fmt.Errorf("marshaling rows payload: %w", err)
 	}
 
-	if err := sd.spool.Append(key, payload); err != nil {
+	if err := sd.spool.Append(key, payload.Bytes()); err != nil {
 		return fmt.Errorf("appending rows to spool: %w", err)
 	}
 

@@ -54,20 +54,32 @@ func NewPersistentSpoolWriter(
 	}
 
 	spool, err := spoolFactory.Create(func(key string, next func() ([][]byte, error)) error {
-		allSessions, decodeErr := w.drainAndDecode(next)
-		if decodeErr != nil {
-			return fmt.Errorf("decoding frames for key %q: %w", key, decodeErr)
-		}
+		for {
+			frames, readErr := next()
+			if errors.Is(readErr, io.EOF) {
+				return nil
+			}
+			if readErr != nil {
+				return fmt.Errorf("decoding frames for key %q: reading next batch: %w", key, readErr)
+			}
 
-		if len(allSessions) == 0 {
-			return nil
-		}
+			var batch []*schema.Session
+			for _, frame := range frames {
+				var sessions []*schema.Session
+				if decErr := w.decoder(bytes.NewReader(frame), &sessions); decErr != nil {
+					return fmt.Errorf("decoding frames for key %q: decoding frame: %w", key, decErr)
+				}
+				batch = append(batch, sessions...)
+			}
 
-		if writeErr := w.child.Write(allSessions...); writeErr != nil {
-			return fmt.Errorf("child write for key %q: %w", key, writeErr)
-		}
+			if len(batch) == 0 {
+				continue
+			}
 
-		return nil
+			if writeErr := w.child.Write(batch...); writeErr != nil {
+				return fmt.Errorf("child write for key %q: %w", key, writeErr)
+			}
+		}
 	})
 	if err != nil {
 		return nil, fmt.Errorf("creating spool: %w", err)
@@ -105,26 +117,4 @@ func (w *persistentSpoolWriter) Write(sessions ...*schema.Session) error {
 	}
 
 	return nil
-}
-
-// drainAndDecode repeatedly calls next to obtain frame batches until io.EOF,
-// decoding each batch into sessions and concatenating the results.
-func (w *persistentSpoolWriter) drainAndDecode(next func() ([][]byte, error)) ([]*schema.Session, error) {
-	var all []*schema.Session
-	for {
-		frames, err := next()
-		if errors.Is(err, io.EOF) {
-			return all, nil
-		}
-		if err != nil {
-			return nil, fmt.Errorf("reading next batch: %w", err)
-		}
-		for _, frame := range frames {
-			var sessions []*schema.Session
-			if decErr := w.decoder(bytes.NewReader(frame), &sessions); decErr != nil {
-				return nil, fmt.Errorf("decoding frame: %w", decErr)
-			}
-			all = append(all, sessions...)
-		}
-	}
 }

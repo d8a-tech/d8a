@@ -100,7 +100,7 @@ func buildWorkerRuntime(
 		splitterRegistry,
 	)
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
-		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
+		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "sessionwriter")
 
 		mode := cmd.String(deliveryModeFlag.Name)
 		var failStrat spools.FailureStrategy
@@ -157,8 +157,8 @@ func buildWorkerRuntime(
 					protosessions.NewDeduplicatingBatchedIOBackend(func() protosessions.BatchedIOBackend {
 						b, err := bolt.NewBatchedProtosessionsIOBackend(
 							boltDB,
-							encoding.GzipJSONEncoder,
-							encoding.GzipJSONDecoder,
+							encoding.CBOREncoder,
+							encoding.CBORDecoder,
 						)
 						if err != nil {
 							logrus.Panicf("failed to create bolt batched io backend: %v", err)

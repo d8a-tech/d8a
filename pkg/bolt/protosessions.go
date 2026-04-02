@@ -150,15 +150,19 @@ func (b *boltBatchedIOBackend) HandleBatch(
 	getResponses := make([]*protosessions.GetProtoSessionHitsResponse, len(getProtoSessionHitsRequests))
 	markReqs := markProtoSessionClosingForGivenBucketRequests
 	markResponses := make([]*protosessions.MarkProtoSessionClosingForGivenBucketResponse, len(markReqs))
+	encodedAppendPayloads := make([][][]byte, len(appendHitsRequests))
+	encodedGetPayloads := make([][][]byte, len(getProtoSessionHitsRequests))
 	mapUpdates := make(map[hits.ClientID]int64)
+
+	b.preEncodeAppendRequests(appendHitsRequests, appendResponses, encodedAppendPayloads)
 
 	err := b.db.Update(func(tx *bolt.Tx) error {
 		sessionsBucket := tx.Bucket([]byte(protoSessionsBucket))
 		bucketsBucket := tx.Bucket([]byte(timingWheelBucketsBucket))
 		mapBucket := tx.Bucket([]byte(sessionToBucketMapBucket))
 
-		b.processAppendRequests(sessionsBucket, appendHitsRequests, appendResponses)
-		b.processGetRequests(sessionsBucket, getProtoSessionHitsRequests, getResponses)
+		b.processAppendRequests(sessionsBucket, appendHitsRequests, encodedAppendPayloads, appendResponses)
+		b.processGetRequests(sessionsBucket, getProtoSessionHitsRequests, getResponses, encodedGetPayloads)
 		b.processMarkRequests(bucketsBucket, mapBucket, markReqs, markResponses, mapUpdates)
 
 		return nil
@@ -169,6 +173,8 @@ func (b *boltBatchedIOBackend) HandleBatch(
 		fillNilGetResponses(getResponses, err)
 		fillNilMarkResponses(markResponses, err)
 	} else {
+		b.decodeGetResponses(encodedGetPayloads, getResponses)
+
 		// Apply map updates after successful transaction
 		b.sessionToBucketMu.Lock()
 		for sessionID, bucketID := range mapUpdates {
@@ -180,29 +186,61 @@ func (b *boltBatchedIOBackend) HandleBatch(
 	return appendResponses, getResponses, markResponses
 }
 
+func (b *boltBatchedIOBackend) preEncodeAppendRequests(
+	requests []*protosessions.AppendHitsToProtoSessionRequest,
+	responses []*protosessions.AppendHitsToProtoSessionResponse,
+	encodedPayloads [][][]byte,
+) {
+	for i, request := range requests {
+		encodedHits, err := b.encodeHits(request.Hits)
+		if err != nil {
+			responses[i] = protosessions.NewAppendHitsToProtoSessionResponse(err)
+			continue
+		}
+		encodedPayloads[i] = encodedHits
+	}
+}
+
 func (b *boltBatchedIOBackend) processAppendRequests(
 	sessionsBucket *bolt.Bucket,
 	requests []*protosessions.AppendHitsToProtoSessionRequest,
+	encodedPayloads [][][]byte,
 	responses []*protosessions.AppendHitsToProtoSessionResponse,
 ) {
 	for i, request := range requests {
+		if responses[i] != nil {
+			continue
+		}
 		key := b.protoSessionKey(request.ProtoSessionID)
 		keyBucket, err := sessionsBucket.CreateBucketIfNotExists(key)
 		if err != nil {
 			responses[i] = protosessions.NewAppendHitsToProtoSessionResponse(err)
 			continue
 		}
-		responses[i] = protosessions.NewAppendHitsToProtoSessionResponse(b.appendHitsToBucket(keyBucket, request.Hits))
+		responses[i] = protosessions.NewAppendHitsToProtoSessionResponse(
+			b.appendEncodedHitsToBucket(keyBucket, encodedPayloads[i]),
+		)
 	}
 }
 
-func (b *boltBatchedIOBackend) appendHitsToBucket(bucket *bolt.Bucket, hitsToAppend []*hits.Hit) error {
-	for _, hit := range hitsToAppend {
+func (b *boltBatchedIOBackend) encodeHits(hitsToEncode []*hits.Hit) ([][]byte, error) {
+	encodedHits := make([][]byte, 0, len(hitsToEncode))
+	for _, hit := range hitsToEncode {
 		buf := bytes.NewBuffer(nil)
 		if _, encErr := b.encoder(buf, hit); encErr != nil {
-			return encErr
+			return nil, encErr
 		}
-		if err := bucket.Put(buf.Bytes(), []byte{1}); err != nil {
+		encodedHit := make([]byte, buf.Len())
+		copy(encodedHit, buf.Bytes())
+		encodedHits = append(encodedHits, encodedHit)
+	}
+
+	return encodedHits, nil
+}
+
+func (b *boltBatchedIOBackend) appendEncodedHitsToBucket(bucket *bolt.Bucket, encodedHits [][]byte) error {
+	for _, encodedHit := range encodedHits {
+		if err := bucket.Put(encodedHit, []byte{1}); err != nil {
 			return err
 		}
 	}
@@ -213,6 +251,7 @@ func (b *boltBatchedIOBackend) processGetRequests(
 	sessionsBucket *bolt.Bucket,
 	requests []*protosessions.GetProtoSessionHitsRequest,
 	responses []*protosessions.GetProtoSessionHitsResponse,
+	encodedPayloads [][][]byte,
 ) {
 	for i, request := range requests {
 		key := b.protoSessionKey(request.ProtoSessionID)
@@ -221,25 +260,54 @@ func (b *boltBatchedIOBackend) processGetRequests(
 			responses[i] = protosessions.NewGetProtoSessionHitsResponse([]*hits.Hit{}, nil)
 			continue
 		}
-		allHits, err := b.decodeHitsFromBucket(keyBucket)
-		responses[i] = protosessions.NewGetProtoSessionHitsResponse(allHits, err)
+		allHits, err := b.copyEncodedHitsFromBucket(keyBucket)
+		if err != nil {
+			responses[i] = protosessions.NewGetProtoSessionHitsResponse(nil, err)
+			continue
+		}
+		encodedPayloads[i] = allHits
 	}
 }
 
-func (b *boltBatchedIOBackend) decodeHitsFromBucket(bucket *bolt.Bucket) ([]*hits.Hit, error) {
-	var allHits []*hits.Hit
+func (b *boltBatchedIOBackend) copyEncodedHitsFromBucket(bucket *bolt.Bucket) ([][]byte, error) {
+	var allHits [][]byte
 	err := bucket.ForEach(func(k, _ []byte) error {
-		var decodedHit *hits.Hit
-		if decErr := b.decoder(bytes.NewBuffer(k), &decodedHit); decErr != nil {
-			return decErr
-		}
-		allHits = append(allHits, decodedHit)
+		copiedHit := make([]byte, len(k))
+		copy(copiedHit, k)
+		allHits = append(allHits, copiedHit)
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 	return allHits, nil
+}
+
+func (b *boltBatchedIOBackend) decodeHits(encodedHits [][]byte) ([]*hits.Hit, error) {
+	decodedHits := make([]*hits.Hit, 0, len(encodedHits))
+	for _, encodedHit := range encodedHits {
+		var decodedHit *hits.Hit
+		if decErr := b.decoder(bytes.NewBuffer(encodedHit), &decodedHit); decErr != nil {
+			return nil, decErr
+		}
+		decodedHits = append(decodedHits, decodedHit)
+	}
+
+	return decodedHits, nil
+}
+
+func (b *boltBatchedIOBackend) decodeGetResponses(
+	encodedPayloads [][][]byte,
+	responses []*protosessions.GetProtoSessionHitsResponse,
+) {
+	for i := range encodedPayloads {
+		if responses[i] != nil {
+			continue
+		}
+
+		hitsForResponse, err := b.decodeHits(encodedPayloads[i])
+		responses[i] = protosessions.NewGetProtoSessionHitsResponse(hitsForResponse, err)
+	}
 }
 
 func (b *boltBatchedIOBackend) processMarkRequests(
@@ -304,6 +372,7 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 	requests []*protosessions.GetAllProtosessionsForBucketRequest,
 ) []*protosessions.GetAllProtosessionsForBucketResponse {
 	responses := make([]*protosessions.GetAllProtosessionsForBucketResponse, len(requests))
+	encodedResponses := make([][][][]byte, len(requests))
 	// Take a snapshot of the map under read lock
 	b.sessionToBucketMu.RLock()
 	cacheSnapshot := make(map[hits.ClientID]int64, len(b.lastBucketsForSessionIDCache))
@@ -321,8 +390,7 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse([][]*hits.Hit{}, nil)
 				continue
 			}
-			var protoSessions [][]*hits.Hit
-			var reqErr error
+			var protoSessions [][][]byte
 			err := keyBucket.ForEach(func(clientID, _ []byte) error {
 				sessionID := hits.ClientID(clientID)
 				// Filter: only process if this bucket is the session's latest bucket
@@ -332,30 +400,22 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 				sessionKey := b.protoSessionKey(sessionID)
 				sessionBucket := sessionsBucket.Bucket(sessionKey)
 				if sessionBucket == nil {
-					protoSessions = append(protoSessions, []*hits.Hit{})
+					protoSessions = append(protoSessions, [][]byte{})
 					return nil
 				}
-				var sessionHits []*hits.Hit
-				err := sessionBucket.ForEach(func(encoded, _ []byte) error {
-					var decodedHit *hits.Hit
-					if decErr := b.decoder(bytes.NewBuffer(encoded), &decodedHit); decErr != nil {
-						return decErr
-					}
-					sessionHits = append(sessionHits, decodedHit)
-					return nil
-				})
+				sessionHits, err := b.copyEncodedHitsFromBucket(sessionBucket)
 				if err != nil {
-					reqErr = err
 					return err
 				}
 				protoSessions = append(protoSessions, sessionHits)
 				return nil
 			})
 			if err != nil {
-				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(nil, reqErr)
-			} else {
-				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(protoSessions, nil)
+				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(nil, err)
+				continue
 			}
+
+			encodedResponses[i] = protoSessions
 		}
 		return nil
 	})
@@ -365,7 +425,30 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(nil, err)
 			}
 		}
+		return responses
 	}
+
+	for i := range requests {
+		if responses[i] != nil {
+			continue
+		}
+
+		decodedProtoSessions := make([][]*hits.Hit, 0, len(encodedResponses[i]))
+		for _, encodedSession := range encodedResponses[i] {
+			decodedSession, decErr := b.decodeHits(encodedSession)
+			if decErr != nil {
+				responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(nil, decErr)
+				break
+			}
+
+			decodedProtoSessions = append(decodedProtoSessions, decodedSession)
+		}
+
+		if responses[i] == nil {
+			responses[i] = protosessions.NewGetAllProtosessionsForBucketResponse(decodedProtoSessions, nil)
+		}
+	}
+
 	return responses
 }
 

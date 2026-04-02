@@ -17,14 +17,15 @@ import (
 )
 
 const (
-	headerSize        = 4
-	spoolExt          = ".spool"
-	inflightMarker    = ".spool.inflight."
-	filePerms         = 0o644
-	maxPayloadSz      = 0xFFFFFFFF
-	defaultMaxFailure = 20
-	defaultBufferSize = 1
-	flushRetryDelay   = 10 * time.Millisecond
+	headerSize            = 4
+	spoolExt              = ".spool"
+	inflightMarker        = ".spool.inflight."
+	filePerms             = 0o644
+	maxPayloadSz          = 0xFFFFFFFF
+	defaultMaxFailure     = 20
+	defaultBufferSize     = 1
+	defaultFlushBatchSize = 5
+	flushRetryDelay       = 10 * time.Millisecond
 )
 
 // FlushHandler is called during flush cycles for each inflight file.
@@ -123,8 +124,8 @@ func WithMaxActiveSize(bytes int64) FileFactoryOption {
 }
 
 // WithFlushBatchSize sets the maximum number of frames returned per call
-// to the next function passed to the Flush callback. Zero (default) means
-// all frames in the inflight file are returned in a single batch.
+// to the next function passed to the Flush callback. Zero disables batching,
+// causing all frames in the inflight file to be returned in a single batch.
 func WithFlushBatchSize(n int) FileFactoryOption {
 	return func(f *fileFactory) {
 		f.flushBatchSize = n
@@ -195,6 +196,7 @@ func NewFileFactory(fs afero.Fs, dir string, opts ...FileFactoryOption) (Factory
 		dir:             dir,
 		failureStrategy: &deleteStrategy{},
 		maxFailures:     defaultMaxFailure,
+		flushBatchSize:  defaultFlushBatchSize,
 		nowFunc:         time.Now,
 		flushOnClose:    true,
 		newTicker:       newRealTicker,
@@ -325,7 +327,23 @@ func (s *fileSpool) activePath(key string) string {
 
 // isInflightFile reports whether name is an inflight spool file.
 func isInflightFile(name string) bool {
-	return strings.Contains(name, inflightMarker)
+	idx := strings.Index(name, inflightMarker)
+	if idx < 0 {
+		return false
+	}
+
+	timestamp := name[idx+len(inflightMarker):]
+	if timestamp == "" {
+		return false
+	}
+
+	for _, ch := range timestamp {
+		if ch < '0' || ch > '9' {
+			return false
+		}
+	}
+
+	return true
 }
 
 // isActiveFile reports whether name is an active spool file (not inflight).
@@ -824,23 +842,12 @@ func (s *fileSpool) recover() error {
 			continue
 		}
 
-		key := keyFromInflight(name)
 		inflightPath := s.dir + "/" + name
 
-		frames, readErr := readFrames(s.fs, inflightPath)
-		if readErr != nil {
-			return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readErr)
-		}
-
-		activePath := s.activePath(key)
-		for _, frame := range frames {
-			if appendErr := s.appendToFile(activePath, frame); appendErr != nil {
-				return fmt.Errorf("re-appending frame to %q during recovery: %w", activePath, appendErr)
+		if entry.Size() == 0 {
+			if removeErr := s.fs.Remove(inflightPath); removeErr != nil {
+				return fmt.Errorf("removing empty inflight file %q during recovery: %w", inflightPath, removeErr)
 			}
-		}
-
-		if removeErr := s.fs.Remove(inflightPath); removeErr != nil {
-			return fmt.Errorf("removing recovered inflight file %q: %w", inflightPath, removeErr)
 		}
 	}
 
@@ -884,53 +891,4 @@ func (s *fileSpool) flushClosed() error {
 		}
 	}
 	return flushErr
-}
-
-func readFrames(fs afero.Fs, path string) ([][]byte, error) {
-	f, err := fs.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening %q: %w", path, err)
-	}
-	defer func() {
-		if closeErr := f.Close(); closeErr != nil {
-			logrus.Errorf("closing %q: %v", path, closeErr)
-		}
-	}()
-
-	var frames [][]byte
-	header := make([]byte, headerSize)
-
-	for {
-		_, err := io.ReadFull(f, header)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			if err == io.ErrUnexpectedEOF {
-				logrus.Warnf("truncated frame header in %q; stopping read with %d frames recovered", path, len(frames))
-				break
-			}
-			return nil, fmt.Errorf("reading frame header from %q: %w", path, err)
-		}
-
-		size := binary.LittleEndian.Uint32(header)
-		payload := make([]byte, size)
-		_, err = io.ReadFull(f, payload)
-		if err != nil {
-			if err == io.ErrUnexpectedEOF || err == io.EOF {
-				logrus.Warnf(
-					"truncated frame payload in %q (expected %d bytes); stopping read with %d frames recovered",
-					path,
-					size,
-					len(frames),
-				)
-				break
-			}
-			return nil, fmt.Errorf("reading frame payload from %q: %w", path, err)
-		}
-
-		frames = append(frames, payload)
-	}
-
-	return frames, nil
 }
