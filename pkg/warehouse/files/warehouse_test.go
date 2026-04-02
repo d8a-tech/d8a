@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"sync"
 	"testing"
 
 	"github.com/apache/arrow-go/v18/arrow"
+	"github.com/d8a-tech/d8a/pkg/encoding"
 	"github.com/d8a-tech/d8a/pkg/spools"
 	"github.com/d8a-tech/d8a/pkg/storage"
 	"github.com/d8a-tech/d8a/pkg/warehouse/testutils"
@@ -342,9 +342,9 @@ func TestFilesDriver_WriteStoresSchemaAndAppendsPayload(t *testing.T) {
 	assert.Equal(t, "events/"+fingerprint, spool.appendKey)
 
 	var decoded []map[string]any
-	require.NoError(t, json.Unmarshal(spool.appendPayload, &decoded))
+	require.NoError(t, encoding.GobDecoder(bytes.NewReader(spool.appendPayload), &decoded))
 	assert.Len(t, decoded, 1)
-	assert.Equal(t, float64(1), decoded[0]["id"])
+	assert.EqualValues(t, int64(1), decoded[0]["id"])
 }
 
 func TestFilesDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
@@ -363,12 +363,14 @@ func TestFilesDriver_FlushHandlerStreamsMultipleFramesAndCommits(t *testing.T) {
 	_, err = kv.Set([]byte(fingerprint), schemaBytes)
 	require.NoError(t, err)
 
-	frame1, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	frame1 := new(bytes.Buffer)
+	_, err = encoding.GobEncoder(frame1, []map[string]any{{"id": int64(1)}})
 	require.NoError(t, err)
-	frame2, err := json.Marshal([]map[string]any{{"id": int64(2)}})
+	frame2 := new(bytes.Buffer)
+	_, err = encoding.GobEncoder(frame2, []map[string]any{{"id": int64(2)}})
 	require.NoError(t, err)
 
-	err = factory.handler("events/"+fingerprint, nextFromFrames(frame1, frame2))
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame1.Bytes(), frame2.Bytes()))
 	require.NoError(t, err)
 
 	uploader.mu.Lock()
@@ -400,10 +402,11 @@ func TestFilesDriver_FlushHandlerAbortsOnFormatWriterError(t *testing.T) {
 	_, err = kv.Set([]byte(fingerprint), schemaBytes)
 	require.NoError(t, err)
 
-	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	frame := new(bytes.Buffer)
+	_, err = encoding.GobEncoder(frame, []map[string]any{{"id": int64(1)}})
 	require.NoError(t, err)
 
-	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame.Bytes()))
 	require.Error(t, err)
 
 	uploader.mu.Lock()
@@ -428,10 +431,11 @@ func TestFilesDriver_FlushHandlerAbortsOnCommitError(t *testing.T) {
 	_, err = kv.Set([]byte(fingerprint), schemaBytes)
 	require.NoError(t, err)
 
-	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	frame := new(bytes.Buffer)
+	_, err = encoding.GobEncoder(frame, []map[string]any{{"id": int64(1)}})
 	require.NoError(t, err)
 
-	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame.Bytes()))
 	require.Error(t, err)
 
 	uploader.mu.Lock()
@@ -463,10 +467,11 @@ func TestFilesDriver_PathTemplateAffectsRemoteKey(t *testing.T) {
 	_, err = kv.Set([]byte(fingerprint), schemaBytes)
 	require.NoError(t, err)
 
-	frame, err := json.Marshal([]map[string]any{{"id": int64(1)}})
+	frame := new(bytes.Buffer)
+	_, err = encoding.GobEncoder(frame, []map[string]any{{"id": int64(1)}})
 	require.NoError(t, err)
 
-	err = factory.handler("events/"+fingerprint, nextFromFrames(frame))
+	err = factory.handler("events/"+fingerprint, nextFromFrames(frame.Bytes()))
 	require.NoError(t, err)
 
 	uploader.mu.Lock()

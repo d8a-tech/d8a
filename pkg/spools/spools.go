@@ -24,7 +24,7 @@ const (
 	maxPayloadSz          = 0xFFFFFFFF
 	defaultMaxFailure     = 20
 	defaultBufferSize     = 1
-	defaultFlushBatchSize = 5000
+	defaultFlushBatchSize = 5
 	flushRetryDelay       = 10 * time.Millisecond
 )
 
