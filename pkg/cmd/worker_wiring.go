@@ -100,7 +100,7 @@ func buildWorkerRuntime(
 		splitterRegistry,
 	)
 	if cmd.Bool(storageSpoolEnabledFlag.Name) {
-		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "warehouse", "generic")
+		spoolDir := filepath.Join(cmd.String(storageSpoolDirectoryFlag.Name), "sessionwriter")
 
 		mode := cmd.String(deliveryModeFlag.Name)
 		var failStrat spools.FailureStrategy
