@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -240,4 +241,133 @@ func TestFilesRegistryWithFactoryClose_Close_ClosesFactoryBeforeDriverAndJoinsEr
 	require.Equal(t, []string{"factory", "driver"}, order)
 	assert.ErrorIs(t, err, factoryErr)
 	assert.ErrorIs(t, err, driverErr)
+}
+
+func TestResolveFilesWarehouseFormat_ParquetCompressionSelection(t *testing.T) {
+	testCases := []struct {
+		name              string
+		compression       string
+		expectedCodecType string
+	}{
+		{
+			name:              "empty compression leaves parquet uncompressed",
+			compression:       "",
+			expectedCodecType: "",
+		},
+		{
+			name:              "snappy compression uses parquet snappy codec",
+			compression:       "snappy",
+			expectedCodecType: "*snappy.Codec",
+		},
+		{
+			name:              "gzip compression uses parquet gzip codec",
+			compression:       "gzip",
+			expectedCodecType: "*gzip.Codec",
+		},
+		{
+			name:              "zstd compression uses parquet zstd codec",
+			compression:       "zstd",
+			expectedCodecType: "*zstd.Codec",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// when
+			format, err := resolveFilesWarehouseFormat("parquet", testCase.compression, 4)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, "parquet", format.Extension())
+			assert.Equal(t, testCase.expectedCodecType, parquetCodecType(t, format))
+		})
+	}
+}
+
+func TestResolveFilesWarehouseFormat_CSVCompressionBehavior(t *testing.T) {
+	testCases := []struct {
+		name               string
+		compression        string
+		expectedErrMessage string
+		expectedExtension  string
+	}{
+		{
+			name:              "gzip compression is supported",
+			compression:       "gzip",
+			expectedExtension: "csv.gz",
+		},
+		{
+			name:               "snappy compression is rejected for csv",
+			compression:        "snappy",
+			expectedErrMessage: "unsupported compression for csv: snappy",
+		},
+		{
+			name:               "zstd compression is rejected for csv",
+			compression:        "zstd",
+			expectedErrMessage: "unsupported compression for csv: zstd",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			// when
+			format, err := resolveFilesWarehouseFormat("csv", testCase.compression, 5)
+
+			// then
+			if testCase.expectedErrMessage != "" {
+				require.Error(t, err)
+				assert.Nil(t, format)
+				assert.Equal(t, testCase.expectedErrMessage, err.Error())
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedExtension, format.Extension())
+		})
+	}
+}
+
+func TestResolveFilesWarehouseFormat_UnsupportedValues(t *testing.T) {
+	// when
+	format, err := resolveFilesWarehouseFormat("parquet", "brotli", 3)
+
+	// then
+	require.Error(t, err)
+	assert.Nil(t, format)
+	assert.Equal(t, "unsupported compression for parquet: brotli", err.Error())
+
+	// when
+	format, err = resolveFilesWarehouseFormat("json", "", 3)
+
+	// then
+	require.Error(t, err)
+	assert.Nil(t, format)
+	assert.Equal(t, "unsupported files format: json", err.Error())
+}
+
+func parquetCodecType(t *testing.T, format whFiles.Format) string {
+	t.Helper()
+
+	formatValue := reflect.ValueOf(format)
+	require.Equal(t, "*files.parquetFormat", formatValue.Type().String())
+
+	compressionCodecField := formatValue.Elem().FieldByName("compressionCodec")
+	require.True(t, compressionCodecField.IsValid())
+
+	compressionCodecValue := reflect.NewAt(
+		compressionCodecField.Type(),
+		unsafe.Pointer(compressionCodecField.UnsafeAddr()),
+	).Elem()
+
+	if compressionCodecValue.IsNil() {
+		return ""
+	}
+
+	codecType := reflect.TypeOf(compressionCodecValue.Interface()).String()
+	if strings.HasPrefix(codecType, "*") {
+		parts := strings.Split(codecType[1:], "/")
+		codecType = "*" + parts[len(parts)-1]
+	}
+
+	return codecType
 }

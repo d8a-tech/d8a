@@ -446,7 +446,7 @@ var warehouseObjectStorageCliFlags = ToCliFlags(&objectStorageFlagsSpec.Warehous
 var (
 	warehouseFilesFormatFlag = &cli.StringFlag{
 		Name:    "warehouse-files-format",
-		Usage:   "File format for warehouse output (csv)",
+		Usage:   "File format for warehouse output (csv, parquet)",
 		Value:   "csv",
 		Sources: defaultSourceChain("WAREHOUSE_FILES_FORMAT", "warehouse.files.format"),
 	}
@@ -479,7 +479,7 @@ var (
 
 	warehouseFilesCompressionFlag = &cli.StringFlag{
 		Name:    "warehouse-files-compression",
-		Usage:   "Compression algorithm for warehouse files (gzip, or empty for none)",
+		Usage:   "Compression algorithm for warehouse files (csv: gzip; parquet: snappy, gzip, zstd; or empty for none)", //nolint:lll // it's a description
 		Value:   "",
 		Sources: defaultSourceChain("WAREHOUSE_FILES_COMPRESSION", "warehouse.files.compression"),
 	}
