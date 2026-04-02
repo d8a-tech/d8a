@@ -842,35 +842,12 @@ func (s *fileSpool) recover() error {
 			continue
 		}
 
-		key := keyFromInflight(name)
 		inflightPath := s.dir + "/" + name
-		activePath := s.activePath(key)
 
-		reader, readerErr := newFrameReader(s.fs, inflightPath)
-		if readerErr != nil {
-			return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readerErr)
-		}
-
-		for {
-			frame, readErr := reader.readFrame()
-			if errors.Is(readErr, io.EOF) {
-				break
+		if entry.Size() == 0 {
+			if removeErr := s.fs.Remove(inflightPath); removeErr != nil {
+				return fmt.Errorf("removing empty inflight file %q during recovery: %w", inflightPath, removeErr)
 			}
-			if readErr != nil {
-				reader.close()
-				return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readErr)
-			}
-
-			if appendErr := s.appendToFile(activePath, frame); appendErr != nil {
-				reader.close()
-				return fmt.Errorf("re-appending frame to %q during recovery: %w", activePath, appendErr)
-			}
-		}
-
-		reader.close()
-
-		if removeErr := s.fs.Remove(inflightPath); removeErr != nil {
-			return fmt.Errorf("removing recovered inflight file %q: %w", inflightPath, removeErr)
 		}
 	}
 

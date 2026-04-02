@@ -448,14 +448,14 @@ func TestRecoverInflightOnNew(t *testing.T) {
 	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
-	// then — inflight file should be gone, data should be in active file
+	// then — inflight file should be preserved and active file should not be created
 	exists, err := afero.Exists(fs, "/data/spools/prop1.spool.inflight.1000")
 	require.NoError(t, err)
-	assert.False(t, exists)
+	assert.True(t, exists)
 
 	exists, err = afero.Exists(fs, "/data/spools/prop1.spool")
 	require.NoError(t, err)
-	assert.True(t, exists)
+	assert.False(t, exists)
 
 	// Flush should yield the recovered frame.
 	var frames [][]byte
@@ -483,14 +483,18 @@ func TestRecoverMergesIntoExistingActive(t *testing.T) {
 	// then — flush should have both frames (existing first, then recovered)
 	var frames [][]byte
 	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
-		var drainErr error
-		frames, drainErr = drainNext(next)
+		flushed, drainErr := drainNext(next)
+		frames = append(frames, flushed...)
 		return drainErr
 	})
 	require.NoError(t, err)
 	require.Len(t, frames, 2)
-	assert.Equal(t, []byte("existing"), frames[0])
-	assert.Equal(t, []byte("crashed"), frames[1])
+	assert.Equal(t, []byte("crashed"), frames[0])
+	assert.Equal(t, []byte("existing"), frames[1])
+
+	entries, err := afero.ReadDir(fs, "/data/spools")
+	require.NoError(t, err)
+	assert.Empty(t, entries)
 }
 
 func TestTruncatedTrailingFrame(t *testing.T) {
@@ -508,11 +512,11 @@ func TestTruncatedTrailingFrame(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, f.Close())
 
-	// when — New triggers Recover which reads inflight
+	// when — New triggers Recover
 	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
-	// then — the good frame was recovered; truncated frame was dropped
+	// then — flush keeps first valid frame and stops on truncation
 	var frames [][]byte
 	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
 		var drainErr error
@@ -547,7 +551,7 @@ func TestTruncatedPayload(t *testing.T) {
 	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(2000)))
 	require.NoError(t, err)
 
-	// then — only the first valid frame is recovered
+	// then — only the first valid frame is flushed
 	var frames [][]byte
 	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
 		var drainErr error
@@ -960,23 +964,42 @@ func TestRecoverMultipleInflights(t *testing.T) {
 	s, err := New(fs, "/data/spools", WithNowFunc(sequentialClock(3000)))
 	require.NoError(t, err)
 
-	// then — both frames recovered into active, inflight files gone
+	// then — both inflight files remain untouched before flush
 	entries, err := afero.ReadDir(fs, "/data/spools")
 	require.NoError(t, err)
-	require.Len(t, entries, 1)
-	assert.Equal(t, "prop1.spool", entries[0].Name())
+	require.Len(t, entries, 2)
+	assert.Equal(t, "prop1.spool.inflight.1000", entries[0].Name())
+	assert.Equal(t, "prop1.spool.inflight.2000", entries[1].Name())
 
 	// Flush should yield both frames
 	var frames [][]byte
 	err = s.Flush(func(_ string, next func() ([][]byte, error)) error {
-		var drainErr error
-		frames, drainErr = drainNext(next)
+		flushed, drainErr := drainNext(next)
+		frames = append(frames, flushed...)
 		return drainErr
 	})
 	require.NoError(t, err)
 	require.Len(t, frames, 2)
 	assert.Equal(t, []byte("old"), frames[0])
 	assert.Equal(t, []byte("new"), frames[1])
+}
+
+func TestRecoverRemovesEmptyInflight(t *testing.T) {
+	// given — empty inflight file left from crash
+	fs := afero.NewMemMapFs()
+	require.NoError(t, fs.MkdirAll("/data/spools", 0o755))
+	f, err := fs.Create("/data/spools/prop1.spool.inflight.1000")
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+
+	// when
+	_, err = New(fs, "/data/spools")
+	require.NoError(t, err)
+
+	// then
+	exists, err := afero.Exists(fs, "/data/spools/prop1.spool.inflight.1000")
+	require.NoError(t, err)
+	assert.False(t, exists)
 }
 
 func TestIsInflightFile(t *testing.T) {
