@@ -844,18 +844,30 @@ func (s *fileSpool) recover() error {
 
 		key := keyFromInflight(name)
 		inflightPath := s.dir + "/" + name
+		activePath := s.activePath(key)
 
-		frames, readErr := readFrames(s.fs, inflightPath)
-		if readErr != nil {
-			return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readErr)
+		reader, readerErr := newFrameReader(s.fs, inflightPath)
+		if readerErr != nil {
+			return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readerErr)
 		}
 
-		activePath := s.activePath(key)
-		for _, frame := range frames {
+		for {
+			frame, readErr := reader.readFrame()
+			if errors.Is(readErr, io.EOF) {
+				break
+			}
+			if readErr != nil {
+				reader.close()
+				return fmt.Errorf("reading inflight file %q during recovery: %w", inflightPath, readErr)
+			}
+
 			if appendErr := s.appendToFile(activePath, frame); appendErr != nil {
+				reader.close()
 				return fmt.Errorf("re-appending frame to %q during recovery: %w", activePath, appendErr)
 			}
 		}
+
+		reader.close()
 
 		if removeErr := s.fs.Remove(inflightPath); removeErr != nil {
 			return fmt.Errorf("removing recovered inflight file %q: %w", inflightPath, removeErr)
@@ -902,53 +914,4 @@ func (s *fileSpool) flushClosed() error {
 		}
 	}
 	return flushErr
-}
-
-func readFrames(fs afero.Fs, path string) ([][]byte, error) {
-	f, err := fs.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening %q: %w", path, err)
-	}
-	defer func() {
-		if closeErr := f.Close(); closeErr != nil {
-			logrus.Errorf("closing %q: %v", path, closeErr)
-		}
-	}()
-
-	var frames [][]byte
-	header := make([]byte, headerSize)
-
-	for {
-		_, err := io.ReadFull(f, header)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			if err == io.ErrUnexpectedEOF {
-				logrus.Warnf("truncated frame header in %q; stopping read with %d frames recovered", path, len(frames))
-				break
-			}
-			return nil, fmt.Errorf("reading frame header from %q: %w", path, err)
-		}
-
-		size := binary.LittleEndian.Uint32(header)
-		payload := make([]byte, size)
-		_, err = io.ReadFull(f, payload)
-		if err != nil {
-			if err == io.ErrUnexpectedEOF || err == io.EOF {
-				logrus.Warnf(
-					"truncated frame payload in %q (expected %d bytes); stopping read with %d frames recovered",
-					path,
-					size,
-					len(frames),
-				)
-				break
-			}
-			return nil, fmt.Errorf("reading frame payload from %q: %w", path, err)
-		}
-
-		frames = append(frames, payload)
-	}
-
-	return frames, nil
 }
