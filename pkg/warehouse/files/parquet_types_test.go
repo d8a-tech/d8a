@@ -151,6 +151,10 @@ func TestParquetTimestampFormatting(t *testing.T) {
 	tFromUnix, err := timestampType.Format(float64(1700000000), arrow.Metadata{})
 	require.NoError(t, err)
 	assert.Equal(t, time.Unix(1700000000, 0).UTC(), tFromUnix)
+
+	tFromInt64Unix, err := timestampType.Format(int64(1700000001), arrow.Metadata{})
+	require.NoError(t, err)
+	assert.Equal(t, time.Unix(1700000001, 0).UTC(), tFromInt64Unix)
 }
 
 func TestParquetTimestampMapper_SupportsSecondResolutionWithUTCTimeZone(t *testing.T) {

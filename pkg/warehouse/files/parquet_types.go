@@ -197,6 +197,12 @@ func (m *parquetTimestampTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowT
 				return t.UTC(), nil
 			case time.Time:
 				return v.UTC(), nil
+			case int64:
+				return time.Unix(v, 0).UTC(), nil
+			case int32:
+				return time.Unix(int64(v), 0).UTC(), nil
+			case int:
+				return time.Unix(int64(v), 0).UTC(), nil
 			case float64:
 				if math.IsNaN(v) || math.IsInf(v, 0) {
 					return nil, fmt.Errorf("invalid unix seconds value: %v", v)
@@ -204,7 +210,7 @@ func (m *parquetTimestampTypeMapper) ArrowToWarehouse(arrowType warehouse.ArrowT
 				nanos := int64(v * float64(time.Second))
 				return time.Unix(0, nanos).UTC(), nil
 			default:
-				return nil, fmt.Errorf("expected RFC3339 string, time.Time, or unix seconds float64, got %T", i)
+				return nil, fmt.Errorf("expected RFC3339 string, time.Time, or unix seconds numeric value, got %T", i)
 			}
 		},
 	}, nil

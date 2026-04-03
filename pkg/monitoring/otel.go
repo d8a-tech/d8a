@@ -30,6 +30,30 @@ var SBuckets = []float64{
 	0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0, 120.0,
 }
 
+// ByteBuckets provides histogram boundaries for payload sizes from 1KiB to 512MiB.
+var ByteBuckets = []float64{
+	1 << 10,
+	2 << 10,
+	4 << 10,
+	8 << 10,
+	16 << 10,
+	32 << 10,
+	64 << 10,
+	128 << 10,
+	256 << 10,
+	512 << 10,
+	1 << 20,
+	2 << 20,
+	4 << 20,
+	8 << 20,
+	16 << 20,
+	32 << 20,
+	64 << 20,
+	128 << 20,
+	256 << 20,
+	512 << 20,
+}
+
 // WithAttributes is a wrapper around metric.WithAttributes to satisfy linter rules.
 func WithAttributes(attrs ...attribute.KeyValue) metric.RecordOption {
 	return metric.WithAttributes(attrs...) //nolint:forbidigo // this IS the wrapper

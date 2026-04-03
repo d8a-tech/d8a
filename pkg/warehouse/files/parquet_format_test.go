@@ -38,7 +38,7 @@ func TestParquetFormat_WriteRows_RoundTripScalarTypes(t *testing.T) {
 			"count":      int64(11),
 			"ratio":      float64(2.5),
 			"enabled":    false,
-			"created_at": time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC),
+			"created_at": int64(1772020800),
 			"event_date": time.Date(2026, 2, 25, 8, 0, 0, 0, time.FixedZone("utc+2", 2*3600)),
 		},
 	}
@@ -63,7 +63,7 @@ func TestParquetFormat_WriteRows_RoundTripScalarTypes(t *testing.T) {
 	assert.Equal(t, int64(11), actualRows[1]["count"])
 	assert.Equal(t, float64(2.5), actualRows[1]["ratio"])
 	assert.Equal(t, false, actualRows[1]["enabled"])
-	assertTimestampMillis(t, actualRows[1]["created_at"], time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC))
+	assertTimestampMillis(t, actualRows[1]["created_at"], time.Unix(1772020800, 0).UTC())
 	assertDate32Days(t, actualRows[1]["event_date"], time.Date(2026, 2, 25, 0, 0, 0, 0, time.UTC))
 }
 

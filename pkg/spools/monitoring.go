@@ -23,6 +23,7 @@ var (
 		"spools.append.payload_bytes",
 		metric.WithDescription("Payload size in bytes for successful spool appends"),
 		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(monitoring.ByteBuckets...),
 	)
 	flushReturnedBatchCounter, _ = spoolMeter.Int64Counter(
 		"spools.flush.returned_batch.count",
@@ -32,12 +33,7 @@ var (
 		"spools.flush.returned_batch.bytes",
 		metric.WithDescription("Total payload bytes in each non-empty returned batch"),
 		metric.WithUnit("By"),
-	)
-	flushBatchProcessingLatencyHistogram, _ = spoolMeter.Float64Histogram( //nolint:forbidigo // instrument setup
-		"spools.flush.batch_processing.latency",
-		metric.WithDescription("Elapsed wall time between consecutive non-empty next() returns"),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
+		metric.WithExplicitBucketBoundaries(monitoring.ByteBuckets...),
 	)
 	flushKeyProcessingLatencyHistogram, _ = spoolMeter.Float64Histogram( //nolint:forbidigo // instrument setup
 		"spools.flush.key_processing.latency",
@@ -60,6 +56,7 @@ func initMonitoringInstruments() {
 		"spools.append.payload_bytes",
 		metric.WithDescription("Payload size in bytes for successful spool appends"),
 		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(monitoring.ByteBuckets...),
 	)
 	flushReturnedBatchCounter, _ = spoolMeter.Int64Counter(
 		"spools.flush.returned_batch.count",
@@ -69,14 +66,8 @@ func initMonitoringInstruments() {
 		"spools.flush.returned_batch.bytes",
 		metric.WithDescription("Total payload bytes in each non-empty returned batch"),
 		metric.WithUnit("By"),
+		metric.WithExplicitBucketBoundaries(monitoring.ByteBuckets...),
 	)
-	flushBatchProcessingLatencyHistogram, _ =
-		spoolMeter.Float64Histogram( //nolint:forbidigo // instrument setup
-			"spools.flush.batch_processing.latency",
-			metric.WithDescription("Elapsed wall time between consecutive non-empty next() returns"),
-			metric.WithUnit("s"),
-			metric.WithExplicitBucketBoundaries(monitoring.MsBuckets...),
-		)
 	flushKeyProcessingLatencyHistogram, _ =
 		spoolMeter.Float64Histogram( //nolint:forbidigo // instrument setup
 			"spools.flush.key_processing.latency",
@@ -105,14 +96,6 @@ func recordFlushReturnedBatchMetrics(dir string, payloadBytes int64) {
 	flushBatchBytesHistogram.Record(
 		context.TODO(),
 		payloadBytes,
-		monitoring.WithAttributes(attribute.String("dir", dir)),
-	)
-}
-
-func recordFlushBatchProcessingLatency(dir string, duration time.Duration) {
-	flushBatchProcessingLatencyHistogram.Record(
-		context.TODO(),
-		duration.Seconds(),
 		monitoring.WithAttributes(attribute.String("dir", dir)),
 	)
 }
