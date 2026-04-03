@@ -62,6 +62,9 @@ services:
 networks:
   perflab:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 10.123.0.0/24
 
 volumes:
   prometheus-data:

@@ -115,6 +115,7 @@ func buildWorkerRuntime(
 			spoolDir,
 			spools.WithFailureStrategy(failStrat),
 			spools.WithFlushInterval(1*time.Minute),
+			spools.WithFlushBatchSize(50),
 		)
 		if err != nil {
 			cleanup()

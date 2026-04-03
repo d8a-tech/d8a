@@ -17,15 +17,16 @@ import (
 )
 
 const (
-	headerSize            = 4
-	spoolExt              = ".spool"
-	inflightMarker        = ".spool.inflight."
-	filePerms             = 0o644
-	maxPayloadSz          = 0xFFFFFFFF
-	defaultMaxFailure     = 20
-	defaultBufferSize     = 1
-	defaultFlushBatchSize = 5
-	flushRetryDelay       = 10 * time.Millisecond
+	headerSize                      = 4
+	spoolExt                        = ".spool"
+	inflightMarker                  = ".spool.inflight."
+	filePerms                       = 0o644
+	maxPayloadSz                    = 0xFFFFFFFF
+	defaultMaxFailure               = 20
+	defaultBufferSize               = 1
+	defaultFlushBatchSize           = 5
+	defaultFlushBatchMaxBytes int64 = 10 << 20
+	flushRetryDelay                 = 10 * time.Millisecond
 )
 
 // FlushHandler is called during flush cycles for each inflight file.
@@ -132,6 +133,14 @@ func WithFlushBatchSize(n int) FileFactoryOption {
 	}
 }
 
+// WithFlushBatchMaxBytes sets the maximum payload bytes returned per call
+// to the next function passed to the Flush callback. Zero disables the limit.
+func WithFlushBatchMaxBytes(bytes int64) FileFactoryOption {
+	return func(f *fileFactory) {
+		f.flushBatchMaxBytes = bytes
+	}
+}
+
 // WithFlushInterval sets periodic flush interval. Zero disables the timer.
 func WithFlushInterval(interval time.Duration) FileFactoryOption {
 	return func(f *fileFactory) {
@@ -169,6 +178,7 @@ type fileFactory struct {
 	maxFailures           int
 	maxActiveSize         int64
 	flushBatchSize        int
+	flushBatchMaxBytes    int64
 	nowFunc               func() time.Time
 	flushInterval         time.Duration
 	flushOnClose          bool
@@ -192,14 +202,15 @@ func NewFileFactory(fs afero.Fs, dir string, opts ...FileFactoryOption) (Factory
 	}
 
 	f := &fileFactory{
-		fs:              fs,
-		dir:             dir,
-		failureStrategy: &deleteStrategy{},
-		maxFailures:     defaultMaxFailure,
-		flushBatchSize:  defaultFlushBatchSize,
-		nowFunc:         time.Now,
-		flushOnClose:    true,
-		newTicker:       newRealTicker,
+		fs:                 fs,
+		dir:                dir,
+		failureStrategy:    &deleteStrategy{},
+		maxFailures:        defaultMaxFailure,
+		flushBatchSize:     defaultFlushBatchSize,
+		flushBatchMaxBytes: defaultFlushBatchMaxBytes,
+		nowFunc:            time.Now,
+		flushOnClose:       true,
+		newTicker:          newRealTicker,
 	}
 
 	for _, opt := range opts {
@@ -234,6 +245,7 @@ func (f *fileFactory) Create(handler FlushHandler) (Spool, error) {
 		maxFailures:           f.maxFailures,
 		maxActiveSize:         f.maxActiveSize,
 		flushBatchSize:        f.flushBatchSize,
+		flushBatchMaxBytes:    f.flushBatchMaxBytes,
 		nowFunc:               f.nowFunc,
 		failuresByKey:         make(map[string]int),
 		handler:               handler,
@@ -273,13 +285,14 @@ func (f *fileFactory) Close() error {
 }
 
 type fileSpool struct {
-	fs              afero.Fs
-	dir             string
-	failureStrategy FailureStrategy
-	maxFailures     int
-	maxActiveSize   int64
-	flushBatchSize  int
-	nowFunc         func() time.Time
+	fs                 afero.Fs
+	dir                string
+	failureStrategy    FailureStrategy
+	maxFailures        int
+	maxActiveSize      int64
+	flushBatchSize     int
+	flushBatchMaxBytes int64
+	nowFunc            func() time.Time
 
 	mu     sync.Mutex
 	closed bool
@@ -363,6 +376,7 @@ func keyFromInflight(name string) string {
 
 // Append implements Spool.
 func (s *fileSpool) Append(key string, payload []byte) error {
+	startedAt := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -390,6 +404,8 @@ func (s *fileSpool) Append(key string, payload []byte) error {
 	if s.shouldTriggerFlush() {
 		signalNonBlocking(s.triggerCh)
 	}
+
+	recordAppendMetrics(s.dir, len(payload), time.Since(startedAt))
 
 	return nil
 }
@@ -640,6 +656,11 @@ func (s *fileSpool) flush() error {
 }
 
 func (s *fileSpool) flushKey(key string, paths []string, fn FlushHandler) error {
+	startedAt := time.Now()
+	defer func() {
+		recordFlushKeyProcessingLatency(s.dir, time.Since(startedAt))
+	}()
+
 	for i, path := range paths {
 		if err := s.flushOneInflight(path); err != nil {
 			if errors.Is(err, errEmptyInflight) {
@@ -679,10 +700,11 @@ func (s *fileSpool) flushOneInflight(path string) error {
 }
 
 type frameReader struct {
-	file   afero.File
-	path   string
-	header []byte
-	done   bool
+	file         afero.File
+	path         string
+	header       []byte
+	pendingFrame []byte
+	done         bool
 }
 
 func newFrameReader(fs afero.Fs, path string) (*frameReader, error) {
@@ -696,6 +718,12 @@ func newFrameReader(fs afero.Fs, path string) (*frameReader, error) {
 func (r *frameReader) readFrame() ([]byte, error) {
 	if r.done {
 		return nil, io.EOF
+	}
+
+	if r.pendingFrame != nil {
+		frame := r.pendingFrame
+		r.pendingFrame = nil
+		return frame, nil
 	}
 
 	_, err := io.ReadFull(r.file, r.header)
@@ -725,6 +753,10 @@ func (r *frameReader) readFrame() ([]byte, error) {
 	}
 
 	return payload, nil
+}
+
+func (r *frameReader) unreadFrame(frame []byte) {
+	r.pendingFrame = frame
 }
 
 func (r *frameReader) close() {
@@ -771,6 +803,8 @@ func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cl
 			return nil, io.EOF
 		}
 
+		recordFlushReturnedBatchMetrics(s.dir, batchPayloadBytes(batch))
+
 		return batch, nil
 	}
 
@@ -778,7 +812,10 @@ func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cl
 }
 
 func (s *fileSpool) readBatch(r *frameReader) ([][]byte, error) {
-	var batch [][]byte
+	var (
+		batch        [][]byte
+		payloadBytes int64
+	)
 
 	for {
 		frame, err := r.readFrame()
@@ -789,12 +826,27 @@ func (s *fileSpool) readBatch(r *frameReader) ([][]byte, error) {
 			return nil, err
 		}
 
+		frameBytes := int64(len(frame))
+		if len(batch) > 0 && s.flushBatchMaxBytes > 0 && payloadBytes+frameBytes > s.flushBatchMaxBytes {
+			r.unreadFrame(frame)
+			return batch, nil
+		}
+
 		batch = append(batch, frame)
+		payloadBytes += frameBytes
 
 		if s.flushBatchSize > 0 && len(batch) >= s.flushBatchSize {
 			return batch, nil
 		}
 	}
+}
+
+func batchPayloadBytes(batch [][]byte) int64 {
+	var bytes int64
+	for _, frame := range batch {
+		bytes += int64(len(frame))
+	}
+	return bytes
 }
 
 func (s *fileSpool) removeInflight(path string) {
