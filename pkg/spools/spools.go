@@ -363,6 +363,7 @@ func keyFromInflight(name string) string {
 
 // Append implements Spool.
 func (s *fileSpool) Append(key string, payload []byte) error {
+	startedAt := time.Now()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -390,6 +391,8 @@ func (s *fileSpool) Append(key string, payload []byte) error {
 	if s.shouldTriggerFlush() {
 		signalNonBlocking(s.triggerCh)
 	}
+
+	recordAppendMetrics(s.dir, len(payload), time.Since(startedAt))
 
 	return nil
 }
@@ -640,6 +643,11 @@ func (s *fileSpool) flush() error {
 }
 
 func (s *fileSpool) flushKey(key string, paths []string, fn FlushHandler) error {
+	startedAt := time.Now()
+	defer func() {
+		recordFlushKeyProcessingLatency(s.dir, time.Since(startedAt))
+	}()
+
 	for i, path := range paths {
 		if err := s.flushOneInflight(path); err != nil {
 			if errors.Is(err, errEmptyInflight) {
@@ -735,8 +743,10 @@ func (r *frameReader) close() {
 
 func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cleanup func()) {
 	var (
-		reader    *frameReader
-		exhausted bool
+		reader                 *frameReader
+		exhausted              bool
+		hasPreviousCallStarted bool
+		previousCallStartedAt  time.Time
 	)
 
 	closeReader := func() {
@@ -750,6 +760,8 @@ func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cl
 		if exhausted {
 			return nil, io.EOF
 		}
+
+		callStartedAt := time.Now()
 
 		if reader == nil {
 			var err error
@@ -770,6 +782,14 @@ func (s *fileSpool) makeNextFunc(path string) (next func() ([][]byte, error), cl
 			exhausted = true
 			return nil, io.EOF
 		}
+
+		if hasPreviousCallStarted {
+			recordFlushBatchProcessingLatency(s.dir, callStartedAt.Sub(previousCallStartedAt))
+		}
+		hasPreviousCallStarted = true
+		previousCallStartedAt = callStartedAt
+
+		recordFlushReturnedBatchMetrics(s.dir, batchPayloadBytes(batch))
 
 		return batch, nil
 	}
@@ -795,6 +815,14 @@ func (s *fileSpool) readBatch(r *frameReader) ([][]byte, error) {
 			return batch, nil
 		}
 	}
+}
+
+func batchPayloadBytes(batch [][]byte) int64 {
+	var bytes int64
+	for _, frame := range batch {
+		bytes += int64(len(frame))
+	}
+	return bytes
 }
 
 func (s *fileSpool) removeInflight(path string) {
