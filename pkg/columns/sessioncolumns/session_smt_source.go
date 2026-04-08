@@ -29,6 +29,7 @@ var sessionSourceMediumTermDetector = NewCompositeSourceMediumTermDetector(
 	),
 	must(NewVideoSourceMediumTermDetector()),
 	must(NewEmailSourceMediumTermDetector()),
+	must(NewReferralSourceMediumTermDetector()),
 	NewMailRefererSourceMediumTermDetector(),
 	must(NewSocialsSourceMediumTermDetector()),
 	must(NewAISourceMediumTermDetector()),
@@ -98,6 +99,9 @@ var videoYAML []byte
 
 //go:embed smt/emails.yaml
 var emailsYAML []byte
+
+//go:embed smt/referrals.yaml
+var referralsYAML []byte
 
 // SourceMediumTermDetector is an interface for detecting the source, medium, and term of an event.
 type SourceMediumTermDetector interface {
@@ -569,6 +573,33 @@ func NewEmailSourceMediumTermDetector() (SourceMediumTermDetector, error) {
 					return SessionSourceMediumTerm{
 						Source: strings.ToLower(emailName),
 						Medium: "email",
+						Term:   "",
+					}
+				}),
+			)
+		}
+	}
+	return &fromRefererSourceMediumTermDetector{
+		conditions: conditions,
+	}, nil
+}
+
+// NewReferralSourceMediumTermDetector returns a new source medium term detector for referrals.yaml.
+func NewReferralSourceMediumTermDetector() (SourceMediumTermDetector, error) {
+	referrals := make(map[string][]string)
+	err := yaml.Unmarshal(referralsYAML, &referrals)
+	if err != nil {
+		return nil, err
+	}
+	conditions := []refererCondition{}
+	for referralName, urls := range referrals {
+		for _, urlPattern := range urls {
+			conditions = append(
+				conditions,
+				NewFromRefererExactMatchCondition(urlPattern, func(qp url.Values) SessionSourceMediumTerm {
+					return SessionSourceMediumTerm{
+						Source: strings.ToLower(referralName),
+						Medium: "referral",
 						Term:   "",
 					}
 				}),

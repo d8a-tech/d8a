@@ -54,6 +54,7 @@ Facebook:
   - fb.me
   - m.facebook.com
   - l.facebook.com
+  - com.facebook.katana
 
 Fetlife:
   - fetlife.com
@@ -100,6 +101,7 @@ identi.ca:
 Instagram:
   - instagram.com
   - l.instagram.com
+  - com.instagram.android
 
 lang-8:
   - lang-8.com
@@ -120,6 +122,7 @@ Last.fm:
 LinkedIn:
   - linkedin.com
   - lnkd.in
+  - com.linkedin.android
   - linkedin.android
 
 LiveJournal:
@@ -261,6 +264,7 @@ Pinterest:
   - pt.pinterest.com
   - ru.pinterest.com
   - se.pinterest.com
+  - com.pinterest
 
 Pixelfed:
   - pixelfed.social
@@ -288,6 +292,13 @@ Skyrock:
 
 Snapchat:
   - snapchat.com
+  - com.snapchat.android
+
+Slack:
+  - com.slack
+
+WhatsApp:
+  - com.whatsapp
 
 Sonico.com:
   - sonico.com
@@ -320,6 +331,7 @@ Threads:
 
 TikTok:
   - tiktok.com
+  - com.zhiliaoapp.musically
 
 Tuenti:
   - tuenti.com
@@ -335,6 +347,7 @@ Twitter:
   - twitter.com
   - t.co
   - x.com
+  - com.twitter.android
 
 Sourceforge:
   - sourceforge.net

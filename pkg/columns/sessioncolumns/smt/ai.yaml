@@ -10,6 +10,7 @@ ChatGPT:
   - chatgpt.com
   - chat.openai.com
   - labs.openai.com
+  - com.openai.chatgpt
 
 Claude:
   - claude.ai
@@ -26,6 +27,7 @@ Deepseek:
 Gemini:
   - gemini.google.com
   - bard.google.com
+  - com.google.android.apps.bard
 
 Grok:
   - grok.com
@@ -48,6 +50,7 @@ NotebookLM:
 
 Perplexity:
   - perplexity.ai
+  - ai.perplexity.app.android
 
 Qwen:
   - chat.qwen.ai
