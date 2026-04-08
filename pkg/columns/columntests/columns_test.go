@@ -616,20 +616,6 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
-			name: "SessionSourceMediumTerm_SlackAndroidApp",
-			hits: TestHits{TestHitOne()},
-			caseConfigFuncs: []CaseConfigFunc{
-				EnsureQueryParam(0, "dr", "android-app://com.slack/"),
-			},
-			expected: map[string][]*string{
-				TestHitOne().ID: {
-					s("slack"),
-					s("referral"),
-					s(""),
-				},
-			},
-		},
-		{
 			name: "SessionSourceMediumTerm_SearchEngine_RegexMatcher",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{

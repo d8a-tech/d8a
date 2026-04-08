@@ -179,21 +179,14 @@ func NewCompositeSourceMediumTermDetector(detectors ...SourceMediumTermDetector)
 
 const parsedURLsMetadataKey = "session_smt_parsed_urls"
 
-const (
-	httpScheme  = "http"
-	httpsScheme = "https"
-)
-
 type parsedURLs struct {
-	pageURL            *url.URL
-	pageQP             url.Values
-	refURL             *url.URL
-	refQP              url.Values
-	refScheme          string
-	refHost            string
-	refHostNoWWW       string
-	refRaw             string
-	refMatchCandidates []string
+	pageURL      *url.URL
+	pageQP       url.Values
+	refURL       *url.URL
+	refQP        url.Values
+	refHost      string
+	refHostNoWWW string
+	refRaw       string
 }
 
 func ensureParsedURLs(event *schema.Event) *parsedURLs {
@@ -236,14 +229,12 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 				result.refRaw = refRaw
 				result.refURL = parsed
 				result.refQP = parsed.Query()
-				result.refScheme = strings.ToLower(parsed.Scheme)
 				result.refHost = strings.ReplaceAll(
 					strings.ToLower(parsed.Hostname()),
 					" ",
 					"-",
 				)
 				result.refHostNoWWW = trimWWW(result.refHost)
-				result.refMatchCandidates = buildReferrerMatchCandidates(parsed, result.refHost, result.refHostNoWWW)
 			}
 		}
 	}
@@ -255,69 +246,6 @@ func ensureParsedURLs(event *schema.Event) *parsedURLs {
 func trimWWW(host string) string {
 	host = strings.ToLower(host)
 	return strings.TrimPrefix(host, "www.")
-}
-
-// Build referrer match candidates for Matomo-derived source lists, which expect
-// canonical hosts or package-like suffixes such as linkedin.android.
-func buildReferrerMatchCandidates(parsed *url.URL, refHost, refHostNoWWW string) []string {
-	candidates := make([]string, 0, 4)
-	appendCandidate := func(candidate string) {
-		candidate = strings.TrimSpace(strings.ToLower(candidate))
-		if candidate == "" {
-			return
-		}
-		for _, existing := range candidates {
-			if existing == candidate {
-				return
-			}
-		}
-		candidates = append(candidates, candidate)
-	}
-
-	appendCandidate(refHost)
-	appendCandidate(refHostNoWWW)
-
-	if parsed != nil && parsed.Scheme != "" && parsed.Scheme != httpScheme && parsed.Scheme != httpsScheme {
-		for _, candidate := range hostSuffixCandidates(refHostNoWWW) {
-			appendCandidate(candidate)
-		}
-	}
-
-	return candidates
-}
-
-func hostSuffixCandidates(host string) []string {
-	parts := strings.Split(host, ".")
-	if len(parts) < 2 {
-		return nil
-	}
-
-	result := make([]string, 0, len(parts)-1)
-	for idx := 1; idx < len(parts); idx++ {
-		candidate := strings.Join(parts[idx:], ".")
-		if candidate == "" {
-			continue
-		}
-		result = append(result, candidate)
-	}
-
-	return result
-}
-
-func fallbackReferralSource(parsed *parsedURLs) string {
-	if parsed == nil {
-		return ""
-	}
-	if parsed.refScheme == "" || parsed.refScheme == httpScheme || parsed.refScheme == httpsScheme {
-		return parsed.refHostNoWWW
-	}
-	for idx := len(parsed.refMatchCandidates) - 1; idx >= 0; idx-- {
-		candidate := parsed.refMatchCandidates[idx]
-		if candidate != parsed.refHostNoWWW {
-			return candidate
-		}
-	}
-	return parsed.refHostNoWWW
 }
 
 type directSourceMediumTermDetector struct {
@@ -385,15 +313,17 @@ type fromRefererSourceMediumTermDetector struct {
 
 func (d *fromRefererSourceMediumTermDetector) Detect(event *schema.Event) (SessionSourceMediumTerm, bool) {
 	parsedURLs := ensureParsedURLs(event)
-	if len(parsedURLs.refMatchCandidates) == 0 {
+	if parsedURLs.refHost == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	for _, candidate := range parsedURLs.refMatchCandidates {
-		for _, condition := range d.conditions {
-			sourceMediumTerm, ok := condition(candidate, parsedURLs.refQP)
-			if ok {
-				return sourceMediumTerm, true
-			}
+	for _, condition := range d.conditions {
+		sourceMediumTerm, ok := condition(parsedURLs.refHost, parsedURLs.refQP)
+		if ok {
+			return sourceMediumTerm, true
+		}
+		sourceMediumTerm, ok = condition(parsedURLs.refHostNoWWW, parsedURLs.refQP)
+		if ok {
+			return sourceMediumTerm, true
 		}
 	}
 	return SessionSourceMediumTerm{}, false
@@ -684,36 +614,18 @@ func (d *genericReferralSourceMediumTermDetector) Detect(event *schema.Event) (S
 	if parsed.refHostNoWWW == "" {
 		return SessionSourceMediumTerm{}, false
 	}
-	referralSource := fallbackReferralSource(parsed)
-	if referralSource == "" {
-		return SessionSourceMediumTerm{}, false
-	}
 	if parsed.pageURL == nil {
-		if parsed.refScheme == "" || parsed.refScheme == httpScheme || parsed.refScheme == httpsScheme {
-			return SessionSourceMediumTerm{}, false
-		}
-		return SessionSourceMediumTerm{
-			Source: referralSource,
-			Medium: "referral",
-			Term:   "",
-		}, true
+		return SessionSourceMediumTerm{}, false
 	}
 	pageDomain := trimWWW(parsed.pageURL.Hostname())
 	if pageDomain == "" {
-		if parsed.refScheme == "" || parsed.refScheme == httpScheme || parsed.refScheme == httpsScheme {
-			return SessionSourceMediumTerm{}, false
-		}
-		return SessionSourceMediumTerm{
-			Source: referralSource,
-			Medium: "referral",
-			Term:   "",
-		}, true
+		return SessionSourceMediumTerm{}, false
 	}
 	if parsed.refHostNoWWW == pageDomain {
 		return SessionSourceMediumTerm{}, false
 	}
 	return SessionSourceMediumTerm{
-		Source: referralSource,
+		Source: parsed.refHostNoWWW,
 		Medium: "referral",
 		Term:   "",
 	}, true
