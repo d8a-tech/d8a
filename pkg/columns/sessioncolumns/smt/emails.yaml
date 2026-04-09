@@ -1,12 +1,14 @@
 Gmail:
   - gmail.com
   - mail.google.com
+  - com.google.android.gm
 
 Outlook:
   - outlook.com
   - hotmail.com
   - live.com
   - msn.com
+  - com.microsoft.office.outlook
 
 Yahoo Mail:
   - yahoo.com
@@ -110,4 +112,3 @@ Gmx:
 
 Rediff:
   - rediff.com
-

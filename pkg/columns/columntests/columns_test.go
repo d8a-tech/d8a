@@ -616,6 +616,272 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_TelegramAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://org.telegram.messenger"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("telegram"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_RedditAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.reddit.frontpage"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("reddit"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_MastodonAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://org.joinmastodon.android"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("mastodon"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_SlackAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.slack/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("slack"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_WhatsAppAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.whatsapp"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("whatsapp"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_FacebookAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.facebook.katana"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("facebook"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_InstagramAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.instagram.android"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("instagram"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_TwitterAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.twitter.android"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("twitter"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_PinterestAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.pinterest"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("pinterest"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_TikTokAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.zhiliaoapp.musically"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("tiktok"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YouTubeAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.google.android.youtube"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("youtube"),
+					s("video"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_TwitchAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://tv.twitch.android.app"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("twitch"),
+					s("video"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_GmailAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.google.android.gm"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("gmail"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_OutlookAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.microsoft.office.outlook"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("outlook"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_ChatGPTAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.openai.chatgpt"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("chatgpt"),
+					s("ai"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_GeminiAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.google.android.apps.bard"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("gemini"),
+					s("ai"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_PerplexityAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://ai.perplexity.app.android"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("perplexity"),
+					s("ai"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_ChromeAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://com.android.chrome"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("chrome"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_FirefoxAndroidApp",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dr", "android-app://org.mozilla.firefox"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("firefox"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_SearchEngine_RegexMatcher",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
