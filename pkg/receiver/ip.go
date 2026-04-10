@@ -7,21 +7,24 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-// proxyTrust controls whether and which proxy-set headers are trusted
+// ProxyTrust controls whether and which proxy-set headers are trusted
 // when extracting the client's real IP address.
-type proxyTrust interface {
-	isTrustedProxy(ip net.IP) bool
+//
+// Implement this interface and pass it to WithProxyTrust to inject fully
+// custom proxy-trust logic.
+type ProxyTrust interface {
+	IsTrustedProxy(ip net.IP) bool
 }
 
 // noProxyTrust trusts no proxy — headers are always ignored.
 type noProxyTrust struct{}
 
-func (noProxyTrust) isTrustedProxy(net.IP) bool { return false }
+func (noProxyTrust) IsTrustedProxy(net.IP) bool { return false }
 
 // allProxyTrust trusts every proxy — headers are always honoured.
 type allProxyTrust struct{}
 
-func (allProxyTrust) isTrustedProxy(net.IP) bool { return true }
+func (allProxyTrust) IsTrustedProxy(net.IP) bool { return true }
 
 // cidrProxyTrust trusts only proxies whose remote address falls within
 // one of the configured CIDR ranges.
@@ -53,13 +56,23 @@ func newCIDRProxyTrust(cidrs []string) (*cidrProxyTrust, error) {
 	return &cidrProxyTrust{nets: nets}, nil
 }
 
-func (t *cidrProxyTrust) isTrustedProxy(ip net.IP) bool {
+func (t *cidrProxyTrust) IsTrustedProxy(ip net.IP) bool {
 	for _, n := range t.nets {
 		if n.Contains(ip) {
 			return true
 		}
 	}
 	return false
+}
+
+// WithProxyTrust configures the server to use a custom ProxyTrust
+// implementation for deciding which proxies are trusted. This is the escape
+// hatch for scenarios where neither WithTrustAllProxies nor
+// WithTrustedProxies fits (e.g. dynamic allow-lists, cloud-metadata lookups).
+func WithProxyTrust(trust ProxyTrust) ServerOption {
+	return func(s *Server) {
+		s.proxyTrust = trust
+	}
 }
 
 // WithTrustAllProxies configures the server to trust all proxies, honouring
@@ -103,7 +116,7 @@ func WithTrustedProxies(cidrs ...string) ServerOption {
 func (s *Server) realIP(ctx *fasthttp.RequestCtx) string {
 	remoteIP := ctx.RemoteIP()
 
-	if !s.proxyTrust.isTrustedProxy(remoteIP) {
+	if !s.proxyTrust.IsTrustedProxy(remoteIP) {
 		return remoteIP.String()
 	}
 
