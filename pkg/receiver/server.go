@@ -119,7 +119,7 @@ type Server struct {
 	validationRules HitValidatingRule
 	host            string
 	port            int
-	proxyTrust      proxyTrust
+	proxyTrust      ProxyTrust
 	readTimeout     time.Duration
 	writeTimeout    time.Duration
 	maxConcurrency  int

@@ -430,6 +430,72 @@ func TestWithTrustedProxies_PanicsOnInvalidCIDR(t *testing.T) {
 	})
 }
 
+// customProxyTrust is a hand-written stub that trusts only one specific IP.
+type customProxyTrust struct {
+	trustedIP net.IP
+}
+
+func (c customProxyTrust) IsTrustedProxy(ip net.IP) bool {
+	return c.trustedIP.Equal(ip)
+}
+
+func TestWithProxyTrust_CustomImplementation(t *testing.T) {
+	// given — trust only 10.1.2.3
+	trust := customProxyTrust{trustedIP: net.ParseIP("10.1.2.3")}
+	s := NewServer(nil, nil, nil, nil, 0, WithProxyTrust(trust))
+
+	tests := []struct {
+		name       string
+		setup      func() *fasthttp.RequestCtx
+		expectedIP string
+	}{
+		{
+			name: "custom trusted proxy - header honoured",
+			setup: func() *fasthttp.RequestCtx {
+				ctx := &fasthttp.RequestCtx{}
+				ctx.SetRemoteAddr(&net.TCPAddr{IP: net.ParseIP("10.1.2.3"), Port: 1})
+				ctx.Request.Header.Set("X-Real-IP", "203.0.113.7")
+				return ctx
+			},
+			expectedIP: "203.0.113.7",
+		},
+		{
+			name: "untrusted proxy - header ignored",
+			setup: func() *fasthttp.RequestCtx {
+				ctx := &fasthttp.RequestCtx{}
+				ctx.SetRemoteAddr(&net.TCPAddr{IP: net.ParseIP("10.1.2.4"), Port: 1})
+				ctx.Request.Header.Set("X-Real-IP", "203.0.113.7")
+				return ctx
+			},
+			expectedIP: "10.1.2.4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			ctx := tt.setup()
+
+			// when
+			ip := s.realIP(ctx)
+
+			// then
+			assert.Equal(t, tt.expectedIP, ip)
+		})
+	}
+}
+
+func TestNewServer_WithProxyTrust_StoresCustomImplementation(t *testing.T) {
+	// given
+	trust := customProxyTrust{trustedIP: net.ParseIP("1.2.3.4")}
+
+	// when
+	s := NewServer(nil, nil, nil, nil, 0, WithProxyTrust(trust))
+
+	// then
+	assert.Equal(t, trust, s.proxyTrust)
+}
+
 func TestNewServer_DefaultProxyTrust(t *testing.T) {
 	// given / when
 	s := NewServer(nil, nil, nil, nil, 0)
