@@ -3,6 +3,7 @@ package sessions
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,33 @@ import (
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 )
+
+type countingWarehouseRegistry struct {
+	mu        sync.Mutex
+	driver    warehouse.Driver
+	getCalls  int
+	closeCall int
+}
+
+func (r *countingWarehouseRegistry) Get(_ string) (warehouse.Driver, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.getCalls++
+	return r.driver, nil
+}
+
+func (r *countingWarehouseRegistry) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closeCall++
+	return nil
+}
+
+func (r *countingWarehouseRegistry) GetCallCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.getCalls
+}
 
 func newTestWriter(ctx context.Context, mockDriver warehouse.Driver) SessionWriter {
 	return NewSessionWriter(
@@ -162,4 +190,42 @@ func TestWriter_SplitterError_WritesUnsplitSession(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, mockDriver.WriteCalls, 1,
 		"session must be written even when splitter returns an error")
+}
+
+func TestWriter_ResolvesWarehousePerWriteCall(t *testing.T) {
+	// given
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	mockDriver := warehouse.NewMockWarehouseDriver()
+	registry := &countingWarehouseRegistry{driver: mockDriver}
+	writer := NewSessionWriter(
+		ctx,
+		registry,
+		schema.NewStaticColumnsRegistry(
+			map[string]schema.Columns{},
+			schema.NewColumns(
+				[]schema.SessionColumn{},
+				[]schema.EventColumn{},
+				[]schema.SessionScopedEventColumn{},
+			),
+		),
+		schema.NewStaticLayoutRegistry(
+			map[string]schema.Layout{},
+			schema.NewEmbeddedSessionColumnsLayout(
+				"events",
+				"session_",
+			),
+		),
+		splitter.NewStaticRegistry(splitter.NewNoop()),
+	)
+
+	// when
+	err1 := writer.Write(testSession("1", "1", "1"))
+	err2 := writer.Write(testSession("1", "2", "2"))
+
+	// then
+	assert.NoError(t, err1)
+	assert.NoError(t, err2)
+	assert.Equal(t, 2, registry.GetCallCount())
+	assert.Len(t, mockDriver.WriteCalls, 2)
 }
