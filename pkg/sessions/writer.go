@@ -29,9 +29,7 @@ type sessionWriterImpl struct {
 	layoutsCache   *ristretto.Cache[string, schema.Layout]
 	layoutsLock    sync.Mutex
 
-	warehouseCache    *ristretto.Cache[string, warehouse.Driver]
 	warehouseRegistry warehouse.Registry
-	warehouseLock     sync.Mutex
 
 	columnsRegistry schema.ColumnsRegistry
 	columnsCache    *ristretto.Cache[string, schema.Columns]
@@ -120,14 +118,6 @@ func (m *sessionWriterImpl) getSchemaForWriting(propertyID, table string) (*arro
 		}
 	}
 	return nil, fmt.Errorf("table %s not found", table)
-}
-
-func (m *sessionWriterImpl) getWarehouse(propertyID string) (warehouse.Driver, error) {
-	driver, err := getCached(m.warehouseCache, &m.warehouseLock, m.warehouseRegistry.Get, propertyID, m.cacheTTL)
-	if err != nil {
-		return nil, err
-	}
-	return driver, nil
 }
 
 func (m *sessionWriterImpl) getColumns(propertyID string) (schema.Columns, error) {
@@ -219,7 +209,7 @@ func (m *sessionWriterImpl) prepareDeps(sessions []*schema.Session) (*writeDeps,
 
 	propertyID := sessions[0].PropertyID
 
-	driver, err := m.getWarehouse(propertyID)
+	driver, err := m.warehouseRegistry.Get(propertyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get warehouse for property ID %s: %w", propertyID, err)
 	}
@@ -356,7 +346,6 @@ func NewSessionWriter(
 		writeTimeout:             30 * time.Second,
 		concurrency:              10,
 		warehouseRegistry:        whr,
-		warehouseCache:           createDefaultCache[warehouse.Driver](),
 		columnsRegistry:          columnsRegistry,
 		columnsCache:             createDefaultCache[schema.Columns](),
 		layoutRegistry:           layouts,
