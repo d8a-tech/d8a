@@ -11,6 +11,8 @@ import (
 )
 
 func TestMatomoSessionPageColumns(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 
 	type testCase struct {
@@ -32,6 +34,17 @@ func TestMatomoSessionPageColumns(t *testing.T) {
 			fieldName:   "session_entry_page_location",
 			expected:    "https://example.com/entry",
 			description: "Entry page location from single page view",
+		},
+		{
+			name: "EntryPageLocation_StripsConfiguredParams",
+			hits: columntests.TestHits{testHitOne(), testHitOne()},
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/entry?state=abc&foo=bar"),
+				columntests.EnsureQueryParam(1, "url", "https://example.com/second?sid=two"),
+			},
+			fieldName:   "session_entry_page_location",
+			expected:    "https://example.com/entry?foo=bar",
+			description: "Entry page location strips configured URL params",
 		},
 		{
 			name: "EntryPageLocation_MultiplePageViews",
@@ -77,6 +90,18 @@ func TestMatomoSessionPageColumns(t *testing.T) {
 			description: "Second page location from second page view",
 		},
 		{
+			name: "SecondPageLocation_StripsConfiguredParams",
+			hits: columntests.TestHits{testHitOne(), testHitOne(), testHitOne()},
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/first?state=abc"),
+				columntests.EnsureQueryParam(1, "url", "https://example.com/second?sid=two&foo=bar"),
+				columntests.EnsureQueryParam(2, "url", "https://example.com/third?state=ghi"),
+			},
+			fieldName:   "session_second_page_location",
+			expected:    "https://example.com/second?foo=bar",
+			description: "Second page location strips configured URL params",
+		},
+		{
 			name: "ExitPageLocation_SinglePageView",
 			hits: columntests.TestHits{testHitOne()},
 			cfg: []columntests.CaseConfigFunc{
@@ -85,6 +110,17 @@ func TestMatomoSessionPageColumns(t *testing.T) {
 			fieldName:   "session_exit_page_location",
 			expected:    "https://example.com/exit",
 			description: "Exit page location from single page view",
+		},
+		{
+			name: "ExitPageLocation_StripsConfiguredParams",
+			hits: columntests.TestHits{testHitOne(), testHitOne()},
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/first?state=abc"),
+				columntests.EnsureQueryParam(1, "url", "https://example.com/last?sid=two&foo=bar"),
+			},
+			fieldName:   "session_exit_page_location",
+			expected:    "https://example.com/last?foo=bar",
+			description: "Exit page location strips configured URL params",
 		},
 		{
 			name: "ExitPageLocation_MultiplePageViews",

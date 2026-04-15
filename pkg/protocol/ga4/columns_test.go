@@ -14,6 +14,8 @@ import (
 )
 
 func TestEventColumns(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	// Test cases for event columns with different values
 	var eventColumnTestCases = []struct {
 		name               string
@@ -473,6 +475,14 @@ func TestEventColumns(t *testing.T) {
 			expected:    "https://example.com/page?foo=bar&baz=qux",
 			fieldName:   "page_location",
 			description: "Page location unchanged when no tracking parameters present",
+		},
+		{
+			name:        "EventPageLocation_StripsConfiguredParams",
+			param:       "dl",
+			value:       "https://example.com/page?state=abc123&sid=session-1&foo=bar",
+			expected:    "https://example.com/page?foo=bar",
+			fieldName:   "page_location",
+			description: "Page location strips configured URL parameters",
 		},
 		{
 			name:        "EventPageReferrer_Valid",

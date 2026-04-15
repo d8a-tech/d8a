@@ -3,7 +3,6 @@ package ga4
 import (
 	"testing"
 
-	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -24,11 +23,6 @@ func simpleHits(h [][3]string) columntests.TestHits {
 		allHits[i].Request.QueryParams.Add("dt", hit[2])
 	}
 	return allHits
-}
-
-func registerTestExcludedURLParams() {
-	columns.RegisterURLParamForExclusion("state")
-	columns.RegisterURLParamForExclusion("sid")
 }
 
 // nolint:funlen // test code

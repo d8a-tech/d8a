@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/hits"
 )
 
@@ -27,4 +28,9 @@ func EnsureValidTestHit(hit *hits.Hit) {
 	if hit.Request.QueryParams.Get("tid") == "" {
 		hit.Request.QueryParams.Set("tid", defaultTestMeasurementID)
 	}
+}
+
+func registerTestExcludedURLParams() {
+	columns.RegisterURLParamForExclusion("state")
+	columns.RegisterURLParamForExclusion("sid")
 }

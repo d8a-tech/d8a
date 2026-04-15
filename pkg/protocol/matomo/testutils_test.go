@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 )
@@ -45,4 +46,9 @@ type staticPropertyIDExtractor struct {
 
 func (e *staticPropertyIDExtractor) PropertyID(_ *protocol.RequestContext) (string, error) {
 	return e.propertyID, nil
+}
+
+func registerTestExcludedURLParams() {
+	columns.RegisterURLParamForExclusion("state")
+	columns.RegisterURLParamForExclusion("sid")
 }

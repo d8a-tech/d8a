@@ -13,6 +13,8 @@ import (
 
 // nolint:funlen,lll // test code
 func TestMatomoEventCoreColumns(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 
 	buildDeterministicTimeHit := func(t *testing.T) *hits.Hit {
@@ -116,6 +118,16 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 			fieldName:   "page_location",
 			expected:    "https://example.com/path?foo=bar",
 			description: "Valid page location via Matomo url parameter",
+		},
+		{
+			name:      "EventPageLocation_StripsConfiguredParams",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?state=abc123&sid=session-1&foo=bar"),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?foo=bar",
+			description: "Page location strips configured URL parameters",
 		},
 		{
 			name:        "EventPageLocation_BrokenURL",

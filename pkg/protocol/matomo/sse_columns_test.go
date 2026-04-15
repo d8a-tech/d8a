@@ -69,6 +69,8 @@ func buildMatomoTransitionHits(h [][3]string) columntests.TestHits {
 }
 
 func TestMatomoValueTransitions(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 
 	var testCases = []struct {
@@ -153,6 +155,36 @@ func TestMatomoValueTransitions(t *testing.T) {
 				nil,
 			},
 			description: "Next page title should be nil for last page view and shared by in-between events",
+		},
+		{
+			name: "PreviousPageLocation_StripsConfiguredParams",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1?state=abc&sid=one", "Page 1"},
+				{"page_view", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+				{"outlink", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+			}),
+			field: "previous_page_location",
+			expected: []any{
+				nil,
+				"https://example.com/page1",
+				"https://example.com/page1",
+			},
+			description: "Previous page location uses stripped page_location values",
+		},
+		{
+			name: "NextPageLocation_StripsConfiguredParams",
+			hits: buildMatomoTransitionHits([][3]string{
+				{"page_view", "https://example.com/page1?state=abc&sid=one", "Page 1"},
+				{"page_view", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+				{"outlink", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+			}),
+			field: "next_page_location",
+			expected: []any{
+				"https://example.com/page2?foo=bar",
+				nil,
+				nil,
+			},
+			description: "Next page location uses stripped page_location values",
 		},
 	}
 
