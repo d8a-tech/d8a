@@ -130,6 +130,16 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 			description: "Page location strips configured URL parameters",
 		},
 		{
+			name:      "EventPageLocation_ConfiguredParamsAreCaseSensitive",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?State=abc123&SID=session-1&foo=bar"),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?State=abc123&SID=session-1&foo=bar",
+			description: "Configured URL parameter stripping is case-sensitive",
+		},
+		{
 			name:        "EventPageLocation_BrokenURL",
 			buildHits:   single(buildPageViewHit),
 			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "url", "://bad")},

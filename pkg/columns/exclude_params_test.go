@@ -69,6 +69,12 @@ func TestStripExcludedParams(t *testing.T) {
 			excludedParams: []string{"state"},
 			expectedURL:    "https://example.org/?foo=bar",
 		},
+		{
+			name:           "configured params are case sensitive",
+			inputURL:       "https://example.org/?State=x&SID=y&foo=bar",
+			excludedParams: []string{"state", "sid"},
+			expectedURL:    "https://example.org/?State=x&SID=y&foo=bar",
+		},
 	}
 
 	for _, tt := range tests {

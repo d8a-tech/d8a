@@ -485,6 +485,14 @@ func TestEventColumns(t *testing.T) {
 			description: "Page location strips configured URL parameters",
 		},
 		{
+			name:        "EventPageLocation_ConfiguredParamsAreCaseSensitive",
+			param:       "dl",
+			value:       "https://example.com/page?State=abc123&SID=session-1&foo=bar",
+			expected:    "https://example.com/page?State=abc123&SID=session-1&foo=bar",
+			fieldName:   "page_location",
+			description: "Configured URL parameter stripping is case-sensitive",
+		},
+		{
 			name:        "EventPageReferrer_Valid",
 			param:       "dr",
 			value:       "https://google.com",

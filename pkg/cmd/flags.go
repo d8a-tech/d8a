@@ -544,6 +544,7 @@ var excludeURLParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Usage: "Additional URL query parameter names to strip from page_location URLs " +
 		"before writing to the warehouse. " +
 		"These parameters are also stripped from other derived fields that use page_location. " +
+		"Matching is case-sensitive. " +
 		"Parameters listed here are removed alongside the built-in exclusions. " +
 		"Built-in excluded parameters (always stripped): " +
 		"utm_source, utm_medium, utm_campaign, utm_term, utm_content, utm_id, " +
