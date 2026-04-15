@@ -539,6 +539,19 @@ var matomoTrackingEndpointsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
 	Sources: defaultSourceChain("MATOMO_TRACKING_ENDPOINTS", "matomo.tracking_endpoints"),
 }
 
+var excludeURLParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "exclude-url-params",
+	Usage: "Additional URL query parameter names to strip from page_location URLs " +
+		"before writing to the warehouse. " +
+		"Parameters listed here are removed alongside the built-in exclusions. " +
+		"Built-in excluded parameters (always stripped): " +
+		"utm_source, utm_medium, utm_campaign, utm_term, utm_content, utm_id, " +
+		"utm_source_platform, utm_marketing_tactic, utm_creative_format, " +
+		"gclid, dclid, srsltid, gbraid, wbraid, fbclid, msclkid. " +
+		"The original URL is preserved internally so no data is lost.",
+	Sources: defaultSourceChain("EXCLUDE_URL_PARAMS", "exclude_url_params"),
+}
+
 var ga4ParamsFlag *cli.StringFlag = &cli.StringFlag{
 	Name: "ga4-params",
 	Usage: "GA4 shortcut entries for flattening nested event params into custom columns. " +
@@ -683,6 +696,7 @@ func getServerFlags() []cli.Flag {
 			propertySettingsSplitByCampaignFlag,
 			protocolFlag,
 			matomoTrackingEndpointsFlag,
+			excludeURLParamsFlag,
 			ga4ParamsFlag,
 			matomoCustomDimensionsFlag,
 			matomoCustomVariablesFlag,

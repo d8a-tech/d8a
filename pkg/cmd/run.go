@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
@@ -31,6 +32,16 @@ func mergeFlags(allFlags ...[]cli.Flag) []cli.Flag {
 		endFlags = append(endFlags, singleFlagCollection...)
 	}
 	return endFlags
+}
+
+func registerExcludedURLParams(cmd *cli.Command) {
+	for _, param := range cmd.StringSlice(excludeURLParamsFlag.Name) {
+		param = strings.TrimSpace(param)
+		if param == "" {
+			continue
+		}
+		columns.RegisterURLParamForExclusion(param)
+	}
 }
 
 func startTelemetry(itemName, telemetryURL string) {
@@ -139,6 +150,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					if ctx == nil {
 						ctx = context.Background()
 					}
+					registerExcludedURLParams(cmd)
 					converter, cleanup, err := buildCurrencyConverter(cmd)
 					if err != nil {
 						return err
@@ -194,6 +206,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					if err := validateHAFlags("server", cmd); err != nil {
 						return err
 					}
+					registerExcludedURLParams(cmd)
 
 					if ctx == nil {
 						// Context can be set by the caller, create a new one if not set
@@ -290,6 +303,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					if err := validateHAFlags("receiver", cmd); err != nil {
 						return err
 					}
+					registerExcludedURLParams(cmd)
 					if ctx == nil {
 						ctx, cancel = context.WithCancel(context.Background())
 						defer cancel()
@@ -343,6 +357,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					if err := validateHAFlags("worker", cmd); err != nil {
 						return err
 					}
+					registerExcludedURLParams(cmd)
 
 					if ctx == nil {
 						ctx, cancel = context.WithCancel(context.Background())
