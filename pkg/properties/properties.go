@@ -26,6 +26,7 @@ type Settings struct {
 
 	Filters       *FiltersConfig
 	CustomColumns []CustomColumnConfig
+	Metadata      map[string]any
 }
 
 // FiltersSafe returns the filters configuration, ensuring it is never nil.
