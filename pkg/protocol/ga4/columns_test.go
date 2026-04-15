@@ -2327,6 +2327,8 @@ func (unavailableCurrencyConverter) Convert(_, _ string, _ float64) (float64, er
 }
 
 func TestSessionColumns(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	// Test cases for session columns
 	var sessionColumnTestCases = []struct {
 		name            string
@@ -2673,6 +2675,19 @@ func TestSessionColumns(t *testing.T) {
 			},
 		},
 		{
+			name:        "SessionEntryPageLocation_StripsConfiguredParams",
+			expected:    "https://example.com/entry?foo=bar",
+			fieldName:   "session_entry_page_location",
+			description: "Entry page location strips configured URL params",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/entry?state=abc&foo=bar"),
+				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second?sid=two"),
+			},
+		},
+		{
 			name:        "SessionEntryPageLocation_MultiplePageViews",
 			expected:    "https://example.com/first",
 			fieldName:   "session_entry_page_location",
@@ -2722,6 +2737,19 @@ func TestSessionColumns(t *testing.T) {
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "page_view"),
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/exit"),
+			},
+		},
+		{
+			name:        "SessionExitPageLocation_StripsConfiguredParams",
+			expected:    "https://example.com/last?foo=bar",
+			fieldName:   "session_exit_page_location",
+			description: "Exit page location strips configured URL params",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first?state=abc"),
+				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/last?sid=two&foo=bar"),
 			},
 		},
 		{
@@ -2848,6 +2876,21 @@ func TestSessionColumns(t *testing.T) {
 				columntests.EnsureQueryParam(0, "dl", "https://example.com/first"),
 				columntests.EnsureEventName(1, "page_view"),
 				columntests.EnsureQueryParam(1, "dl", "https://example.com/second"),
+			},
+		},
+		{
+			name:        "SessionSecondPageLocation_StripsConfiguredParams",
+			expected:    "https://example.com/second?foo=bar",
+			fieldName:   "session_second_page_location",
+			description: "Second page location strips configured URL params",
+			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
+			caseConfigFuncs: []columntests.CaseConfigFunc{
+				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureQueryParam(0, "dl", "https://example.com/first?state=abc"),
+				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureQueryParam(1, "dl", "https://example.com/second?sid=two&foo=bar"),
+				columntests.EnsureEventName(2, "page_view"),
+				columntests.EnsureQueryParam(2, "dl", "https://example.com/third?state=ghi"),
 			},
 		},
 		{

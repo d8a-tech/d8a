@@ -3,6 +3,7 @@ package ga4
 import (
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
@@ -25,8 +26,15 @@ func simpleHits(h [][3]string) columntests.TestHits {
 	return allHits
 }
 
+func registerTestExcludedURLParams() {
+	columns.RegisterURLParamForExclusion("state")
+	columns.RegisterURLParamForExclusion("sid")
+}
+
 // nolint:funlen // test code
 func TestValueTransitions(t *testing.T) {
+	registerTestExcludedURLParams()
+
 	var testCases = []struct {
 		name     string
 		hits     columntests.TestHits
@@ -102,6 +110,34 @@ func TestValueTransitions(t *testing.T) {
 				"Page 3",
 				"Page 3",
 				"Page 3",
+				nil,
+			},
+		},
+		{
+			name: "PreviousPageLocation_StripsConfiguredParams",
+			hits: simpleHits([][3]string{
+				{"page_view", "https://example.com/page1?state=abc&sid=one", "Page 1"},
+				{"page_view", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+				{"scroll", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+			}),
+			field: "previous_page_location",
+			expected: []any{
+				nil,
+				"https://example.com/page1",
+				"https://example.com/page1",
+			},
+		},
+		{
+			name: "NextPageLocation_StripsConfiguredParams",
+			hits: simpleHits([][3]string{
+				{"page_view", "https://example.com/page1?state=abc&sid=one", "Page 1"},
+				{"page_view", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+				{"scroll", "https://example.com/page2?state=def&foo=bar", "Page 2"},
+			}),
+			field: "next_page_location",
+			expected: []any{
+				"https://example.com/page2?foo=bar",
+				nil,
 				nil,
 			},
 		},
