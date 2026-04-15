@@ -3,7 +3,7 @@ module github.com/d8a-tech/d8a
 go 1.25.3
 
 require (
-	cloud.google.com/go/bigquery v1.75.0
+	cloud.google.com/go/bigquery v1.76.0
 	cloud.google.com/go/storage v1.62.1
 	github.com/ClickHouse/clickhouse-go/v2 v2.45.0
 	github.com/apache/arrow-go/v18 v18.5.2
