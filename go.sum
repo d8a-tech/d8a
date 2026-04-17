@@ -315,8 +315,8 @@ github.com/testcontainers/testcontainers-go/modules/clickhouse v0.42.0 h1:SwtkmO
 github.com/testcontainers/testcontainers-go/modules/clickhouse v0.42.0/go.mod h1:J3Fm+fPJvXcuS2hu3hTEDJ0NEiEDhOqB1gocXre1FVc=
 github.com/testcontainers/testcontainers-go/modules/gcloud v0.42.0 h1:EdLf2NCpo43CxTfC0x2R0sW3+HqzevC78pgnH9niyYc=
 github.com/testcontainers/testcontainers-go/modules/gcloud v0.42.0/go.mod h1:5CMn4WViUGbOGORdjWvvGEkptvM9I/vwecYTsyKoPkg=
-github.com/testcontainers/testcontainers-go/modules/minio v0.41.0 h1:EJZ/7grM9wtgO7rCAnpJIXWYxftAmv8MSeAbI4/1Ifg=
-github.com/testcontainers/testcontainers-go/modules/minio v0.41.0/go.mod h1:O/6BFKJ2B3wC1HqUhOCa0TjGY2BJCxjLo6W3Bbffn4I=
+github.com/testcontainers/testcontainers-go/modules/minio v0.42.0 h1:8yTWNv8ALG7JQHYvm1n9PegH0uJT7dRtWNHf6eQeTRs=
+github.com/testcontainers/testcontainers-go/modules/minio v0.42.0/go.mod h1:bcjonmVMA/aEzxFFIh/FRwSkeZ+fnxwvkGN/Z4EiW28=
 github.com/tidwall/pretty v1.0.0/go.mod h1:XNkn88O1ChpSDQmQeStsy+sBenx6DDtFZJxhVysOjyk=
 github.com/tklauser/go-sysconf v0.3.16 h1:frioLaCQSsF5Cy1jgRBrzr6t502KIIwQ0MArYICU0nA=
 github.com/tklauser/go-sysconf v0.3.16/go.mod h1:/qNL9xxDhc7tx3HSRsLWNnuzbVfh3e7gh/BmM179nYI=
