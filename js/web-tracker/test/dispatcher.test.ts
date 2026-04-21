@@ -76,6 +76,66 @@ test("debug_mode: adds _dbg=1 and ep.debug_mode=1 to tracking requests", async (
   }
 });
 
+test("global set custom params are appended to subsequent events", async () => {
+  const w = makeWindowMock();
+  const state = createRuntimeState();
+  state.propertyIds = [PROPERTY_ID];
+  state.propertyConfigs = {
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+  };
+  state.set = {
+    app_version: "2.1.0",
+    user_type: "subscriber",
+  };
+
+  const d = createDispatcher({ windowRef: w, getState: () => state });
+  d.enqueueEvent("page_view", {});
+
+  assert.equal(w.fetchCalls.length, 1);
+  const u = new URL(w.fetchCalls[0].url);
+  assert.equal(u.searchParams.get("ep.app_version"), "2.1.0");
+  assert.equal(u.searchParams.get("ep.user_type"), "subscriber");
+});
+
+test("set params: event-level values override global set values", async () => {
+  const w = makeWindowMock();
+  const state = createRuntimeState();
+  state.propertyIds = [PROPERTY_ID];
+  state.propertyConfigs = {
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+  };
+
+  // Global set provides foo="fromSet"
+  state.set = { foo: "fromSet" } as Record<string, unknown>;
+
+  const d = createDispatcher({ windowRef: w, getState: () => state });
+  // Event overrides foo
+  d.enqueueEvent("custom_event", { foo: "fromEvent" });
+
+  assert.equal(w.fetchCalls.length, 1);
+  const u = new URL(w.fetchCalls[0].url);
+  assert.equal(u.searchParams.get("ep.foo"), "fromEvent");
+});
+
+test("set params: numeric values are serialized to epn.*", async () => {
+  const w = makeWindowMock();
+  const state = createRuntimeState();
+  state.propertyIds = [PROPERTY_ID];
+  state.propertyConfigs = {
+    [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/d/c/${PROPERTY_ID}` },
+  };
+
+  // Numeric set value should map to epn.score
+  state.set = { score: 42 } as Record<string, unknown>;
+
+  const d = createDispatcher({ windowRef: w, getState: () => state });
+  d.enqueueEvent("custom_event", {});
+
+  assert.equal(w.fetchCalls.length, 1);
+  const u2 = new URL(w.fetchCalls[0].url);
+  assert.equal(u2.searchParams.get("epn.score"), "42");
+});
+
 test("dispatcher includes consent wire params (gcs/gcd) based on default+update states", async () => {
   const w = makeWindowMock();
   const state = createRuntimeState();
