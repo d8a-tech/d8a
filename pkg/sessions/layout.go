@@ -9,7 +9,7 @@ type batchingLayout struct {
 	layout schema.Layout
 }
 
-func (l *batchingLayout) Tables(columns schema.Columns) []schema.WithName {
+func (l *batchingLayout) Tables(columns schema.Columns) []schema.WithMeta {
 	return l.layout.Tables(columns)
 }
 
@@ -51,7 +51,7 @@ type brokenFilteringLayout struct {
 	layout schema.Layout
 }
 
-func (l *brokenFilteringLayout) Tables(columns schema.Columns) []schema.WithName {
+func (l *brokenFilteringLayout) Tables(columns schema.Columns) []schema.WithMeta {
 	return l.layout.Tables(columns)
 }
 
