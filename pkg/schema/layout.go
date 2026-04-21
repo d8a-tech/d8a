@@ -7,14 +7,23 @@ import (
 // Layout is the interface for a table layout, implementations take control over
 // the final schema and dictate the format of writing the session data to the table.
 type Layout interface {
-	Tables(columns Columns) []WithName
+	Tables(columns Columns) []WithMeta
 	ToRows(columns Columns, sessions ...*Session) ([]TableRows, error)
 }
 
-// WithName adds a table name to the schema
-type WithName struct {
+type Scope string
+
+const (
+	ScopeEvent   Scope = "event"
+	ScopeSession Scope = "session"
+	ScopeMixed   Scope = "mixed"
+)
+
+// WithMeta adds table metadata to the schema.
+type WithMeta struct {
 	Schema *arrow.Schema
 	Table  string
+	Scope  Scope
 }
 
 // TableRows are a collection of rows with a table to write them to
@@ -47,7 +56,7 @@ func NewEmbeddedSessionColumnsLayout(
 
 func (m *eventsWithEmbeddedSessionColumnsLayout) Tables(
 	columns Columns,
-) []WithName {
+) []WithMeta {
 	eventColumns := columns.Event
 	sessionColumns := columns.Session
 	// First, include fields from session-scoped event columns as event-level fields
@@ -82,8 +91,8 @@ func (m *eventsWithEmbeddedSessionColumnsLayout) Tables(
 
 	schema := WithExtraFields(eventColumns, allExtra...)
 
-	return []WithName{
-		{Schema: schema, Table: m.eventsTableName},
+	return []WithMeta{
+		{Schema: schema, Table: m.eventsTableName, Scope: ScopeMixed},
 	}
 }
 

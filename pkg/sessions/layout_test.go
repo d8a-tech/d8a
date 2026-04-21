@@ -15,9 +15,9 @@ type mockLayout struct {
 	mock.Mock
 }
 
-func (m *mockLayout) Tables(columns schema.Columns) []schema.WithName {
+func (m *mockLayout) Tables(columns schema.Columns) []schema.WithMeta {
 	args := m.Called(columns)
-	res, ok := args.Get(0).([]schema.WithName)
+	res, ok := args.Get(0).([]schema.WithMeta)
 	if !ok {
 		return nil
 	}
