@@ -26,6 +26,49 @@ function normalizeSendTo(v: unknown) {
   return null;
 }
 
+const SET_PARAMS_EXCLUDED_FROM_EVENT_MERGE = new Set([
+  "send_to",
+  "user_id",
+  "client_id",
+  "campaign_id",
+  "campaign_source",
+  "campaign_medium",
+  "campaign_name",
+  "campaign_term",
+  "campaign_content",
+  "page_location",
+  "page_title",
+  "page_referrer",
+  "content_group",
+  "ignore_referrer",
+  "language",
+  "screen_resolution",
+  "cookie_domain",
+  "cookie_expires",
+  "cookie_flags",
+  "cookie_path",
+  "cookie_prefix",
+  "cookie_update",
+  "send_page_view",
+  "session_engagement_time_sec",
+  "site_search_enabled",
+  "site_search_query_params",
+  "outbound_clicks_enabled",
+  "outbound_exclude_domains",
+  "file_downloads_enabled",
+  "file_download_extensions",
+  "linker",
+]);
+
+function getGlobalCustomEventParams(setParams: Record<string, unknown>) {
+  const merged: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(setParams || {})) {
+    if (SET_PARAMS_EXCLUDED_FROM_EVENT_MERGE.has(key)) continue;
+    merged[key] = value;
+  }
+  return merged;
+}
+
 export function createDispatcher({
   windowRef,
   getState,
@@ -132,6 +175,7 @@ export function createDispatcher({
     const analyticsStorage = String(consent?.analytics_storage || "").toLowerCase();
     const analyticsDenied = analyticsStorage === "denied";
     const setParams = state?.set && typeof state.set === "object" ? state.set : {};
+    const globalCustomEventParams = getGlobalCustomEventParams(setParams);
     const https = isHttps();
     const debugPrimary = isDebugEnabled({ config: cfgPrimary, setParams });
     const engagedThresholdSecRaw =
@@ -167,8 +211,11 @@ export function createDispatcher({
       const destinations = sendTo ? sendTo : propertyIds;
       if (!destinations || destinations.length === 0) continue;
 
+      // Merge global set() custom params into each event; event payload wins.
+      // This mirrors gtag semantics for custom params without changing
+      // precedence handling for reserved override keys.
+      const eventParams: Record<string, unknown> = { ...globalCustomEventParams, ...rawParams };
       // Remove routing metadata from params so it doesn't end up in `ep.*`.
-      const eventParams: Record<string, unknown> = { ...rawParams };
       delete eventParams["send_to"];
 
       // Engagement time `_et`: active+visible+focused time since last reset.
