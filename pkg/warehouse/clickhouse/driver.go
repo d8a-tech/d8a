@@ -21,8 +21,7 @@ type clickhouseDriver struct {
 	conn              clickhouse.Conn
 	prepareBatch      func(ctx context.Context, query string) (clickhouseWriteBatch, error)
 	database          string
-	queryMapper       warehouse.QueryMapper
-	chQueryMapper     *clickhouseQueryMapper
+	queryMapper       *clickhouseQueryMapper
 	fieldTypeMapper   warehouse.FieldTypeMapper[SpecificClickhouseType]
 	queryTimeout      time.Duration
 	typeComparer      *warehouse.TypeComparer
@@ -51,7 +50,6 @@ func NewClickHouseTableDriver(
 		conn:              conn,
 		database:          database,
 		queryMapper:       chqm,
-		chQueryMapper:     chqm,
 		fieldTypeMapper:   NewFieldTypeMapper(),
 		queryTimeout:      30 * time.Second,
 		typeComparer:      warehouse.NewTypeComparer(),
@@ -70,12 +68,12 @@ func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error
 	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
 
 	// Apply per-schema DDL hints if present, otherwise fall back to driver defaults.
-	mapper := warehouse.QueryMapper(d.chQueryMapper)
+	mapper := warehouse.QueryMapper(d.queryMapper)
 	if orderBy := GetOrderBy(schema); orderBy != nil {
 		partitionBy := GetPartitionBy(schema)
-		mapper = d.chQueryMapper.withHints(orderBy, partitionBy)
+		mapper = d.queryMapper.withHints(orderBy, partitionBy)
 	} else if partitionBy := GetPartitionBy(schema); partitionBy != "" {
-		mapper = d.chQueryMapper.withHints(d.chQueryMapper.orderBy, partitionBy)
+		mapper = d.queryMapper.withHints(d.queryMapper.orderBy, partitionBy)
 	}
 
 	query, err := warehouse.CreateTableQuery(mapper, fullTableName, schema)
