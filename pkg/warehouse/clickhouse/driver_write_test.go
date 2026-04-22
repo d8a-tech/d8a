@@ -168,3 +168,50 @@ func TestWrite_MetadataAlignedWithReorderedFields(t *testing.T) {
 	assert.Equal(t, "pageview", appended[0], "first physical column should be name")
 	assert.Equal(t, ts.Format(timestampFormat), appended[1], "second physical column should be formatted timestamp")
 }
+
+func TestWrite_SessionFirstEventTimeUsesUnixSeconds(t *testing.T) {
+	// given
+	tableName := "sessions"
+	schemaFields := []arrow.Field{
+		{Name: "date_utc", Type: arrow.FixedWidthTypes.Date32},
+		{Name: "session_first_event_time", Type: arrow.FixedWidthTypes.Timestamp_s},
+	}
+	schema := arrow.NewSchema(schemaFields, nil)
+
+	physicalFields := []*arrow.Field{&schemaFields[0], &schemaFields[1]}
+
+	batch := &capturingWriteBatch{}
+	driver := &clickhouseDriver{
+		database:        "testdb",
+		fieldTypeMapper: NewFieldTypeMapper(),
+		tableColumnsCache: util.NewTTLCache[[]*arrow.Field](
+			time.Minute,
+		),
+		prepareBatch: func(_ context.Context, _ string) (clickhouseWriteBatch, error) {
+			return batch, nil
+		},
+	}
+	driver.tableColumnsCache.Set(tableName, physicalFields)
+
+	dateUTC := time.Date(2025, 6, 15, 0, 0, 0, 0, time.UTC)
+	firstEventTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	firstEventUnix := firstEventTime.Unix()
+	rows := []map[string]any{
+		{
+			"date_utc":                 dateUTC,
+			"session_first_event_time": firstEventUnix,
+		},
+	}
+
+	// when
+	err := driver.Write(context.Background(), tableName, schema, rows)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, batch.rows, 1)
+
+	appended := batch.rows[0]
+	require.Len(t, appended, 2)
+	assert.Equal(t, dateUTC.Format("2006-01-02"), appended[0])
+	assert.Equal(t, time.Unix(firstEventUnix, 0).Format(timestampFormat), appended[1])
+}

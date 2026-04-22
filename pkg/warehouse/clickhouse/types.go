@@ -142,9 +142,9 @@ func (m *clickhouseTimestampTypeMapper) ArrowToWarehouse(
 			FormatFunc: func(i any, _ arrow.Metadata) (any, error) {
 				switch v := i.(type) {
 				case int32:
-					return time.Unix(0, int64(v)).Format(timestampFormat), nil
+					return time.Unix(int64(v), 0).Format(timestampFormat), nil
 				case int64:
-					return time.Unix(0, v).Format(timestampFormat), nil
+					return time.Unix(v, 0).Format(timestampFormat), nil
 				case string:
 					// Try to parse as ISO string
 					t, err := time.Parse(time.RFC3339, v)
