@@ -19,6 +19,11 @@ type clickhouseQueryMapper struct {
 
 // NewClickHouseQueryMapper creates a new ClickHouse query mapper.
 func NewClickHouseQueryMapper(opts ...Options) warehouse.QueryMapper {
+	return newClickHouseQueryMapper(opts...)
+}
+
+// newClickHouseQueryMapper creates and returns the concrete *clickhouseQueryMapper.
+func newClickHouseQueryMapper(opts ...Options) *clickhouseQueryMapper {
 	q := &clickhouseQueryMapper{
 		engine:          "MergeTree()",
 		fieldTypeMapper: NewFieldTypeMapper(),
@@ -58,6 +63,14 @@ func WithIndexGranularity(granularity int) Options {
 	return func(q *clickhouseQueryMapper) {
 		q.indexGranularity = granularity
 	}
+}
+
+// withHints returns a shallow copy of the mapper with overridden orderBy and partitionBy.
+func (q *clickhouseQueryMapper) withHints(orderBy []string, partitionBy string) *clickhouseQueryMapper {
+	cp := *q
+	cp.orderBy = orderBy
+	cp.partitionBy = partitionBy
+	return &cp
 }
 
 func (q *clickhouseQueryMapper) TablePredicate(table string) string {
