@@ -394,11 +394,11 @@ var CoreInterfaces = struct {
 	},
 	SSEIsEntryPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_entry_page",
-		Field: &arrow.Field{Name: "session_is_entry_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field: &arrow.Field{Name: "session_is_entry_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SSEIsExitPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_exit_page",
-		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SSETrafficFilterName: schema.Interface{
 		ID:    "core.d8a.tech/events/traffic_filter_name",

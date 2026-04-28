@@ -146,7 +146,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page1"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(0), int64(0)},
+			expected:    []any{false, false},
 			description: "No page_view events, all should be 0",
 		},
 		{
@@ -156,7 +156,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page1"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(0)},
+			expected:    []any{false, false},
 			description: "No page_view events, all should be 0",
 		},
 		{
@@ -165,7 +165,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page1"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(1)},
+			expected:    []any{true},
 			description: "Single page_view should be marked as entry",
 		},
 		{
@@ -174,7 +174,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page1"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(1)},
+			expected:    []any{true},
 			description: "Single page_view should be marked as exit",
 		},
 		{
@@ -186,7 +186,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page2"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(1), int64(0), int64(0), int64(0)},
+			expected:    []any{true, false, false, false},
 			description: "First page_view should be marked as entry",
 		},
 		{
@@ -198,7 +198,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page2"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(0), int64(0), int64(1)},
+			expected:    []any{false, false, false, true},
 			description: "Last page_view should be marked as exit",
 		},
 		{
@@ -210,7 +210,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page3"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(0), int64(0), int64(1), int64(0)},
+			expected:    []any{false, false, true, false},
 			description: "First page_view (not first event) should be marked as entry",
 		},
 		{
@@ -222,7 +222,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page2"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(1), int64(0), int64(0)},
+			expected:    []any{false, true, false, false},
 			description: "Last page_view (not last event) should be marked as exit",
 		},
 		{
@@ -236,7 +236,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"scroll", "https://example.com/page3"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(1), int64(0), int64(0), int64(0), int64(0), int64(0)},
+			expected:    []any{true, false, false, false, false, false},
 			description: "Only first page_view should be marked as entry",
 		},
 		{
@@ -250,7 +250,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"scroll", "https://example.com/page3"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(0), int64(0), int64(0), int64(1), int64(0)},
+			expected:    []any{false, false, false, false, true, false},
 			description: "Only last page_view should be marked as exit",
 		},
 		{
@@ -261,7 +261,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page3"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(1), int64(0), int64(0)},
+			expected:    []any{true, false, false},
 			description: "Only first of consecutive page_views should be marked",
 		},
 		{
@@ -272,7 +272,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"page_view", "https://example.com/page3"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(0), int64(1)},
+			expected:    []any{false, false, true},
 			description: "Only last of consecutive page_views should be marked",
 		},
 		{
@@ -284,7 +284,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page3"},
 			}),
 			field:       "session_is_entry_page",
-			expected:    []any{int64(0), int64(1), int64(0), int64(0)},
+			expected:    []any{false, true, false, false},
 			description: "First page_view should be marked even if not first event",
 		},
 		{
@@ -296,7 +296,7 @@ func TestIsEntryExitPage(t *testing.T) {
 				{"click", "https://example.com/page3"},
 			}),
 			field:       "session_is_exit_page",
-			expected:    []any{int64(0), int64(0), int64(1), int64(0)},
+			expected:    []any{false, false, true, false},
 			description: "Last page_view should be marked even if not last event",
 		},
 	}

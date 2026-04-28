@@ -804,7 +804,7 @@ var ProtocolInterfaces = struct {
 		ID: "ga4.protocols.d8a.tech/session/is_engaged",
 		Field: &arrow.Field{
 			Name:     "session_is_engaged",
-			Type:     arrow.PrimitiveTypes.Int64,
+			Type:     arrow.FixedWidthTypes.Boolean,
 			Nullable: true,
 			Metadata: arrow.NewMetadata(
 				[]string{meta.ClickhouseCodecMetadata},
@@ -816,7 +816,7 @@ var ProtocolInterfaces = struct {
 		ID: "ga4.protocols.d8a.tech/session/returning_user",
 		Field: &arrow.Field{
 			Name:     "session_returning_user",
-			Type:     arrow.PrimitiveTypes.Int64,
+			Type:     arrow.FixedWidthTypes.Boolean,
 			Nullable: true,
 			Metadata: arrow.NewMetadata(
 				[]string{meta.ClickhouseCodecMetadata},
@@ -828,7 +828,7 @@ var ProtocolInterfaces = struct {
 		ID: "ga4.protocols.d8a.tech/session/abandoned_cart",
 		Field: &arrow.Field{
 			Name:     "session_abandoned_cart",
-			Type:     arrow.PrimitiveTypes.Int64,
+			Type:     arrow.FixedWidthTypes.Boolean,
 			Nullable: true,
 			Metadata: arrow.NewMetadata(
 				[]string{meta.ClickhouseCodecMetadata},
