@@ -2340,7 +2340,7 @@ func TestSessionColumns(t *testing.T) {
 
 		{
 			name:        "SessionEngagement_Valid",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Valid session engagement",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2350,7 +2350,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_Empty",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_is_engaged",
 			description: "Empty session engagement should be nil",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2360,7 +2360,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_Invalid",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_is_engaged",
 			description: "Invalid session engagement should be nil",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2370,7 +2370,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_FirstEventEngaged",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged if first event is engaged, even if last is not",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2381,7 +2381,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_MiddleEventEngaged",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged if middle event is engaged",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
@@ -2393,7 +2393,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_LastEventEngaged",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged if last event is engaged",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2404,7 +2404,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_NoEventsEngaged",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_is_engaged",
 			description: "Session is not engaged if no events are engaged",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2415,7 +2415,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_AllEventsEngaged",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged if all events are engaged",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2426,7 +2426,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_TwoPageViews",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged with 2+ page_view events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2439,7 +2439,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_OnePageView",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_is_engaged",
 			description: "Session is not engaged with only 1 page_view event",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2450,7 +2450,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_TwoScreenViews",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged with 2+ screen_view events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2463,7 +2463,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_OneScreenView",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_is_engaged",
 			description: "Session is not engaged with only 1 screen_view event",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2474,7 +2474,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_Purchase",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged with 1+ purchase events",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2485,7 +2485,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionEngagement_MultiplePurchases",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_is_engaged",
 			description: "Session is engaged with multiple purchase events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2498,7 +2498,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionReturningUser_FirstEvent_SessionNumber1",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_returning_user",
 			description: "Not returning when first event has ga_session_number=1",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2509,7 +2509,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionReturningUser_FirstEvent_SessionNumber2",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_returning_user",
 			description: "Returning when first event has ga_session_number=2",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2520,7 +2520,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionReturningUser_FirstEvent_MissingSessionNumber",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_returning_user",
 			description: "Not returning when first event is missing ga_session_number",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2530,7 +2530,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionReturningUser_FirstEventMatters",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_returning_user",
 			description: "Returning value is derived from the first event in the session",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2543,7 +2543,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionReturningUser_SecondEventMatters",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_returning_user",
 			description: "Returning value is derived from the second event in the session",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2556,7 +2556,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_AddToCartNoPurchase",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is abandoned when there's add_to_cart but no purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
@@ -2566,7 +2566,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_AddToCartBeforePurchase",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is not abandoned when add_to_cart is before purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2577,7 +2577,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_AddToCartAfterPurchase",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is abandoned when add_to_cart is after purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2588,7 +2588,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_AddToCartLastEvent",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is abandoned when add_to_cart is the last event",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
@@ -2600,7 +2600,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_PurchaseThenAddToCartOneEventBetween",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is abandoned when add_to_cart follows purchase with one event in between",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
@@ -2612,7 +2612,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_MultipleAddToCartLatestAfterPurchase",
-			expected:    int64(1),
+			expected:    true,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is abandoned when latest add_to_cart is after purchase",
 			hits: columntests.TestHits{
@@ -2630,7 +2630,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_MultipleAddToCartAllBeforePurchase",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is not abandoned when all add_to_cart events are before purchase",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
@@ -2642,7 +2642,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_NoAddToCart",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is not abandoned when there are no add_to_cart events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
@@ -2653,7 +2653,7 @@ func TestSessionColumns(t *testing.T) {
 		},
 		{
 			name:        "SessionAbandonedCart_PurchaseOnly",
-			expected:    int64(0),
+			expected:    false,
 			fieldName:   "session_abandoned_cart",
 			description: "Cart is not abandoned when there's only purchase event",
 			hits:        columntests.TestHits{columntests.TestHitOne()},

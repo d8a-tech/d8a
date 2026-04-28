@@ -264,6 +264,6 @@ var ProtocolInterfaces = struct {
 	},
 	SessionReturningUser: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/session/returning_user",
-		Field: &arrow.Field{Name: "session_returning_user", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field: &arrow.Field{Name: "session_returning_user", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 }

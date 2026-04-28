@@ -34,9 +34,9 @@ var sseIsEntryPageColumn = columns.NewFirstLastMatchingEventColumn(
 	),
 	columns.WithSessionScopedEventColumnDocs(
 		"Session Is Entry Page",
-		"An integer flag indicating whether this event is the first page view in the session. "+
-			"Returns 1 for the first page view event in the session, 0 for all other events. "+
-			"Returns 0 if there are no page views in the session.",
+		"A boolean flag indicating whether this event is the first page view in the session. "+
+			"Returns true for the first page view event in the session, false for all other events. "+
+			"Returns false if there are no page views in the session.",
 	),
 )
 
@@ -53,9 +53,9 @@ var sseIsExitPageColumn = columns.NewFirstLastMatchingEventColumn(
 	),
 	columns.WithSessionScopedEventColumnDocs(
 		"Session Is Exit Page",
-		"An integer flag indicating whether this event is the last page view in the session. "+
-			"Returns 1 for the last page view event in the session, 0 for all other events. "+
-			"Returns 0 if there are no page views in the session.",
+		"A boolean flag indicating whether this event is the last page view in the session. "+
+			"Returns true for the last page view event in the session, false for all other events. "+
+			"Returns false if there are no page views in the session.",
 	),
 )
 
