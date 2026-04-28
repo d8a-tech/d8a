@@ -10,20 +10,20 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	ProtocolInterfaces.SessionReturningUser.Field,
 	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
 		if len(session.Events) == 0 {
-			return int64(0), nil
+			return false, nil
 		}
 
 		idn := session.Events[0].BoundHit.MustParsedRequest().QueryParams.Get("_idn")
 		if idn == "0" {
-			return int64(1), nil
+			return true, nil
 		}
 
-		return int64(0), nil
+		return false, nil
 	},
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Returning User",
 		"Returning user indicator derived from Matomo _idn on the first event in the session. "+
-			"Set to 1 when _idn=0, otherwise 0.",
+			"Set to true when _idn=0, otherwise false.",
 	),
 )
