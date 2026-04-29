@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -191,7 +192,7 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 			}
 
 			switch eventNameStr {
-			case PageViewEventType:
+			case protocol.PageViewEventType:
 				pageViewCount++
 			case ScreenViewEventType:
 				screenViewCount++

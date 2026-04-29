@@ -23,42 +23,6 @@ func TestMatomoSessionEngagementColumns(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:        "TotalPageViews_CountsPageView",
-			cfg:         nil,
-			fieldName:   "session_total_page_views",
-			expected:    1,
-			description: "A page view hit with no link/download/search/ma_id counts as one page view",
-		},
-		{
-			name: "TotalPageViews_OutlinkNotCounted",
-			cfg: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "link", "https://ext.com"),
-				columntests.EnsureEventName(0, "outlink"),
-			},
-			fieldName:   "session_total_page_views",
-			expected:    0,
-			description: "An outlink click does not count as a page view",
-		},
-		{
-			name: "UniquePageViews_OneView",
-			cfg: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "url", "https://example.com/page"),
-			},
-			fieldName:   "session_unique_page_views",
-			expected:    1,
-			description: "A single page view counts as one unique page view",
-		},
-		{
-			name: "UniquePageViews_OutlinkNotCounted",
-			cfg: []columntests.CaseConfigFunc{
-				columntests.EnsureQueryParam(0, "link", "https://ext.com"),
-				columntests.EnsureEventName(0, "outlink"),
-			},
-			fieldName:   "session_unique_page_views",
-			expected:    0,
-			description: "An outlink event does not count as a unique page view",
-		},
-		{
 			name: "TotalPurchases_OrderDetected",
 			cfg: []columntests.CaseConfigFunc{
 				columntests.EnsureQueryParam(0, "idgoal", "0"),

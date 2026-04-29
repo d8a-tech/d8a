@@ -9,6 +9,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -174,7 +175,7 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 	for _, tc := range eventColumnTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			hit := hits.New()
-			hit.EventName = ga4.PageViewEventType
+			hit.EventName = protocol.PageViewEventType
 			var cfg []CaseConfigFunc
 			// Ensure query params are non-empty so param columns don't break the event (they cast nil as error).
 			cfg = append(cfg,
