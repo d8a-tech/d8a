@@ -159,6 +159,13 @@ func sessionScopedEventColumns() []schema.SessionScopedEventColumn {
 	return []schema.SessionScopedEventColumn{
 		eventcolumns.SSESessionHitNumber,
 		eventcolumns.SSESessionPageNumber,
+		eventcolumns.SSETimeOnPage,
+		eventcolumns.SSEIsEntryPage,
+		eventcolumns.SSEIsExitPage,
+		eventcolumns.EventPreviousPageLocation,
+		eventcolumns.EventNextPageLocation,
+		eventcolumns.EventPreviousPageTitle,
+		eventcolumns.EventNextPageTitle,
 		eventcolumns.SSETrafficFilterName,
 	}
 }

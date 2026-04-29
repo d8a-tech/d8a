@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ func TestMatomoCustomDimensionsColumn(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
-		hit.EventName = pageViewEventType
+		hit.EventName = protocol.PageViewEventType
 		return columntests.TestHits{hit}
 	}
 
@@ -116,7 +117,7 @@ func TestMatomoSessionCustomDimensionsColumn(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
-		hit.EventName = pageViewEventType
+		hit.EventName = protocol.PageViewEventType
 		return columntests.TestHits{hit}
 	}
 
@@ -146,9 +147,9 @@ func TestMatomoSessionCustomDimensionsColumn(t *testing.T) {
 			name: "SessionCustomDimensions_AccumulatesAcrossMultipleEvents",
 			buildHits: func(t *testing.T) columntests.TestHits {
 				h1 := columntests.TestHitOne()
-				h1.EventName = pageViewEventType
+				h1.EventName = protocol.PageViewEventType
 				h2 := columntests.TestHitOne()
-				h2.EventName = pageViewEventType
+				h2.EventName = protocol.PageViewEventType
 				return columntests.TestHits{h1, h2}
 			},
 			cfg: []columntests.CaseConfigFunc{
@@ -166,9 +167,9 @@ func TestMatomoSessionCustomDimensionsColumn(t *testing.T) {
 			name: "SessionCustomDimensions_LaterEventOverridesEarlierValue",
 			buildHits: func(t *testing.T) columntests.TestHits {
 				h1 := columntests.TestHitOne()
-				h1.EventName = pageViewEventType
+				h1.EventName = protocol.PageViewEventType
 				h2 := columntests.TestHitOne()
-				h2.EventName = pageViewEventType
+				h2.EventName = protocol.PageViewEventType
 				return columntests.TestHits{h1, h2}
 			},
 			cfg: []columntests.CaseConfigFunc{
@@ -185,9 +186,9 @@ func TestMatomoSessionCustomDimensionsColumn(t *testing.T) {
 			name: "SessionCustomDimensions_EventsWithoutDimensionsDoNotErasePriorValues",
 			buildHits: func(t *testing.T) columntests.TestHits {
 				h1 := columntests.TestHitOne()
-				h1.EventName = pageViewEventType
+				h1.EventName = protocol.PageViewEventType
 				h2 := columntests.TestHitOne()
-				h2.EventName = pageViewEventType
+				h2.EventName = protocol.PageViewEventType
 				return columntests.TestHits{h1, h2}
 			},
 			cfg: []columntests.CaseConfigFunc{

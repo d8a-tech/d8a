@@ -69,12 +69,16 @@ var CoreInterfaces = struct {
 	EventIgnoreReferrer   schema.Interface
 
 	// Session-scoped event columns
-	SSESessionHitNumber  schema.Interface
-	SSESessionPageNumber schema.Interface
-	SSETimeOnPage        schema.Interface
-	SSEIsEntryPage       schema.Interface
-	SSEIsExitPage        schema.Interface
-	SSETrafficFilterName schema.Interface
+	SSESessionHitNumber       schema.Interface
+	SSESessionPageNumber      schema.Interface
+	SSETimeOnPage             schema.Interface
+	SSEIsEntryPage            schema.Interface
+	SSEIsExitPage             schema.Interface
+	EventPreviousPageLocation schema.Interface
+	EventNextPageLocation     schema.Interface
+	EventPreviousPageTitle    schema.Interface
+	EventNextPageTitle        schema.Interface
+	SSETrafficFilterName      schema.Interface
 
 	// Session columns
 	SessionID schema.Interface
@@ -399,6 +403,22 @@ var CoreInterfaces = struct {
 	SSEIsExitPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_exit_page",
 		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	EventPreviousPageLocation: schema.Interface{
+		ID:    "core.d8a.tech/events/previous_page_location",
+		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageLocation: schema.Interface{
+		ID:    "core.d8a.tech/events/next_page_location",
+		Field: &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageTitle: schema.Interface{
+		ID:    "core.d8a.tech/events/previous_page_title",
+		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageTitle: schema.Interface{
+		ID:    "core.d8a.tech/events/next_page_title",
+		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SSETrafficFilterName: schema.Interface{
 		ID:    "core.d8a.tech/events/traffic_filter_name",

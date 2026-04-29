@@ -5,6 +5,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -17,7 +18,7 @@ func isPageViewEvent(event *schema.Event) bool {
 	if !ok {
 		return false
 	}
-	return eventNameStr == PageViewEventType
+	return eventNameStr == protocol.PageViewEventType
 }
 
 var sessionEntryPageLocationColumn = columns.NthEventMatchingPredicateValueColumn(
@@ -463,17 +464,17 @@ var sessionClickIDMsclkidColumn = columns.NthEventMatchingPredicateValueColumn(
 var sessionTotalPageViewsColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalPageViews.ID,
 	columns.CoreInterfaces.SessionTotalPageViews.Field,
-	[]string{PageViewEventType},
+	[]string{protocol.PageViewEventType},
 	columns.WithSessionColumnDocs(
 		"Session Total Page Views",
-		fmt.Sprintf("The total number of page views (event name: %s) in the session.", PageViewEventType), // nolint:lll // it's a description
+		fmt.Sprintf("The total number of page views (event name: %s) in the session.", protocol.PageViewEventType), // nolint:lll // it's a description
 	),
 )
 
 var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniquePageViews.ID,
 	columns.CoreInterfaces.SessionUniquePageViews.Field,
-	[]string{PageViewEventType},
+	[]string{protocol.PageViewEventType},
 	[]*arrow.Field{
 		columns.CoreInterfaces.EventPageLocation.Field,
 	},
@@ -484,7 +485,7 @@ var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session Unique Page Views",
-		fmt.Sprintf("The unique number of page views (event name: %s) in the session. Deduplicated by %s.", PageViewEventType, columns.CoreInterfaces.EventPageLocation.Field.Name), // nolint:lll // it's a description
+		fmt.Sprintf("The unique number of page views (event name: %s) in the session. Deduplicated by %s.", protocol.PageViewEventType, columns.CoreInterfaces.EventPageLocation.Field.Name), // nolint:lll // it's a description
 	),
 )
 

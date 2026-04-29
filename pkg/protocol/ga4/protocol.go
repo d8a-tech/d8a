@@ -419,15 +419,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			gaSessionIDParamColumn,
 			gaSessionNumberParamColumn,
 		},
-		SessionScopedEvent: []schema.SessionScopedEventColumn{
-			eventPreviousPageLocationColumn,
-			eventNextPageLocationColumn,
-			eventPreviousPageTitleColumn,
-			eventNextPageTitleColumn,
-			sseTimeOnPageColumn,
-			sseIsEntryPageColumn,
-			sseIsExitPageColumn,
-		},
+		SessionScopedEvent: []schema.SessionScopedEventColumn{},
 		Session: []schema.SessionColumn{
 			sessionEngagementColumn,
 			sessionReturningUserColumn,

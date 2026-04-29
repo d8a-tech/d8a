@@ -59,10 +59,6 @@ var ProtocolInterfaces = struct {
 	EventEcommerceOrderID            schema.Interface
 	EventEcommerceItems              schema.Interface
 	EventEcommerceItemsTotalQuantity schema.Interface
-	EventNextPageLocation            schema.Interface
-	EventNextPageTitle               schema.Interface
-	EventPreviousPageLocation        schema.Interface
-	EventPreviousPageTitle           schema.Interface
 	SessionTotalGoalConversions      schema.Interface
 	SessionTotalContentImpressions   schema.Interface
 	SessionTotalContentInteractions  schema.Interface
@@ -135,9 +131,6 @@ var ProtocolInterfaces = struct {
 	EventParamsContentTarget: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_content_target",
 		Field: &arrow.Field{Name: "params_content_target", Type: arrow.BinaryTypes.String, Nullable: true},
-	}, EventNextPageTitle: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/next_page_title",
-		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	}, EventParamsProductPrice: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/params_product_price",
 		Field: &arrow.Field{Name: "params_product_price", Type: arrow.PrimitiveTypes.Float64, Nullable: true},
@@ -235,19 +228,6 @@ var ProtocolInterfaces = struct {
 	EventEcommerceItemsTotalQuantity: schema.Interface{
 		ID:    "matomo.protocols.d8a.tech/event/ecommerce_items_total_quantity",
 		Field: &arrow.Field{Name: "ecommerce_items_total_quantity", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
-	},
-
-	EventPreviousPageLocation: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/previous_page_location",
-		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventNextPageLocation: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/next_page_location",
-		Field: &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventPreviousPageTitle: schema.Interface{
-		ID:    "matomo.protocols.d8a.tech/event/previous_page_title",
-		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 
 	SessionTotalGoalConversions: schema.Interface{

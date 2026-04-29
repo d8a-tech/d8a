@@ -3,11 +3,11 @@ package matomo
 
 import (
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 const (
-	pageViewEventType       = "page_view"
 	downloadEventType       = "download"
 	outlinkEventType        = "outlink"
 	siteSearchEventType     = "site_search"
@@ -28,7 +28,7 @@ func isPageViewEvent(event *schema.Event) bool {
 	if !ok {
 		return false
 	}
-	return eventNameStr == pageViewEventType
+	return eventNameStr == protocol.PageViewEventType
 }
 
 var eventColumns = []schema.EventColumn{
@@ -125,12 +125,4 @@ var sessionColumns = []schema.SessionColumn{
 	sessionCustomDimensionsColumn,
 }
 
-var sseColumns = []schema.SessionScopedEventColumn{
-	sseTimeOnPageColumn,
-	sseIsEntryPageColumn,
-	sseIsExitPageColumn,
-	eventPreviousPageLocationColumn,
-	eventNextPageLocationColumn,
-	eventPreviousPageTitleColumn,
-	eventNextPageTitleColumn,
-}
+var sseColumns = []schema.SessionScopedEventColumn{}
