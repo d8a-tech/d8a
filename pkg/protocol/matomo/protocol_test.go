@@ -46,7 +46,7 @@ func TestHits(t *testing.T) {
 			method:        "GET",
 			body:          "",
 			expectedHits:  1,
-			expectedEvent: "page_view",
+			expectedEvent: protocol.PageViewEventType,
 		},
 		{
 			name: "single_post_event",
@@ -143,8 +143,8 @@ func TestHits(t *testing.T) {
 			body:         `{"requests":["?idsite=6&_id=abc128","?idsite=7&_id=abc129"]}`,
 			expectedHits: 2,
 			expectedEventNames: []string{
-				"page_view",
-				"page_view",
+				protocol.PageViewEventType,
+				protocol.PageViewEventType,
 			},
 		},
 		{
@@ -155,7 +155,7 @@ func TestHits(t *testing.T) {
 			method:        "POST",
 			body:          "",
 			expectedHits:  1,
-			expectedEvent: "page_view",
+			expectedEvent: protocol.PageViewEventType,
 		},
 		{
 			name: "missing_idsite_returns_error",
@@ -176,7 +176,7 @@ func TestHits(t *testing.T) {
 			method:        "POST",
 			body:          "",
 			expectedHits:  1,
-			expectedEvent: "page_view",
+			expectedEvent: protocol.PageViewEventType,
 			expectedUserID: func() *string {
 				value := "user@example.com"
 				return &value
@@ -191,7 +191,7 @@ func TestHits(t *testing.T) {
 			method:          "POST",
 			body:            "",
 			expectedHits:    1,
-			expectedEvent:   "page_view",
+			expectedEvent:   protocol.PageViewEventType,
 			expectNilUserID: true,
 		},
 		{
@@ -203,7 +203,7 @@ func TestHits(t *testing.T) {
 			method:        "POST",
 			body:          "",
 			expectedHits:  1,
-			expectedEvent: "page_view",
+			expectedEvent: protocol.PageViewEventType,
 			expectedClientID: func() *hits.ClientID {
 				value := hits.ClientID("abcd1234abcd5678")
 				return &value

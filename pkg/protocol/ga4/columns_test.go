@@ -8,6 +8,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2143,7 +2144,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.EventName = "page_view"
+				hit.EventName = protocol.PageViewEventType
 				return hit
 			}(),
 			},
@@ -2157,7 +2158,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.EventName = "page_view"
+				hit.EventName = protocol.PageViewEventType
 				return hit
 			}(),
 			},
@@ -2171,7 +2172,7 @@ func TestEventColumns(t *testing.T) {
 			fieldName: "params",
 			hits: columntests.TestHits{func() *hits.Hit {
 				hit := hits.New()
-				hit.EventName = "page_view"
+				hit.EventName = protocol.PageViewEventType
 				return hit
 			}(),
 			},
@@ -2431,9 +2432,9 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session is engaged with 2+ page_view events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
 				columntests.EnsureQueryParam(0, "seg", ""),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 				columntests.EnsureQueryParam(1, "seg", ""),
 			},
 		},
@@ -2444,7 +2445,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session is not engaged with only 1 page_view event",
 			hits:        columntests.TestHits{columntests.TestHitOne()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
 				columntests.EnsureQueryParam(0, "seg", ""),
 			},
 		},
@@ -2537,7 +2538,7 @@ func TestSessionColumns(t *testing.T) {
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "purchase"),
 				columntests.EnsureQueryParam(0, "sct", "99"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 				columntests.EnsureQueryParam(1, "sct", "1"),
 			},
 		},
@@ -2550,7 +2551,7 @@ func TestSessionColumns(t *testing.T) {
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "purchase"),
 				columntests.EnsureQueryParam(0, "sct", "1"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 				columntests.EnsureQueryParam(1, "sct", "99"),
 			},
 		},
@@ -2593,7 +2594,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is abandoned when add_to_cart is the last event",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
 				columntests.EnsureEventName(1, "purchase"),
 				columntests.EnsureEventName(2, "add_to_cart"),
 			},
@@ -2606,7 +2607,7 @@ func TestSessionColumns(t *testing.T) {
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo(), columntests.TestHitThree()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "purchase"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 				columntests.EnsureEventName(2, "add_to_cart"),
 			},
 		},
@@ -2624,7 +2625,7 @@ func TestSessionColumns(t *testing.T) {
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "add_to_cart"),
 				columntests.EnsureEventName(1, "purchase"),
-				columntests.EnsureEventName(2, "page_view"),
+				columntests.EnsureEventName(2, protocol.PageViewEventType),
 				columntests.EnsureEventName(3, "add_to_cart"),
 			},
 		},
@@ -2647,7 +2648,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Cart is not abandoned when there are no add_to_cart events",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
 				columntests.EnsureEventName(1, "purchase"),
 			},
 		},
@@ -2680,7 +2681,7 @@ func TestSessionColumns(t *testing.T) {
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
 				columntests.EnsureEventName(0, "purchase"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2690,7 +2691,7 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total purchases",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
 				columntests.EnsureEventName(1, "scroll"),
 			},
 		},
@@ -2712,8 +2713,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total scrolls",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2734,8 +2735,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total outbound clicks",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2795,8 +2796,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total site searches",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2845,8 +2846,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total form interactions",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2880,8 +2881,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total video engagements",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{
@@ -2915,8 +2916,8 @@ func TestSessionColumns(t *testing.T) {
 			description: "Session total file downloads",
 			hits:        columntests.TestHits{columntests.TestHitOne(), columntests.TestHitTwo()},
 			caseConfigFuncs: []columntests.CaseConfigFunc{
-				columntests.EnsureEventName(0, "page_view"),
-				columntests.EnsureEventName(1, "page_view"),
+				columntests.EnsureEventName(0, protocol.PageViewEventType),
+				columntests.EnsureEventName(1, protocol.PageViewEventType),
 			},
 		},
 		{

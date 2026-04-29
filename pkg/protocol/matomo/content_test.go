@@ -5,6 +5,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +17,7 @@ func TestMatomoContentColumns(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) *hits.Hit {
 		hit := columntests.TestHitOne()
-		hit.EventName = "page_view"
+		hit.EventName = protocol.PageViewEventType
 		return hit
 	}
 
