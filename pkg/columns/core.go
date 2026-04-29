@@ -74,6 +74,7 @@ var CoreInterfaces = struct {
 	SSETimeOnPage             schema.Interface
 	SSEIsEntryPage            schema.Interface
 	SSEIsExitPage             schema.Interface
+	SSEIsBounce               schema.Interface
 	EventPreviousPageLocation schema.Interface
 	EventNextPageLocation     schema.Interface
 	EventPreviousPageTitle    schema.Interface
@@ -123,6 +124,7 @@ var CoreInterfaces = struct {
 	// Totals
 	SessionTotalPageViews         schema.Interface
 	SessionUniquePageViews        schema.Interface
+	SessionIsBounced              schema.Interface
 	SessionTotalPurchases         schema.Interface
 	SessionTotalScrolls           schema.Interface
 	SessionTotalOutboundClicks    schema.Interface
@@ -404,6 +406,10 @@ var CoreInterfaces = struct {
 		ID:    "core.d8a.tech/events/session_is_exit_page",
 		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
+	SSEIsBounce: schema.Interface{
+		ID:    "core.d8a.tech/events/is_bounce",
+		Field: &arrow.Field{Name: "is_bounce", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "core.d8a.tech/events/previous_page_location",
 		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
@@ -556,6 +562,10 @@ var CoreInterfaces = struct {
 	SessionUniquePageViews: schema.Interface{
 		ID:    "core.d8a.tech/sessions/unique_page_views",
 		Field: &arrow.Field{Name: "session_unique_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionIsBounced: schema.Interface{
+		ID:    "core.d8a.tech/sessions/session_is_bounced",
+		Field: &arrow.Field{Name: "session_is_bounced", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SessionTotalPurchases: schema.Interface{
 		ID:    "core.d8a.tech/sessions/total_purchases",

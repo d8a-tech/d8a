@@ -286,4 +286,58 @@ func TestPageViewSSECoreColumns(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("is bounce", func(t *testing.T) {
+		testCases := []struct {
+			name     string
+			hits     TestHits
+			expected []any
+		}{
+			{
+				name: "no page views in session",
+				hits: TestHits{
+					newPageViewTestHit("scroll", 0, "https://example.com/page1", "Page 1"),
+					newPageViewTestHit("click", 1, "https://example.com/page1", "Page 1"),
+				},
+				expected: []any{false, false},
+			},
+			{
+				name: "single page view session",
+				hits: TestHits{
+					newPageViewTestHit("page_view", 0, "https://example.com/page1", "Page 1"),
+				},
+				expected: []any{true},
+			},
+			{
+				name: "multiple page views session",
+				hits: TestHits{
+					newPageViewTestHit("page_view", 0, "https://example.com/page1", "Page 1"),
+					newPageViewTestHit("page_view", 1, "https://example.com/page2", "Page 2"),
+				},
+				expected: []any{false, false},
+			},
+			{
+				name: "page views mixed with non page view events",
+				hits: TestHits{
+					newPageViewTestHit("scroll", 0, "https://example.com/page1", "Page 1"),
+					newPageViewTestHit("page_view", 1, "https://example.com/page2", "Page 2"),
+					newPageViewTestHit("click", 2, "https://example.com/page2", "Page 2"),
+				},
+				expected: []any{false, true, false},
+			},
+		}
+
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				ColumnTestCase(t, tc.hits, func(t *testing.T, closeErr error, whd *warehouse.MockWarehouseDriver) {
+					require.NoError(t, closeErr)
+					result := make([]any, 0, len(whd.WriteCalls[0].Records))
+					for _, record := range whd.WriteCalls[0].Records {
+						result = append(result, record["is_bounce"])
+					}
+					assert.Equal(t, tc.expected, result)
+				}, proto)
+			})
+		}
+	})
 }

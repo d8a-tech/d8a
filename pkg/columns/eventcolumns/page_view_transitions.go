@@ -52,6 +52,37 @@ var SSEIsExitPage = columns.NewFirstLastMatchingEventColumn(
 	),
 )
 
+var SSEIsBounce = columns.NewSimpleSessionScopedEventColumn(
+	columns.CoreInterfaces.SSEIsBounce.ID,
+	columns.CoreInterfaces.SSEIsBounce.Field,
+	func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
+		pageViewCount := 0
+		pageViewIndex := -1
+
+		for idx, event := range s.Events {
+			if !sseTransitionOnPageView(event) {
+				continue
+			}
+
+			pageViewCount++
+			pageViewIndex = idx
+			if pageViewCount > 1 {
+				return false, nil
+			}
+		}
+
+		return pageViewCount == 1 && i == pageViewIndex, nil
+	},
+	columns.WithSessionScopedEventColumnRequired(false),
+	columns.WithSessionScopedEventColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionScopedEventColumnDocs(
+		"Is Bounce",
+		"A boolean flag indicating whether this event is the single page view of a bounced session. Returns true only for that page view event and false for all other events.", // nolint:lll // it's a description
+	),
+)
+
 var EventPreviousPageLocation = columns.NewValueTransitionColumn(
 	columns.CoreInterfaces.EventPreviousPageLocation.ID,
 	columns.CoreInterfaces.EventPreviousPageLocation.Field,

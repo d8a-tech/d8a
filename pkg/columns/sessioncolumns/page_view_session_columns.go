@@ -301,3 +301,25 @@ var SessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
 		),
 	),
 )
+
+var SessionIsBouncedColumn = columns.NewSimpleSessionColumn(
+	columns.CoreInterfaces.SessionIsBounced.ID,
+	columns.CoreInterfaces.SessionIsBounced.Field,
+	func(session *schema.Session) (any, schema.D8AColumnWriteError) {
+		pageViewCount := 0
+		for _, event := range session.Events {
+			if isPageViewEvent(event) {
+				pageViewCount++
+			}
+		}
+
+		return pageViewCount == 1, nil
+	},
+	columns.WithSessionColumnDependsOn(
+		schema.DependsOnEntry{Interface: columns.CoreInterfaces.EventName.ID},
+	),
+	columns.WithSessionColumnDocs(
+		"Session Is Bounced",
+		"A boolean flag indicating whether the session has exactly one page view event.",
+	),
+)

@@ -176,6 +176,7 @@ func sessionColumns() []schema.SessionColumn {
 		sessioncolumns.SessionClickIDMsclkidColumn,
 		sessioncolumns.SessionTotalPageViewsColumn,
 		sessioncolumns.SessionUniquePageViewsColumn,
+		sessioncolumns.SessionIsBouncedColumn,
 	}
 }
 
@@ -186,6 +187,7 @@ func sessionScopedEventColumns() []schema.SessionScopedEventColumn {
 		eventcolumns.SSETimeOnPage,
 		eventcolumns.SSEIsEntryPage,
 		eventcolumns.SSEIsExitPage,
+		eventcolumns.SSEIsBounce,
 		eventcolumns.EventPreviousPageLocation,
 		eventcolumns.EventNextPageLocation,
 		eventcolumns.EventPreviousPageTitle,

@@ -102,6 +102,35 @@ func TestPageViewSessionCoreColumns(t *testing.T) {
 			field:    "session_unique_page_views",
 			expected: 2,
 		},
+		{
+			name: "session is bounced with zero page views",
+			hits: TestHits{
+				newPageViewTestHit("scroll", 0, "https://a", "A"),
+				newPageViewTestHit("click", 1, "https://b", "B"),
+			},
+			field:    "session_is_bounced",
+			expected: false,
+		},
+		{
+			name: "session is bounced with one page view",
+			hits: TestHits{
+				newPageViewTestHit("scroll", 0, "https://a", "A"),
+				newPageViewTestHit("page_view", 1, "https://b", "B"),
+				newPageViewTestHit("click", 2, "https://b", "B"),
+			},
+			field:    "session_is_bounced",
+			expected: true,
+		},
+		{
+			name: "session is bounced with multiple page views",
+			hits: TestHits{
+				newPageViewTestHit("page_view", 0, "https://a", "A"),
+				newPageViewTestHit("scroll", 1, "https://a", "A"),
+				newPageViewTestHit("page_view", 2, "https://b", "B"),
+			},
+			field:    "session_is_bounced",
+			expected: false,
+		},
 	}
 
 	for _, tc := range testCases {
