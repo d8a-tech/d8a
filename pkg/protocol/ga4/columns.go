@@ -176,12 +176,6 @@ var ProtocolInterfaces = struct {
 	EventParamVirtualCurrencyName         schema.Interface
 	EventParamVisible                     schema.Interface
 
-	// Page navigation columns
-	EventNextPageLocation     schema.Interface
-	EventPreviousPageLocation schema.Interface
-	EventNextPageTitle        schema.Interface
-	EventPreviousPageTitle    schema.Interface
-
 	// Session engagement
 	SessionIsEngaged     schema.Interface
 	SessionReturningUser schema.Interface
@@ -783,22 +777,6 @@ var ProtocolInterfaces = struct {
 	EventParamVisible: schema.Interface{
 		ID:    "ga4.protocols.d8a.tech/event/params_visible",
 		Field: &arrow.Field{Name: "params_visible", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
-	},
-	EventNextPageLocation: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/next_page_location",
-		Field: &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventPreviousPageLocation: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/previous_page_location",
-		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventNextPageTitle: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/next_page_title",
-		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
-	},
-	EventPreviousPageTitle: schema.Interface{
-		ID:    "ga4.protocols.d8a.tech/event/previous_page_title",
-		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionIsEngaged: schema.Interface{
 		ID: "ga4.protocols.d8a.tech/session/is_engaged",

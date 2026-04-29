@@ -2,12 +2,10 @@
 package matomo
 
 import (
-	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
 const (
-	pageViewEventType       = "page_view"
 	downloadEventType       = "download"
 	outlinkEventType        = "outlink"
 	siteSearchEventType     = "site_search"
@@ -18,18 +16,6 @@ const (
 	customEventType         = "custom_event"
 	videoPlayEventType      = "video_play"
 )
-
-func isPageViewEvent(event *schema.Event) bool {
-	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
-	if !ok {
-		return false
-	}
-	eventNameStr, ok := eventName.(string)
-	if !ok {
-		return false
-	}
-	return eventNameStr == pageViewEventType
-}
 
 var eventColumns = []schema.EventColumn{
 	eventIgnoreReferrerColumn,
@@ -82,30 +68,6 @@ var eventColumns = []schema.EventColumn{
 }
 
 var sessionColumns = []schema.SessionColumn{
-	sessionEntryPageLocationColumn,
-	sessionSecondPageLocationColumn,
-	sessionExitPageLocationColumn,
-	sessionEntryPageTitleColumn,
-	sessionSecondPageTitleColumn,
-	sessionExitPageTitleColumn,
-	sessionUtmCampaignColumn,
-	sessionUtmSourceColumn,
-	sessionUtmMediumColumn,
-	sessionUtmContentColumn,
-	sessionUtmTermColumn,
-	sessionUtmIDColumn,
-	sessionUtmSourcePlatformColumn,
-	sessionUtmCreativeFormatColumn,
-	sessionUtmMarketingTacticColumn,
-	sessionClickIDGclidColumn,
-	sessionClickIDDclidColumn,
-	sessionClickIDGbraidColumn,
-	sessionClickIDSrsltidColumn,
-	sessionClickIDWbraidColumn,
-	sessionClickIDFbclidColumn,
-	sessionClickIDMsclkidColumn,
-	sessionTotalPageViewsColumn,
-	sessionUniquePageViewsColumn,
 	sessionTotalPurchasesColumn,
 	sessionTotalGoalConversionsColumn,
 	sessionTotalScrollsColumn,
@@ -125,12 +87,4 @@ var sessionColumns = []schema.SessionColumn{
 	sessionCustomDimensionsColumn,
 }
 
-var sseColumns = []schema.SessionScopedEventColumn{
-	sseTimeOnPageColumn,
-	sseIsEntryPageColumn,
-	sseIsExitPageColumn,
-	eventPreviousPageLocationColumn,
-	eventNextPageLocationColumn,
-	eventPreviousPageTitleColumn,
-	eventNextPageTitleColumn,
-}
+var sseColumns = []schema.SessionScopedEventColumn{}

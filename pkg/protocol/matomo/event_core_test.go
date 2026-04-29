@@ -6,6 +6,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +18,7 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 
 	buildDeterministicTimeHit := func(t *testing.T) *hits.Hit {
 		hit := hits.New()
-		hit.EventName = pageViewEventType
+		hit.EventName = protocol.PageViewEventType
 		hit.PropertyID = "test_property_id"
 		warsaw, err := time.LoadLocation("Europe/Warsaw")
 		require.NoError(t, err)
@@ -27,7 +28,7 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) *hits.Hit {
 		hit := testHitOne()
-		hit.EventName = pageViewEventType
+		hit.EventName = protocol.PageViewEventType
 		return hit
 	}
 
