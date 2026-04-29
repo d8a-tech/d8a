@@ -564,7 +564,7 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "session_unique_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
 	},
 	SessionIsBounced: schema.Interface{
-		ID:    "core.d8a.tech/sessions/session_is_bounced",
+		ID:    "core.d8a.tech/sessions/is_bounced",
 		Field: &arrow.Field{Name: "session_is_bounced", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SessionTotalPurchases: schema.Interface{
