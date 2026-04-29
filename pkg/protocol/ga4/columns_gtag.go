@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -191,7 +192,7 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 			}
 
 			switch eventNameStr {
-			case PageViewEventType:
+			case protocol.PageViewEventType:
 				pageViewCount++
 			case ScreenViewEventType:
 				screenViewCount++
@@ -200,9 +201,9 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 			}
 		}
 		if hasSegEngaged || pageViewCount >= 2 || screenViewCount >= 2 || purchaseCount >= 1 {
-			return int64(1), nil
+			return true, nil
 		}
-		return int64(0), nil
+		return false, nil
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -212,7 +213,7 @@ var sessionEngagementColumn = columns.NewSimpleSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Is Engaged",
-		"Session engagement indicator. Set to 1 if ANY event in the session is engaged (sessions with meaningful user interaction).", // nolint:lll // it's a description
+		"Session engagement indicator. Set to true if any event in the session is engaged (sessions with meaningful user interaction).", // nolint:lll // it's a description
 	),
 )
 
@@ -231,10 +232,10 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 				continue
 			}
 			if v >= 2 {
-				return int64(1), nil
+				return true, nil
 			}
 		}
-		return int64(0), nil
+		return false, nil
 	},
 	columns.WithSessionColumnDependsOn(
 		schema.DependsOnEntry{
@@ -244,7 +245,7 @@ var sessionReturningUserColumn = columns.NewSimpleSessionColumn(
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDocs(
 		"Session Returning User",
-		"Returning user indicator. Set to 1 if any event in the session indicates that this is a subsequent session for the user. Derived from data extracted from the first-party cookie.", // nolint:lll // it's a description
+		"Returning user indicator. Set to true if any event in the session indicates that this is a subsequent session for the user. Derived from data extracted from the first-party cookie.", // nolint:lll // it's a description
 	),
 )
 
@@ -277,12 +278,12 @@ var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 
 		// If no add_to_cart events, cart is not abandoned
 		if len(addToCartIndices) == 0 {
-			return int64(0), nil
+			return false, nil
 		}
 
 		// If there's an add_to_cart but no purchase, cart is abandoned
 		if latestPurchaseIndex == -1 {
-			return int64(1), nil
+			return true, nil
 		}
 
 		// Find the latest add_to_cart event index
@@ -290,10 +291,10 @@ var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 
 		// If the latest add_to_cart is after the latest purchase, cart is abandoned
 		if latestAddToCartIndex > latestPurchaseIndex {
-			return int64(1), nil
+			return true, nil
 		}
 
-		return int64(0), nil
+		return false, nil
 	},
 	columns.WithSessionColumnRequired(false),
 	columns.WithSessionColumnDependsOn(
@@ -303,7 +304,7 @@ var sessionAbandonedCartColumn = columns.NewSimpleSessionColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Session Abandoned Cart",
-		"Session abandoned cart indicator. Set to 1 if there's an add_to_cart event but no purchase event, or if add_to_cart occurs after the latest purchase event.", // nolint:lll // it's a description
+		"Session abandoned cart indicator. Set to true if there's an add_to_cart event but no purchase event, or if add_to_cart occurs after the latest purchase event.", // nolint:lll // it's a description
 	),
 )
 

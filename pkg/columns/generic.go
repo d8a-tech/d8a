@@ -799,7 +799,7 @@ func NewValueTransitionColumn(
 }
 
 // NewFirstLastMatchingEventColumn creates a session-scoped event column that marks
-// the first or last event matching a predicate with 1, and all other events with 0.
+// the first or last event matching a predicate with true, and all other events with false.
 // This is useful for marking entry/exit pages, where only the first/last page_view
 // in a session should be marked.
 func NewFirstLastMatchingEventColumn(
@@ -814,10 +814,10 @@ func NewFirstLastMatchingEventColumn(
 		id,
 		field,
 		func(s *schema.Session, i int) (any, schema.D8AColumnWriteError) {
-			var result []int64
+			var result []bool
 			resultAny, ok := s.Metadata[cacheKey]
 			if ok {
-				result, ok = resultAny.([]int64)
+				result, ok = resultAny.([]bool)
 				if ok {
 					return result[i], nil
 				}
@@ -832,17 +832,17 @@ func NewFirstLastMatchingEventColumn(
 			}
 
 			// Initialize result array with zeros
-			result = make([]int64, len(s.Events))
+			result = make([]bool, len(s.Events))
 			for idx := range result {
-				result[idx] = 0
+				result[idx] = false
 			}
 
 			// Mark first or last matching event
 			if len(matchingIndices) > 0 {
 				if isFirst {
-					result[matchingIndices[0]] = 1
+					result[matchingIndices[0]] = true
 				} else {
-					result[matchingIndices[len(matchingIndices)-1]] = 1
+					result[matchingIndices[len(matchingIndices)-1]] = true
 				}
 			}
 

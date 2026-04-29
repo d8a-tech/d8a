@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestMatomoProductColumns(t *testing.T) {
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
-		hit.EventName = pageViewEventType
+		hit.EventName = protocol.PageViewEventType
 		return columntests.TestHits{hit}
 	}
 
@@ -560,7 +561,7 @@ func normalizeEcommerceItemsTestValue(actual any) any {
 func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 	hit := columntests.TestHitOne()
-	hit.EventName = pageViewEventType
+	hit.EventName = protocol.PageViewEventType
 
 	columntests.ColumnTestCase(
 		t,
@@ -603,7 +604,7 @@ func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
 func TestMatomoProductColumns_EcommerceItemsMalformed(t *testing.T) {
 	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
 	hit := columntests.TestHitOne()
-	hit.EventName = pageViewEventType
+	hit.EventName = protocol.PageViewEventType
 
 	columntests.ColumnTestCase(
 		t,

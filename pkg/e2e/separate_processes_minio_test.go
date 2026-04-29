@@ -91,6 +91,9 @@ func TestSeparateReceiverAndWorkerWithMinIO(t *testing.T) {
 		parts := strings.Split(connectionString, ":")
 		require.Len(t, parts, 2, "connection string should be host:port")
 		minioHost := parts[0]
+		if minioHost == "localhost" {
+			minioHost = "127.0.0.1"
+		}
 		minioPort, err := strconv.Atoi(parts[1])
 		require.NoError(t, err)
 
