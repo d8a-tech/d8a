@@ -2,8 +2,6 @@
 package matomo
 
 import (
-	"github.com/d8a-tech/d8a/pkg/columns"
-	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -18,18 +16,6 @@ const (
 	customEventType         = "custom_event"
 	videoPlayEventType      = "video_play"
 )
-
-func isPageViewEvent(event *schema.Event) bool {
-	eventName, ok := event.Values[columns.CoreInterfaces.EventName.Field.Name]
-	if !ok {
-		return false
-	}
-	eventNameStr, ok := eventName.(string)
-	if !ok {
-		return false
-	}
-	return eventNameStr == protocol.PageViewEventType
-}
 
 var eventColumns = []schema.EventColumn{
 	eventIgnoreReferrerColumn,
@@ -82,30 +68,6 @@ var eventColumns = []schema.EventColumn{
 }
 
 var sessionColumns = []schema.SessionColumn{
-	sessionEntryPageLocationColumn,
-	sessionSecondPageLocationColumn,
-	sessionExitPageLocationColumn,
-	sessionEntryPageTitleColumn,
-	sessionSecondPageTitleColumn,
-	sessionExitPageTitleColumn,
-	sessionUtmCampaignColumn,
-	sessionUtmSourceColumn,
-	sessionUtmMediumColumn,
-	sessionUtmContentColumn,
-	sessionUtmTermColumn,
-	sessionUtmIDColumn,
-	sessionUtmSourcePlatformColumn,
-	sessionUtmCreativeFormatColumn,
-	sessionUtmMarketingTacticColumn,
-	sessionClickIDGclidColumn,
-	sessionClickIDDclidColumn,
-	sessionClickIDGbraidColumn,
-	sessionClickIDSrsltidColumn,
-	sessionClickIDWbraidColumn,
-	sessionClickIDFbclidColumn,
-	sessionClickIDMsclkidColumn,
-	sessionTotalPageViewsColumn,
-	sessionUniquePageViewsColumn,
 	sessionTotalPurchasesColumn,
 	sessionTotalGoalConversionsColumn,
 	sessionTotalScrollsColumn,

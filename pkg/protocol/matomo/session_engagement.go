@@ -6,38 +6,7 @@ import (
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
-	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
-)
-
-// sessionTotalPageViewsColumn counts all page_view events in the session.
-var sessionTotalPageViewsColumn = columns.TotalEventsOfGivenNameColumn(
-	columns.CoreInterfaces.SessionTotalPageViews.ID,
-	columns.CoreInterfaces.SessionTotalPageViews.Field,
-	[]string{protocol.PageViewEventType},
-	columns.WithSessionColumnDocs(
-		"Total Page Views",
-		fmt.Sprintf("The total number of page views (event name: %s) in the session.", protocol.PageViewEventType), //nolint:lll // description
-	),
-)
-
-// sessionUniquePageViewsColumn counts unique page URLs viewed in the session.
-var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
-	columns.CoreInterfaces.SessionUniquePageViews.ID,
-	columns.CoreInterfaces.SessionUniquePageViews.Field,
-	[]string{protocol.PageViewEventType},
-	[]*arrow.Field{
-		columns.CoreInterfaces.EventPageLocation.Field,
-	},
-	columns.WithSessionColumnDependsOn(
-		schema.DependsOnEntry{
-			Interface: columns.CoreInterfaces.EventPageLocation.ID,
-		},
-	),
-	columns.WithSessionColumnDocs(
-		"Unique Page Views",
-		fmt.Sprintf("The unique number of page views (event name: %s) in the session. Deduplicated by %s.", protocol.PageViewEventType, columns.CoreInterfaces.EventPageLocation.Field.Name), //nolint:lll // description
-	),
 )
 
 // sessionTotalPurchasesColumn counts completed ecommerce orders in the session.
