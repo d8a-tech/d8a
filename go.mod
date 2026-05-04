@@ -5,7 +5,7 @@ go 1.25.3
 require (
 	cloud.google.com/go/bigquery v1.76.0
 	cloud.google.com/go/storage v1.62.1
-	github.com/ClickHouse/clickhouse-go/v2 v2.45.0
+	github.com/ClickHouse/clickhouse-go/v2 v2.46.0
 	github.com/apache/arrow-go/v18 v18.5.2
 	github.com/archbottle/dd2 v1.2.0
 	github.com/aws/aws-sdk-go-v2 v1.41.6
