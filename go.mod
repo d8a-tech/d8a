@@ -15,7 +15,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.4.0
 	github.com/expr-lang/expr v1.17.8
 	github.com/fasthttp/router v1.5.4
-	github.com/fxamacker/cbor/v2 v2.9.1
+	github.com/fxamacker/cbor/v2 v2.9.2
 	github.com/google/uuid v1.6.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/oschwald/maxminddb-golang/v2 v2.2.0
