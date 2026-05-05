@@ -407,8 +407,8 @@ var CoreInterfaces = struct {
 		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SSEIsBounce: schema.Interface{
-		ID:    "core.d8a.tech/events/is_bounce",
-		Field: &arrow.Field{Name: "is_bounce", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+		ID:    "core.d8a.tech/events/page_is_bounce",
+		Field: &arrow.Field{Name: "page_is_bounce", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	EventPreviousPageLocation: schema.Interface{
 		ID:    "core.d8a.tech/events/previous_page_location",

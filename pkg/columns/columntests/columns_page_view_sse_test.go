@@ -333,7 +333,7 @@ func TestPageViewSSECoreColumns(t *testing.T) {
 					require.NoError(t, closeErr)
 					result := make([]any, 0, len(whd.WriteCalls[0].Records))
 					for _, record := range whd.WriteCalls[0].Records {
-						result = append(result, record["is_bounce"])
+						result = append(result, record["page_is_bounce"])
 					}
 					assert.Equal(t, tc.expected, result)
 				}, proto)
