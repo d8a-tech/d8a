@@ -9,36 +9,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
-// sessionTotalPageViewsColumn counts all page_view events in the session.
-var sessionTotalPageViewsColumn = columns.TotalEventsOfGivenNameColumn(
-	columns.CoreInterfaces.SessionTotalPageViews.ID,
-	columns.CoreInterfaces.SessionTotalPageViews.Field,
-	[]string{pageViewEventType},
-	columns.WithSessionColumnDocs(
-		"Total Page Views",
-		fmt.Sprintf("The total number of page views (event name: %s) in the session.", pageViewEventType), //nolint:lll // description
-	),
-)
-
-// sessionUniquePageViewsColumn counts unique page URLs viewed in the session.
-var sessionUniquePageViewsColumn = columns.UniqueEventsOfGivenNameColumn(
-	columns.CoreInterfaces.SessionUniquePageViews.ID,
-	columns.CoreInterfaces.SessionUniquePageViews.Field,
-	[]string{pageViewEventType},
-	[]*arrow.Field{
-		columns.CoreInterfaces.EventPageLocation.Field,
-	},
-	columns.WithSessionColumnDependsOn(
-		schema.DependsOnEntry{
-			Interface: columns.CoreInterfaces.EventPageLocation.ID,
-		},
-	),
-	columns.WithSessionColumnDocs(
-		"Unique Page Views",
-		fmt.Sprintf("The unique number of page views (event name: %s) in the session. Deduplicated by %s.", pageViewEventType, columns.CoreInterfaces.EventPageLocation.Field.Name), //nolint:lll // description
-	),
-)
-
 // sessionTotalPurchasesColumn counts completed ecommerce orders in the session.
 var sessionTotalPurchasesColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalPurchases.ID,

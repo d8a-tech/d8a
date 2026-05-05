@@ -15,7 +15,7 @@ var testMatomoHitOne = &hits.Hit{
 	AuthoritativeClientID: "abc123",
 	ClientID:              "abc123",
 	PropertyID:            "42",
-	EventName:             "page_view",
+	EventName:             protocol.PageViewEventType,
 	Request: &hits.ParsedRequest{
 		IP:                 "127.0.0.1",
 		Host:               "example.com",

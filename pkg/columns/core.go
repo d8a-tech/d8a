@@ -69,12 +69,17 @@ var CoreInterfaces = struct {
 	EventIgnoreReferrer   schema.Interface
 
 	// Session-scoped event columns
-	SSESessionHitNumber  schema.Interface
-	SSESessionPageNumber schema.Interface
-	SSETimeOnPage        schema.Interface
-	SSEIsEntryPage       schema.Interface
-	SSEIsExitPage        schema.Interface
-	SSETrafficFilterName schema.Interface
+	SSESessionHitNumber       schema.Interface
+	SSESessionPageNumber      schema.Interface
+	SSETimeOnPage             schema.Interface
+	SSEIsEntryPage            schema.Interface
+	SSEIsExitPage             schema.Interface
+	SSEIsBounce               schema.Interface
+	EventPreviousPageLocation schema.Interface
+	EventNextPageLocation     schema.Interface
+	EventPreviousPageTitle    schema.Interface
+	EventNextPageTitle        schema.Interface
+	SSETrafficFilterName      schema.Interface
 
 	// Session columns
 	SessionID schema.Interface
@@ -119,6 +124,7 @@ var CoreInterfaces = struct {
 	// Totals
 	SessionTotalPageViews         schema.Interface
 	SessionUniquePageViews        schema.Interface
+	SessionIsBounced              schema.Interface
 	SessionTotalPurchases         schema.Interface
 	SessionTotalScrolls           schema.Interface
 	SessionTotalOutboundClicks    schema.Interface
@@ -394,11 +400,31 @@ var CoreInterfaces = struct {
 	},
 	SSEIsEntryPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_entry_page",
-		Field: &arrow.Field{Name: "session_is_entry_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field: &arrow.Field{Name: "session_is_entry_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SSEIsExitPage: schema.Interface{
 		ID:    "core.d8a.tech/events/session_is_exit_page",
-		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+		Field: &arrow.Field{Name: "session_is_exit_page", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	SSEIsBounce: schema.Interface{
+		ID:    "core.d8a.tech/events/is_bounce",
+		Field: &arrow.Field{Name: "is_bounce", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
+	},
+	EventPreviousPageLocation: schema.Interface{
+		ID:    "core.d8a.tech/events/previous_page_location",
+		Field: &arrow.Field{Name: "previous_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageLocation: schema.Interface{
+		ID:    "core.d8a.tech/events/next_page_location",
+		Field: &arrow.Field{Name: "next_page_location", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventPreviousPageTitle: schema.Interface{
+		ID:    "core.d8a.tech/events/previous_page_title",
+		Field: &arrow.Field{Name: "previous_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	EventNextPageTitle: schema.Interface{
+		ID:    "core.d8a.tech/events/next_page_title",
+		Field: &arrow.Field{Name: "next_page_title", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SSETrafficFilterName: schema.Interface{
 		ID:    "core.d8a.tech/events/traffic_filter_name",
@@ -536,6 +562,10 @@ var CoreInterfaces = struct {
 	SessionUniquePageViews: schema.Interface{
 		ID:    "core.d8a.tech/sessions/unique_page_views",
 		Field: &arrow.Field{Name: "session_unique_page_views", Type: arrow.PrimitiveTypes.Int64, Nullable: true},
+	},
+	SessionIsBounced: schema.Interface{
+		ID:    "core.d8a.tech/sessions/is_bounced",
+		Field: &arrow.Field{Name: "session_is_bounced", Type: arrow.FixedWidthTypes.Boolean, Nullable: true},
 	},
 	SessionTotalPurchases: schema.Interface{
 		ID:    "core.d8a.tech/sessions/total_purchases",

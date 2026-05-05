@@ -44,10 +44,11 @@ spool/
 .gomodcache/
 .gocache/
 
-# Local scratch
+# Local scratch and LLMs
 tmp/
 config.dev2.yaml
 .memsearch
+.opencode
 
 # goreleaser
 dist/

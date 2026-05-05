@@ -31,7 +31,7 @@ func NewInterfaceDefinitionOrderKeeper(structs ...any) *InterfaceOrdering {
 // RegisterInterfaceStruct walks through a struct containing Interface fields and registers their order.
 func (o *InterfaceOrdering) registerInterfaceStruct(s any) {
 	v := reflect.ValueOf(s)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
