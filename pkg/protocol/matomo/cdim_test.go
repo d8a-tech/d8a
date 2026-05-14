@@ -11,7 +11,7 @@ import (
 )
 
 func TestMatomoCustomDimensionsColumn(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
@@ -113,7 +113,7 @@ func TestMatomoCustomDimensionsColumn(t *testing.T) {
 }
 
 func TestMatomoSessionCustomDimensionsColumn(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()

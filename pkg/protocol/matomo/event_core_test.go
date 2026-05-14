@@ -6,6 +6,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns/columntests"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/warehouse"
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,6 @@ import (
 
 // nolint:funlen,lll // test code
 func TestMatomoEventCoreColumns(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
-
 	buildDeterministicTimeHit := func(t *testing.T) *hits.Hit {
 		hit := hits.New()
 		hit.EventName = protocol.PageViewEventType
@@ -42,6 +41,7 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 		name        string
 		buildHits   func(t *testing.T) columntests.TestHits
 		cfg         []columntests.CaseConfigFunc
+		settingsOpt []properties.TestSettingsOption
 		fieldName   string
 		expected    any
 		expectNoIO  bool
@@ -119,6 +119,45 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 			description: "Valid page location via Matomo url parameter",
 		},
 		{
+			name:      "EventPageLocation_StripsUTMParams",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar"),
+			},
+			settingsOpt: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{"utm_source", "utm_medium", "utm_campaign"}),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?foo=bar",
+			description: "Page location strips UTM parameters from property exclusions",
+		},
+		{
+			name:      "EventPageLocation_EmptyExclusionsKeepParams",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?gclid=abc123&fbclid=xyz789&foo=bar"),
+			},
+			settingsOpt: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{}),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?gclid=abc123&fbclid=xyz789&foo=bar",
+			description: "Page location unchanged with empty exclusion list",
+		},
+		{
+			name:      "EventPageLocation_CustomExclusions",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?utm_source=google&utm_medium=cpc&gclid=abc123&fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux"),
+			},
+			settingsOpt: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{"utm_medium", "utm_campaign"}),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?utm_source=google&gclid=abc123&fbclid=xyz789&foo=bar&baz=qux",
+			description: "Page location strips only custom exclusion list",
+		},
+		{
 			name:        "EventPageLocation_BrokenURL",
 			buildHits:   single(buildPageViewHit),
 			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "url", "://bad")},
@@ -179,6 +218,11 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			proto := NewMatomoProtocol(
+				&staticPropertyIDExtractor{propertyID: "test_property_id"},
+				testSettingsRegistry(tc.settingsOpt...),
+			)
+
 			columntests.ColumnTestCase(
 				t,
 				tc.buildHits(t),

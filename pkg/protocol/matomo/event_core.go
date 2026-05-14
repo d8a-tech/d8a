@@ -7,6 +7,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -84,27 +85,35 @@ var eventPageTitleColumn = columns.FromQueryParamEventColumn(
 	),
 )
 
-var eventPageLocationColumn = columns.NewSimpleEventColumn(
-	columns.CoreInterfaces.EventPageLocation.ID,
-	columns.CoreInterfaces.EventPageLocation.Field,
-	func(event *schema.Event) (any, schema.D8AColumnWriteError) {
-		originalURL := event.BoundHit.MustParsedRequest().QueryParams.Get("url")
-		if originalURL == "" {
-			return "", nil
-		}
-		cleanedURL, _, err := columns.StripExcludedParams(originalURL, nil)
-		if err != nil {
-			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to strip excluded params: %s", err))
-		}
-		columns.WriteOriginalPageLocation(event, originalURL)
-		return cleanedURL, nil
-	},
-	columns.WithEventColumnRequired(false),
-	columns.WithEventColumnDocs(
-		"Page Location",
-		"The complete URL of the page where the event occurred, including protocol, domain, path, and query parameters (e.g., 'https://www.example.com/products/shoes?color=red&size=10'). Tracking parameters (UTM, click IDs) are excluded once extracted into dedicated columns.", // nolint:lll // it's a description
-	),
-)
+func newEventPageLocationColumn(psr properties.SettingsRegistry) schema.EventColumn {
+	return columns.NewSimpleEventColumn(
+		columns.CoreInterfaces.EventPageLocation.ID,
+		columns.CoreInterfaces.EventPageLocation.Field,
+		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			originalURL := event.BoundHit.MustParsedRequest().QueryParams.Get("url")
+			if originalURL == "" {
+				return "", nil
+			}
+
+			settings, err := psr.GetByPropertyID(event.BoundHit.PropertyID)
+			if err != nil {
+				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to resolve property settings: %s", err))
+			}
+
+			cleanedURL, _, err := columns.StripExcludedParams(originalURL, settings.ExcludedURLParamsSafe())
+			if err != nil {
+				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to strip excluded params: %s", err))
+			}
+			columns.WriteOriginalPageLocation(event, originalURL)
+			return cleanedURL, nil
+		},
+		columns.WithEventColumnRequired(false),
+		columns.WithEventColumnDocs(
+			"Page Location",
+			"The complete URL of the page where the event occurred, including protocol, domain, path, and query parameters (e.g., 'https://www.example.com/products/shoes?color=red&size=10'). Tracking parameters (UTM, click IDs) are excluded once extracted into dedicated columns.", // nolint:lll // it's a description
+		),
+	)
+}
 
 var eventPageHostnameColumn = columns.URLElementColumn(
 	columns.CoreInterfaces.EventPageHostname.ID,

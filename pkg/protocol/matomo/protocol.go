@@ -17,6 +17,7 @@ import (
 
 type matomoProtocol struct {
 	extractor              protocol.PropertyIDExtractor
+	psr                    properties.SettingsRegistry
 	extraTrackingEndpoints []string
 }
 
@@ -80,7 +81,7 @@ func (p *matomoProtocol) Interfaces() any {
 
 func (p *matomoProtocol) Columns() schema.Columns {
 	return schema.Columns{
-		Event:              eventColumns,
+		Event:              eventColumns(newEventPageLocationColumn(p.psr)),
 		Session:            sessionColumns,
 		SessionScopedEvent: sseColumns,
 	}
@@ -94,8 +95,12 @@ func WithExtraTrackingEndpoints(paths []string) MatomoProtocolOption {
 	}
 }
 
-func NewMatomoProtocol(extractor protocol.PropertyIDExtractor, opts ...MatomoProtocolOption) protocol.Protocol {
-	p := &matomoProtocol{extractor: extractor}
+func NewMatomoProtocol(
+	extractor protocol.PropertyIDExtractor,
+	psr properties.SettingsRegistry,
+	opts ...MatomoProtocolOption,
+) protocol.Protocol {
+	p := &matomoProtocol{extractor: extractor, psr: psr}
 	for _, opt := range opts {
 		opt(p)
 	}

@@ -26,6 +26,7 @@ func TestEventColumns(t *testing.T) {
 		fieldName          string
 		description        string
 		hits               columntests.TestHits
+		settingsOpts       []properties.TestSettingsOption
 	}{
 		// App params
 		{
@@ -446,27 +447,36 @@ func TestEventColumns(t *testing.T) {
 			name:        "EventPageLocation_StripsUTMParams",
 			param:       "dl",
 			value:       "https://example.com/page?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar",
-			expected:    "https://example.com/page?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar",
+			expected:    "https://example.com/page?foo=bar",
 			fieldName:   "page_location",
-			description: "Page location keeps UTM parameters without explicit exclusions",
+			description: "Page location strips UTM parameters from property exclusions",
+			settingsOpts: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{"utm_source", "utm_medium", "utm_campaign"}),
+			},
 		},
 		{
-			name:        "EventPageLocation_StripsClickIDs",
+			name:        "EventPageLocation_EmptyExclusionsKeepParams",
 			param:       "dl",
 			value:       "https://example.com/page?gclid=abc123&fbclid=xyz789&foo=bar",
 			expected:    "https://example.com/page?gclid=abc123&fbclid=xyz789&foo=bar",
 			fieldName:   "page_location",
-			description: "Page location keeps click ID parameters without explicit exclusions",
+			description: "Page location unchanged with empty exclusion list",
+			settingsOpts: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{}),
+			},
 		},
 		{
-			name:  "EventPageLocation_StripsAllTrackingParams",
+			name:  "EventPageLocation_CustomExclusions",
 			param: "dl",
 			value: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
 				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
-			expected: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
-				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
+			expected: "https://example.com/page?utm_source=google&gclid=abc123&" +
+				"fbclid=xyz789&foo=bar&baz=qux",
 			fieldName:   "page_location",
-			description: "Page location keeps all tracking parameters without explicit exclusions",
+			description: "Page location strips only custom exclusion list",
+			settingsOpts: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{"utm_medium", "utm_campaign"}),
+			},
 		},
 		{
 			name:        "EventPageLocation_NoParamsToStrip",
@@ -2294,7 +2304,7 @@ func TestEventColumns(t *testing.T) {
 						assert.Equal(t, tc.expected, record[tc.fieldName], tc.description)
 					}
 				},
-				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry()),
+				NewGA4Protocol(currency.NewDummyConverter(1), properties.NewTestSettingRegistry(tc.settingsOpts...)),
 				columntests.EnsureQueryParam(0, tc.param, tc.value))
 		})
 	}

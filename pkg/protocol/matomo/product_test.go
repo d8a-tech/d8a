@@ -12,7 +12,7 @@ import (
 )
 
 func TestMatomoProductColumns(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	buildPageViewHit := func(_ *testing.T) columntests.TestHits {
 		hit := columntests.TestHitOne()
@@ -559,7 +559,7 @@ func normalizeEcommerceItemsTestValue(actual any) any {
 }
 
 func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 	hit := columntests.TestHitOne()
 	hit.EventName = protocol.PageViewEventType
 
@@ -602,7 +602,7 @@ func TestMatomoProductColumns_EcommerceColumnsCoexistOnOrderHit(t *testing.T) {
 }
 
 func TestMatomoProductColumns_EcommerceItemsMalformed(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 	hit := columntests.TestHitOne()
 	hit.EventName = protocol.PageViewEventType
 

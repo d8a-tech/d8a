@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 )
 
@@ -45,4 +46,8 @@ type staticPropertyIDExtractor struct {
 
 func (e *staticPropertyIDExtractor) PropertyID(_ *protocol.RequestContext) (string, error) {
 	return e.propertyID, nil
+}
+
+func testSettingsRegistry(opts ...properties.TestSettingsOption) properties.SettingsRegistry {
+	return properties.NewTestSettingRegistry(opts...)
 }

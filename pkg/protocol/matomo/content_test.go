@@ -13,7 +13,7 @@ import (
 
 // nolint:funlen,lll // test code
 func TestMatomoContentColumns(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	buildPageViewHit := func(_ *testing.T) *hits.Hit {
 		hit := columntests.TestHitOne()
@@ -141,7 +141,7 @@ func TestMatomoContentColumns(t *testing.T) {
 }
 
 func TestMatomoSessionContentColumns(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	type testCase struct {
 		name        string

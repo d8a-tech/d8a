@@ -73,7 +73,7 @@ func TestDefaultColumnRegistry_WithCustomColumnsRegistry_MatomoSessionColumn(t *
 	}))
 
 	registry := DefaultColumnRegistry(
-		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(psr)),
+		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(psr), psr),
 		psr,
 		WithCustomColumnsRegistry(customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder())),
 	)
