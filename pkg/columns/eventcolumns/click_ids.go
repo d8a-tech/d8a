@@ -7,7 +7,6 @@ var ClickIDsGclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDGclid.ID,
 	columns.CoreInterfaces.EventClickIDGclid.Field,
 	"gclid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGclid.ID)),
 	),
@@ -22,7 +21,6 @@ var ClickIDsDclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDDclid.ID,
 	columns.CoreInterfaces.EventClickIDDclid.Field,
 	"dclid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDDclid.ID)),
 	),
@@ -37,7 +35,6 @@ var ClickIDsSrsltidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDSrsltid.ID,
 	columns.CoreInterfaces.EventClickIDSrsltid.Field,
 	"srsltid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDSrsltid.ID)),
 	),
@@ -52,7 +49,6 @@ var ClickIDsGbraidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDGbraid.ID,
 	columns.CoreInterfaces.EventClickIDGbraid.Field,
 	"gbraid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDGbraid.ID)),
 	),
@@ -67,7 +63,6 @@ var ClickIDsWbraidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDWbraid.ID,
 	columns.CoreInterfaces.EventClickIDWbraid.Field,
 	"wbraid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDWbraid.ID)),
 	),
@@ -82,7 +77,6 @@ var ClickIDsFbclidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDFbclid.ID,
 	columns.CoreInterfaces.EventClickIDFbclid.Field,
 	"fbclid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDFbclid.ID)),
 	),
@@ -97,7 +91,6 @@ var ClickIDsMsclkidColumn = columns.FromPageURLParamEventColumn(
 	columns.CoreInterfaces.EventClickIDMsclkid.ID,
 	columns.CoreInterfaces.EventClickIDMsclkid.Field,
 	"msclkid",
-	true,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.EventClickIDMsclkid.ID)),
 	),

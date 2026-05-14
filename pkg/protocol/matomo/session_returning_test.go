@@ -10,7 +10,7 @@ import (
 )
 
 func TestMatomoSessionReturningUserColumn(t *testing.T) {
-	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"})
+	proto := NewMatomoProtocol(&staticPropertyIDExtractor{propertyID: "test_property_id"}, testSettingsRegistry())
 
 	type testCase struct {
 		name        string

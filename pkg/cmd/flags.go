@@ -356,6 +356,32 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   1000,
 }
 
+var historicalExcludedURLParams = []string{
+	"utm_marketing_tactic",
+	"utm_source_platform",
+	"utm_term",
+	"utm_content",
+	"utm_source",
+	"utm_medium",
+	"utm_campaign",
+	"utm_id",
+	"utm_creative_format",
+	"gclid",
+	"dclid",
+	"srsltid",
+	"gbraid",
+	"wbraid",
+	"fbclid",
+	"msclkid",
+}
+
+var propertySettingsExcludedURLParamsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name:    "property-settings-excluded-url-params",
+	Usage:   "URL query parameter names to strip from page_location before writing event columns.",
+	Sources: defaultSourceChain("PROPERTY_SETTINGS_EXCLUDED_URL_PARAMS", "property.settings.excluded_url_params"),
+	Value:   historicalExcludedURLParams,
+}
+
 var monitoringEnabledFlag *cli.BoolFlag = &cli.BoolFlag{
 	Name:    "monitoring-enabled",
 	Usage:   "Enable OpenTelemetry metrics",
@@ -688,6 +714,7 @@ func getServerFlags() []cli.Flag {
 			matomoCustomVariablesFlag,
 			propertySettingsSplitByTimeSinceFirstEventFlag,
 			propertySettingsSplitByMaxEventsFlag,
+			propertySettingsExcludedURLParamsFlag,
 			monitoringEnabledFlag,
 			monitoringOTelEndpointFlag,
 			monitoringOTelExportIntervalFlag,

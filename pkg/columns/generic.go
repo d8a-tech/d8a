@@ -343,17 +343,12 @@ func AlwaysNilEventColumn(
 }
 
 // FromPageURLParamEventColumn creates a new event column from a URL parameter.
-// If excludeFromPageLocation is true, the parameter will be registered for exclusion from page location URLs.
 func FromPageURLParamEventColumn(
 	id schema.InterfaceID,
 	field *arrow.Field,
 	param string,
-	excludeFromPageLocation bool,
 	options ...EventColumnOptions,
 ) schema.EventColumn {
-	if excludeFromPageLocation {
-		RegisterURLParamForExclusion(param)
-	}
 	options = append(options, WithEventColumnDependsOn(schema.DependsOnEntry{
 		Interface: CoreInterfaces.EventPageLocation.ID,
 	}))

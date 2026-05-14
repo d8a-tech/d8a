@@ -214,7 +214,7 @@ func TestHits(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			matomoProtocol := NewMatomoProtocol(&testPropertyIDExtractor{})
+			matomoProtocol := NewMatomoProtocol(&testPropertyIDExtractor{}, testSettingsRegistry())
 			request := &hits.ParsedRequest{
 				QueryParams: tc.queryParams,
 				Headers:     map[string][]string{},
@@ -264,7 +264,7 @@ func TestHits(t *testing.T) {
 
 func TestEndpoints(t *testing.T) {
 	t.Run("default endpoint only", func(t *testing.T) {
-		proto := NewMatomoProtocol(&testPropertyIDExtractor{})
+		proto := NewMatomoProtocol(&testPropertyIDExtractor{}, testSettingsRegistry())
 
 		assert.Equal(t, []protocol.ProtocolEndpoint{
 			{
@@ -277,6 +277,7 @@ func TestEndpoints(t *testing.T) {
 	t.Run("adds normalized extra endpoints", func(t *testing.T) {
 		proto := NewMatomoProtocol(
 			&testPropertyIDExtractor{},
+			testSettingsRegistry(),
 			WithExtraTrackingEndpoints([]string{"piwik.php", "/track", " ", "/matomo.php", "track"}),
 		)
 

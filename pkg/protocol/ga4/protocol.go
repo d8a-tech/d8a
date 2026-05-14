@@ -16,6 +16,7 @@ import (
 
 type ga4Protocol struct {
 	converter currency.Converter
+	psr       properties.SettingsRegistry
 
 	propertyIDExtractor protocol.PropertyIDExtractor
 }
@@ -272,7 +273,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			eventPageTitleColumn,
 			eventPageReferrerColumn,
 			eventPagePathColumn,
-			eventPageLocationColumn,
+			newEventPageLocationColumn(p.psr),
 			eventPageHostnameColumn,
 			eventTrackingProtocolColumn,
 			eventIgnoreReferrerColumn,
@@ -477,6 +478,7 @@ func NewGA4Protocol(
 ) protocol.Protocol {
 	p := &ga4Protocol{
 		converter:           converter,
+		psr:                 psr,
 		propertyIDExtractor: NewFromTidByMeasurementIDExtractor(psr),
 	}
 	for _, opt := range opts {
