@@ -12,6 +12,13 @@ func WithSessionTimeout(d time.Duration) TestSettingsOption {
 	}
 }
 
+// WithExcludedURLParams sets excluded URL params for test settings.
+func WithExcludedURLParams(params []string) TestSettingsOption {
+	return func(s *Settings) {
+		s.ExcludedURLParams = params
+	}
+}
+
 // NewTestSettingRegistry is a test property source that returns a static property configuration.
 func NewTestSettingRegistry(opts ...TestSettingsOption) SettingsRegistry {
 	settings := &Settings{

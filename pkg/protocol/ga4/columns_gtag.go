@@ -55,7 +55,7 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 		if originalURL == "" {
 			return "", nil
 		}
-		cleanedURL, _, err := columns.StripExcludedParams(originalURL)
+		cleanedURL, _, err := columns.StripExcludedParams(originalURL, nil)
 		if err != nil {
 			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to strip excluded params: %s", err))
 		}
@@ -312,7 +312,6 @@ var gtmDebugColumn = columns.FromPageURLParamEventColumn(
 	ProtocolInterfaces.EventGtmDebug.ID,
 	ProtocolInterfaces.EventGtmDebug.Field,
 	"gtm_debug",
-	false,
 	columns.WithEventColumnCast(
 		columns.StrNilIfErrorOrEmpty(columns.CastToString(ProtocolInterfaces.EventGtmDebug.ID)),
 	),

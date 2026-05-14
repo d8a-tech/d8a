@@ -2,7 +2,6 @@ package columns
 
 import (
 	"net/url"
-	"sync"
 
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
@@ -15,44 +14,14 @@ const (
 	MetadataKeySessionSourceMediumTerm = "session_source_medium_term"
 )
 
-var (
-	// urlParamsBlacklist is a singleton registry of URL parameters that should be
-	// excluded from page location URLs once they've been extracted into dedicated columns.
-	urlParamsBlacklist   = make(map[string]bool)
-	urlParamsBlacklistMu sync.RWMutex
-)
-
-// RegisterURLParamForExclusion adds a URL parameter to the blacklist registry.
-// Parameters in this registry will be stripped from page location URLs.
-func RegisterURLParamForExclusion(param string) {
-	urlParamsBlacklistMu.Lock()
-	defer urlParamsBlacklistMu.Unlock()
-	urlParamsBlacklist[param] = true
-}
-
-// IsURLParamExcluded checks if a URL parameter is in the blacklist registry.
-func IsURLParamExcluded(param string) bool {
-	urlParamsBlacklistMu.RLock()
-	defer urlParamsBlacklistMu.RUnlock()
-	return urlParamsBlacklist[param]
-}
-
-// GetExcludedURLParams returns a copy of all excluded URL parameters.
-func GetExcludedURLParams() map[string]bool {
-	urlParamsBlacklistMu.RLock()
-	defer urlParamsBlacklistMu.RUnlock()
-	result := make(map[string]bool, len(urlParamsBlacklist))
-	for k, v := range urlParamsBlacklist {
-		result[k] = v
-	}
-	return result
-}
-
 // StripExcludedParams removes excluded URL parameters from a URL string.
 // Returns the cleaned URL and the original URL.
-func StripExcludedParams(urlStr string) (cleaned, original string, err error) {
+func StripExcludedParams(urlStr string, excludedParams []string) (cleaned, original string, err error) {
 	original = urlStr
 	if urlStr == "" {
+		return urlStr, original, nil
+	}
+	if len(excludedParams) == 0 {
 		return urlStr, original, nil
 	}
 
@@ -62,10 +31,9 @@ func StripExcludedParams(urlStr string) (cleaned, original string, err error) {
 	}
 
 	query := parsed.Query()
-	excludedParams := GetExcludedURLParams()
 	removedAny := false
 
-	for param := range excludedParams {
+	for _, param := range excludedParams {
 		if query.Has(param) {
 			query.Del(param)
 			removedAny = true

@@ -446,26 +446,27 @@ func TestEventColumns(t *testing.T) {
 			name:        "EventPageLocation_StripsUTMParams",
 			param:       "dl",
 			value:       "https://example.com/page?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar",
-			expected:    "https://example.com/page?foo=bar",
+			expected:    "https://example.com/page?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar",
 			fieldName:   "page_location",
-			description: "Page location strips UTM parameters",
+			description: "Page location keeps UTM parameters without explicit exclusions",
 		},
 		{
 			name:        "EventPageLocation_StripsClickIDs",
 			param:       "dl",
 			value:       "https://example.com/page?gclid=abc123&fbclid=xyz789&foo=bar",
-			expected:    "https://example.com/page?foo=bar",
+			expected:    "https://example.com/page?gclid=abc123&fbclid=xyz789&foo=bar",
 			fieldName:   "page_location",
-			description: "Page location strips click ID parameters",
+			description: "Page location keeps click ID parameters without explicit exclusions",
 		},
 		{
 			name:  "EventPageLocation_StripsAllTrackingParams",
 			param: "dl",
 			value: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
 				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
-			expected:    "https://example.com/page?baz=qux&foo=bar",
+			expected: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
+				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
 			fieldName:   "page_location",
-			description: "Page location strips all tracking parameters (UTM and click IDs)",
+			description: "Page location keeps all tracking parameters without explicit exclusions",
 		},
 		{
 			name:        "EventPageLocation_NoParamsToStrip",

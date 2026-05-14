@@ -92,7 +92,7 @@ var eventPageLocationColumn = columns.NewSimpleEventColumn(
 		if originalURL == "" {
 			return "", nil
 		}
-		cleanedURL, _, err := columns.StripExcludedParams(originalURL)
+		cleanedURL, _, err := columns.StripExcludedParams(originalURL, nil)
 		if err != nil {
 			return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to strip excluded params: %s", err))
 		}
