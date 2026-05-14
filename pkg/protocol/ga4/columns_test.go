@@ -470,8 +470,7 @@ func TestEventColumns(t *testing.T) {
 			param: "dl",
 			value: "https://example.com/page?utm_source=google&utm_medium=cpc&gclid=abc123&" +
 				"fbclid=xyz789&utm_campaign=test&foo=bar&baz=qux",
-			expected: "https://example.com/page?utm_source=google&gclid=abc123&" +
-				"fbclid=xyz789&foo=bar&baz=qux",
+			expected:    "https://example.com/page?baz=qux&fbclid=xyz789&foo=bar&gclid=abc123&utm_source=google",
 			fieldName:   "page_location",
 			description: "Page location strips only custom exclusion list",
 			settingsOpts: []properties.TestSettingsOption{

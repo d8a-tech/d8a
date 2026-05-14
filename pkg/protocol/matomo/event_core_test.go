@@ -154,7 +154,7 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 				properties.WithExcludedURLParams([]string{"utm_medium", "utm_campaign"}),
 			},
 			fieldName:   "page_location",
-			expected:    "https://example.com/path?utm_source=google&gclid=abc123&fbclid=xyz789&foo=bar&baz=qux",
+			expected:    "https://example.com/path?baz=qux&fbclid=xyz789&foo=bar&gclid=abc123&utm_source=google",
 			description: "Page location strips only custom exclusion list",
 		},
 		{
