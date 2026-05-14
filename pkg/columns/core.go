@@ -82,7 +82,8 @@ var CoreInterfaces = struct {
 	SSETrafficFilterName      schema.Interface
 
 	// Session columns
-	SessionID schema.Interface
+	SessionID       schema.Interface
+	SessionClientID schema.Interface
 
 	SessionSource schema.Interface
 	SessionMedium schema.Interface
@@ -434,6 +435,10 @@ var CoreInterfaces = struct {
 	SessionID: schema.Interface{
 		ID:    "core.d8a.tech/sessions/id",
 		Field: &arrow.Field{Name: "session_id", Type: arrow.BinaryTypes.String},
+	},
+	SessionClientID: schema.Interface{
+		ID:    "core.d8a.tech/sessions/client_id",
+		Field: &arrow.Field{Name: "session_client_id", Type: arrow.BinaryTypes.String},
 	},
 	SessionSource: schema.Interface{
 		ID:    "core.d8a.tech/sessions/source",
