@@ -143,6 +143,7 @@ func eventColumns(psr properties.SettingsRegistry) []schema.EventColumn {
 func sessionColumns() []schema.SessionColumn {
 	return []schema.SessionColumn{
 		sessioncolumns.SessionIDColumn,
+		sessioncolumns.SessionClientIDColumn,
 		sessioncolumns.FirstEventTimeColumn,
 		sessioncolumns.LastEventTimeColumn,
 		sessioncolumns.DurationColumn,
