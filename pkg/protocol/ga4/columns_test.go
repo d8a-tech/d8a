@@ -444,6 +444,21 @@ func TestEventColumns(t *testing.T) {
 			description: "Empty page location",
 		},
 		{
+			name:        "EventPageLocation_StripsHistoricalDefaults",
+			param:       "dl",
+			value:       "https://example.com/page?utm_source=google&gclid=abc123&fbclid=xyz789&foo=bar",
+			expected:    "https://example.com/page?foo=bar",
+			fieldName:   "page_location",
+			description: "Page location strips historical CLI default exclusions",
+			settingsOpts: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{
+					"utm_marketing_tactic", "utm_source_platform", "utm_term", "utm_content", "utm_source",
+					"utm_medium", "utm_campaign", "utm_id", "utm_creative_format", "gclid", "dclid",
+					"srsltid", "gbraid", "wbraid", "fbclid", "msclkid",
+				}),
+			},
+		},
+		{
 			name:        "EventPageLocation_StripsUTMParams",
 			param:       "dl",
 			value:       "https://example.com/page?utm_source=google&utm_medium=cpc&utm_campaign=test&foo=bar",

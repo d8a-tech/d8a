@@ -119,6 +119,23 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 			description: "Valid page location via Matomo url parameter",
 		},
 		{
+			name:      "EventPageLocation_StripsHistoricalDefaults",
+			buildHits: single(buildPageViewHit),
+			cfg: []columntests.CaseConfigFunc{
+				columntests.EnsureQueryParam(0, "url", "https://example.com/path?utm_source=google&gclid=abc123&fbclid=xyz789&foo=bar"),
+			},
+			settingsOpt: []properties.TestSettingsOption{
+				properties.WithExcludedURLParams([]string{
+					"utm_marketing_tactic", "utm_source_platform", "utm_term", "utm_content", "utm_source",
+					"utm_medium", "utm_campaign", "utm_id", "utm_creative_format", "gclid", "dclid",
+					"srsltid", "gbraid", "wbraid", "fbclid", "msclkid",
+				}),
+			},
+			fieldName:   "page_location",
+			expected:    "https://example.com/path?foo=bar",
+			description: "Page location strips historical CLI default exclusions",
+		},
+		{
 			name:      "EventPageLocation_StripsUTMParams",
 			buildHits: single(buildPageViewHit),
 			cfg: []columntests.CaseConfigFunc{
