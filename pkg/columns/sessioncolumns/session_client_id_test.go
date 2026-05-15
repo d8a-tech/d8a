@@ -10,6 +10,8 @@ import (
 )
 
 func TestSessionClientIDColumn_Write(t *testing.T) {
+	assert.True(t, SessionClientIDColumn.Implements().Field.Nullable)
+
 	tests := []struct {
 		name             string
 		session          *schema.Session

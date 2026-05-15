@@ -438,7 +438,7 @@ var CoreInterfaces = struct {
 	},
 	SessionClientID: schema.Interface{
 		ID:    "core.d8a.tech/sessions/client_id",
-		Field: &arrow.Field{Name: "session_client_id", Type: arrow.BinaryTypes.String},
+		Field: &arrow.Field{Name: "session_client_id", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionSource: schema.Interface{
 		ID:    "core.d8a.tech/sessions/source",
