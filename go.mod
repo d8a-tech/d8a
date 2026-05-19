@@ -28,7 +28,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/gcloud v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.42.0
 	github.com/urfave/cli-altsrc/v3 v3.1.0
-	github.com/urfave/cli/v3 v3.8.0
+	github.com/urfave/cli/v3 v3.9.0
 	github.com/valyala/fasthttp v1.70.0
 	go.etcd.io/bbolt v1.4.3
 	go.opentelemetry.io/otel v1.43.0
