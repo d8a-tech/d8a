@@ -1,0 +1,241 @@
+---
+toc_max_heading_level: 2
+sidebar_position: 1
+---
+
+import TOCInline from "@theme/TOCInline";
+import CodeBlock from "@theme/CodeBlock";
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
+import ga4DuplicatorMin from "!!raw-loader!./ga4-duplicator/gd.min.js";
+import ga4Duplicator from "!!raw-loader!./ga4-duplicator/gd.js";
+import GA4DuplicatorSnippetGenerator from "@site/src/components/GA4DuplicatorSnippetGenerator";
+
+# Google Analytics 4
+
+Deze gids behandelt methoden om Google Analytics 4 (GA4)-events te onderscheppen. Kies de methode die het beste bij je behoeften past.
+
+**Methode 1 en 2** zijn voor **web tracking met client-side GTM**, **Methode 3** is voor **web tracking met directe `gtag` (zonder GTM)**, en **Methode 4** is voor **server-side tracking** (server-side GTM).
+
+---
+
+## Methode 1: GA4-verzoeken dupliceren in GTM (aanbevolen)
+
+Bij deze methode blijft je bestaande GA4-opstelling intact, terwijl events naar een custom endpoint worden gedupliceerd. Je data blijft gewoon naar Google Analytics stromen.
+
+### Stappen:
+
+1. **Open Google Tag Manager**
+   - Navigeer naar je GTM-container
+   - Ga naar de sectie **Tags**
+
+2. **Maak een Custom HTML Tag**
+   - Klik op **New** om een nieuwe tag te maken
+   - Kies **Custom HTML** als tagtype
+   - Noem hem: `D8A GA4 Duplicator`
+
+3. **Voeg je onderscheppingscode toe**
+   - Plak je hieronder gegenereerde custom code in het HTML-veld
+
+:::note
+De duplicator kopieert GA4-trackingverzoeken naar je endpoint terwijl de originele Google Analytics-verzoeken intact blijven. Hij doet dit door veelvoorkomende request-mechanismen te onderscheppen (`XMLHttpRequest`, `fetch`, `navigator.sendBeacon` en `src`-toewijzingen van scripts).
+
+Gebruik de geminificeerde snippet voor productie, of de niet-geminificeerde versie voor controle. Je kunt de volledige implementatie ook bekijken in de [broncode](https://github.com/d8a-tech/d8a/tree/master/js/ga4-duplicator).
+:::
+
+<div className="d8a-tabs-border">
+<Tabs>
+<TabItem value="minified" label="Geminificeerd (voor productie)" default>
+
+<GA4DuplicatorSnippetGenerator ga4DuplicatorMin={ga4DuplicatorMin} />
+
+</TabItem>
+<TabItem value="non-minified" label="Niet-geminificeerd (voor controle)">
+
+<CodeBlock language="html">
+{`<script>
+var trackingURL = "https://global.t.d8a.tech/<property_id>/g/collect"; // Replace it with your tracking URL
+
+${ga4Duplicator}
+
+window.createGA4Duplicator({
+server_container_url: trackingURL,
+});
+
+</script>`}
+</CodeBlock>
+
+</TabItem>
+</Tabs>
+</div>
+
+4. **Sla de tag op**
+   - Sla je **D8A GA4 Duplicator**-tag op zodat hij beschikbaar is wanneer je in de volgende stap de Google Tag configureert
+   - Let op: je hoeft aan deze tag geen trigger toe te voegen
+
+5. **Laat de duplicator vóór de Google Tag afvuren**
+   - Open je **Google Tag** (je GA4-configuratietag)
+   - Klap **Advanced Settings** → **Tag Sequencing** uit
+   - Selecteer onder **Fire a tag before _Google Tag Name_ fires** je **D8A GA4 Duplicator**-tag
+
+6. **Opslaan en publiceren**
+   - Sla je tag op
+   - Dien de wijzigingen in en publiceer je container
+
+Je kunt nu [je web tracking-setup testen](#testing-your-web-tracking-setup).
+
+---
+
+## Methode 2: Alle GA4-verzoeken omleiden in GTM
+
+⚠️ **Waarschuwing:** Deze methode stopt het verzenden van data naar je GA4-property. Gebruik dit alleen als je tracking volledig naar je d8a-instantie wilt omleiden.
+
+### Stappen:
+
+1. **Open Google Tag Manager**
+   - Navigeer naar je GTM-container
+   - Ga naar de sectie **Tags**
+
+2. **Pas je Google Tag aan**
+   - Zoek je bestaande **Google Tag** (GA4-configuratietag)
+   - Bewerk de tagconfiguratie
+
+3. **Wijzig de Server Container URL**
+   - Voeg in de Configuration-instellingen van de tag een nieuwe parameter toe met de naam `server_container_url`
+   - Stel de waarde in op je d8a-trackingdomein, bijv. `https://example.org/`
+     :::note
+     Google voegt automatisch `/g/collect` aan deze waarde toe, dus neem `/g/collect` niet op in `server_container_url`.
+     :::
+
+---
+
+## Methode 3: GA4-verzoeken rechtstreeks dupliceren met `gtag`
+
+Deze methode dupliceert verzoeken op het niveau van de Google Tag (`gtag`) door `service_container_url` als extra bestemming toe te voegen.
+
+:::note
+Deze methode gaat ervan uit dat `gtag` al rechtstreeks in je HTML is geïnstalleerd (zonder web-GTM).
+:::
+
+### Stappen:
+
+1. **Bevestig je directe `gtag`-opstelling**
+   - Controleer of de standaard Google tag-snippet al op je pagina aanwezig is (bijvoorbeeld in `<head>`)
+
+2. **Behoud je bestaande GA4-config-aanroep**
+   - Laat je primaire `gtag('config', 'G-XXXXXXX')`-aanroep ongewijzigd
+
+3. **Voeg een tweede config-aanroep toe met `service_container_url`**
+   - Voeg nog een `gtag('config', ...)`-aanroep toe voor dezelfde Google tag-ID
+   - Stel `service_container_url` in op je d8a-endpoint-URL, bijvoorbeeld: `https://global.t.d8a.tech/13370000-1984-0042-0069-c0ffee123456/g/collect`
+   - Voorbeeld:
+
+```html
+<script
+  async
+  src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXX"
+></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() {
+    dataLayer.push(arguments);
+  }
+  gtag("js", new Date());
+
+  // Existing GA4 destination
+  gtag("config", "G-XXXXXXX");
+
+  // Additional destination for duplicated traffic
+  gtag("config", "<property_id>", {
+    service_container_url: "https://global.t.d8a.tech/<property_id>/g/collect",
+  });
+</script>
+```
+
+## Je web tracking-setup testen {#testing-your-web-tracking-setup}
+
+1. **Open de DevTools van je browser**
+   - Ga naar het tabblad Network
+   - Filter op "collect" of je endpoint-domein
+
+2. **Activeer test-events**
+   - Navigeer tussen pagina's, klik op knoppen, verstuur formulieren
+   - Let op uitgaande verzoeken
+
+3. **Verifieer de datastroom**
+   - Methode 1: Controleer of zowel GA4 als je endpoint data ontvangen
+   - Methode 2: Controleer of alleen je endpoint data ontvangt
+   - Methode 3: Controleer of GA4-verkeer wordt gedupliceerd naar je `service_container_url`-endpoint
+
+4. **Optioneel: gebruik de GTM Preview-modus (alleen Methode 1 en 2)**
+   - Schakel de Preview-modus in GTM in
+   - Verifieer dat tags in de juiste volgorde afvuren
+   - Controleer op fouten in de console
+
+---
+
+## Methode 4: Verzoeken dupliceren in Google Tag Manager server-side
+
+Deze methode dupliceert GA4-verzoeken op het niveau van de server-side container, wat handig is voor server-side tracking-implementaties.
+
+:::note
+Deze methode gaat ervan uit dat je al een werkende GA4-client hebt geconfigureerd in je Google Tag Manager server-side container. Als je server-side GTM nog niet hebt opgezet, configureer dan eerst je GA4-client.
+:::
+
+### Stappen:
+
+1. **Maak een User-Agent-variabele**
+   - Ga naar **Variables** in je server-side GTM-container
+   - Klik op **New** om een nieuwe variabele te maken
+   - Kies **Request Header** als variabeletype
+   - Stel de **Variable Name** in op: `User-Agent`
+   - Stel de **Header Name** in op: `User-Agent`
+   - Sla de variabele op
+
+2. **Maak een X-Forwarded-For-variabele**
+   - Maak nog een nieuwe variabele
+   - Kies **Request Header** als variabeletype
+   - Stel de **Variable Name** in op: `X-Forwarded-For`
+   - Stel de **Header Name** in op: `X-Forwarded-For`
+   - Sla de variabele op
+
+3. **Voeg de JSON HTTP Request-tagtemplate toe**
+   - Ga naar **Templates** in je server-side GTM-container
+   - Klik op **Search Gallery**
+   - Zoek naar en voeg de **JSON HTTP request**-tagtemplate uit de community gallery toe
+
+4. **Maak een nieuwe Tag**
+   - Ga naar **Tags** en klik op **New**
+   - Kies de zojuist toegevoegde **JSON HTTP request**-tagtemplate
+   - Configureer de tag:
+     - **Destination URL**: `<your-d8a-instance-url>{{Request Path}}?{{Query String}}`
+       - Vervang `<your-d8a-installation-url>` door je d8a-endpoint-URL (bijv. `https://example.org`)
+       - Je voltooide Destination URL zou er bijvoorbeeld zo uit moeten zien:  
+          `https://example.org{{Request Path}}?{{Query String}}`
+         :::note
+         `{{Request Path}}` en `{{Query String}}` zijn ingebouwde variabelen die beschikbaar zijn in server-side GTM.
+         :::
+   - Voeg in de sectie **Request Headers** twee entries toe:
+     - **Eerste entry:**
+       - **Key**: `User-Agent`
+       - **Value**: `{{User-Agent}}`
+     - **Tweede entry:**
+       - **Key**: `X-Forwarded-For`
+       - **Value**: `{{X-Forwarded-For}}`
+
+5. **Configureer de Trigger**
+   - Selecteer in de sectie **Triggering** dezelfde trigger die je voor je GA4-verkeer gebruikt. Zo zorg je ervoor dat de tag afvuurt telkens wanneer GA4-events worden verwerkt
+
+6. **Opslaan en publiceren**
+   - Sla je tag op
+   - Dien de wijzigingen in en publiceer je server-side container
+
+## Je server-side tracking-setup testen
+
+Gebruik om je server-side opstelling te testen de debug-modus in Google Tag Manager server-side. Hiermee kun je verifiëren dat verzoeken correct naar je d8a-endpoint worden gedupliceerd. De uiteindelijke URL en de respons van de d8a-server zijn beschikbaar in het tabblad Console.
+
+---
+
+## Liever een native tracker?
+
+Als je bestaande GA4-tracking niet wilt onderscheppen en de voorkeur geeft aan een opstelling die onafhankelijk is van Google, gebruik dan onze speciale gtag-compatibele web tracker: [Web tracker](/nl/articles/sources/web-tracker/).
