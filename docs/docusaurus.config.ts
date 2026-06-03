@@ -27,7 +27,11 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'nl'],
+    localeConfigs: {
+      en: { label: 'English' },
+      nl: { label: 'Nederlands' },
+    },
   },
 
   // Enable mermaid support
@@ -93,6 +97,10 @@ const config: Config = {
         {
           href: 'https://github.com/d8a-tech/d8a',
           label: 'GitHub',
+          position: 'right',
+        },
+        {
+          type: 'localeDropdown',
           position: 'right',
         },
       ],

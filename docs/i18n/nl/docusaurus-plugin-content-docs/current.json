@@ -1,0 +1,30 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.defaultSidebar.category.Articles": {
+    "message": "Artikelen",
+    "description": "The label for category 'Articles' in sidebar 'defaultSidebar'"
+  },
+  "sidebar.defaultSidebar.category.Sources": {
+    "message": "Bronnen",
+    "description": "The label for category 'Sources' in sidebar 'defaultSidebar'"
+  },
+  "sidebar.defaultSidebar.category.Native web tracker": {
+    "message": "Native web tracker",
+    "description": "The label for category 'Native web tracker' in sidebar 'defaultSidebar'"
+  },
+  "sidebar.defaultSidebar.category.Database schema": {
+    "message": "Databaseschema",
+    "description": "The label for category 'Database schema' in sidebar 'defaultSidebar'"
+  },
+  "sidebar.defaultSidebar.category.Tracking protocols": {
+    "message": "Trackingprotocollen",
+    "description": "The label for category 'Tracking protocols' in sidebar 'defaultSidebar'"
+  },
+  "sidebar.defaultSidebar.category.Warehouses": {
+    "message": "Warehouses",
+    "description": "The label for category 'Warehouses' in sidebar 'defaultSidebar'"
+  }
+}

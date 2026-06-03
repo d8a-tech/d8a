@@ -1,0 +1,22 @@
+{
+  "title": {
+    "message": "d8a.tech",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "d8a.tech-logo",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Documentation": {
+    "message": "Documentatie",
+    "description": "Navbar item with label Documentation"
+  },
+  "item.label.Website": {
+    "message": "Website",
+    "description": "Navbar item with label Website"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}
