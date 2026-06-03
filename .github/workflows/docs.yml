@@ -43,7 +43,10 @@ jobs:
         run: go run main.go columns --property-id=1337 --protocol=matomo --output=markdown >> docs/docs/articles/database-schema/matomo.md
       
       - name: Generate configuration documentation
-        run: go run main.go config-docs >> docs/docs/articles/config.md
+        # Append to both the English source and the Dutch (nl) localized copy.
+        # The Dutch config page stays English, but must be a localized doc so the
+        # relative links in the generated content resolve within the nl locale.
+        run: go run main.go config-docs | tee -a docs/docs/articles/config.md >> docs/i18n/nl/docusaurus-plugin-content-docs/current/articles/config.md
 
       - name: Build docs
         working-directory: docs
