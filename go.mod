@@ -41,7 +41,7 @@ require (
 	golang.org/x/sync v0.20.0
 	google.golang.org/api v0.283.0
 	gopkg.in/yaml.v3 v3.0.1
-	oras.land/oras-go/v2 v2.6.0
+	oras.land/oras-go/v2 v2.6.1
 )
 
 require (
