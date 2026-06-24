@@ -57,6 +57,7 @@ var CoreInterfaces = struct {
 	// Device
 	DeviceCategory               schema.Interface
 	DeviceLanguage               schema.Interface
+	DeviceScreenResolution       schema.Interface
 	DeviceMobileBrandName        schema.Interface
 	DeviceMobileModelName        schema.Interface
 	DeviceOperatingSystem        schema.Interface
@@ -344,6 +345,10 @@ var CoreInterfaces = struct {
 	DeviceLanguage: schema.Interface{
 		ID:    "core.d8a.tech/events/device_language",
 		Field: &arrow.Field{Name: "device_language", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	DeviceScreenResolution: schema.Interface{
+		ID:    "core.d8a.tech/events/device_screen_resolution",
+		Field: &arrow.Field{Name: "device_screen_resolution", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	DeviceMobileBrandName: schema.Interface{
 		ID:    "core.d8a.tech/events/device_mobile_brand_name",

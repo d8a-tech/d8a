@@ -36,6 +36,22 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			description: "Valid device language via query param",
 		},
 		{
+			name:        "DeviceScreenResolutionViaQueryParam",
+			param:       "sr",
+			value:       "1920x1080",
+			expected:    "1920x1080",
+			fieldName:   "device_screen_resolution",
+			description: "Valid device screen resolution via query param",
+		},
+		{
+			name:        "DeviceScreenResolutionEmptyViaQueryParam",
+			param:       "sr",
+			value:       "",
+			expected:    nil,
+			fieldName:   "device_screen_resolution",
+			description: "Empty device screen resolution via query param writes nil",
+		},
+		{
 			name: "Iphone_DeviceLanguageViaHeader",
 			headers: http.Header{
 				"Accept-Language": []string{"en-gb"},

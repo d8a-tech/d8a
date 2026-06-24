@@ -96,6 +96,14 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			description: "Valid device operating system version via header",
 		},
 		{
+			name:        "DeviceScreenResolutionViaQueryParam",
+			param:       "sr",
+			value:       "1920x1080",
+			expected:    "1920x1080",
+			fieldName:   "device_screen_resolution",
+			description: "Valid device screen resolution via query param",
+		},
+		{
 			name: "Iphone_DeviceWebBrowserViaHeader",
 			headers: http.Header{
 				"User-Agent": []string{iphoneUA},
@@ -155,6 +163,13 @@ func TestDeviceRelatedEventColumns(t *testing.T) {
 			expected:    nil,
 			fieldName:   "device_language",
 			description: "Valid device language",
+		},
+		{
+			name:        "Nil_DeviceScreenResolution",
+			headers:     http.Header{},
+			expected:    nil,
+			fieldName:   "device_screen_resolution",
+			description: "Missing device screen resolution writes nil",
 		},
 		{
 			name:        "Nil_DeviceWebBrowser",

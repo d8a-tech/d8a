@@ -30,6 +30,7 @@ func eventColumns(pageLocationColumn schema.EventColumn) []schema.EventColumn {
 		eventTrackingProtocolColumn,
 		eventPlatformColumn,
 		deviceLanguageColumn,
+		deviceScreenResolutionColumn,
 		eventLinkURLColumn,
 		eventDownloadURLColumn,
 		eventSearchTermColumn,

@@ -221,6 +221,22 @@ func TestMatomoEventCoreColumns(t *testing.T) {
 			description: "Device language via lang query parameter",
 		},
 		{
+			name:        "DeviceScreenResolution_ViaParam",
+			buildHits:   single(buildPageViewHit),
+			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "res", "1920x1080")},
+			fieldName:   "device_screen_resolution",
+			expected:    "1920x1080",
+			description: "Device screen resolution via res query parameter",
+		},
+		{
+			name:        "DeviceScreenResolution_EmptyParam",
+			buildHits:   single(buildPageViewHit),
+			cfg:         []columntests.CaseConfigFunc{columntests.EnsureQueryParam(0, "res", "")},
+			fieldName:   "device_screen_resolution",
+			expected:    nil,
+			description: "Empty device screen resolution via res query parameter writes nil",
+		},
+		{
 			name:      "DeviceLanguage_ViaHeader",
 			buildHits: single(buildPageViewHit),
 			cfg: []columntests.CaseConfigFunc{
