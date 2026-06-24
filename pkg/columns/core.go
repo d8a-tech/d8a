@@ -57,6 +57,7 @@ var CoreInterfaces = struct {
 	// Device
 	DeviceCategory               schema.Interface
 	DeviceLanguage               schema.Interface
+	DeviceScreenResolution       schema.Interface
 	DeviceMobileBrandName        schema.Interface
 	DeviceMobileModelName        schema.Interface
 	DeviceOperatingSystem        schema.Interface
@@ -121,6 +122,25 @@ var CoreInterfaces = struct {
 	SessionClickIDWbraid  schema.Interface
 	SessionClickIDFbclid  schema.Interface
 	SessionClickIDMsclkid schema.Interface
+
+	// Session Geo
+	SessionGeoCity         schema.Interface
+	SessionGeoRegion       schema.Interface
+	SessionGeoMetro        schema.Interface
+	SessionGeoCountry      schema.Interface
+	SessionGeoContinent    schema.Interface
+	SessionGeoSubContinent schema.Interface
+
+	// Session Device
+	SessionDeviceCategory               schema.Interface
+	SessionDeviceLanguage               schema.Interface
+	SessionDeviceMobileBrandName        schema.Interface
+	SessionDeviceMobileModelName        schema.Interface
+	SessionDeviceOperatingSystem        schema.Interface
+	SessionDeviceOperatingSystemVersion schema.Interface
+	SessionDeviceWebBrowser             schema.Interface
+	SessionDeviceWebBrowserVersion      schema.Interface
+	SessionDeviceScreenResolution       schema.Interface
 
 	// Totals
 	SessionTotalPageViews         schema.Interface
@@ -345,6 +365,10 @@ var CoreInterfaces = struct {
 		ID:    "core.d8a.tech/events/device_language",
 		Field: &arrow.Field{Name: "device_language", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
+	DeviceScreenResolution: schema.Interface{
+		ID:    "core.d8a.tech/events/device_screen_resolution",
+		Field: &arrow.Field{Name: "device_screen_resolution", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
 	DeviceMobileBrandName: schema.Interface{
 		ID:    "core.d8a.tech/events/device_mobile_brand_name",
 		Field: &arrow.Field{Name: "device_mobile_brand_name", Type: arrow.BinaryTypes.String, Nullable: true},
@@ -559,6 +583,91 @@ var CoreInterfaces = struct {
 	SessionClickIDMsclkid: schema.Interface{
 		ID:    "core.d8a.tech/sessions/click_id_msclkid",
 		Field: &arrow.Field{Name: "session_click_id_msclkid", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionGeoCity: schema.Interface{
+		ID:    "core.d8a.tech/sessions/geo_city",
+		Field: &arrow.Field{Name: "session_geo_city", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionGeoRegion: schema.Interface{
+		ID:    "core.d8a.tech/sessions/geo_region",
+		Field: &arrow.Field{Name: "session_geo_region", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionGeoMetro: schema.Interface{
+		ID:    "core.d8a.tech/sessions/geo_metro",
+		Field: &arrow.Field{Name: "session_geo_metro", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionGeoCountry: schema.Interface{
+		ID: "core.d8a.tech/sessions/geo_country",
+		Field: &arrow.Field{
+			Name:     "session_geo_country",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
+	},
+	SessionGeoContinent: schema.Interface{
+		ID: "core.d8a.tech/sessions/geo_continent",
+		Field: &arrow.Field{
+			Name:     "session_geo_continent",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
+	},
+	SessionGeoSubContinent: schema.Interface{
+		ID:    "core.d8a.tech/sessions/geo_sub_continent",
+		Field: &arrow.Field{Name: "session_geo_sub_continent", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceCategory: schema.Interface{
+		ID: "core.d8a.tech/sessions/device_category",
+		Field: &arrow.Field{
+			Name:     "session_device_category",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
+	},
+	SessionDeviceLanguage: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_language",
+		Field: &arrow.Field{Name: "session_device_language", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceMobileBrandName: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_mobile_brand_name",
+		Field: &arrow.Field{Name: "session_device_mobile_brand_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceMobileModelName: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_mobile_model_name",
+		Field: &arrow.Field{Name: "session_device_mobile_model_name", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceOperatingSystem: schema.Interface{
+		ID: "core.d8a.tech/sessions/device_operating_system",
+		Field: &arrow.Field{
+			Name:     "session_device_operating_system",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
+	},
+	SessionDeviceOperatingSystemVersion: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_operating_system_version",
+		Field: &arrow.Field{Name: "session_device_operating_system_version", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceWebBrowser: schema.Interface{
+		ID: "core.d8a.tech/sessions/device_web_browser",
+		Field: &arrow.Field{
+			Name:     "session_device_web_browser",
+			Type:     arrow.BinaryTypes.String,
+			Nullable: true,
+			Metadata: arrow.NewMetadata([]string{meta.ClickhouseLowCardinalityMetadata}, []string{"true"}),
+		},
+	},
+	SessionDeviceWebBrowserVersion: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_web_browser_version",
+		Field: &arrow.Field{Name: "session_device_web_browser_version", Type: arrow.BinaryTypes.String, Nullable: true},
+	},
+	SessionDeviceScreenResolution: schema.Interface{
+		ID:    "core.d8a.tech/sessions/device_screen_resolution",
+		Field: &arrow.Field{Name: "session_device_screen_resolution", Type: arrow.BinaryTypes.String, Nullable: true},
 	},
 	SessionTotalPageViews: schema.Interface{
 		ID:    "core.d8a.tech/sessions/total_page_views",

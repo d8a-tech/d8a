@@ -409,6 +409,7 @@ func (p *ga4Protocol) Columns() schema.Columns { //nolint:funlen // contains all
 			renewalCountParamColumn,
 			// Device columns
 			deviceLanguageColumn,
+			deviceScreenResolutionColumn,
 			// Date columns
 			eventTimestampUTCColumn,
 			eventDateUTCColumn,

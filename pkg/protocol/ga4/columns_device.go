@@ -20,3 +20,17 @@ var deviceLanguageColumn = columns.NewLanguageColumn(
 		"The language setting of the user's device, extracted from query parameters or Accept-Language header, based on ISO 639 standard for languages and ISO 3166 for country codes (e.g., 'en-us', 'en-gb', 'de-de').", // nolint:lll // it's a description
 	),
 )
+
+var deviceScreenResolutionColumn = columns.FromQueryParamEventColumn(
+	columns.CoreInterfaces.DeviceScreenResolution.ID,
+	columns.CoreInterfaces.DeviceScreenResolution.Field,
+	"sr",
+	columns.WithEventColumnRequired(false),
+	columns.WithEventColumnCast(
+		columns.StrNilIfErrorOrEmpty(columns.CastToString(columns.CoreInterfaces.DeviceScreenResolution.ID)),
+	),
+	columns.WithEventColumnDocs(
+		"Device screen resolution",
+		"The screen resolution of the user's device (e.g., '1920x1080', '375x667').",
+	),
+)
