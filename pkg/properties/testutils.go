@@ -19,6 +19,13 @@ func WithExcludedURLParams(params []string) TestSettingsOption {
 	}
 }
 
+// WithIPMaskingLevel sets the IP masking level for test settings.
+func WithIPMaskingLevel(level int) TestSettingsOption {
+	return func(s *Settings) {
+		s.IPMaskingLevel = level
+	}
+}
+
 // NewTestSettingRegistry is a test property source that returns a static property configuration.
 func NewTestSettingRegistry(opts ...TestSettingsOption) SettingsRegistry {
 	settings := &Settings{
@@ -29,6 +36,7 @@ func NewTestSettingRegistry(opts ...TestSettingsOption) SettingsRegistry {
 
 		SessionJoinBySessionStamp: true,
 		SessionJoinByUserID:       true,
+		IPMaskingLevel:            0,
 	}
 	for _, opt := range opts {
 		opt(settings)
