@@ -511,3 +511,51 @@ func TestNewServer_WithTrustAllProxies(t *testing.T) {
 	// then
 	assert.IsType(t, allProxyTrust{}, s.proxyTrust)
 }
+
+func TestMaskIPByPrivacyLevel(t *testing.T) {
+	tests := []struct {
+		name     string
+		ip       string
+		level    int
+		expected string
+	}{
+		{name: "ipv4 level 0", ip: "192.168.100.123", level: 0, expected: "192.168.100.123"},
+		{name: "ipv4 level 1", ip: "192.168.100.123", level: 1, expected: "192.168.100.0"},
+		{name: "ipv4 level 2", ip: "192.168.100.123", level: 2, expected: "192.168.0.0"},
+		{name: "ipv4 level 3", ip: "192.168.100.123", level: 3, expected: "192.0.0.0"},
+		{name: "ipv4 level 4", ip: "192.168.100.123", level: 4, expected: "0.0.0.0"},
+		{
+			name:     "ipv6 level 0",
+			ip:       "1050:5678:9012:3456:789a:bcde:f012:3456",
+			level:    0,
+			expected: "1050:5678:9012:3456:789a:bcde:f012:3456",
+		},
+		{name: "ipv6 level 1", ip: "1050:5678:9012:3456:789a:bcde:f012:3456", level: 1, expected: "1050:5678:9012::"},
+		{name: "ipv6 level 2", ip: "1050:5678:9012:3456:789a:bcde:f012:3456", level: 2, expected: "1050:5678::"},
+		{name: "ipv6 level 3", ip: "1050:5678:9012:3456:789a:bcde:f012:3456", level: 3, expected: "1050::"},
+		{name: "ipv6 level 4", ip: "1050:5678:9012:3456:789a:bcde:f012:3456", level: 4, expected: "::"},
+		{name: "invalid ip unchanged", ip: "not-an-ip", level: 2, expected: "not-an-ip"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, maskIPByPrivacyLevel(tt.ip, tt.level))
+		})
+	}
+}
+
+func TestRealIP_TrustedProxyThenMasking(t *testing.T) {
+	// given
+	s := trustedCIDRServer(t, "10.0.0.0/24")
+	ctx := &fasthttp.RequestCtx{}
+	ctx.SetRemoteAddr(&net.TCPAddr{IP: net.ParseIP("10.0.0.5"), Port: 1})
+	ctx.Request.Header.Set("X-Real-IP", "203.0.113.99")
+
+	// when
+	ip := s.realIP(ctx)
+	maskedIP := maskIPByPrivacyLevel(ip, 1)
+
+	// then
+	assert.Equal(t, "203.0.113.99", ip)
+	assert.Equal(t, "203.0.113.0", maskedIP)
+}

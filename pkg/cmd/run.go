@@ -480,16 +480,19 @@ func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter c
 		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
 	}
 
+	settingsRegistry := propertySettings(cmd)
+
 	return receiver.NewServer(
 		storage,
 		receiver.NewNoopRawLogStorage(),
 		receiver.HitValidatingRuleSet(
 			1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-			propertySettings(cmd),
+			settingsRegistry,
 		),
 		[]protocol.Protocol{currentProtocol},
 		cmd.Int(serverPortFlag.Name),
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+		receiver.WithHitProcessingRule(receiver.IPMasking(settingsRegistry)),
 		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
 }

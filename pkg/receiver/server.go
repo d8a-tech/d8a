@@ -113,16 +113,17 @@ const (
 
 // Server holds all server-related dependencies and configuration
 type Server struct {
-	protocols       []protocol.Protocol
-	storage         Storage
-	rawLogStorage   RawLogStorage
-	validationRules HitValidatingRule
-	host            string
-	port            int
-	proxyTrust      ProxyTrust
-	readTimeout     time.Duration
-	writeTimeout    time.Duration
-	maxConcurrency  int
+	protocols          []protocol.Protocol
+	storage            Storage
+	rawLogStorage      RawLogStorage
+	hitProcessingRules HitProcessingRule
+	validationRules    HitValidatingRule
+	host               string
+	port               int
+	proxyTrust         ProxyTrust
+	readTimeout        time.Duration
+	writeTimeout       time.Duration
+	maxConcurrency     int
 }
 
 func WithHost(host string) ServerOption {
@@ -155,6 +156,12 @@ func WithMaxConcurrency(n int) ServerOption {
 	}
 }
 
+func WithHitProcessingRule(rule HitProcessingRule) ServerOption {
+	return func(s *Server) {
+		s.hitProcessingRules = rule
+	}
+}
+
 type ServerOption func(*Server)
 
 // NewServer creates a new Server instance with the provided dependencies
@@ -167,16 +174,17 @@ func NewServer(
 	opts ...ServerOption,
 ) *Server {
 	s := &Server{
-		protocols:       protocols,
-		storage:         storage,
-		rawLogStorage:   rawLogStorage,
-		validationRules: validationRules,
-		host:            "0.0.0.0",
-		port:            port,
-		proxyTrust:      noProxyTrust{},
-		readTimeout:     defaultReadTimeout,
-		writeTimeout:    defaultWriteTimeout,
-		maxConcurrency:  defaultMaxConcurrency,
+		protocols:          protocols,
+		storage:            storage,
+		rawLogStorage:      rawLogStorage,
+		hitProcessingRules: NoopHitProcessingRule,
+		validationRules:    validationRules,
+		host:               "0.0.0.0",
+		port:               port,
+		proxyTrust:         noProxyTrust{},
+		readTimeout:        defaultReadTimeout,
+		writeTimeout:       defaultWriteTimeout,
+		maxConcurrency:     defaultMaxConcurrency,
 	}
 
 	for _, opt := range opts {
@@ -259,19 +267,27 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		Body:               bodyCopy,
 	}
 
-	if err := s.rawLogStorage.Store(request); err != nil {
-		logrus.Errorf("failed to store raw log: %v", err)
-	}
-
 	hits, err := p.Hits(ctx, request)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, hit := range hits {
+		if err := s.hitProcessingRules.Process(p, hit); err != nil {
+			return nil, err
+		}
 		if err := s.validationRules.Validate(p, hit); err != nil {
 			return nil, err
 		}
+	}
+
+	rawLogRequest := request
+	if len(hits) > 0 {
+		rawLogRequest = hits[0].Request
+	}
+
+	if err := s.rawLogStorage.Store(rawLogRequest); err != nil {
+		logrus.Errorf("failed to store raw log: %v", err)
 	}
 
 	return hits, nil

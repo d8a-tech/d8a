@@ -29,6 +29,7 @@ type mockProtocol struct {
 	id      string
 	columns schema.Columns
 	err     error
+	hits    []*hits.Hit
 }
 
 func (m *mockProtocol) ID() string {
@@ -49,6 +50,13 @@ func (m *mockProtocol) Endpoints() []protocol.ProtocolEndpoint {
 }
 
 func (m *mockProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
+	if m.hits != nil {
+		for _, hit := range m.hits {
+			hit.Request = request.Clone()
+		}
+		return m.hits, m.err
+	}
+
 	theHit := hits.New()
 
 	theHit.ClientID = hits.ClientID("test_client_id")
@@ -61,6 +69,37 @@ func (m *mockProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedRequest)
 
 func (m *mockProtocol) Columns() schema.Columns {
 	return m.columns
+}
+
+type capturingRawLogStorage struct {
+	requests []*hits.ParsedRequest
+}
+
+func (c *capturingRawLogStorage) Store(request *hits.ParsedRequest) error {
+	c.requests = append(c.requests, request.Clone())
+	return nil
+}
+
+type settingsRegistryStub struct {
+	settingsByPropertyID map[string]*properties.Settings
+	err                  error
+}
+
+func (s settingsRegistryStub) GetByMeasurementID(string) (*properties.Settings, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (s settingsRegistryStub) GetByPropertyID(propertyID string) (*properties.Settings, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
+
+	settings, ok := s.settingsByPropertyID[propertyID]
+	if !ok {
+		return nil, fmt.Errorf("unknown property ID: %s", propertyID)
+	}
+
+	return settings, nil
 }
 
 func TestHandleRequest(t *testing.T) {
@@ -262,4 +301,213 @@ func TestHandleRequest_ValidationErrorDoesNotLeakDetails(t *testing.T) {
 	assert.NotContains(t, body, "test_protocol")
 	assert.NotContains(t, body, "wrong_protocol")
 	assert.NotContains(t, body, "does not match")
+}
+
+func TestHandleRequest_MasksIPBeforeStorageAndRawLog(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	rawLogStorage := &capturingRawLogStorage{}
+	settingsRegistry := settingsRegistryStub{
+		settingsByPropertyID: map[string]*properties.Settings{
+			"test_property_id": {
+				PropertyID:     "test_property_id",
+				ProtocolID:     "test_protocol",
+				IPMaskingLevel: 1,
+			},
+		},
+	}
+	p := &mockProtocol{id: "test_protocol"}
+	server := NewServer(
+		storage,
+		rawLogStorage,
+		HitValidatingRuleSet(1024*128, settingsRegistry),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+		WithHitProcessingRule(IPMasking(settingsRegistry)),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.123")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusNoContent, ctx.Response.StatusCode())
+	assert.Len(t, storage.hits, 1)
+	assert.Equal(t, "192.168.1.0", storage.hits[0].MustParsedRequest().IP)
+	assert.Len(t, rawLogStorage.requests, 1)
+	assert.Equal(t, "192.168.1.0", rawLogStorage.requests[0].IP)
+}
+
+func TestHandleRequest_IPMaskingRegistryErrorReturnsBadRequest(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	settingsRegistry := settingsRegistryStub{err: fmt.Errorf("registry unavailable")}
+	p := &mockProtocol{id: "test_protocol"}
+	server := NewServer(
+		storage,
+		NewDummyRawLogStorage(),
+		HitValidatingRuleSet(1024*128, properties.NewStaticSettingsRegistry([]properties.Settings{{
+			PropertyID: "test_property_id",
+			ProtocolID: "test_protocol",
+		}})),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+		WithHitProcessingRule(IPMasking(settingsRegistry)),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.123")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Empty(t, storage.hits)
+	assert.Contains(t, string(ctx.Response.Body()), "Bad Request")
+}
+
+func TestHandleRequest_StoresRawLogOnceAfterAllHitsValidate(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	rawLogStorage := &capturingRawLogStorage{}
+	settingsRegistry := settingsRegistryStub{
+		settingsByPropertyID: map[string]*properties.Settings{
+			"test_property_id": {
+				PropertyID:     "test_property_id",
+				ProtocolID:     "test_protocol",
+				IPMaskingLevel: 1,
+			},
+		},
+	}
+	hitOne := hits.New()
+	hitOne.PropertyID = "test_property_id"
+	hitOne.ClientID = "one"
+	hitOne.AuthoritativeClientID = hitOne.ClientID
+	hitOne.EventName = "page_view"
+	hitTwo := hits.New()
+	hitTwo.PropertyID = "test_property_id"
+	hitTwo.ClientID = "two"
+	hitTwo.AuthoritativeClientID = hitTwo.ClientID
+	hitTwo.EventName = "page_view"
+	p := &mockProtocol{id: "test_protocol", hits: []*hits.Hit{hitOne, hitTwo}}
+	server := NewServer(
+		storage,
+		rawLogStorage,
+		HitValidatingRuleSet(1024*128, settingsRegistry),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+		WithHitProcessingRule(IPMasking(settingsRegistry)),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.123")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusNoContent, ctx.Response.StatusCode())
+	assert.Len(t, storage.hits, 2)
+	assert.Len(t, rawLogStorage.requests, 1)
+	assert.Equal(t, "192.168.1.0", rawLogStorage.requests[0].IP)
+}
+
+func TestHandleRequest_DoesNotStoreRawLogWhenLaterHitValidationFails(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	rawLogStorage := &capturingRawLogStorage{}
+	settingsRegistry := settingsRegistryStub{
+		settingsByPropertyID: map[string]*properties.Settings{
+			"test_property_id": {
+				PropertyID: "test_property_id",
+				ProtocolID: "test_protocol",
+			},
+			"bad_property_id": {
+				PropertyID: "bad_property_id",
+				ProtocolID: "different_protocol",
+			},
+		},
+	}
+	hitOne := hits.New()
+	hitOne.PropertyID = "test_property_id"
+	hitOne.ClientID = "one"
+	hitOne.AuthoritativeClientID = hitOne.ClientID
+	hitOne.EventName = "page_view"
+	hitTwo := hits.New()
+	hitTwo.PropertyID = "bad_property_id"
+	hitTwo.ClientID = "two"
+	hitTwo.AuthoritativeClientID = hitTwo.ClientID
+	hitTwo.EventName = "page_view"
+	p := &mockProtocol{id: "test_protocol", hits: []*hits.Hit{hitOne, hitTwo}}
+	server := NewServer(
+		storage,
+		rawLogStorage,
+		HitValidatingRuleSet(1024*128, settingsRegistry),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+		WithHitProcessingRule(IPMasking(settingsRegistry)),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.123")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Empty(t, storage.hits)
+	assert.Empty(t, rawLogStorage.requests)
+}
+
+func TestHandleRequest_StoresRawLogOnceForSuccessfulZeroHitRequest(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	rawLogStorage := &capturingRawLogStorage{}
+	p := &mockProtocol{id: "test_protocol", hits: []*hits.Hit{}}
+	server := NewServer(
+		storage,
+		rawLogStorage,
+		HitValidatingRuleSet(1024*128, properties.NewStaticSettingsRegistry([]properties.Settings{{
+			PropertyID: "test_property_id",
+			ProtocolID: "test_protocol",
+		}})),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+	)
+
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.123")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusNoContent, ctx.Response.StatusCode())
+	assert.Empty(t, storage.hits)
+	assert.Len(t, rawLogStorage.requests, 1)
+	assert.Equal(t, "192.168.1.123", rawLogStorage.requests[0].IP)
 }
