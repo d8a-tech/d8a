@@ -124,6 +124,56 @@ func ExctractFieldValue(field string) func(*schema.Event) (any, schema.D8AColumn
 	}
 }
 
+// FirstEventValueFromMostFrequentClientIDColumn creates a session column that counts events by BoundHit.ClientID,
+// chooses the client ID with the highest event count, and extracts the value from that client ID's first event in
+// session order. If multiple client IDs tie, it chooses the one whose first event appears earliest in session.Events.
+func FirstEventValueFromMostFrequentClientIDColumn(
+	columnID schema.InterfaceID,
+	field *arrow.Field,
+	extract func(*schema.Event) (any, schema.D8AColumnWriteError),
+	options ...SessionColumnOptions,
+) schema.SessionColumn {
+	type clientIDStats struct {
+		count      int
+		firstIndex int
+		firstEvent *schema.Event
+	}
+
+	return NewSimpleSessionColumn(
+		columnID,
+		field,
+		func(session *schema.Session) (any, schema.D8AColumnWriteError) {
+			if len(session.Events) == 0 {
+				return nil, schema.NewBrokenSessionError("session has no events")
+			}
+
+			statsByClientID := make(map[hits.ClientID]*clientIDStats)
+			var selected *clientIDStats
+
+			for i, event := range session.Events {
+				stats, ok := statsByClientID[event.BoundHit.ClientID]
+				if !ok {
+					stats = &clientIDStats{
+						firstIndex: i,
+						firstEvent: event,
+					}
+					statsByClientID[event.BoundHit.ClientID] = stats
+				}
+
+				stats.count++
+
+				if selected == nil || stats.count > selected.count ||
+					(stats.count == selected.count && stats.firstIndex < selected.firstIndex) {
+					selected = stats
+				}
+			}
+
+			return extract(selected.firstEvent)
+		},
+		options...,
+	)
+}
+
 // NthEventMatchingPredicateValueColumn creates a session column that extracts a value from the nth event
 // that matches the given predicate. This allows protocol-specific filtering (e.g., only page view events).
 // Supports negative indices to count from the end (e.g., -1 for last matching event).
