@@ -356,6 +356,19 @@ var propertySettingsSplitByMaxEventsFlag *cli.IntFlag = &cli.IntFlag{
 	Value:   1000,
 }
 
+var propertySettingsIPMaskingLevelFlag *cli.IntFlag = &cli.IntFlag{
+	Name: "property-settings-ip-masking-level",
+	Usage: "Property setting property.settings.ip_masking_level. Controls privacy masking for client IP addresses. " +
+		"0: disabled. " +
+		"1: IPv4 /24, IPv6 /48. " +
+		"2: IPv4 /16, IPv6 /32. " +
+		"3: IPv4 /8, IPv6 /16. " +
+		"4: IPv4 /0, IPv6 /0. " +
+		"Session-stamp joining must be disabled when this level is non-zero.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("PROPERTY_SETTINGS_IP_MASKING_LEVEL", "property.settings.ip_masking_level"),
+	Value:   0,
+}
+
 var historicalExcludedURLParams = []string{
 	"utm_marketing_tactic",
 	"utm_source_platform",
@@ -707,6 +720,7 @@ func getServerFlags() []cli.Flag {
 			propertyNameFlag,
 			propertySettingsSplitByUserIDFlag,
 			propertySettingsSplitByCampaignFlag,
+			propertySettingsIPMaskingLevelFlag,
 			protocolFlag,
 			matomoTrackingEndpointsFlag,
 			ga4ParamsFlag,

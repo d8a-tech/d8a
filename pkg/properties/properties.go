@@ -23,6 +23,7 @@ type Settings struct {
 	SessionTimeout            time.Duration
 	SessionJoinBySessionStamp bool
 	SessionJoinByUserID       bool
+	IPMaskingLevel            int
 
 	Filters           *FiltersConfig
 	CustomColumns     []CustomColumnConfig

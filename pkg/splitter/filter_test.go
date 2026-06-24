@@ -224,6 +224,39 @@ func TestFilterModifierAllowActive(t *testing.T) {
 	assert.Equal(t, "100.127.255.254", sessions[0].Events[1].Values["ip_address"])
 }
 
+func TestFilterModifierUsesMaskedIPAddressValue(t *testing.T) {
+	// given
+	config := properties.FiltersConfig{
+		Fields: []string{"ip_address"},
+		Conditions: []properties.ConditionConfig{
+			{
+				Name:       "masked_only",
+				Type:       properties.FilterTypeAllow,
+				TestMode:   false,
+				Expression: `ip_address == "192.168.1.0"`,
+			},
+		},
+	}
+	modifier, err := NewFilter(config)
+	require.NoError(t, err)
+
+	session := &schema.Session{
+		Events: []*schema.Event{
+			{Values: map[string]any{"ip_address": "192.168.1.0"}, Metadata: make(map[string]any)},
+			{Values: map[string]any{"ip_address": "192.168.1.123"}, Metadata: make(map[string]any)},
+		},
+	}
+
+	// when
+	sessions, err := modifier.Split(session)
+
+	// then
+	require.NoError(t, err)
+	assert.Len(t, sessions, 1)
+	assert.Len(t, sessions[0].Events, 1)
+	assert.Equal(t, "192.168.1.0", sessions[0].Events[0].Values["ip_address"])
+}
+
 func TestFilterModifierTestingMode(t *testing.T) {
 	// given
 	config := properties.FiltersConfig{

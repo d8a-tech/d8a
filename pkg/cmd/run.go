@@ -480,73 +480,82 @@ func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter c
 		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
 	}
 
+	settingsRegistry := propertySettings(cmd)
+
 	return receiver.NewServer(
 		storage,
 		receiver.NewNoopRawLogStorage(),
 		receiver.HitValidatingRuleSet(
 			1024*util.SafeIntToUint32(cmd.Int(receiverMaxHitKbytesFlag.Name)),
-			propertySettings(cmd),
+			settingsRegistry,
 		),
 		[]protocol.Protocol{currentProtocol},
 		cmd.Int(serverPortFlag.Name),
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
+		receiver.WithHitProcessingRule(receiver.IPMasking(settingsRegistry)),
 		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
 }
 
 func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
+	settings := &properties.Settings{
+		ProtocolID:                 cmd.String(protocolFlag.Name),
+		PropertyID:                 cmd.String(propertyIDFlag.Name),
+		PropertyName:               cmd.String(propertyNameFlag.Name),
+		PropertyMeasurementID:      "-",
+		SplitByUserID:              cmd.Bool(propertySettingsSplitByUserIDFlag.Name),
+		SplitByCampaign:            cmd.Bool(propertySettingsSplitByCampaignFlag.Name),
+		SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
+		SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
+		ExcludedURLParams:          cmd.StringSlice(propertySettingsExcludedURLParamsFlag.Name),
+		SessionTimeout:             cmd.Duration(sessionsTimeoutFlag.Name),
+		SessionJoinBySessionStamp:  cmd.Bool(sessionsJoinBySessionStampFlag.Name),
+		SessionJoinByUserID:        cmd.Bool(sessionsJoinByUserIDFlag.Name),
+		IPMaskingLevel:             cmd.Int(propertySettingsIPMaskingLevelFlag.Name),
+		Filters: func() *properties.FiltersConfig {
+			var filtersConfig properties.FiltersConfig
+			// Config file is optional; stat before parsing
+			if _, err := os.Stat(configFile); err == nil {
+				var parseErr error
+				filtersConfig, parseErr = properties.ParseFilterConfig(configFile)
+				if parseErr != nil {
+					logrus.Panicf("failed to parse filters config: %v", parseErr)
+				}
+			}
+			// Override fields from YAML with flag value (flag takes precedence)
+			filtersConfig.Fields = cmd.StringSlice(filtersFieldsFlag.Name)
+
+			// Parse and append JSON-encoded conditions from flag/env
+			flagConditions := cmd.StringSlice(filtersConditionsFlag.Name)
+			for _, conditionJSON := range flagConditions {
+				var condition properties.ConditionConfig
+				if err := json.Unmarshal([]byte(conditionJSON), &condition); err != nil {
+					logrus.Warnf("skipping invalid JSON condition %q: %v", conditionJSON, err)
+					continue
+				}
+				filtersConfig.Conditions = append(filtersConfig.Conditions, condition)
+			}
+
+			return &filtersConfig
+		}(),
+		CustomColumns: func() []properties.CustomColumnConfig {
+			customColumns, loadErr := loadProtocolCustomColumns(cmd)
+			if loadErr != nil {
+				logrus.Panicf("failed to load protocol custom columns config: %v", loadErr)
+			}
+
+			return customColumns
+		}(),
+	}
+
+	if err := properties.ValidateSettings(settings); err != nil {
+		logrus.Panicf("invalid property settings: %v", err)
+	}
+
 	return properties.NewStaticSettingsRegistry(
 		[]properties.Settings{},
 		properties.WithDefaultConfig(
-			&properties.Settings{
-				ProtocolID:                 cmd.String(protocolFlag.Name),
-				PropertyID:                 cmd.String(propertyIDFlag.Name),
-				PropertyName:               cmd.String(propertyNameFlag.Name),
-				PropertyMeasurementID:      "-",
-				SplitByUserID:              cmd.Bool(propertySettingsSplitByUserIDFlag.Name),
-				SplitByCampaign:            cmd.Bool(propertySettingsSplitByCampaignFlag.Name),
-				SplitByTimeSinceFirstEvent: cmd.Duration(propertySettingsSplitByTimeSinceFirstEventFlag.Name),
-				SplitByMaxEvents:           cmd.Int(propertySettingsSplitByMaxEventsFlag.Name),
-				ExcludedURLParams:          cmd.StringSlice(propertySettingsExcludedURLParamsFlag.Name),
-
-				SessionTimeout:            cmd.Duration(sessionsTimeoutFlag.Name),
-				SessionJoinBySessionStamp: cmd.Bool(sessionsJoinBySessionStampFlag.Name),
-				SessionJoinByUserID:       cmd.Bool(sessionsJoinByUserIDFlag.Name),
-				Filters: func() *properties.FiltersConfig {
-					var filtersConfig properties.FiltersConfig
-					// Config file is optional; stat before parsing
-					if _, err := os.Stat(configFile); err == nil {
-						var parseErr error
-						filtersConfig, parseErr = properties.ParseFilterConfig(configFile)
-						if parseErr != nil {
-							logrus.Panicf("failed to parse filters config: %v", parseErr)
-						}
-					}
-					// Override fields from YAML with flag value (flag takes precedence)
-					filtersConfig.Fields = cmd.StringSlice(filtersFieldsFlag.Name)
-
-					// Parse and append JSON-encoded conditions from flag/env
-					flagConditions := cmd.StringSlice(filtersConditionsFlag.Name)
-					for _, conditionJSON := range flagConditions {
-						var condition properties.ConditionConfig
-						if err := json.Unmarshal([]byte(conditionJSON), &condition); err != nil {
-							logrus.Warnf("skipping invalid JSON condition %q: %v", conditionJSON, err)
-							continue
-						}
-						filtersConfig.Conditions = append(filtersConfig.Conditions, condition)
-					}
-
-					return &filtersConfig
-				}(),
-				CustomColumns: func() []properties.CustomColumnConfig {
-					customColumns, loadErr := loadProtocolCustomColumns(cmd)
-					if loadErr != nil {
-						logrus.Panicf("failed to load protocol custom columns config: %v", loadErr)
-					}
-
-					return customColumns
-				}(),
-			},
+			settings,
 		),
 	)
 }
