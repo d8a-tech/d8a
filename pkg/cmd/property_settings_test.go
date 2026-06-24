@@ -67,19 +67,47 @@ func TestPropertySettings_OverrideIPMaskingLevelFromConfig(t *testing.T) {
 property:
   settings:
     ip_masking_level: 2
+sessions:
+  join_by_session_stamp: false
 `)
 	setConfigFileForTest(t, configPath)
+	args := []string{"d8a-test", "--config=" + configPath}
+	setCurrentRunArgsForTest(t, args)
 
-	// when
-	source := defaultSourceChain(
-		"PROPERTY_SETTINGS_IP_MASKING_LEVEL",
-		"property.settings.ip_masking_level",
-	)
-	value, found := source.Lookup()
+	app := &cli.Command{
+		Name:  "d8a-test",
+		Flags: mergeFlags([]cli.Flag{configFlag}, getServerFlags()),
+		Before: func(ctx context.Context, cmd *cli.Command) (context.Context, error) {
+			ipMaskingLevelSource := defaultSourceChain(
+				"PROPERTY_SETTINGS_IP_MASKING_LEVEL",
+				"property.settings.ip_masking_level",
+			)
+			ipMaskingLevel, found := ipMaskingLevelSource.Lookup()
+			require.True(t, found)
+			require.NoError(t, cmd.Set(propertySettingsIPMaskingLevelFlag.Name, ipMaskingLevel))
 
-	// then
-	assert.True(t, found)
-	assert.Equal(t, "2", value)
+			sessionStampJoinSource := defaultSourceChain(
+				"SESSIONS_JOIN_BY_SESSION_STAMP",
+				"sessions.join_by_session_stamp",
+			)
+			sessionStampJoin, found := sessionStampJoinSource.Lookup()
+			require.True(t, found)
+			require.NoError(t, cmd.Set(sessionsJoinBySessionStampFlag.Name, sessionStampJoin))
+
+			return ctx, nil
+		},
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			// when
+			settings, err := propertySettings(cmd).GetByPropertyID(cmd.String(propertyIDFlag.Name))
+			require.NoError(t, err)
+
+			// then
+			assert.Equal(t, 2, settings.IPMaskingLevel)
+			return nil
+		},
+	}
+
+	require.NoError(t, app.Run(context.Background(), args))
 }
 
 func TestPropertySettings_OverrideExcludedURLParams(t *testing.T) {
