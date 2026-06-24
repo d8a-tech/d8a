@@ -22,20 +22,74 @@ func newPropertySettingsFlagsForConfigTests() []cli.Flag {
 		&cli.StringFlag{Name: protocolFlag.Name, Value: ""},
 		&cli.StringFlag{Name: propertyIDFlag.Name, Value: ""},
 		&cli.StringFlag{Name: propertyNameFlag.Name, Value: ""},
-		&cli.BoolFlag{Name: propertySettingsSplitByUserIDFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_USER_ID", "property.settings.split_by_user_id"), Value: true},
-		&cli.BoolFlag{Name: propertySettingsSplitByCampaignFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_CAMPAIGN", "property.settings.split_by_campaign"), Value: true},
-		&cli.DurationFlag{Name: propertySettingsSplitByTimeSinceFirstEventFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_TIME_SINCE_FIRST_EVENT", "property.settings.split_by_time_since_first_event"), Value: 12 * time.Hour},
-		&cli.IntFlag{Name: propertySettingsSplitByMaxEventsFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"), Value: 1000},
-		&cli.StringSliceFlag{Name: propertySettingsExcludedURLParamsFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_EXCLUDED_URL_PARAMS", "property.settings.excluded_url_params"), Value: historicalExcludedURLParams},
-		&cli.DurationFlag{Name: sessionsTimeoutFlag.Name, Sources: defaultSourceChain("SESSIONS_TIMEOUT", "sessions.timeout"), Value: 30 * time.Minute},
-		&cli.BoolFlag{Name: sessionsJoinBySessionStampFlag.Name, Sources: defaultSourceChain("SESSIONS_JOIN_BY_SESSION_STAMP", "sessions.join_by_session_stamp"), Value: true},
-		&cli.BoolFlag{Name: sessionsJoinByUserIDFlag.Name, Sources: defaultSourceChain("SESSIONS_JOIN_BY_USER_ID", "sessions.join_by_user_id"), Value: true},
-		&cli.IntFlag{Name: propertySettingsIPMaskingLevelFlag.Name, Sources: defaultSourceChain("PROPERTY_SETTINGS_IP_MASKING_LEVEL", "property.settings.ip_masking_level"), Value: 0},
-		&cli.StringSliceFlag{Name: filtersFieldsFlag.Name, Sources: defaultSourceChain("FILTERS_FIELDS", "filters.fields")},
-		&cli.StringSliceFlag{Name: filtersConditionsFlag.Name, Sources: defaultSourceChain("FILTERS_CONDITIONS", "filters.conditions")},
-		&cli.StringFlag{Name: ga4ParamsFlag.Name, Sources: ga4ParamsFlag.Sources},
-		&cli.StringFlag{Name: matomoCustomDimensionsFlag.Name, Sources: matomoCustomDimensionsFlag.Sources},
-		&cli.StringFlag{Name: matomoCustomVariablesFlag.Name, Sources: matomoCustomVariablesFlag.Sources},
+		&cli.BoolFlag{
+			Name:    propertySettingsSplitByUserIDFlag.Name,
+			Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_USER_ID", "property.settings.split_by_user_id"),
+			Value:   true,
+		},
+		&cli.BoolFlag{
+			Name:    propertySettingsSplitByCampaignFlag.Name,
+			Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_CAMPAIGN", "property.settings.split_by_campaign"),
+			Value:   true,
+		},
+		&cli.DurationFlag{
+			Name: propertySettingsSplitByTimeSinceFirstEventFlag.Name,
+			Sources: defaultSourceChain(
+				"PROPERTY_SETTINGS_SPLIT_BY_TIME_SINCE_FIRST_EVENT",
+				"property.settings.split_by_time_since_first_event",
+			),
+			Value: 12 * time.Hour,
+		},
+		&cli.IntFlag{
+			Name:    propertySettingsSplitByMaxEventsFlag.Name,
+			Sources: defaultSourceChain("PROPERTY_SETTINGS_SPLIT_BY_MAX_EVENTS", "property.settings.split_by_max_events"),
+			Value:   1000,
+		},
+		&cli.StringSliceFlag{
+			Name:    propertySettingsExcludedURLParamsFlag.Name,
+			Sources: defaultSourceChain("PROPERTY_SETTINGS_EXCLUDED_URL_PARAMS", "property.settings.excluded_url_params"),
+			Value:   historicalExcludedURLParams,
+		},
+		&cli.DurationFlag{
+			Name:    sessionsTimeoutFlag.Name,
+			Sources: defaultSourceChain("SESSIONS_TIMEOUT", "sessions.timeout"),
+			Value:   30 * time.Minute,
+		},
+		&cli.BoolFlag{
+			Name:    sessionsJoinBySessionStampFlag.Name,
+			Sources: defaultSourceChain("SESSIONS_JOIN_BY_SESSION_STAMP", "sessions.join_by_session_stamp"),
+			Value:   true,
+		},
+		&cli.BoolFlag{
+			Name:    sessionsJoinByUserIDFlag.Name,
+			Sources: defaultSourceChain("SESSIONS_JOIN_BY_USER_ID", "sessions.join_by_user_id"),
+			Value:   true,
+		},
+		&cli.IntFlag{
+			Name:    propertySettingsIPMaskingLevelFlag.Name,
+			Sources: defaultSourceChain("PROPERTY_SETTINGS_IP_MASKING_LEVEL", "property.settings.ip_masking_level"),
+			Value:   0,
+		},
+		&cli.StringSliceFlag{
+			Name:    filtersFieldsFlag.Name,
+			Sources: defaultSourceChain("FILTERS_FIELDS", "filters.fields"),
+		},
+		&cli.StringSliceFlag{
+			Name:    filtersConditionsFlag.Name,
+			Sources: defaultSourceChain("FILTERS_CONDITIONS", "filters.conditions"),
+		},
+		&cli.StringFlag{
+			Name:    ga4ParamsFlag.Name,
+			Sources: ga4ParamsFlag.Sources,
+		},
+		&cli.StringFlag{
+			Name:    matomoCustomDimensionsFlag.Name,
+			Sources: matomoCustomDimensionsFlag.Sources,
+		},
+		&cli.StringFlag{
+			Name:    matomoCustomVariablesFlag.Name,
+			Sources: matomoCustomVariablesFlag.Sources,
+		},
 	}
 }
 
