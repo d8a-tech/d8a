@@ -12,8 +12,8 @@ func ValidateSettings(settings *Settings) error {
 		return fmt.Errorf("ip masking level must be between 0 and 4: %d", settings.IPMaskingLevel)
 	}
 
-	if settings.IPMaskingLevel > 0 && settings.SessionJoinBySessionStamp {
-		return fmt.Errorf("session join by session stamp must be disabled when ip masking level is non-zero")
+	if settings.IPMaskingLevel == 4 && settings.SessionJoinBySessionStamp {
+		return fmt.Errorf("session join by session stamp must be disabled when ip masking is maximal")
 	}
 
 	return nil
