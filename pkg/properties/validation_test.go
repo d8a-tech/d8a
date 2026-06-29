@@ -44,12 +44,19 @@ func TestValidateSettings(t *testing.T) {
 			wantErr:  "ip masking level must be between 0 and 4: 5",
 		},
 		{
-			name: "masking conflicts with session stamp join",
+			name: "partial masking is valid with session stamp join",
 			settings: &Settings{
 				IPMaskingLevel:            1,
 				SessionJoinBySessionStamp: true,
 			},
-			wantErr: "session join by session stamp must be disabled when ip masking level is non-zero",
+		},
+		{
+			name: "full masking conflicts with session stamp join",
+			settings: &Settings{
+				IPMaskingLevel:            4,
+				SessionJoinBySessionStamp: true,
+			},
+			wantErr: "session join by session stamp must be disabled when ip masking level is 4",
 		},
 	}
 

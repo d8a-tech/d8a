@@ -204,13 +204,13 @@ sessions:
 	})
 }
 
-func TestPropertySettings_IPMaskingSessionStampConflictFromConfigPanics(t *testing.T) {
+func TestPropertySettings_FullIPMaskingSessionStampConflictFromConfigPanics(t *testing.T) {
 	// given
 	setDeliveryModeForTest(t, "")
 	configPath := writeConfigFile(t, `
 property:
   settings:
-    ip_masking_level: 1
+    ip_masking_level: 4
 sessions:
   join_by_session_stamp: true
 `)
