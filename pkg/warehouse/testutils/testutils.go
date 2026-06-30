@@ -822,7 +822,7 @@ func TestComplexWrites(t *testing.T, driver warehouse.Driver, tableName string) 
 		},
 		{
 			name:    "valid_row_with_null_values",
-			success: false,
+			success: true,
 			rows:    []map[string]any{validRow},
 		},
 		{

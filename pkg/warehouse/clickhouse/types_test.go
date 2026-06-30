@@ -466,6 +466,50 @@ func TestArrowToWarehouse(t *testing.T) {
 	}
 }
 
+func TestArrayFormatNilAsEmpty(t *testing.T) {
+	testCases := []struct {
+		name     string
+		field    warehouse.ArrowType
+		expected any
+	}{
+		{
+			name: "regular array",
+			field: warehouse.ArrowType{
+				ArrowDataType: arrow.ListOf(arrow.BinaryTypes.String),
+				Nullable:      true,
+			},
+			expected: []any{},
+		},
+		{
+			name: "nested array",
+			field: warehouse.ArrowType{
+				ArrowDataType: arrow.ListOf(arrow.StructOf(
+					arrow.Field{Name: "name", Type: arrow.BinaryTypes.String, Nullable: true},
+					arrow.Field{Name: "value", Type: arrow.BinaryTypes.String, Nullable: true},
+				)),
+				Nullable: true,
+			},
+			expected: []map[string]any{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			mapper := NewFieldTypeMapper()
+			chType, err := mapper.ArrowToWarehouse(tc.field)
+			require.NoError(t, err)
+
+			// when
+			formatted, err := chType.Format(nil, arrow.Metadata{})
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, formatted)
+		})
+	}
+}
+
 func TestWarehouseToArrow(t *testing.T) {
 	testCases := getTestCases()
 
