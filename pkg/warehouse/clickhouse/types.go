@@ -288,6 +288,10 @@ func (m *clickhouseArrayTypeMapper) handleRegularArray(listType *arrow.ListType)
 	return SpecificClickhouseType{
 		TypeAsString: fmt.Sprintf("Array(%s)", elementMappedType.TypeAsString),
 		FormatFunc: func(i any, metadata arrow.Metadata) (any, error) {
+			if i == nil {
+				return []any{}, nil
+			}
+
 			slice, ok := i.([]any)
 			if !ok {
 				return nil, fmt.Errorf("expected []any for array, got %T", i)
@@ -313,6 +317,10 @@ func (m *clickhouseArrayTypeMapper) formatNestedArray(
 	fieldTypes []SpecificClickhouseType,
 	metadata arrow.Metadata,
 ) (any, error) {
+	if i == nil {
+		return []map[string]any{}, nil
+	}
+
 	slice, ok := i.([]any)
 	if !ok {
 		return nil, fmt.Errorf("expected []any for array, got %T", i)

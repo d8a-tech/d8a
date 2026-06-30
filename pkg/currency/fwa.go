@@ -207,12 +207,19 @@ func (c *FWAConverter) refreshLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if ctx.Err() != nil {
+				return
+			}
 			c.refresh(ctx)
 		}
 	}
 }
 
 func (c *FWAConverter) refresh(ctx context.Context) {
+	if ctx.Err() != nil {
+		return
+	}
+
 	latestSnapshot, err := c.store.Latest()
 	if err == nil && time.Since(latestSnapshot.CreatedAt) < c.refreshEvery {
 		c.setSnapshot(latestSnapshot)
