@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go/middleware"
 	"github.com/urfave/cli/v3"
 	"gocloud.dev/blob"
 	"gocloud.dev/blob/gcsblob"
@@ -67,6 +68,8 @@ func createS3BucketWithFlags(
 			),
 		)
 		o.UsePathStyle = true
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		o.APIOptions = append(o.APIOptions, disableS3UploadChecksums)
 	})
 
 	bucketName := c.String(flags.S3Bucket.Name)
@@ -97,6 +100,35 @@ func createS3BucketWithFlags(
 		return nil, nil, fmt.Errorf("open s3 bucket: %w", err)
 	}
 	return bucket, bucket.Close, nil
+}
+
+func disableS3UploadChecksums(stack *middleware.Stack) error {
+	return stack.Initialize.Add(
+		middleware.InitializeMiddlewareFunc(
+			"d8aDisableS3UploadChecksums",
+			func(
+				ctx context.Context,
+				in middleware.InitializeInput,
+				next middleware.InitializeHandler,
+			) (middleware.InitializeOutput, middleware.Metadata, error) {
+				clearS3ChecksumAlgorithm(in.Parameters)
+
+				return next.HandleInitialize(ctx, in)
+			},
+		),
+		middleware.Before,
+	)
+}
+
+func clearS3ChecksumAlgorithm(parameters any) {
+	switch input := parameters.(type) {
+	case *s3.PutObjectInput:
+		input.ChecksumAlgorithm = ""
+	case *s3.CreateMultipartUploadInput:
+		input.ChecksumAlgorithm = ""
+	case *s3.UploadPartInput:
+		input.ChecksumAlgorithm = ""
+	}
 }
 
 // nolint:funlen // straightforward setup
