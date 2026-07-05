@@ -3,53 +3,32 @@ package cmd
 import (
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestClearS3ChecksumAlgorithm(t *testing.T) {
-	t.Run("put object", func(t *testing.T) {
+func TestNewS3BlobOptions(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
 		// given
-		input := &s3.PutObjectInput{ChecksumAlgorithm: types.ChecksumAlgorithmCrc32}
+		disableUploadChecksums := false
 
 		// when
-		clearS3ChecksumAlgorithm(input)
+		opts := newS3BlobOptions(disableUploadChecksums)
 
 		// then
-		assert.Empty(t, input.ChecksumAlgorithm)
+		assert.Nil(t, opts)
 	})
 
-	t.Run("create multipart upload", func(t *testing.T) {
+	t.Run("disable upload checksums", func(t *testing.T) {
 		// given
-		input := &s3.CreateMultipartUploadInput{ChecksumAlgorithm: types.ChecksumAlgorithmCrc32}
+		disableUploadChecksums := true
 
 		// when
-		clearS3ChecksumAlgorithm(input)
+		opts := newS3BlobOptions(disableUploadChecksums)
 
 		// then
-		assert.Empty(t, input.ChecksumAlgorithm)
-	})
-
-	t.Run("upload part", func(t *testing.T) {
-		// given
-		input := &s3.UploadPartInput{ChecksumAlgorithm: types.ChecksumAlgorithmCrc32}
-
-		// when
-		clearS3ChecksumAlgorithm(input)
-
-		// then
-		assert.Empty(t, input.ChecksumAlgorithm)
-	})
-
-	t.Run("unrelated input", func(t *testing.T) {
-		// given
-		input := &s3.GetObjectInput{}
-
-		// when
-		clearS3ChecksumAlgorithm(input)
-
-		// then
-		assert.NotNil(t, input)
+		require.NotNil(t, opts)
+		assert.Equal(t, aws.RequestChecksumCalculationWhenRequired, opts.RequestChecksumCalculation)
 	})
 }
