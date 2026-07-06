@@ -92,11 +92,26 @@ func createS3BucketWithFlags(
 		}
 	}
 
-	bucket, err := s3blob.OpenBucketV2(ctx, s3Client, bucketName, nil)
+	bucket, err := s3blob.OpenBucketV2(
+		ctx,
+		s3Client,
+		bucketName,
+		newS3BlobOptions(c.Bool(flags.S3DisableUploadChecksums.Name)),
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open s3 bucket: %w", err)
 	}
 	return bucket, bucket.Close, nil
+}
+
+func newS3BlobOptions(disableUploadChecksums bool) *s3blob.Options {
+	if !disableUploadChecksums {
+		return nil
+	}
+
+	return &s3blob.Options{
+		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
+	}
 }
 
 // nolint:funlen // straightforward setup

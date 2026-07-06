@@ -25,19 +25,20 @@ type FlagSpec struct {
 }
 
 type objectStorageFlagSet struct {
-	Type           FlagSpec
-	Prefix         FlagSpec
-	S3Host         FlagSpec
-	S3Port         FlagSpec
-	S3Bucket       FlagSpec
-	S3AccessKey    FlagSpec
-	S3SecretKey    FlagSpec
-	S3Region       FlagSpec
-	S3Protocol     FlagSpec
-	S3CreateBucket FlagSpec
-	GCSBucket      FlagSpec
-	GCSProject     FlagSpec
-	GCSCredsJSON   FlagSpec
+	Type                     FlagSpec
+	Prefix                   FlagSpec
+	S3Host                   FlagSpec
+	S3Port                   FlagSpec
+	S3Bucket                 FlagSpec
+	S3AccessKey              FlagSpec
+	S3SecretKey              FlagSpec
+	S3Region                 FlagSpec
+	S3Protocol               FlagSpec
+	S3CreateBucket           FlagSpec
+	S3DisableUploadChecksums FlagSpec
+	GCSBucket                FlagSpec
+	GCSProject               FlagSpec
+	GCSCredsJSON             FlagSpec
 }
 
 type objectStorageFlags struct {
@@ -45,7 +46,7 @@ type objectStorageFlags struct {
 	Warehouse objectStorageFlagSet
 }
 
-// nolint:funlen // struct initialization for 13 flags
+// nolint:funlen // struct initialization for object storage flags
 func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPrefix string) objectStorageFlagSet {
 	return objectStorageFlagSet{
 		Type: FlagSpec{
@@ -123,6 +124,14 @@ func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPref
 			FlagType:     FlagTypeBool,
 			DefaultValue: false,
 		},
+		S3DisableUploadChecksums: FlagSpec{
+			Name:         flagPrefix + "-s3-disable-upload-checksums",
+			Usage:        envPrefix + ": disable S3 upload checksum headers for S3-compatible providers that reject them", //nolint:lll // it's a description
+			EnvVar:       envPrefix + "_S3_DISABLE_UPLOAD_CHECKSUMS",
+			ConfigPath:   configPrefix + ".s3.disable_upload_checksums",
+			FlagType:     FlagTypeBool,
+			DefaultValue: false,
+		},
 		GCSBucket: FlagSpec{
 			Name:       flagPrefix + "-gcs-bucket",
 			Usage:      envPrefix + " GCS bucket name (only used when " + flagPrefix + "-type=gcs)",
@@ -159,6 +168,7 @@ func ToCliFlags(specs *objectStorageFlagSet) []cli.Flag {
 		specs.S3Region,
 		specs.S3Protocol,
 		specs.S3CreateBucket,
+		specs.S3DisableUploadChecksums,
 		specs.GCSBucket,
 		specs.GCSProject,
 		specs.GCSCredsJSON,
