@@ -2,6 +2,7 @@ package receiver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/textproto"
@@ -204,6 +205,11 @@ func (s *Server) handleRequest(
 	hits, err := s.createHits(ctx, selectedProtocol)
 	if err != nil {
 		logrus.WithError(err).Warn("failed to create hits from request")
+		var clientErr safeClientError
+		if errors.As(err, &clientErr) {
+			ctx.Error(clientErr.clientMessage(), fasthttp.StatusBadRequest)
+			return
+		}
 		ctx.Error("Bad Request", fasthttp.StatusBadRequest)
 		return
 	}

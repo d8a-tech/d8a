@@ -263,7 +263,7 @@ func TestHandleRequest_ErrorResponsesDoNotLeakInternalDetails(t *testing.T) {
 	}
 }
 
-func TestHandleRequest_ValidationErrorDoesNotLeakDetails(t *testing.T) {
+func TestHandleRequest_ProtocolMismatchReturnsSafeDetails(t *testing.T) {
 	// given — use a protocol whose property ID doesn't match settings,
 	// triggering PropertyProtocolMatchesTheEndpointProtocol validation error.
 	storage := &mockStorage{}
@@ -296,11 +296,35 @@ func TestHandleRequest_ValidationErrorDoesNotLeakDetails(t *testing.T) {
 	// then
 	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
 	body := string(ctx.Response.Body())
-	assert.Contains(t, body, "Bad Request")
+	assert.Contains(t, body, "property protocol test_protocol does not match endpoint protocol wrong_protocol")
 	assert.NotContains(t, body, "test_property_id")
-	assert.NotContains(t, body, "test_protocol")
-	assert.NotContains(t, body, "wrong_protocol")
-	assert.NotContains(t, body, "does not match")
+}
+
+func TestHandleRequest_SettingsErrorDoesNotLeakDetails(t *testing.T) {
+	// given
+	storage := &mockStorage{}
+	p := &mockProtocol{id: "test_protocol"}
+	server := NewServer(
+		storage,
+		NewDummyRawLogStorage(),
+		HitValidatingRuleSet(1024*128, settingsRegistryStub{err: fmt.Errorf("settings database unavailable")}),
+		[]protocol.Protocol{p},
+		8080,
+		WithTrustAllProxies(),
+	)
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.SetHost("example.com")
+	ctx.Request.Header.SetHost("example.com")
+	ctx.Request.Header.Set("X-Real-IP", "192.168.1.1")
+	ctx.Request.Header.Set("User-Agent", "test-agent")
+	ctx.URI().SetPath("/collect")
+
+	// when
+	server.handleRequest(context.Background(), ctx, p)
+
+	// then
+	assert.Equal(t, fasthttp.StatusBadRequest, ctx.Response.StatusCode())
+	assert.Equal(t, "Bad Request", string(ctx.Response.Body()))
 }
 
 func TestHandleRequest_MasksIPBeforeStorageAndRawLog(t *testing.T) {

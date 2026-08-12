@@ -139,7 +139,11 @@ func PropertyProtocolMatchesTheEndpointProtocol(settings properties.SettingsRegi
 			return err
 		}
 		if settings.ProtocolID != p.ID() {
-			return fmt.Errorf("property protocol %s does not match endpoint protocol %s", settings.ProtocolID, p.ID())
+			return newClientError(fmt.Sprintf(
+				"property protocol %s does not match endpoint protocol %s",
+				settings.ProtocolID,
+				p.ID(),
+			))
 		}
 		return nil
 	})
