@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"text/template"
@@ -203,9 +204,13 @@ func createClickHouseWarehouse(ctx context.Context, cmd *cli.Command) warehouse.
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
 		},
-		Debug:                cmd.Bool(debugFlag.Name),
 		BlockBufferSize:      10,
 		MaxCompressionBuffer: 10240,
+	}
+	if cmd.Bool(debugFlag.Name) {
+		options.Logger = slog.New(slog.NewTextHandler(logrus.StandardLogger().Out, &slog.HandlerOptions{
+			Level: slog.LevelDebug,
+		}))
 	}
 
 	var opts []whClickhouse.Options
