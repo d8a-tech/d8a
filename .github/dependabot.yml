@@ -33,6 +33,10 @@ updates:
       - "/js/web-tracker"
     cooldown:
       default-days: 7
+    ignore:
+      - dependency-name: "typescript"
+        versions:
+          - ">=7.0.0"
     patterns:
       - "*"
     multi-ecosystem-group: "all-dependencies"
