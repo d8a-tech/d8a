@@ -13,6 +13,8 @@ multi-ecosystem-groups:
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
+    cooldown:
+      default-days: 7
     patterns:
       - "*"
     multi-ecosystem-group: "all-dependencies"
@@ -29,6 +31,8 @@ updates:
       - "/docs"
       - "/js/ga4-duplicator"
       - "/js/web-tracker"
+    cooldown:
+      default-days: 7
     patterns:
       - "*"
     multi-ecosystem-group: "all-dependencies"
