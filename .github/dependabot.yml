@@ -16,6 +16,11 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "all-dependencies"
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     labels:
       - "go"
 
@@ -27,5 +32,10 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "all-dependencies"
+    groups:
+      security-updates:
+        applies-to: "security-updates"
+        patterns:
+          - "*"
     labels:
       - "javascript"
