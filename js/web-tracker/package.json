@@ -49,17 +49,17 @@
     "flatted": "3.4.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/node": "^22.13.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.4.0",
     "@typescript-eslint/eslint-plugin": "^8.30.0",
     "@typescript-eslint/parser": "^8.30.0",
-    "esbuild": "^0.25.9",
-    "eslint": "^9.36.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^16.4.0",
+    "globals": "^17.11.0",
     "prettier": "^3.6.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.3",
-    "vite": "^6.0.0"
+    "typescript": "^6.0.3",
+    "vite": "^8.2.2"
   }
 }
