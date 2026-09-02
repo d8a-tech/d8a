@@ -16,6 +16,7 @@ import (
 // fakeConn is a minimal implementation of clickhouse.Conn (chdriver.Conn)
 // that tracks whether Close was called and can return a configurable error.
 type fakeConn struct {
+	chdriver.Conn
 	closed   bool
 	closeErr error
 }
