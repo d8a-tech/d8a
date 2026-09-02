@@ -96,7 +96,7 @@ function webSafeBase64Decode(enc: string): string {
   let i = 0;
 
   function next(defaultValue: number): number {
-    for (; i < s.length; ) {
+    for (; i < s.length;) {
       const ch = s.charAt(i++);
       const v = rev[ch];
       if (v != null) return v;
