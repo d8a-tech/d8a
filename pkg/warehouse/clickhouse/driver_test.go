@@ -82,7 +82,6 @@ func (suite *ClickHouseTestSuite) SetupSuite() {
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
 		},
-		Debug:                false,
 		BlockBufferSize:      10,
 		MaxCompressionBuffer: 10240,
 	}

@@ -1,13 +1,31 @@
 version: 2
-updates:
-  - package-ecosystem: "gomod"
-    directory: "/"
+
+multi-ecosystem-groups:
+  all-dependencies:
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 10
     labels:
       - "dependencies"
-      - "go"
     commit-message:
       prefix: "deps"
       include: "scope"
+
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "all-dependencies"
+    labels:
+      - "go"
+
+  - package-ecosystem: "npm"
+    directories:
+      - "/docs"
+      - "/js/ga4-duplicator"
+      - "/js/web-tracker"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "all-dependencies"
+    labels:
+      - "javascript"
