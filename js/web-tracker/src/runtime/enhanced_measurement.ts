@@ -122,9 +122,7 @@ export function createEnhancedMeasurement({
 
   type BoolKey = "site_search_enabled" | "outbound_clicks_enabled" | "file_downloads_enabled";
   type ListKey =
-    | "site_search_query_params"
-    | "outbound_exclude_domains"
-    | "file_download_extensions";
+    "site_search_query_params" | "outbound_exclude_domains" | "file_download_extensions";
 
   function readBoolKey(source: Record<string, unknown>, key: BoolKey): boolean | undefined {
     const v = source[key];

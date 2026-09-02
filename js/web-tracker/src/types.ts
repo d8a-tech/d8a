@@ -188,10 +188,4 @@ export type WindowLikeTransport = {
 };
 
 export type SendBeaconData =
-  | string
-  | Blob
-  | FormData
-  | URLSearchParams
-  | ArrayBuffer
-  | null
-  | undefined;
+  string | Blob | FormData | URLSearchParams | ArrayBuffer | null | undefined;
