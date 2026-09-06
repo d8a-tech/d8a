@@ -60,6 +60,7 @@ warehouse:
       secret_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
       region: us-east-1
       protocol: https
+      disable_upload_checksums: true # Default; required by some S3-compatible providers
 ```
 
 ### GCS

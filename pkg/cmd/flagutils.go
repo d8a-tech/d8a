@@ -126,11 +126,11 @@ func createObjectStorageFlagSet(envPrefix, flagPrefix, configPrefix, defaultPref
 		},
 		S3DisableUploadChecksums: FlagSpec{
 			Name:         flagPrefix + "-s3-disable-upload-checksums",
-			Usage:        envPrefix + ": disable S3 upload checksum headers for S3-compatible providers that reject them", //nolint:lll // it's a description
+			Usage:        envPrefix + ": disable optional S3 upload checksums for compatibility (set false to enable them)", //nolint:lll // it's a description
 			EnvVar:       envPrefix + "_S3_DISABLE_UPLOAD_CHECKSUMS",
 			ConfigPath:   configPrefix + ".s3.disable_upload_checksums",
 			FlagType:     FlagTypeBool,
-			DefaultValue: false,
+			DefaultValue: true,
 		},
 		GCSBucket: FlagSpec{
 			Name:       flagPrefix + "-gcs-bucket",
