@@ -1,6 +1,6 @@
 module github.com/d8a-tech/d8a
 
-go 1.25.8
+go 1.26.0
 
 require (
 	cloud.google.com/go/bigquery v1.82.0
@@ -9,9 +9,9 @@ require (
 	github.com/apache/arrow-go/v18 v18.7.0
 	github.com/archbottle/dd2 v1.2.0
 	github.com/aws/aws-sdk-go-v2 v1.45.1
-	github.com/aws/aws-sdk-go-v2/config v1.33.1
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.1
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.109.1
+	github.com/aws/aws-sdk-go-v2/config v1.33.2
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.2
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.110.0
 	github.com/dgraph-io/ristretto/v2 v2.4.2
 	github.com/expr-lang/expr v1.17.8
 	github.com/fasthttp/router v1.5.4
@@ -37,9 +37,9 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	gocloud.dev v0.46.1-0.20260629181806-a12ddce30739
-	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.22.0
-	google.golang.org/api v0.295.0
+	golang.org/x/oauth2 v0.37.0
+	golang.org/x/sync v0.23.0
+	google.golang.org/api v0.297.0
 	gopkg.in/yaml.v3 v3.0.1
 	oras.land/oras-go/v2 v2.6.2
 )
@@ -71,10 +71,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.7.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.35.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.40.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.47.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.8.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.36.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.41.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.48.0 // indirect
 	github.com/aws/smithy-go v1.28.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
