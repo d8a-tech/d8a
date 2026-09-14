@@ -8,10 +8,6 @@
 
 Divine Data (d8a) is an open source, warehouse-native analytics platform. Compatible with GA4 and Matomo tracking protocols, and has its own native web tracker. Clean schema, can be deployed anywhere, including your cloud or on-premises.
 
-## AI Usage policy
-
-This work is developed with AI assistance, by professional software engineers with more than 10 years of experience in data/analytics space. Every line of code is manually reviewed before it's merged.
-
 ## Highlights
 
 - **GA4 & Matomo tracking protocol compatibility** - Seamlessly integrates with the Google Analytics 4 and Matomo tracking protocols, allowing you to implement advanced web, server-side, or mobile tracking plans in just minutes
@@ -88,6 +84,10 @@ curl "http://localhost:8080/g/collect?v=2&tid=14&dl=https%3A%2F%2Ffoo.bar&en=pag
 ```bash
 go test ./...
 ```
+
+## AI Usage disclaimer
+
+This work is developed with AI assistance, by professional software engineers with more than 10 years of experience in data/analytics space. Every line of code is manually reviewed before it's merged. Vibe-coded PRs made without understanding of the system will be declined.
 
 ## Contributing
 
