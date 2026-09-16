@@ -33,7 +33,7 @@ func withMinIOContainer(
 
 	minioContainer, err := minio.Run(
 		ctx,
-		"minio/minio:RELEASE.2024-01-16T16-07-38Z",
+		"quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z",
 	)
 	require.NoError(t, err)
 
