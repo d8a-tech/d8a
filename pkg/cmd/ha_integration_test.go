@@ -18,7 +18,10 @@ import (
 func TestReceiverWorkerQueue_ObjectStorage_MinIO(t *testing.T) {
 	ctx := context.Background()
 
-	minioContainer, err := minio.Run(ctx, "quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z")
+	minioContainer, err := minio.Run(
+		ctx,
+		"cgr.dev/chainguard/minio@sha256:71674988a1c7ddd5724928633199152b11e4ddefd6c6ce2d60772ff4a8f22ca9",
+	)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = testcontainers.TerminateContainer(minioContainer)
