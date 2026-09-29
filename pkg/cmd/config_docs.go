@@ -150,10 +150,10 @@ func generateConfigDocs(flags []cli.Flag) (string, error) {
 
 		var details []string
 		if info.ConfigKey != "" {
-			details = append(details, fmt.Sprintf("**Configuration key:** `%s`", info.ConfigKey))
+			details = append(details, fmt.Sprintf("**Configuration key:** %#q", info.ConfigKey))
 		}
 		if info.EnvVar != "" {
-			details = append(details, fmt.Sprintf("**Environment variable:** `%s`", info.EnvVar))
+			details = append(details, fmt.Sprintf("**Environment variable:** %#q", info.EnvVar))
 		}
 		if len(details) > 0 {
 			buf.WriteString(strings.Join(details, "  \n"))
