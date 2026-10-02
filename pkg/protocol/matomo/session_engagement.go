@@ -13,10 +13,10 @@ import (
 var sessionTotalPurchasesColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalPurchases.ID,
 	columns.CoreInterfaces.SessionTotalPurchases.Field,
-	[]string{ecOrderEventType},
+	[]string{EcommerceOrderEventType},
 	columns.WithSessionColumnDocs(
 		"Total Purchases",
-		fmt.Sprintf("The total number of completed ecommerce orders (event name: %s) in the session. Detected via idgoal=0 with a non-empty ec_id parameter.", ecOrderEventType), //nolint:lll // description
+		fmt.Sprintf("The total number of completed ecommerce orders (event name: %s) in the session. Detected via idgoal=0 with a non-empty ec_id parameter.", EcommerceOrderEventType), //nolint:lll // description
 	),
 )
 
@@ -49,10 +49,10 @@ var sessionTotalScrollsColumn = columns.NewSimpleSessionColumn(
 var sessionTotalOutboundClicksColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalOutboundClicks.ID,
 	columns.CoreInterfaces.SessionTotalOutboundClicks.Field,
-	[]string{outlinkEventType},
+	[]string{OutlinkEventType},
 	columns.WithSessionColumnDocs(
 		"Total Outbound Clicks",
-		fmt.Sprintf("The total number of outbound link clicks (event name: %s) in the session.", outlinkEventType), //nolint:lll // description
+		fmt.Sprintf("The total number of outbound link clicks (event name: %s) in the session.", OutlinkEventType), //nolint:lll // description
 	),
 )
 
@@ -60,7 +60,7 @@ var sessionTotalOutboundClicksColumn = columns.TotalEventsOfGivenNameColumn(
 var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.ID,
 	columns.CoreInterfaces.SessionUniqueOutboundClicks.Field,
-	[]string{outlinkEventType},
+	[]string{OutlinkEventType},
 	[]*arrow.Field{
 		ProtocolInterfaces.EventParamsLinkURL.Field,
 	},
@@ -71,7 +71,7 @@ var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Unique Outbound Clicks",
-		fmt.Sprintf("The unique number of outbound link clicks (event name: %s) in the session. Deduplicated by %s.", outlinkEventType, ProtocolInterfaces.EventParamsLinkURL.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of outbound link clicks (event name: %s) in the session. Deduplicated by %s.", OutlinkEventType, ProtocolInterfaces.EventParamsLinkURL.Field.Name), //nolint:lll // description
 	),
 )
 
@@ -79,10 +79,10 @@ var sessionUniqueOutboundClicksColumn = columns.UniqueEventsOfGivenNameColumn(
 var sessionTotalSiteSearchesColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalSiteSearches.ID,
 	columns.CoreInterfaces.SessionTotalSiteSearches.Field,
-	[]string{siteSearchEventType},
+	[]string{SiteSearchEventType},
 	columns.WithSessionColumnDocs(
 		"Total Site Searches",
-		fmt.Sprintf("The total number of site searches (event name: %s) in the session.", siteSearchEventType), //nolint:lll // description
+		fmt.Sprintf("The total number of site searches (event name: %s) in the session.", SiteSearchEventType), //nolint:lll // description
 	),
 )
 
@@ -90,7 +90,7 @@ var sessionTotalSiteSearchesColumn = columns.TotalEventsOfGivenNameColumn(
 var sessionUniqueSiteSearchesColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueSiteSearches.ID,
 	columns.CoreInterfaces.SessionUniqueSiteSearches.Field,
-	[]string{siteSearchEventType},
+	[]string{SiteSearchEventType},
 	[]*arrow.Field{
 		ProtocolInterfaces.EventParamsSearchTerm.Field,
 	},
@@ -101,7 +101,7 @@ var sessionUniqueSiteSearchesColumn = columns.UniqueEventsOfGivenNameColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Unique Site Searches",
-		fmt.Sprintf("The unique number of site searches (event name: %s) in the session. Deduplicated by %s.", siteSearchEventType, ProtocolInterfaces.EventParamsSearchTerm.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of site searches (event name: %s) in the session. Deduplicated by %s.", SiteSearchEventType, ProtocolInterfaces.EventParamsSearchTerm.Field.Name), //nolint:lll // description
 	),
 )
 
@@ -148,10 +148,10 @@ var sessionTotalVideoEngagementsColumn = columns.TotalEventsOfGivenNameColumn(
 var sessionTotalFileDownloadsColumn = columns.TotalEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionTotalFileDownloads.ID,
 	columns.CoreInterfaces.SessionTotalFileDownloads.Field,
-	[]string{downloadEventType},
+	[]string{DownloadEventType},
 	columns.WithSessionColumnDocs(
 		"Total File Downloads",
-		fmt.Sprintf("The total number of file download events (event name: %s) in the session.", downloadEventType), //nolint:lll // description
+		fmt.Sprintf("The total number of file download events (event name: %s) in the session.", DownloadEventType), //nolint:lll // description
 	),
 )
 
@@ -159,7 +159,7 @@ var sessionTotalFileDownloadsColumn = columns.TotalEventsOfGivenNameColumn(
 var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
 	columns.CoreInterfaces.SessionUniqueFileDownloads.ID,
 	columns.CoreInterfaces.SessionUniqueFileDownloads.Field,
-	[]string{downloadEventType},
+	[]string{DownloadEventType},
 	[]*arrow.Field{
 		ProtocolInterfaces.EventParamsDownloadURL.Field,
 	},
@@ -170,6 +170,6 @@ var sessionUniqueFileDownloadsColumn = columns.UniqueEventsOfGivenNameColumn(
 	),
 	columns.WithSessionColumnDocs(
 		"Unique File Downloads",
-		fmt.Sprintf("The unique number of file downloads (event name: %s) in the session. Deduplicated by %s.", downloadEventType, ProtocolInterfaces.EventParamsDownloadURL.Field.Name), //nolint:lll // description
+		fmt.Sprintf("The unique number of file downloads (event name: %s) in the session. Deduplicated by %s.", DownloadEventType, ProtocolInterfaces.EventParamsDownloadURL.Field.Name), //nolint:lll // description
 	),
 )

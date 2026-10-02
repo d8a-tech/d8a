@@ -201,7 +201,7 @@ func createHitFromParams(
 
 func deriveEventName(params url.Values) string {
 	if params.Get("idgoal") == "0" && params.Get("ec_id") != "" {
-		return ecOrderEventType
+		return EcommerceOrderEventType
 	}
 	if params.Get("idgoal") != "" {
 		return goalConversionEventType
@@ -210,13 +210,13 @@ func deriveEventName(params url.Values) string {
 		return videoPlayEventType
 	}
 	if params.Get("download") != "" {
-		return downloadEventType
+		return DownloadEventType
 	}
 	if params.Get("link") != "" {
-		return outlinkEventType
+		return OutlinkEventType
 	}
 	if _, hasSearch := params["search"]; hasSearch {
-		return siteSearchEventType
+		return SiteSearchEventType
 	}
 	if params.Get("c_i") != "" {
 		return contentInteractionType

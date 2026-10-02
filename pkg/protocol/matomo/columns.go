@@ -6,10 +6,14 @@ import (
 )
 
 const (
-	downloadEventType       = "download"
-	outlinkEventType        = "outlink"
-	siteSearchEventType     = "site_search"
-	ecOrderEventType        = "ecommerce_order"
+	// DownloadEventType is the event type for file downloads.
+	DownloadEventType = "download"
+	// OutlinkEventType is the event type for outbound link clicks.
+	OutlinkEventType = "outlink"
+	// SiteSearchEventType is the event type for site searches.
+	SiteSearchEventType = "site_search"
+	// EcommerceOrderEventType is the event type for ecommerce orders.
+	EcommerceOrderEventType = "ecommerce_order"
 	goalConversionEventType = "goal_conversion"
 	contentImpressionType   = "content_impression"
 	contentInteractionType  = "content_interaction"
