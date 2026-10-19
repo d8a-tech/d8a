@@ -30,7 +30,7 @@ var klaroConfig = {
       default: true,
       cookies: [/^.*_d8a(_.*)?/],
       purposes: ['analytics'],
-      title: 'Divine Data',
+      title: 'd8a.tech',
       description: 'D8a helps us understand how visitors interact with our website by collecting and reporting information anonymously. This data helps us improve our services and user experience.',
       onAccept: `
         gtag('consent', 'update', { 

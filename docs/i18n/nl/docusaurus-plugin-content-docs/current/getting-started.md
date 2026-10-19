@@ -7,7 +7,7 @@ import TabItem from '@theme/TabItem';
 
 # Aan de slag
 
-Welkom bij Divine Data (d8a)! Deze gids helpt je om aan de slag te gaan met d8a, een open-source clickstream-analyticsplatform dat volledig compatibel is met de GA4-trackingprotocollen.
+Welkom bij d8a.tech! Deze gids helpt je om aan de slag te gaan met d8a, een open-source clickstream-analyticsplatform dat volledig compatibel is met de GA4-trackingprotocollen.
 
 :::caution Cloud-optie beschikbaar
 Je kunt beginnen met onze [gratis cloud-optie](https://d8a.tech/pricing/). Bezoek **[de aanmeldpagina](https://app.d8a.tech)** om een account aan te maken. Nadat je je account hebt ingesteld, kun je direct doorgaan naar stap 4.

@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2.svg)](https://discord.gg/EegbcdsWUc)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
-d8a.tech (pronounced "data tech", short for Divine Data) is an open source, warehouse-native web analytics pipeline. It receives the GA4 and Matomo tracking protocols, or its own web tracker, builds sessions on the backend, and writes clean, flat tables to BigQuery, ClickHouse or CSV/Parquet files. Run it in your own infrastructure, air-gapped if you need to, or use [d8a.tech Cloud](https://app.d8a.tech).
+d8a.tech (pronounced "data tech") is an open source, warehouse-native web analytics pipeline. It receives the GA4 and Matomo tracking protocols, or its own web tracker, builds sessions on the backend, and writes clean, flat tables to BigQuery, ClickHouse or CSV/Parquet files. Run it in your own infrastructure, air-gapped if you need to, or use [d8a.tech Cloud](https://app.d8a.tech).
 
 ```mermaid
 flowchart LR
@@ -26,6 +26,12 @@ flowchart LR
 - **Your storage.** Write directly to Google BigQuery or ClickHouse, or to CSV or Parquet files on S3, MinIO, GCS or a local filesystem.
 - **Deploy where your policy requires.** Run it on-premises or in your own cloud. The `--airgapped` flag disables built-in outbound integrations.
 - **Open source.** MIT-licensed, transparent and auditable. Fork it, contribute, or self-host it.
+
+## When Data Lands
+
+<img src="./docs/static/img/session-timeline.png" alt="Timeline of one visit: events are collected as they happen, the session closes after the inactivity window, and events plus session columns are written to the warehouse at once" />
+
+Sessions are built on the backend. Once a visit has been inactive for the session timeout (30 minutes by default, configurable with `sessions.timeout`), the session closes and all of its events, plus the finished session columns, are written to your warehouse at once. Every row is final when it arrives.
 
 ## Who Uses It
 
@@ -49,7 +55,38 @@ This repository is the full collection and processing pipeline. It ships without
 
 ## Screenshots
 
-These reports are built on d8a data in Looker Studio.
+### d8a.tech Cloud only
+
+The built-in dashboard and Ask AI are part of [d8a.tech Cloud](https://app.d8a.tech). They are not included in this repository.
+
+<table>
+  <tr>
+    <td>
+      <a href="./docs/static/img/cloud-dashboard-dark.png" target="_blank">
+        <img src="./docs/static/img/cloud-dashboard-dark.png" alt="d8a.tech Cloud dashboard, dark mode" width="260" />
+      </a>
+    </td>
+    <td>
+      <a href="./docs/static/img/cloud-dashboard-light.png" target="_blank">
+        <img src="./docs/static/img/cloud-dashboard-light.png" alt="d8a.tech Cloud dashboard, light mode" width="260" />
+      </a>
+    </td>
+    <td>
+      <a href="./docs/static/img/cloud-ask-ai-funnel.png" target="_blank">
+        <img src="./docs/static/img/cloud-ask-ai-funnel.png" alt="Ask AI building a funnel from the warehouse schema" width="260" />
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">Dashboard (Cloud only)</td>
+    <td style="text-align:center;">Dashboard, light mode (Cloud only)</td>
+    <td style="text-align:center;">Ask AI (Cloud only)</td>
+  </tr>
+</table>
+
+### Open source, with your BI tool
+
+These reports are built on d8a data in Looker Studio, using the [Looker Studio template](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
 <table>
   <tr>
