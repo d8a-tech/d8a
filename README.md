@@ -7,7 +7,7 @@
 [![Discord](https://img.shields.io/badge/Discord-join-5865F2.svg)](https://discord.gg/EegbcdsWUc)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)](https://github.com/d8a-tech/d8a/issues)
 
-d8a.tech (pronounced "data tech") is an open source, warehouse-native web analytics pipeline. It receives the GA4 and Matomo tracking protocols, or its own web tracker, builds sessions on the backend, and writes clean, flat tables to BigQuery, ClickHouse or CSV/Parquet files. Run it in your own infrastructure, air-gapped if you need to, or use [d8a.tech Cloud](https://app.d8a.tech).
+d8a.tech (pronounced "data tech") is an open source, warehouse-native web analytics pipeline. It receives the GA4 and Matomo tracking protocols, or its own web tracker, builds sessions on the backend, and writes clean, flat tables to BigQuery, ClickHouse or CSV/Parquet files. Run it in your own infrastructure, air-gapped if you need to, or use [d8a.tech Cloud](https://app.d8a.tech/auth/signup).
 
 ```mermaid
 flowchart LR
@@ -49,15 +49,15 @@ Receivers scale out; session processing runs on a single worker that scales vert
 
 ## Open Source and d8a.tech Cloud
 
-This repository is the full collection and processing pipeline. It ships without a reporting UI: bring your own BI tool, or start from the [Looker Studio template](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
+This repository is the full collection and processing pipeline. It ships without a reporting UI: bring your own BI tool, or start from the [prebuilt Data Studio dashboard](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
-[d8a.tech Cloud](https://app.d8a.tech) runs the same pipeline in the EU and adds a built-in analytics dashboard with goals, funnels and custom reports, plus Ask AI. See [pricing](https://d8a.tech/pricing) for the free tiers, the support package and Enterprise options.
+[d8a.tech Cloud](https://app.d8a.tech/auth/signup) runs the same pipeline in the EU. The Cloud Dashboard plan adds a built-in analytics dashboard with goals, funnels and custom reports, plus Ask AI. The Cloud Warehouse plan writes to your own BigQuery or ClickHouse and comes with the prebuilt Data Studio dashboard. See [pricing](https://d8a.tech/pricing) for the free tiers, the support package and Enterprise options.
 
 ## Screenshots
 
 ### d8a.tech Cloud only
 
-The built-in dashboard and Ask AI are part of [d8a.tech Cloud](https://app.d8a.tech). They are not included in this repository.
+The built-in dashboard and Ask AI are part of the [d8a.tech Cloud Dashboard plan](https://app.d8a.tech/auth/signup). They are not included in this repository.
 
 <table>
   <tr>
@@ -86,7 +86,7 @@ The built-in dashboard and Ask AI are part of [d8a.tech Cloud](https://app.d8a.t
 
 ### Open source, with your BI tool
 
-These reports are built on d8a data in Looker Studio, using the [Looker Studio template](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
+These reports are built on d8a data in Data Studio, using the [prebuilt Data Studio dashboard](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
 <table>
   <tr>
@@ -117,7 +117,7 @@ These reports are built on d8a data in Looker Studio, using the [Looker Studio t
 
 ### Cloud
 
-Start for free at [app.d8a.tech](https://app.d8a.tech/).
+Start for free at [app.d8a.tech](https://app.d8a.tech/auth/signup).
 
 ### Production setup (Docker)
 
