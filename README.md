@@ -57,7 +57,7 @@ This repository is the full collection and processing pipeline. It ships without
 
 ### d8a.tech Cloud only
 
-The built-in dashboard and Ask AI are part of the [d8a.tech Cloud](https://app.d8a.tech/auth/signup). Dashboard plan. They are not included in this repository.
+The built-in dashboard and Ask AI are part of the [d8a.tech Cloud Dashboard plan](https://app.d8a.tech/auth/signup). They are not included in this repository.
 
 <table>
   <tr>
