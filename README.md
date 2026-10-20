@@ -49,15 +49,15 @@ Receivers scale out; session processing runs on a single worker that scales vert
 
 ## Open Source and d8a.tech Cloud
 
-This repository is the full collection and processing pipeline. It ships without a reporting UI: bring your own BI tool, or start from the [Looker Studio template](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
+This repository is the full collection and processing pipeline. It ships without a reporting UI: bring your own BI tool, or start from the [prebuilt Data Studio dashboard](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
-[d8a.tech Cloud](https://app.d8a.tech/auth/signup) runs the same pipeline in the EU and adds a built-in analytics dashboard with goals, funnels and custom reports, plus Ask AI. See [pricing](https://d8a.tech/pricing) for the free tiers, the support package and Enterprise options.
+[d8a.tech Cloud](https://app.d8a.tech/auth/signup) runs the same pipeline in the EU. The Cloud Dashboard plan adds a built-in analytics dashboard with goals, funnels and custom reports, plus Ask AI. The Cloud Warehouse plan writes to your own BigQuery or ClickHouse and comes with the prebuilt Data Studio dashboard. See [pricing](https://d8a.tech/pricing) for the free tiers, the support package and Enterprise options.
 
 ## Screenshots
 
 ### d8a.tech Cloud only
 
-The built-in dashboard and Ask AI are part of [d8a.tech Cloud](https://app.d8a.tech/auth/signup). They are not included in this repository.
+The built-in dashboard and Ask AI are part of the [d8a.tech Cloud](https://app.d8a.tech/auth/signup). Dashboard plan. They are not included in this repository.
 
 <table>
   <tr>
@@ -86,7 +86,7 @@ The built-in dashboard and Ask AI are part of [d8a.tech Cloud](https://app.d8a.t
 
 ### Open source, with your BI tool
 
-These reports are built on d8a data in Looker Studio, using the [Looker Studio template](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
+These reports are built on d8a data in Data Studio, using the [prebuilt Data Studio dashboard](https://lookerstudio.google.com/reporting/0e4102b6-c38b-4f55-aa25-c1fe91d1c1e9/page/p_53ep5k8umd).
 
 <table>
   <tr>
