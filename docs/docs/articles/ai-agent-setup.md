@@ -14,13 +14,13 @@ The result: the site sends GA4-compatible events to d8a.tech, key events are tra
 
 You need one value: the **Property ID** of a d8a.tech Cloud property.
 
-The person gets it like this:
+Creating the account is the person's step, because they accept the terms. Ask once, in one sentence, for example: "Create a free account at app.d8a.tech/auth/signup, then paste me your Property ID." If you can use a browser on the person's behalf (for example in Claude Cowork), you may open the sign-up page for them, but let them enter their details and accept the terms.
 
-1. Sign up at [app.d8a.tech](https://app.d8a.tech/auth/signup). The person creates the account and accepts the terms; do not do this for them.
-2. Pick a plan: **Cloud Dashboard** (free up to 500k events a month, with a built-in dashboard) or **Cloud Warehouse** (free up to 30M events a month, written to their own BigQuery or ClickHouse).
-3. Copy the Property ID from the dashboard and paste it to you.
+What the person sees after signing up:
 
-Ask for it in one sentence, for example: "Create a free account at app.d8a.tech, then paste me your Property ID."
+1. The setup wizard creates a property. By default the data goes to the managed database with the built-in dashboard (Cloud Dashboard, free up to 500k events a month).
+2. To send the data to their own BigQuery instead (Cloud Warehouse, free up to 30M events a month), they connect it in the wizard. That takes a few more steps; you can't do it for them.
+3. They copy the Property ID and paste it to you.
 
 Self-hosted d8a.tech works the same way, but the tracking URL is the person's own host. See [Getting started](/getting-started).
 
@@ -28,7 +28,7 @@ Self-hosted d8a.tech works the same way, but the tracking URL is the person's ow
 
 | The site today | Use | Why |
 | --- | --- | --- |
-| No analytics yet | The d8a web tracker | GA4-style API, no Google-hosted tags. The tracker is in beta. |
+| No analytics yet | The d8a web tracker | GA4-style API, no Google-hosted tags. |
 | GA4 installed with `gtag` in the HTML | A second `gtag('config')` call | GA4 keeps working; d8a.tech receives a duplicate of every request. |
 | GA4 installed through Google Tag Manager | The GA4 duplicator tag in GTM | Needs access to the GTM container. If you have none, give the person the steps from [Google Analytics 4](/articles/sources/ga4). |
 
@@ -126,7 +126,7 @@ Ask the person which actions count as conversions before adding more than these.
 1. Open the site with DevTools, Network tab, and filter by `d8a.tech` (or `collect`).
 2. Accept consent if there is a banner, then load a page and trigger each key event.
 3. Each action should send one request to `global.t.d8a.tech/<property_id>/…` with the right `en` (event name) parameter.
-4. Add `debug_mode: true` to the config while testing and remove it before you finish.
+4. To watch hits arrive as they happen, the person can open debug mode in the d8a.tech app in another tab.
 
 Data appears in d8a.tech when each session closes, not instantly.
 
