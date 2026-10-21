@@ -12,7 +12,7 @@ If you are an AI agent adding analytics to a website, start with the setup guide
 ## Tracking sources
 
 - [Google Analytics 4](https://docs.d8a.tech/articles/sources/ga4): duplicate or redirect GA4 requests (GTM, gtag, server-side GTM)
-- [Web tracker](https://docs.d8a.tech/articles/sources/web-tracker/): GA4-style tracker that sends directly to d8a.tech (beta)
+- [Web tracker](https://docs.d8a.tech/articles/sources/web-tracker/): GA4-style tracker that sends directly to d8a.tech
 - [Web tracker cookies and consent](https://docs.d8a.tech/articles/sources/web-tracker/cookies)
 - [Matomo](https://docs.d8a.tech/articles/sources/matomo)
 
