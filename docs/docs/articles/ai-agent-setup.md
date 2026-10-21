@@ -134,7 +134,7 @@ Data appears in d8a.tech when each session closes, not instantly.
 
 End with a short summary:
 
-- The plan they are on and its monthly event limit (Cloud Dashboard: 500k free, then from $20/month; Cloud Warehouse: 30M free).
+- The plan they are on and its monthly event limit (Cloud Dashboard: 500k free, then from $20/month, capped at $1,000/month above 20M events; Cloud Warehouse: 30M free).
 - The install method and where the snippet lives in the code.
 - The key events you added and the file for each one.
 - How consent is handled.
