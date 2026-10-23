@@ -40,7 +40,7 @@ YAML (`config.yaml`):
 ```yaml
 queue:
   backend: object_storage
-  
+
   object_storage:
     prefix: d8a/dev/queue
     type: s3
@@ -53,6 +53,7 @@ queue:
       secret_key: minioadmin
       region: us-east-1
       create_bucket: true
+      disable_upload_checksums: true # Standaard; vereist door sommige S3-compatibele providers
 ```
 
 Draai de receiver(s):
