@@ -22,6 +22,10 @@ jobs:
           go-version-file: go.mod
 
       - name: Run Go tests
+        env:
+          # Keep the shared reaper alive between test binaries and image pulls.
+          # https://github.com/testcontainers/testcontainers-go/issues/3867
+          TESTCONTAINERS_RYUK_RECONNECTION_TIMEOUT: 30m
         run: |
           go test ./...
 
