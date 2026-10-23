@@ -19,9 +19,13 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
 
       - name: Run Go tests
+        env:
+          # Keep the shared reaper alive between test binaries and image pulls.
+          # https://github.com/testcontainers/testcontainers-go/issues/3867
+          TESTCONTAINERS_RYUK_RECONNECTION_TIMEOUT: 30m
         run: |
           go test ./...
 
@@ -36,7 +40,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9

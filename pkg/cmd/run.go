@@ -131,7 +131,6 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 							Value:    "console",
 							Required: false,
 						},
-						protocolFlag,
 					},
 					getServerFlags(),
 				),
@@ -277,7 +276,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						cancel()
 					}
 
-					<-workerErrChan
+					if workerErr := <-workerErrChan; workerErr != nil {
+						logrus.WithError(workerErr).Error("worker stopped with an error")
+					}
 					return serverErr
 				},
 			},

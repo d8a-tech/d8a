@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: go.mod
           cache: true
 
       - name: Install dependencies
@@ -57,4 +57,3 @@ jobs:
           claude_env: |
             GO111MODULE: on
             CGO_ENABLED: 0
-

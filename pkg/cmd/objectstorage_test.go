@@ -32,3 +32,23 @@ func TestNewS3BlobOptions(t *testing.T) {
 		assert.Equal(t, aws.RequestChecksumCalculationWhenRequired, opts.RequestChecksumCalculation)
 	})
 }
+
+func TestS3UploadChecksumsDisabledByDefault(t *testing.T) {
+	tests := map[string]objectStorageFlagSet{
+		"queue":     objectStorageFlagsSpec.Queue,
+		"warehouse": objectStorageFlagsSpec.Warehouse,
+	}
+
+	for name, flags := range tests {
+		t.Run(name, func(t *testing.T) {
+			disabled, ok := flags.S3DisableUploadChecksums.DefaultValue.(bool)
+			require.True(t, ok)
+			assert.True(t, disabled)
+			assert.Equal(
+				t,
+				aws.RequestChecksumCalculationWhenRequired,
+				newS3BlobOptions(disabled).RequestChecksumCalculation,
+			)
+		})
+	}
+}

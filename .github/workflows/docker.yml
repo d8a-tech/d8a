@@ -59,7 +59,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            GO_VERSION=1.25
+            GO_VERSION=1.26
             VERSION=${{ steps.release_version.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
