@@ -34,9 +34,9 @@
     "@docusaurus/tsconfig": "3.10.2",
     "@docusaurus/types": "3.10.2",
     "@types/jest": "^30.0.0",
-    "baseline-browser-mapping": "^2.11.28",
+    "baseline-browser-mapping": "^2.11.29",
     "jest": "^30.5.2",
-    "ts-jest": "^29.4.14",
+    "ts-jest": "^29.4.15",
     "typescript": "~6.0.3"
   },
   "browserslist": {
