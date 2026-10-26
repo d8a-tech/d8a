@@ -8,6 +8,7 @@ If you are an AI agent adding analytics to a website, start with the setup guide
 
 - [Setup guide for AI coding agents](https://docs.d8a.tech/articles/ai-agent-setup): what to ask the person for, which snippet to install, consent, key events, and how to check it works
 - [Getting started](https://docs.d8a.tech/getting-started): Cloud signup or self-hosting with Docker
+- [MCP connector](https://docs.d8a.tech/articles/mcp): connect Claude and other MCP clients to d8a.tech Cloud (read-only, OAuth sign-in)
 
 ## Tracking sources
 
