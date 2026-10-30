@@ -24,11 +24,11 @@ If d8a.tech is not set up yet:
 
 ## Tracking URL by protocol
 
-Each Cloud property has one protocol, chosen when it was created. A self-hosted instance uses the `protocol` key in `config.yaml` (`ga4` by default, `d8a` or `matomo`). Use the endpoint that matches it. The web tracker works with both `/d/c` and `/g/collect`; for a new self-hosted setup, set `protocol: d8a` to use `/d/c`.
+Each Cloud property has one protocol, chosen when it was created (d8a native by default). A self-hosted instance uses the `protocol` key in `config.yaml` (`ga4` by default, `d8a` or `matomo`). Use the endpoint that matches it. The web tracker works with both `/d/c` and `/g/collect`; for a new self-hosted setup, set `protocol: d8a` to use `/d/c`.
 
 | Protocol | Cloud | Self-hosted | Details |
 | --- | --- | --- | --- |
-| d8a native | `https://global.t.d8a.tech/<property_id>/d/c` | `https://<host>/d/c` | [Web tracker](/articles/sources/web-tracker/) |
+| d8a native (Cloud default) | `https://global.t.d8a.tech/<property_id>/d/c` | `https://<host>/d/c` | [Web tracker](/articles/sources/web-tracker/) |
 | GA4 (self-hosted default) | `https://global.t.d8a.tech/<property_id>/g/collect` | `https://<host>/g/collect` | [Google Analytics 4](/articles/sources/ga4) |
 | Matomo | `https://global.t.d8a.tech/<property_id>/matomo.php` | `https://<host>/matomo.php` | [Matomo](/articles/sources/matomo) |
 
