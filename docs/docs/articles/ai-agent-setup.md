@@ -1,54 +1,61 @@
 ---
 title: Setup guide for AI coding agents
 sidebar_position: 1
-description: Step-by-step instructions for AI coding agents (Claude Code and others) to add d8a.tech analytics to a website, with consent handling and key events.
+description: Step-by-step instructions for AI coding agents (Claude Code and others) to add d8a.tech analytics to a website, self-hosted or Cloud, with consent handling and key events.
 ---
 
 # Setup guide for AI coding agents
 
-This page is written for AI coding agents, such as Claude Code, that add analytics to a website on behalf of a person. People can follow it too.
+This page is optimized for AI coding agents, such as Claude Code, that add analytics to a website on behalf of a person. If you are a person setting up d8a.tech yourself, start with [Getting started](/getting-started).
 
-The result: the site sends GA4-compatible events to d8a.tech, key events are tracked in code, consent is respected, and the person can see their data in the d8a.tech dashboard or their own warehouse.
+The result: the site sends events to d8a.tech (self-hosted or Cloud), key events are tracked in code, consent is respected, and the person can see their data in the d8a.tech dashboard or their own warehouse.
 
 ## What you need from the person
 
-You need one value: the **Property ID** of a d8a.tech Cloud property.
+You need two values. Check the repository and the conversation first, and ask only for what is missing.
 
-Creating the account is the person's step, because they accept the terms. Ask once, in one sentence, for example: "Create a free account at app.d8a.tech/auth/signup, then paste me your Property ID." If you can use a browser on the person's behalf (for example in Claude Cowork), you may open the sign-up page for them, but let them enter their details and accept the terms.
+1. **Property ID**
+2. **Tracking URL**, which depends on the setup and the protocol (see the table below)
 
-What the person sees after signing up:
+If d8a.tech is not set up yet:
 
-1. The setup wizard creates a property. By default the data goes to the managed database with the built-in dashboard (Cloud Dashboard, free up to 500k events a month).
-2. To send the data to their own BigQuery instead (Cloud Warehouse, free up to 30M events a month), they connect it in the wizard. That takes a few more steps; you can't do it for them.
-3. They copy the Property ID and paste it to you.
+- **Cloud**: ask the person to create a free account at `https://app.d8a.tech/auth/signup`, then paste the Property ID shown by the setup wizard. Creating the account is the person's step, because they accept the terms. If you can use a browser on their behalf, you may open the page, but let them enter their details.
+- **Self-hosted**: point the person to [Getting started](/getting-started). The Property ID is any string set as `property.id` in `config.yaml`. We suggest a lowercase UUID v4, for example from `uuidgen | tr A-Z a-z`.
 
-Self-hosted d8a.tech works the same way, but the tracking URL is the person's own host. See [Getting started](/getting-started).
+## Tracking URL by protocol
+
+Each Cloud property has one protocol, chosen when it was created (d8a native by default). A self-hosted instance uses the `protocol` key in `config.yaml` (`ga4` by default, `d8a` or `matomo`). Use the endpoint that matches it. The web tracker works with both `/d/c` and `/g/collect`; for a new self-hosted setup, set `protocol: d8a` to use `/d/c`.
+
+| Protocol | Cloud | Self-hosted | Details |
+| --- | --- | --- | --- |
+| d8a native (Cloud default) | `https://global.t.d8a.tech/<property_id>/d/c` | `https://<host>/d/c` | [Web tracker](/articles/sources/web-tracker/) |
+| GA4 (self-hosted default) | `https://global.t.d8a.tech/<property_id>/g/collect` | `https://<host>/g/collect` | [Google Analytics 4](/articles/sources/ga4) |
+| Matomo | `https://global.t.d8a.tech/<property_id>/matomo.php` | `https://<host>/matomo.php` | [Matomo](/articles/sources/matomo) |
+
+In the snippets below, replace `<tracking_url>` with the URL from this table.
 
 ## Pick the install method
 
 | The site today | Use | Why |
 | --- | --- | --- |
-| No analytics yet | The d8a web tracker | GA4-style API, no Google-hosted tags. |
-| GA4 installed with `gtag` in the HTML | A second `gtag('config')` call | GA4 keeps working; d8a.tech receives a duplicate of every request. |
+| No analytics yet | Option A: the d8a web tracker | GA4-style API, no Google-hosted tags. |
+| GA4 installed with `gtag` in the HTML | Option B: a second `gtag('config')` call | GA4 keeps working; d8a.tech receives a duplicate of every request. |
 | GA4 installed through Google Tag Manager | The GA4 duplicator tag in GTM | Needs access to the GTM container. If you have none, give the person the steps from [Google Analytics 4](/articles/sources/ga4). |
+| Matomo installed | A second Matomo tracker | See [Matomo](/articles/sources/matomo). |
 
-Do not remove or change an existing GA4 setup unless the person asks you to.
+Do not remove or change an existing GA4 or Matomo setup unless the person asks you to.
 
-## Option A: d8a web tracker (new sites)
+## Option A: d8a web tracker
 
-Place this as high in the `<head>` as possible. Replace `<property_id>` in both places.
+Place this as high in the `<head>` as possible. Replace `<property_id>` and `<tracking_url>`.
 
 ```html
 <script>
   window.d8aLayer = window.d8aLayer || [];
   window.d8a = window.d8a || function () { d8aLayer.push(arguments); };
-
-  // Consent default: wait for the site's consent banner.
-  d8a('consent', 'default', { analytics_storage: 'denied' });
-
   d8a('js', new Date());
   d8a('config', '<property_id>', {
-    server_container_url: 'https://global.t.d8a.tech/<property_id>/d/c'
+    server_container_url: '<tracking_url>'
   });
 </script>
 <script async src="https://cdn.jsdelivr.net/npm/@d8a-tech/wt/dist/wt.min.js"></script>
@@ -65,18 +72,17 @@ import { installD8a } from '@d8a-tech/wt';
 
 installD8a();
 const d8a = window.d8a;
-d8a('consent', 'default', { analytics_storage: 'denied' });
 d8a('js', new Date());
 d8a('config', '<property_id>', {
-  server_container_url: 'https://global.t.d8a.tech/<property_id>/d/c'
+  server_container_url: '<tracking_url>'
 });
 ```
 
-A `page_view` is sent automatically, and enhanced measurement is on by default. See [Web tracker](/articles/sources/web-tracker/) for all options.
+See [Web tracker](/articles/sources/web-tracker/) for all options.
 
 ## Option B: site already runs GA4 with gtag
 
-Keep the existing `gtag('config', 'G-…')` call and add a second one:
+Keep the existing `gtag('config', 'G-…')` call and add a second one. Use the `/g/collect` tracking URL.
 
 ```html
 <script>
@@ -85,7 +91,7 @@ Keep the existing `gtag('config', 'G-…')` call and add a second one:
 
   // Duplicate to d8a.tech
   gtag('config', '<property_id>', {
-    service_container_url: 'https://global.t.d8a.tech/<property_id>/g/collect'
+    service_container_url: '<tracking_url>'
   });
 </script>
 ```
@@ -94,52 +100,56 @@ Events you send with `gtag('event', …)` now reach both GA4 and d8a.tech.
 
 ## Consent
 
-Analytics consent is the site owner's decision and depends on their legal basis. Follow their setup; never load tags around a consent banner.
+Analytics consent is the site owner's decision. If the site has a consent banner, or serves visitors in the EU (recommended there), add a consent default before the `config` call:
 
-- If the site has a consent banner, call `d8a('consent', 'update', { analytics_storage: 'granted' })` (or `gtag('consent', 'update', …)`) when the visitor accepts. The d8a tracker also reads `gtag('consent', …)` from `dataLayer`, and prefers it when both are set.
+```javascript
+d8a('consent', 'default', { analytics_storage: 'denied' });
+```
+
+- When the visitor accepts, call `d8a('consent', 'update', { analytics_storage: 'granted' })` (or `gtag('consent', 'update', …)`). The d8a tracker also reads `gtag('consent', …)` from `dataLayer`, and prefers it when both are set.
 - With `analytics_storage` denied, the d8a tracker writes no cookies and uses an in-memory client ID. See [Cookies](/articles/sources/web-tracker/cookies).
-- If you are not sure what the owner wants, load the tracker only after consent is granted, and tell the person what you did.
+- If you are not sure what the owner wants, add the default and tell the person.
 
-## Key events
+## Events
 
-Add events where the action happens in code, not with click listeners on CSS selectors. Prefer GA4 recommended event names, so reports and attribution work without mapping.
+**Collected automatically** by the web tracker: `page_view`, `user_engagement`, outbound `click`, `file_download` and `view_search_results`. `session_start` and `first_visit` are derived on the backend. Do not send these yourself. See [Automatically collected events](/articles/sources/web-tracker/automatically-collected-events). With GA4 duplication, d8a.tech receives whatever GA4 already sends.
 
-| Action on the site | Event name | Useful parameters |
-| --- | --- | --- |
-| Account created | `sign_up` | `method` |
-| Contact or demo form sent | `generate_lead` | `form_id`, `value`, `currency` |
-| Newsletter sign-up | `sign_up` | `method: 'newsletter'` |
-| Item added to cart | `add_to_cart` | `currency`, `value`, `items` |
-| Order completed | `purchase` | `transaction_id`, `value`, `currency`, `items` |
+**Add in code** the business actions that matter, where the action succeeds, not with click listeners on CSS selectors. Use [GA4 recommended event names](https://support.google.com/analytics/answer/9267735) and parameters, so reports and attribution work without mapping:
+
+| When | Event and key parameters |
+| --- | --- |
+| Account or newsletter sign-up | `sign_up`: `method` (e.g. `'email'`, `'newsletter'`) |
+| Contact or demo form sent | `generate_lead`: `value`, `currency` |
+| Item added to cart | `add_to_cart`: `items`, `value`, `currency` |
+| Checkout started | `begin_checkout`: `items`, `value`, `currency` |
+| Order completed | `purchase`: `transaction_id`, `value`, `currency`, `items` |
 
 ```javascript
 // After the form submit succeeds, not on button click
-d8a('event', 'generate_lead', { form_id: 'contact', value: 0, currency: 'EUR' });
+d8a('event', 'generate_lead', { value: 0, currency: 'EUR' });
 ```
 
-With Option B, use `gtag('event', …)` with the same names and parameters.
-
-Ask the person which actions count as conversions before adding more than these.
+With Option B, use `gtag('event', …)` with the same names and parameters. Ask the person which actions count as conversions before adding more than these.
 
 ## Check that it works
 
-1. Open the site with DevTools, Network tab, and filter by `d8a.tech` (or `collect`).
+1. Open the site with DevTools, Network tab, and filter by the tracking host.
 2. Accept consent if there is a banner, then load a page and trigger each key event.
-3. Each action should send one request to `global.t.d8a.tech/<property_id>/…` with the right `en` (event name) parameter.
-4. To watch hits arrive as they happen, the person can open debug mode in the d8a.tech app in another tab.
+3. Each action should send a request to the tracking URL with the right `en` (event name) parameter.
+4. Cloud: the person can watch hits arrive in debug mode in the d8a.tech app. Self-hosted: check the warehouse.
 
-Data appears in d8a.tech when each session closes, not instantly.
+Data appears when each session closes, not instantly.
 
 ## Tell the person what you did
 
 End with a short summary:
 
-- The plan they are on and its monthly event limit (Cloud Dashboard: 500k free, then $20 to $1,000/month by volume, custom quote above 20M events; Cloud Warehouse: 30M free).
 - The install method and where the snippet lives in the code.
 - The key events you added and the file for each one.
 - How consent is handled.
 - Where to see the data: the d8a.tech dashboard, or their warehouse.
+- Cloud only: the plan and its monthly event limit (Cloud Dashboard: 500k free, then $20 to $1,000/month by volume, custom quote above 20M events; Cloud Warehouse: 30M free).
 
-## Next: let the data improve the site
+## Next: ask AI about the data (Cloud only)
 
-d8a.tech has a read-only MCP server for Claude, in our cloud and self-hosted. Once data arrives, the person can connect it so Claude can read what converts and propose changes. Read-only means you can query the data, never change it. See [AI-ready analytics](https://d8a.tech/ai-ready-analytics/).
+With d8a.tech Cloud, the person can connect the read-only [MCP connector](/articles/mcp) so Claude and other MCP clients can read reports, explain what converts, and audit the tracking you installed. It is not available for self-hosted d8a.tech.
