@@ -52,8 +52,10 @@ The connector can only read data. It can't change settings, properties, goals, r
 | `d8a_get_saved_report` | Returns a saved report so it can be run for any date range. |
 | `d8a_get_tracking_install` | Returns the tracking snippets for a property's tracking method. |
 | `d8a_get_tracking_guide` | Returns d8a.tech guides on tracking, consent, attribution and the reporting tools. |
+| `d8a_weekly_review` | Returns a step-by-step weekly review: last week compared with the week before, follow-up on earlier actions and next priorities. |
+| `d8a_tracking_audit` | Returns a step-by-step audit of a site's tracking installation, for example to find missing or duplicate events. |
 
-The connector also offers two prompts: `weekly_review`, which compares last week with the week before, and `tracking_audit`, which checks how tracking is installed on the site in your repository.
+`weekly_review` and `tracking_audit` are also available as prompts in clients that support them.
 
 ## Example questions
 
