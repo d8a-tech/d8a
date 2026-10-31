@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/d8a-tech/d8a/pkg/columns"
+	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/customcolumns"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -499,7 +501,9 @@ func buildReceiverServer(
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
 		receiver.WithHitProcessingRule(receiver.IPMasking(settingsRegistry)),
 		receiver.WithHitBatchProcessingRule(receiver.NewTransformationBatchProcessingRule(
-			settingsRegistry, transformations.ExtractionDependencies{Geo: geoProvider},
+			settingsRegistry, transformations.ExtractionDependencies{Columns: map[string]schema.ColumnsRegistry{
+				currentProtocol.ID(): receiverColumnsRegistry(currentProtocol, settingsRegistry, geoProvider),
+			}},
 		)),
 		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
@@ -581,4 +585,19 @@ func loadTransformationsConfig() *properties.TransformationsConfig {
 		logrus.WithError(err).Panic("invalid transformations config")
 	}
 	return &config
+}
+
+// receiverColumnsRegistry builds the event columns early transformations read. Device
+// detection stays stubbed: transformations never read device fields, so the receiver
+// does not need the worker's detector.
+func receiverColumnsRegistry(
+	theProtocol protocol.Protocol, psr properties.SettingsRegistry, geoProvider dbip.LookupProvider,
+) schema.ColumnsRegistry {
+	options := []columnset.ColumnSetOption{columnset.WithCustomColumnsRegistry(
+		customcolumns.NewCustomColumnsPropertySettingsRegistry(psr, customcolumns.NewBuilder()),
+	)}
+	if geoProvider != nil {
+		options = append(options, columnset.WithGeoProvider(geoProvider))
+	}
+	return columnset.DefaultColumnRegistry(theProtocol, psr, options...)
 }

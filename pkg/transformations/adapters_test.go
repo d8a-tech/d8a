@@ -2,84 +2,91 @@ package transformations
 
 import (
 	"testing"
-	"time"
 
-	"github.com/d8a-tech/d8a/pkg/columns/eventcolumns"
-	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
-	"github.com/d8a-tech/d8a/pkg/protocol"
-	"github.com/d8a-tech/d8a/pkg/protocol/d8a"
-	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protocol/matomo"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestProtocolColumnExtractionParity(t *testing.T) {
+// Every catalog field must read exactly what the worker stores for the same hit.
+func TestCatalogReadsMatchWorkerColumns(t *testing.T) {
 	// given
 	settings := &properties.Settings{ExcludedURLParams: []string{"secret"}}
-	registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(settings))
-	converter := currency.NewDummyConverter(1)
-	for _, implementation := range []protocol.Protocol{
-		ga4.NewGA4Protocol(converter, registry), d8a.NewD8AProtocol(converter, registry),
-		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(registry), registry),
+	deps := columnDeps(settings, &geoStub{record: &dbip.LookupResult{
+		Country: "NL", Region: "Noord-Holland", City: "Amsterdam", Continent: "Europe",
+	}})
+	for protocolID, query := range map[string]map[string]string{
+		"ga4": {"dl": "https://example.com/a%20b?secret=canary&utm_source=news&gclid=1", "dt": "hello",
+			"dr": "https://referrer.example/", "sr": "1920x1080", "ul": "en-us", "uid": "user", "en": "page_view",
+			"tid": "G-TEST"},
+		"matomo": {"url": "https://example.com/a?utm_medium=cpc", "action_name": "hello", "res": "1920x1080",
+			"urlref": "https://referrer.example/", "uid": "user", "e_c": "category", "revenue": "12.5", "idsite": "1"},
 	} {
-		t.Run(implementation.ID(), func(t *testing.T) {
+		t.Run(protocolID, func(t *testing.T) {
 			hit := hits.New()
 			hit.EventName = "page_view"
-			view := newEventView(implementation.ID(), hit, settings, ExtractionDependencies{})
-			for name, value := range map[string]string{
-				"page_location": "https://example.com/a%20b?secret=canary&keep=yes",
-				"page_title":    "hello", "page_referrer": "https://referrer.example/",
-			} {
-				hit.Request.QueryParams.Set(view.wireKey(ref{Field: name}), value)
+			hit.Request.IP = "192.168.1.0"
+			for key, value := range query {
+				hit.Request.QueryParams.Set(key, value)
 			}
+			cols, err := deps.Columns[protocolID].Get(hit.PropertyID)
+			require.NoError(t, err)
 			event := schema.NewEvent(hit)
-			for _, name := range []string{"page_location", "page_title", "page_referrer", "page_hostname", "page_path"} {
-				// when
-				value, err := view.get(ref{Field: name})
-				require.NoError(t, err)
-				found := false
-				for _, column := range implementation.Columns().Event {
-					if column.Implements().Field.Name == name {
-						found = true
-						require.NoError(t, column.Write(event))
-					}
-				}
-				// then
-				require.True(t, found, name)
-				assert.Equal(t, event.Values[name], value, name)
+			for _, column := range cols.Event {
+				require.NoError(t, column.Write(event), column.Implements().Field.Name)
 			}
+			checked := 0
+			for _, capability := range Catalog() {
+				if capability.ConditionOnly || capability.Field == "parameter" || capability.Field == "url_parameter" ||
+					!contains(capability.ReadProtocols, protocolID) {
+					continue
+				}
+				// when
+				view := newEventView(Input{Protocol: protocolID, Hit: hit, Settings: settings, Dependencies: deps})
+				value, err := view.field(capability.Field)
+				// then
+				require.NoError(t, err, capability.Field)
+				assert.Equal(t, normalizeValue(event.Values[capability.Field]), value, capability.Field)
+				checked++
+			}
+			assert.Greater(t, checked, 20)
 		})
 	}
 }
 
-func TestDeviceAndGeoColumnExtractionParity(t *testing.T) {
+func TestCatalogExcludesDeviceDetectionAndExposesKnownParameters(t *testing.T) {
 	// given
-	hit := hits.New()
-	hit.Request.IP = "192.168.1.0"
-	hit.Request.Headers.Set("User-Agent",
-		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36")
-	hit.Request.Headers.Set("Sec-Ch-Ua-Platform", `"Linux"`)
-	geo, err := dbip.NewGeoColumnFactory(&geoStub{record: &dbip.LookupResult{
-		Country: "NL", Region: "Noord-Holland", City: "Amsterdam",
-	}}, dbip.CacheConfig{MaxEntries: 10, TTL: time.Minute})
-	require.NoError(t, err)
-	view := newEventView("ga4", hit, nil, ExtractionDependencies{Geo: geo})
-	event := schema.NewEvent(hit)
-	for _, column := range []schema.EventColumn{
-		eventcolumns.DeviceWebBrowserColumn, eventcolumns.DeviceOperatingSystemColumn, eventcolumns.DeviceCategoryColumn,
-		dbip.CountryColumn(geo), dbip.RegionColumn(geo), dbip.CityColumn(geo),
-	} {
-		// when
-		name := column.Implements().Field.Name
-		value, err := view.get(ref{Field: name})
-		require.NoError(t, err)
-		require.NoError(t, column.Write(event))
-		// then
-		assert.Equal(t, event.Values[name], value, name)
+	fields := make(map[string]FieldCapability)
+	for _, capability := range Catalog() {
+		fields[capability.Field] = capability
 	}
+	// then
+	for _, name := range []string{"device_category", "device_web_browser", "device_operating_system", "id", "client_id"} {
+		assert.NotContains(t, fields, name)
+	}
+	assert.Contains(t, fields, "device_screen_resolution")
+	assert.True(t, fields[IPAddressField].ConditionOnly)
+	assert.Empty(t, fields[IPAddressField].WriteProtocols)
+	assert.Equal(t, []string{"ga4", "d8a", "matomo"}, fields["geo_country"].WriteProtocols)
+	assert.Equal(t, []string{"ga4", "d8a"}, fields["name"].WriteProtocols)
+	assert.False(t, fields["name"].Removable)
+	assert.Equal(t, CategoryTrafficSource, fields["utm_source"].Category)
+	assert.Contains(t, KnownParameters(), ParameterHint{Name: "percent_scrolled", Type: "number"})
+	for _, hint := range KnownParameters() {
+		if field, ok := fields["params_"+hint.Name]; ok {
+			assert.NotContains(t, field.ReadProtocols, "ga4", "known GA4 parameters are hints, not fields")
+		}
+	}
+}
+
+func contains(list []string, value string) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
 }

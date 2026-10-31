@@ -21,25 +21,28 @@ type TransformationRuleConfig struct {
 	Actions    []TransformationActionConfig `yaml:"actions" json:"actions"`
 }
 
-// TransformationFieldReference selects either a friendly field or a typed custom parameter.
+// TransformationFieldReference selects exactly one of: a catalog field, a typed custom
+// event parameter, or a query parameter of the page URL.
 type TransformationFieldReference struct {
-	Field     string `yaml:"field,omitempty" json:"field,omitempty"`
-	Parameter string `yaml:"parameter,omitempty" json:"parameter,omitempty"`
-	Type      string `yaml:"type,omitempty" json:"type,omitempty"`
+	Field        string `yaml:"field,omitempty" json:"field,omitempty"`
+	Parameter    string `yaml:"parameter,omitempty" json:"parameter,omitempty"`
+	URLParameter string `yaml:"url_parameter,omitempty" json:"url_parameter,omitempty"`
+	Type         string `yaml:"type,omitempty" json:"type,omitempty"`
 }
 
-// TransformationLiteral preserves the distinction between strings and numbers, including zero.
+// TransformationLiteral is exactly one of a string, a number (including zero) or a
+// template such as "{{page_title}} | {{params.section}}".
 type TransformationLiteral struct {
-	String *string  `yaml:"string,omitempty" json:"string,omitempty"`
-	Number *float64 `yaml:"number,omitempty" json:"number,omitempty"`
+	String   *string  `yaml:"string,omitempty" json:"string,omitempty"`
+	Number   *float64 `yaml:"number,omitempty" json:"number,omitempty"`
+	Template *string  `yaml:"template,omitempty" json:"template,omitempty"`
 }
 
-// TransformationActionConfig describes a set, copy, remove or exclusive drop action.
+// TransformationActionConfig describes a set, remove or exclusive drop action.
 type TransformationActionConfig struct {
 	Type   string                        `yaml:"type" json:"type"`
 	Target *TransformationFieldReference `yaml:"target,omitempty" json:"target,omitempty"`
 	Value  *TransformationLiteral        `yaml:"value,omitempty" json:"value,omitempty"`
-	Source *TransformationFieldReference `yaml:"source,omitempty" json:"source,omitempty"`
 }
 
 // ParseTransformationsConfig reads only the transformations section, strictly checking its keys.

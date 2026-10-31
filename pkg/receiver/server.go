@@ -187,7 +187,7 @@ func NewServer(
 		storage:            storage,
 		rawLogStorage:      rawLogStorage,
 		hitProcessingRules: NoopHitProcessingRule,
-		hitBatchProcessingRule: func(_ protocol.Protocol, batch []*hits.Hit) ([]*hits.Hit, error) {
+		hitBatchProcessingRule: func(_ protocol.Protocol, _ *hits.ParsedRequest, batch []*hits.Hit) ([]*hits.Hit, error) {
 			return batch, nil
 		},
 		validationRules: validationRules,
@@ -303,7 +303,7 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		}
 	}
 	inputCount := len(hits)
-	hits, err = s.hitBatchProcessingRule(p, hits)
+	hits, err = s.hitBatchProcessingRule(p, request, hits)
 	if err != nil {
 		return nil, errors.New("batch processing failed")
 	}

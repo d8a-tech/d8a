@@ -95,9 +95,7 @@ func TestNormalizedRawLogsDropPositions(t *testing.T) {
 					properties.TransformationActionConfig{Type: "drop"})
 				config.Rules = append(config.Rules, transformationConfig("true",
 					transformationSet("page_title", "normalized"), transformationSet("user_id", "transformed-user"),
-					properties.TransformationActionConfig{Type: "copy",
-						Target: &properties.TransformationFieldReference{Field: "page_referrer"},
-						Source: &properties.TransformationFieldReference{Field: "page_title"}},
+					transformationTemplate("page_referrer", "{{page_title}}"),
 					properties.TransformationActionConfig{Type: "remove",
 						Target: &properties.TransformationFieldReference{Field: "page_location"}},
 				).Rules...)
@@ -182,14 +180,15 @@ func TestTransformationPersistenceFailures(t *testing.T) {
 		wantWrites    int
 	}{
 		{name: "settings", settingsErr: errors.New("secret-canary"), wantStatus: 400},
+		// Rule failures drop the affected hits (fail-closed) instead of rejecting the request.
 		{name: "compile", config: transformationConfig("unknown_field",
-			properties.TransformationActionConfig{Type: "drop"}), wantStatus: 400},
+			properties.TransformationActionConfig{Type: "drop"}), wantStatus: 204},
 		{name: "evaluation", config: transformationConfig(`split(name, "")[99] == "x"`,
-			properties.TransformationActionConfig{Type: "drop"}), wantStatus: 400},
+			properties.TransformationActionConfig{Type: "drop"}), wantStatus: 204},
 		{name: "extraction", config: transformationConfig(`geo_country == "NL"`,
-			properties.TransformationActionConfig{Type: "drop"}), deps: transformations.ExtractionDependencies{
-			Geo: dbip.NewStaticLookupProvider(nil, errors.New("secret-canary")),
-		}, wantStatus: 400},
+			properties.TransformationActionConfig{Type: "drop"}),
+			deps:       geoDeps(dbip.NewStaticLookupProvider(nil, errors.New("secret-canary"))),
+			wantStatus: 204},
 		{name: "validation", validationErr: errors.New("secret-canary"), wantStatus: 400},
 		{name: "raw log nonfatal", rawErr: errors.New("secret-canary"), wantStatus: 204, wantWrites: 2},
 	} {

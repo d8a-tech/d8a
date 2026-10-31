@@ -296,7 +296,16 @@ type simpleEventColumn struct {
 	required  bool
 	castFunc  func(any) (any, schema.D8AColumnWriteError)
 	write     func(*simpleEventColumn, *schema.Event) schema.D8AColumnWriteError
+	// sourceQueryParam/sourcePageURLParam name the single hit input a column reads, if any.
+	sourceQueryParam   string
+	sourcePageURLParam string
 }
+
+// SourceQueryParam implements QueryParamSource.
+func (c *simpleEventColumn) SourceQueryParam() string { return c.sourceQueryParam }
+
+// SourcePageURLParam implements PageURLParamSource.
+func (c *simpleEventColumn) SourcePageURLParam() string { return c.sourcePageURLParam }
 
 func (c *simpleEventColumn) Docs() schema.Documentation {
 	return c.docs
@@ -373,12 +382,14 @@ func FromQueryParamEventColumn(
 	queryParam string,
 	options ...EventColumnOptions,
 ) schema.EventColumn {
-	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+	column := NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		if len(event.BoundHit.MustParsedRequest().QueryParams) == 0 {
 			return nil, nil
 		}
 		return event.BoundHit.MustParsedRequest().QueryParams.Get(queryParam), nil
 	}, options...)
+	column.(*simpleEventColumn).sourceQueryParam = queryParam
+	return column
 }
 
 // AlwaysNilEventColumn creates a new event column that always returns nil
@@ -402,7 +413,7 @@ func FromPageURLParamEventColumn(
 	options = append(options, WithEventColumnDependsOn(schema.DependsOnEntry{
 		Interface: CoreInterfaces.EventPageLocation.ID,
 	}))
-	return NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+	column := NewSimpleEventColumn(id, field, func(event *schema.Event) (any, schema.D8AColumnWriteError) {
 		// Try to read from original URL in metadata first (if parameters were stripped)
 		originalURL := ReadOriginalPageLocation(event)
 		if originalURL == "" {
@@ -423,6 +434,8 @@ func FromPageURLParamEventColumn(
 		}
 		return parsed.Query().Get(param), nil
 	}, options...)
+	column.(*simpleEventColumn).sourcePageURLParam = param
+	return column
 }
 
 // EventColumnOptions configures a simple event column

@@ -7,10 +7,14 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/d8a-tech/d8a/pkg/columnset"
+	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
+	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
+	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/transformations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +25,13 @@ func transformationSet(field, value string) properties.TransformationActionConfi
 	return properties.TransformationActionConfig{
 		Type: "set", Target: &properties.TransformationFieldReference{Field: field},
 		Value: &properties.TransformationLiteral{String: &value},
+	}
+}
+
+func transformationTemplate(field, value string) properties.TransformationActionConfig {
+	return properties.TransformationActionConfig{
+		Type: "set", Target: &properties.TransformationFieldReference{Field: field},
+		Value: &properties.TransformationLiteral{Template: &value},
 	}
 }
 
@@ -42,6 +53,15 @@ func (s batchSettingsRegistry) GetByPropertyID(id string) (*properties.Settings,
 
 func (s batchSettingsRegistry) GetByMeasurementID(id string) (*properties.Settings, error) {
 	return s.get(id)
+}
+
+// geoDeps wires GA4 worker columns backed by the given geo provider.
+func geoDeps(provider dbip.LookupProvider) transformations.ExtractionDependencies {
+	registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{}))
+	ga4Protocol := ga4.NewGA4Protocol(currency.NewDummyConverter(1), registry)
+	return transformations.ExtractionDependencies{Columns: map[string]schema.ColumnsRegistry{
+		"ga4": columnset.DefaultColumnRegistry(ga4Protocol, registry, columnset.WithGeoProvider(provider)),
+	}}
 }
 
 type batchGeoLookup struct {
@@ -72,9 +92,9 @@ func TestTransformationBatchSnapshotAndRefresh(t *testing.T) {
 		hit.PropertyID = []string{"one", "two", "one"}[i]
 		hit.Request.IP = "192.0.2.0"
 	}
-	rule := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{Geo: geo})
+	rule := NewTransformationBatchProcessingRule(registry, geoDeps(geo))
 	// when
-	retained, err := rule(&mockProtocol{id: "ga4"}, batch)
+	retained, err := rule(&mockProtocol{id: "ga4"}, nil, batch)
 	// then
 	require.NoError(t, err)
 	require.Len(t, retained, 3)
@@ -83,7 +103,7 @@ func TestTransformationBatchSnapshotAndRefresh(t *testing.T) {
 		assert.Equal(t, "captured", hit.Request.QueryParams.Get("dt"))
 	}
 	// when: the next batch sees the refreshed configuration
-	retained, err = rule(&mockProtocol{id: "ga4"}, batch)
+	retained, err = rule(&mockProtocol{id: "ga4"}, nil, batch)
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, retained)
@@ -109,7 +129,7 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 			}))
 			// when
 			retained, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
-				&mockProtocol{id: protocolID}, []*hits.Hit{first, second},
+				&mockProtocol{id: protocolID}, request, []*hits.Hit{first, second},
 			)
 			// then
 			require.NoError(t, err)
@@ -148,8 +168,10 @@ func TestBatchProcessingOrder(t *testing.T) {
 		order = append(order, "process")
 		hit.Request.IP = "192.0.2.0"
 		return nil
-	})), WithHitBatchProcessingRule(func(_ protocol.Protocol, batch []*hits.Hit) ([]*hits.Hit, error) {
+	})), WithHitBatchProcessingRule(func(_ protocol.Protocol, original *hits.ParsedRequest, batch []*hits.Hit,
+	) ([]*hits.Hit, error) {
 		order = append(order, "batch")
+		assert.NotEqual(t, "192.0.2.0", original.IP, "the original request keeps the unmasked IP")
 		for _, hit := range batch {
 			assert.Equal(t, "192.0.2.0", hit.Request.IP)
 			hit.EventName = "transformed"
@@ -165,39 +187,22 @@ func TestBatchProcessingOrder(t *testing.T) {
 	assert.Len(t, raw.requests, 1)
 }
 
-func TestTransformationBatchFailuresArePayloadFree(t *testing.T) {
+func TestTransformationBatchRequestFailuresArePayloadFree(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		registry properties.SettingsRegistry
-		config   *properties.TransformationsConfig
-		deps     transformations.ExtractionDependencies
 	}{
 		{name: "missing registry"},
 		{name: "settings lookup", registry: batchSettingsRegistry{get: func(string) (*properties.Settings, error) {
 			return nil, errors.New("secret-canary")
 		}}},
-		{name: "compile", config: transformationConfig(`unknown_secret_canary`,
-			properties.TransformationActionConfig{Type: "drop"})},
-		{name: "evaluation", config: transformationConfig(`split(name, "")[99] == "secret-canary"`,
-			properties.TransformationActionConfig{Type: "drop"})},
-		{name: "extraction", config: transformationConfig(`geo_country == "secret-canary"`,
-			properties.TransformationActionConfig{Type: "drop"}), deps: transformations.ExtractionDependencies{
-			Geo: dbip.NewStaticLookupProvider(nil, errors.New("secret-canary")),
-		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			registry := tc.registry
-			if tc.config != nil {
-				registry = properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{
-					Transformations: tc.config,
-				}))
-			}
 			hit := hits.New()
-			hit.EventName, hit.Request.IP = "x", "192.0.2.0"
 			// when
-			retained, err := NewTransformationBatchProcessingRule(registry, tc.deps)(
-				&mockProtocol{id: "ga4"}, []*hits.Hit{hit},
+			retained, err := NewTransformationBatchProcessingRule(tc.registry, transformations.ExtractionDependencies{})(
+				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{hit},
 			)
 			// then
 			require.Error(t, err)
@@ -205,4 +210,74 @@ func TestTransformationBatchFailuresArePayloadFree(t *testing.T) {
 			assert.Nil(t, retained)
 		})
 	}
+}
+
+func TestTransformationFailuresDropOnlyTheAffectedHit(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		config *properties.TransformationsConfig
+		deps   transformations.ExtractionDependencies
+	}{
+		{name: "compile", config: transformationConfig(`unknown_secret_canary`,
+			properties.TransformationActionConfig{Type: "drop"})},
+		{name: "evaluation", config: transformationConfig(`name == "bad" && split(name, "")[99] == "secret-canary"`,
+			properties.TransformationActionConfig{Type: "drop"})},
+		{name: "extraction", config: transformationConfig(`name == "bad" && geo_country == "secret-canary"`,
+			properties.TransformationActionConfig{Type: "drop"}),
+			deps: geoDeps(dbip.NewStaticLookupProvider(nil, errors.New("secret-canary")))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{
+				Transformations: tc.config,
+			}))
+			bad, good := hits.New(), hits.New()
+			bad.EventName, good.EventName = "bad", "good"
+			bad.Request.IP, good.Request.IP = "192.0.2.0", "192.0.2.0"
+			// when
+			retained, err := NewTransformationBatchProcessingRule(registry, tc.deps)(
+				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{bad, good},
+			)
+			// then
+			require.NoError(t, err)
+			if tc.name == "compile" {
+				assert.Empty(t, retained, "an invalid configuration drops every hit of its property")
+				return
+			}
+			require.Len(t, retained, 1)
+			assert.Equal(t, "good", retained[0].EventName)
+		})
+	}
+}
+
+func TestTransformationsSeeTheUnmaskedIP(t *testing.T) {
+	// given
+	registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{
+		Transformations: transformationConfig(`inCidr(ip_address, "10.1.2.3/32")`,
+			properties.TransformationActionConfig{Type: "drop"}),
+	}))
+	hit := hits.New()
+	hit.Request.IP = "10.1.2.0"
+	// when
+	retained, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
+		&mockProtocol{id: "ga4"}, &hits.ParsedRequest{IP: "10.1.2.3"}, []*hits.Hit{hit},
+	)
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, retained)
+	assert.Equal(t, "10.1.2.0", hit.Request.IP)
+}
+
+func TestTransformationProgramsAreMemoizedPerConfiguration(t *testing.T) {
+	// given
+	memo := &programMemo{programs: make(map[*properties.TransformationsConfig]transformations.Program)}
+	config := transformationConfig("true", transformationSet("page_title", "x"))
+	// when
+	first, err := memo.get(config)
+	require.NoError(t, err)
+	second, err := memo.get(config)
+	require.NoError(t, err)
+	// then
+	assert.Same(t, first, second)
+	assert.Len(t, memo.programs, 1)
 }

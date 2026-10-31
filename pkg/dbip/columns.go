@@ -82,6 +82,12 @@ func (t *GeoColumnFactory) Column(
 		column,
 		field,
 		func(event *schema.Event) (any, schema.D8AColumnWriteError) {
+			// Early transformations may override or clear a single geo field.
+			if value, set, unset := columns.ReadOverride(event, field.Name); unset {
+				return nil, nil //nolint:nilnil // nil is valid
+			} else if set {
+				return value, nil
+			}
 			// Check if the value was computed for other column in this event
 			computedRecord, ok := event.Metadata[geoRecordMetadataKey]
 			if ok {

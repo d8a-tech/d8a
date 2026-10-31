@@ -38,7 +38,7 @@ transformations:
 			require.NoError(t, err)
 			hit := hits.New()
 			hit.EventName = "page_view"
-			keep, err := program.Apply("ga4", hit, settings, transformations.ExtractionDependencies{})
+			keep, err := program.Apply(transformations.Input{Protocol: "ga4", Hit: hit, Settings: settings})
 			// then
 			require.NoError(t, err)
 			assert.True(t, keep)

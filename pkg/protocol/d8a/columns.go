@@ -66,6 +66,11 @@ func (c *d8aEventColumnWrapper) DependsOn() []schema.DependsOnEntry {
 	return deps
 }
 
+// Unwrap implements columns.EventColumnUnwrapper.
+func (c *d8aEventColumnWrapper) Unwrap() schema.EventColumn {
+	return c.column
+}
+
 func (c *d8aEventColumnWrapper) Write(event *schema.Event) schema.D8AColumnWriteError {
 	return c.column.Write(event)
 }

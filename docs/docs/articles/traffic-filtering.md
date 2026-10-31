@@ -49,6 +49,9 @@ When both YAML and inline flags are provided:
 ## Available fields
 
 The `filters.fields` configuration specifies which event columns are injected into the expression environment.
+Field names are event column names (for example `name`, not `event_name`). A field without a value is
+injected as an empty string (`""`); `ip_address` is the stored, masked address. [Event transformations](event-transformations.md)
+use the same names but represent missing values as `nil`.
 
 ## Expression interpreter
 
@@ -110,7 +113,7 @@ See [expr-lang language definition](https://expr-lang.org/docs/language-definiti
 - name: "page_views_only"
   type: allow
   test_mode: false
-  expression: 'event_name == "page_view" || event_name == "screen_view"' # requires event_name in filters.fields
+  expression: 'name == "page_view" || name == "screen_view"' # requires name in filters.fields
 ```
 
 ### Complex condition with multiple fields
