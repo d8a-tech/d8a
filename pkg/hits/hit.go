@@ -35,10 +35,21 @@ type ParsedRequest struct {
 }
 
 func (s *ParsedRequest) Clone() *ParsedRequest {
-	queryParamsCopy := url.Values{}
+	// One backing array for all values: a GA4 hit carries dozens of params, and a slice per
+	// key dominated the allocations of every clone.
+	total := 0
+	for _, values := range s.QueryParams {
+		total += len(values)
+	}
+	backing := make([]string, total)
+	queryParamsCopy := make(url.Values, len(s.QueryParams))
+	offset := 0
 	for key, values := range s.QueryParams {
-		queryParamsCopy[key] = make([]string, len(values))
-		copy(queryParamsCopy[key], values)
+		end := offset + copy(backing[offset:], values)
+		// Full slice expression caps each key's slice, so appending to one key
+		// reallocates instead of overwriting the next key's values.
+		queryParamsCopy[key] = backing[offset:end:end]
+		offset = end
 	}
 	return &ParsedRequest{
 		IP:                 s.IP,
