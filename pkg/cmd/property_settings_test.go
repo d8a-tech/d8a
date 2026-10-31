@@ -5,10 +5,71 @@ import (
 	"testing"
 	"time"
 
+	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/d8a-tech/d8a/pkg/transformations"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"
 )
+
+func TestPropertySettings_TransformationsYAMLToEngine(t *testing.T) {
+	// given
+	configPath := writeConfigFile(t, `
+transformations:
+  rules:
+    - name: example
+      expression: 'name == "page_view"'
+      actions:
+        - type: set
+          target: {field: page_title}
+          value: {string: transformed}
+`)
+	setConfigFileForTest(t, configPath)
+	args := []string{"d8a-test", "--config=" + configPath}
+	setCurrentRunArgsForTest(t, args)
+	app := &cli.Command{
+		Name: "d8a-test", Flags: newPropertySettingsFlagsForConfigTests(),
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			// when
+			settings, err := propertySettings(cmd).GetByPropertyID("any-property")
+			require.NoError(t, err)
+			require.NotNil(t, settings.Transformations)
+			program, err := transformations.Compile(*settings.Transformations)
+			require.NoError(t, err)
+			hit := hits.New()
+			hit.EventName = "page_view"
+			keep, err := program.Apply("ga4", hit, settings, transformations.ExtractionDependencies{})
+			// then
+			require.NoError(t, err)
+			assert.True(t, keep)
+			assert.Equal(t, "transformed", hit.Request.QueryParams.Get("dt"))
+			return nil
+		},
+	}
+	require.NoError(t, app.Run(context.Background(), args))
+}
+
+func TestPropertySettings_InvalidTransformationsFailStartup(t *testing.T) {
+	// given
+	configPath := writeConfigFile(t, `
+transformations:
+  rules:
+    - expression: 'unknown_field == 1'
+      actions: [{type: drop}]
+`)
+	setConfigFileForTest(t, configPath)
+	args := []string{"d8a-test", "--config=" + configPath}
+	setCurrentRunArgsForTest(t, args)
+	app := &cli.Command{
+		Name: "d8a-test", Flags: newPropertySettingsFlagsForConfigTests(),
+		Action: func(_ context.Context, cmd *cli.Command) error {
+			propertySettings(cmd)
+			return nil
+		},
+	}
+	// when / then
+	assert.Panics(t, func() { _ = app.Run(context.Background(), args) })
+}
 
 func newPropertySettingsFlagsForConfigTests() []cli.Flag {
 	return []cli.Flag{

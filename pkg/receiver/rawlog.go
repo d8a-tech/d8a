@@ -1,6 +1,27 @@
 package receiver
 
-import "github.com/d8a-tech/d8a/pkg/hits"
+import (
+	"github.com/d8a-tech/d8a/pkg/hits"
+	"github.com/sirupsen/logrus"
+)
+
+func (s *Server) storeRawLogs(original *hits.ParsedRequest, batch []*hits.Hit, normalized bool) {
+	if normalized {
+		for _, hit := range batch {
+			if err := s.rawLogStorage.Store(hit.Request); err != nil {
+				logrus.Warn("failed to store normalized raw log")
+			}
+		}
+		return
+	}
+	request := original
+	if len(batch) > 0 {
+		request = batch[0].Request
+	}
+	if err := s.rawLogStorage.Store(request); err != nil {
+		logrus.Errorf("failed to store raw log: %v", err)
+	}
+}
 
 // RawLogStorage defines the interface for storing raw log data
 type RawLogStorage interface {

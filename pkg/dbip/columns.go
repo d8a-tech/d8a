@@ -57,6 +57,20 @@ func NewGeoColumnFactory(provider LookupProvider, cacheConfig CacheConfig) (*Geo
 
 const geoRecordMetadataKey = "geo_record"
 
+// Lookup implements LookupProvider, sharing the column factory's bounded cache.
+func (t *GeoColumnFactory) Lookup(ip netip.Addr) (*LookupResult, error) {
+	key := ip.String()
+	if cached, ok := t.cache.Get(key); ok {
+		return cached, nil
+	}
+	record, err := t.provider.Lookup(ip)
+	if err != nil {
+		return nil, fmt.Errorf("looking up geolocation: %w", err)
+	}
+	t.cache.SetWithTTL(key, record, 1, t.cacheConfig.TTL)
+	return record, nil
+}
+
 // Column creates a new event column from a GeoColumnTemplate.
 func (t *GeoColumnFactory) Column(
 	column schema.InterfaceID,
@@ -76,18 +90,12 @@ func (t *GeoColumnFactory) Column(
 					return getValue(event, typedComputedRecord)
 				}
 			}
-			// Check if for given IP there is a cache hit (calculated for other event)
-			cacheHit, ok := t.cache.Get(event.BoundHit.MustParsedRequest().IP)
-			if ok {
-				event.Metadata[geoRecordMetadataKey] = cacheHit
-				return getValue(event, cacheHit)
-			}
 			ipAddress, err := netip.ParseAddr(event.BoundHit.MustParsedRequest().IP)
 			if err != nil {
 				logrus.WithError(err).Warn("failed to parse IP address in dbip column")
 				return nil, nil //nolint:nilnil // nil is valid
 			}
-			record, err := t.provider.Lookup(ipAddress)
+			record, err := t.Lookup(ipAddress)
 			if err != nil {
 				if errors.Is(err, ErrUnavailable) {
 					return nil, nil //nolint:nilnil // nil is valid
@@ -95,7 +103,6 @@ func (t *GeoColumnFactory) Column(
 				return nil, schema.NewBrokenEventError(fmt.Sprintf("failed to lookup IP address in dbip column: %s", err))
 			}
 			event.Metadata[geoRecordMetadataKey] = record
-			t.cache.SetWithTTL(event.BoundHit.MustParsedRequest().IP, record, 1, t.cacheConfig.TTL)
 			return getValue(event, record)
 		},
 		options...,

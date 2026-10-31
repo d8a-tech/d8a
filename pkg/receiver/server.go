@@ -114,17 +114,18 @@ const (
 
 // Server holds all server-related dependencies and configuration
 type Server struct {
-	protocols          []protocol.Protocol
-	storage            Storage
-	rawLogStorage      RawLogStorage
-	hitProcessingRules HitProcessingRule
-	validationRules    HitValidatingRule
-	host               string
-	port               int
-	proxyTrust         ProxyTrust
-	readTimeout        time.Duration
-	writeTimeout       time.Duration
-	maxConcurrency     int
+	protocols              []protocol.Protocol
+	storage                Storage
+	rawLogStorage          RawLogStorage
+	hitProcessingRules     HitProcessingRule
+	hitBatchProcessingRule HitBatchProcessingRule
+	validationRules        HitValidatingRule
+	host                   string
+	port                   int
+	proxyTrust             ProxyTrust
+	readTimeout            time.Duration
+	writeTimeout           time.Duration
+	maxConcurrency         int
 }
 
 func WithHost(host string) ServerOption {
@@ -165,6 +166,13 @@ func WithHitProcessingRule(rule HitProcessingRule) ServerOption {
 
 type ServerOption func(*Server)
 
+// WithHitBatchProcessingRule sets the batch hook run after all per-hit processing.
+func WithHitBatchProcessingRule(rule HitBatchProcessingRule) ServerOption {
+	return func(s *Server) {
+		s.hitBatchProcessingRule = rule
+	}
+}
+
 // NewServer creates a new Server instance with the provided dependencies
 func NewServer(
 	storage Storage,
@@ -179,13 +187,16 @@ func NewServer(
 		storage:            storage,
 		rawLogStorage:      rawLogStorage,
 		hitProcessingRules: NoopHitProcessingRule,
-		validationRules:    validationRules,
-		host:               "0.0.0.0",
-		port:               port,
-		proxyTrust:         noProxyTrust{},
-		readTimeout:        defaultReadTimeout,
-		writeTimeout:       defaultWriteTimeout,
-		maxConcurrency:     defaultMaxConcurrency,
+		hitBatchProcessingRule: func(_ protocol.Protocol, batch []*hits.Hit) ([]*hits.Hit, error) {
+			return batch, nil
+		},
+		validationRules: validationRules,
+		host:            "0.0.0.0",
+		port:            port,
+		proxyTrust:      noProxyTrust{},
+		readTimeout:     defaultReadTimeout,
+		writeTimeout:    defaultWriteTimeout,
+		maxConcurrency:  defaultMaxConcurrency,
 	}
 
 	for _, opt := range opts {
@@ -220,12 +231,20 @@ func (s *Server) handleRequest(
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
+		if hit.Metadata == nil {
+			hit.Metadata = make(map[string]string)
+		}
+		delete(hit.Metadata, normalizedRequestMetadataKey)
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
 
 		hitCounter.Add(reqCtx, 1,
 			metric.WithAttributes(
 				attribute.String("tracking_library", extractTrackingLibrary(hit.Request.QueryParams)),
 			))
+	}
+	if len(hits) == 0 {
+		ctx.SetStatusCode(fasthttp.StatusNoContent)
+		return
 	}
 	err = s.storage.Push(hits)
 	if err != nil {
@@ -282,19 +301,28 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		if err := s.hitProcessingRules.Process(p, hit); err != nil {
 			return nil, err
 		}
+	}
+	inputCount := len(hits)
+	hits, err = s.hitBatchProcessingRule(p, hits)
+	if err != nil {
+		return nil, errors.New("batch processing failed")
+	}
+	if inputCount > 0 && len(hits) == 0 {
+		return hits, nil
+	}
+	normalized := len(hits) > 0 && hits[0].Metadata[normalizedRequestMetadataKey] == "true"
+	for _, hit := range hits {
+		if hit.Request == nil {
+			return nil, errors.New("missing parsed request")
+		}
 		if err := s.validationRules.Validate(p, hit); err != nil {
+			if normalized {
+				return nil, errors.New("transformed hit validation failed")
+			}
 			return nil, err
 		}
 	}
-
-	rawLogRequest := request
-	if len(hits) > 0 {
-		rawLogRequest = hits[0].Request
-	}
-
-	if err := s.rawLogStorage.Store(rawLogRequest); err != nil {
-		logrus.Errorf("failed to store raw log: %v", err)
-	}
+	s.storeRawLogs(request, hits, normalized)
 
 	return hits, nil
 }

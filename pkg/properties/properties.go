@@ -26,6 +26,7 @@ type Settings struct {
 	IPMaskingLevel            int
 
 	Filters           *FiltersConfig
+	Transformations   *TransformationsConfig
 	CustomColumns     []CustomColumnConfig
 	ExcludedURLParams []string
 	Metadata          map[string]any

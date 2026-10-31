@@ -10,11 +10,13 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
+	"github.com/d8a-tech/d8a/pkg/dbip"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/receiver"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	"github.com/d8a-tech/d8a/pkg/telemetry"
+	"github.com/d8a-tech/d8a/pkg/transformations"
 	"github.com/d8a-tech/d8a/pkg/util"
 	"github.com/d8a-tech/d8a/pkg/worker"
 	"github.com/sirupsen/logrus"
@@ -269,7 +271,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 					}()
 
 					// Start server and handle its error
-					server := buildReceiverServer(cmd, serverStorage, converter)
+					server := buildReceiverServer(cmd, serverStorage, converter, geoProvider)
 					serverErr := server.Run(ctx)
 					if serverErr != nil {
 						logrus.Errorf("server error: %v", serverErr)
@@ -331,7 +333,7 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 						return err
 					}
 					defer cleanupReceiverStorage()
-					server := buildReceiverServer(cmd, serverStorage, converter)
+					server := buildReceiverServer(cmd, serverStorage, converter, geoProvider)
 					return server.Run(ctx)
 				},
 			},
@@ -475,7 +477,9 @@ func Run(ctx context.Context, cancel context.CancelFunc, args []string) error { 
 
 // buildReceiverServer constructs a receiver.Server from CLI flags and the given storage.
 // For as long as we don't support multi-property, we return a single protocol.
-func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter currency.Converter) *receiver.Server {
+func buildReceiverServer(
+	cmd *cli.Command, storage receiver.Storage, converter currency.Converter, geoProvider dbip.LookupProvider,
+) *receiver.Server {
 	currentProtocol := protocolByID(cmd.String(protocolFlag.Name), cmd, converter)
 	if currentProtocol == nil {
 		logrus.Panicf("protocol %s not found", cmd.String(protocolFlag.Name))
@@ -494,6 +498,9 @@ func buildReceiverServer(cmd *cli.Command, storage receiver.Storage, converter c
 		cmd.Int(serverPortFlag.Name),
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
 		receiver.WithHitProcessingRule(receiver.IPMasking(settingsRegistry)),
+		receiver.WithHitBatchProcessingRule(receiver.NewTransformationBatchProcessingRule(
+			settingsRegistry, transformations.ExtractionDependencies{Geo: geoProvider},
+		)),
 		trustedProxiesOption(cmd.StringSlice(serverTrustedProxiesFlag.Name)),
 	)
 }
@@ -513,6 +520,7 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 		SessionJoinBySessionStamp:  cmd.Bool(sessionsJoinBySessionStampFlag.Name),
 		SessionJoinByUserID:        cmd.Bool(sessionsJoinByUserIDFlag.Name),
 		IPMaskingLevel:             cmd.Int(propertySettingsIPMaskingLevelFlag.Name),
+		Transformations:            loadTransformationsConfig(),
 		Filters: func() *properties.FiltersConfig {
 			var filtersConfig properties.FiltersConfig
 			// Config file is optional; stat before parsing
@@ -559,4 +567,18 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 			settings,
 		),
 	)
+}
+
+func loadTransformationsConfig() *properties.TransformationsConfig {
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return nil
+	}
+	config, err := properties.ParseTransformationsConfig(configFile)
+	if err != nil {
+		logrus.WithError(err).Panic("failed to load transformations config")
+	}
+	if _, err := transformations.Compile(config); err != nil {
+		logrus.WithError(err).Panic("invalid transformations config")
+	}
+	return &config
 }
