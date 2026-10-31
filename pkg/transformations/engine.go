@@ -78,8 +78,10 @@ func (p *program) Apply(input Input) (bool, error) {
 	return true, nil
 }
 
-// applyActions evaluates every value against the pre-rule state, then writes in order.
+// applyActions evaluates every value against the pre-rule state, then writes in order and
+// invalidates memoized reads once, after the last write.
 func applyActions(view *eventView, actions []compiledAction) string {
+	defer view.invalidate()
 	values := make([]any, len(actions))
 	skip := make([]bool, len(actions))
 	for i := range actions {

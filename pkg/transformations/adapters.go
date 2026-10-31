@@ -278,15 +278,16 @@ func normalizeValue(value any) any {
 	return value
 }
 
-// invalidate drops memoized reads after a write, so later rules see the new state.
+// invalidate drops memoized reads after a rule wrote, so later rules see the new state.
 func (v *eventView) invalidate() {
 	clear(v.values)
 	v.event = nil
 	v.done = nil
 }
 
+// write changes the hit. It does not drop memoized reads: callers invalidate once the
+// rule's writes are done (see applyActions), since writes only read the raw request.
 func (v *eventView) write(ref properties.TransformationFieldReference, value any, remove bool) error {
-	defer v.invalidate()
 	params := v.input.Hit.Request.QueryParams
 	if params == nil {
 		params = make(url.Values)

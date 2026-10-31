@@ -266,6 +266,42 @@ func TestURLExclusionAndDerivedInvalidation(t *testing.T) {
 	}
 }
 
+func TestRuleWritesInvalidateReadsForLaterRules(t *testing.T) {
+	for name, deps := range map[string]ExtractionDependencies{
+		"columns": columnDeps(nil, nil), "core fallback": {},
+	} {
+		t.Run(name, func(t *testing.T) {
+			// given
+			hit := hits.New()
+			hit.Request.QueryParams.Set("dl", "https://example.com/old?keep=yes")
+			hit.Request.QueryParams.Set("dt", "title")
+			p := compileRules(t,
+				// Reads before any write, so the view memoizes the original values.
+				rule{Expression: `page_path == "/old" && page_hostname == "example.com" && page_title == "title"`,
+					Actions: []action{
+						set(field("page_path"), "/new"),
+						template(parameter("previous_path", "string"), "{{page_path}}"),
+						set(field("page_hostname"), "new.example"),
+					}},
+				// Param-only write: the next rule must still see it.
+				rule{Expression: `page_path == "/new" && page_hostname == "new.example" && ` +
+					`params.previous_path == "/old"`,
+					Actions: []action{set(parameter("checked", "string"), "yes")}},
+				rule{Expression: `params.checked == "yes"`, Actions: []action{set(field("page_title"), "done")}},
+			)
+			// when
+			keep, err := apply(p, "ga4", hit, nil, deps)
+			// then
+			require.NoError(t, err)
+			assert.True(t, keep)
+			assert.Equal(t, "https://new.example/new?keep=yes", hit.Request.QueryParams.Get("dl"))
+			assert.Equal(t, "/old", hit.Request.QueryParams.Get("ep.previous_path"))
+			assert.Equal(t, "yes", hit.Request.QueryParams.Get("ep.checked"))
+			assert.Equal(t, "done", hit.Request.QueryParams.Get("dt"))
+		})
+	}
+}
+
 func TestPageURLWrites(t *testing.T) {
 	for _, protocolID := range []string{"ga4", "matomo"} {
 		t.Run(protocolID, func(t *testing.T) {
