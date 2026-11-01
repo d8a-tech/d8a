@@ -302,6 +302,41 @@ func TestRuleWritesInvalidateReadsForLaterRules(t *testing.T) {
 	}
 }
 
+func TestPageURLLeftAloneWhenNothingChanges(t *testing.T) {
+	// A raw URL whose query string would be re-encoded and reordered if re-serialized.
+	const raw = "https://example.com/a?z=1&mail=a@example.com&phone=%2B48%20601&tag=[x]"
+	cases := []struct {
+		name    string
+		actions []action
+		want    string
+	}{
+		{name: "remove missing click ID", actions: []action{remove(field("click_id_gclid"))}, want: raw},
+		{name: "remove missing URL parameter", actions: []action{remove(urlParameter("token"))}, want: raw},
+		{name: "set URL parameter to its value", actions: []action{set(urlParameter("z"), "1")}, want: raw},
+		{name: "set path to its value", actions: []action{set(field("page_path"), "/a")}, want: raw},
+		{name: "set hostname to its value", actions: []action{set(field("page_hostname"), "example.com")}, want: raw},
+		{
+			name:    "remove present URL parameter rewrites",
+			actions: []action{remove(urlParameter("z"))},
+			want:    "https://example.com/a?mail=a%40example.com&phone=%2B48+601&tag=%5Bx%5D",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			hit := hits.New()
+			hit.Request.QueryParams.Set("dl", raw)
+			p := compileRules(t, rule{Expression: "true", Actions: tc.actions})
+			// when
+			keep, err := apply(p, "ga4", hit, nil, columnDeps(nil, nil))
+			// then
+			require.NoError(t, err)
+			assert.True(t, keep)
+			assert.Equal(t, tc.want, hit.Request.QueryParams.Get("dl"))
+		})
+	}
+}
+
 func TestPageURLWrites(t *testing.T) {
 	for _, protocolID := range []string{"ga4", "matomo"} {
 		t.Run(protocolID, func(t *testing.T) {

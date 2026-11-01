@@ -310,7 +310,7 @@ func (v *eventView) write(ref properties.TransformationFieldReference, value any
 		}
 		return nil
 	case ref.URLParameter != "":
-		return v.rewritePage(func(page *url.URL) { setQueryParam(page, ref.URLParameter, text, remove) })
+		return v.rewritePage(func(page *url.URL) bool { return setQueryParam(page, ref.URLParameter, text, remove) })
 	}
 	info := loadCatalog().fields[ref.Field]
 	if info == nil {
@@ -329,14 +329,21 @@ func (v *eventView) write(ref properties.TransformationFieldReference, value any
 		}
 		v.syncHitField(ref.Field, text, remove)
 	case writePageURLParam:
-		return v.rewritePage(func(page *url.URL) { setQueryParam(page, spec.key, text, remove) })
+		return v.rewritePage(func(page *url.URL) bool { return setQueryParam(page, spec.key, text, remove) })
 	case writePageURLElement:
-		return v.rewritePage(func(page *url.URL) {
+		return v.rewritePage(func(page *url.URL) bool {
 			if spec.key == "page_hostname" {
+				if page.Host == text {
+					return false
+				}
 				page.Host = text
-				return
+				return true
+			}
+			if page.Path == text && page.RawPath == "" {
+				return false
 			}
 			page.Path, page.RawPath = text, ""
+			return true
 		})
 	case writeOverride:
 		metadata := v.input.Hit.Metadata
@@ -368,8 +375,10 @@ func (v *eventView) syncHitField(field, text string, remove bool) {
 	}
 }
 
-// rewritePage edits the raw page URL in the request. A missing URL is left alone.
-func (v *eventView) rewritePage(mutate func(*url.URL)) error {
+// rewritePage edits the raw page URL in the request. A missing URL is left alone, and so
+// is the URL when mutate reports no change: re-serializing would re-encode and reorder its
+// query string even though no value changed.
+func (v *eventView) rewritePage(mutate func(*url.URL) bool) error {
 	key := v.pageLocationKey()
 	params := v.input.Hit.Request.QueryParams
 	if key == "" || params.Get(key) == "" {
@@ -379,19 +388,29 @@ func (v *eventView) rewritePage(mutate func(*url.URL)) error {
 	if err != nil {
 		return errExtraction
 	}
-	mutate(page)
-	params.Set(key, page.String())
+	if mutate(page) {
+		params.Set(key, page.String())
+	}
 	return nil
 }
 
-func setQueryParam(page *url.URL, name, value string, remove bool) {
+// setQueryParam sets or removes one query parameter and reports whether the URL changed.
+func setQueryParam(page *url.URL, name, value string, remove bool) bool {
 	query := page.Query()
+	current, present := query[name]
 	if remove {
+		if !present {
+			return false
+		}
 		query.Del(name)
 	} else {
+		if len(current) == 1 && current[0] == value {
+			return false
+		}
 		query.Set(name, value)
 	}
 	page.RawQuery = query.Encode()
+	return true
 }
 
 // columnPlan lists, per field, the event columns to run (with dependencies) in worker order.
