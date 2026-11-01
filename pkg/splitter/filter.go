@@ -3,6 +3,7 @@ package splitter
 import (
 	"fmt"
 
+	"github.com/d8a-tech/d8a/pkg/expressions"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/schema"
 	expr "github.com/expr-lang/expr"
@@ -146,7 +147,7 @@ func NewFilter(config properties.FiltersConfig) (SessionModifier, error) {
 	for _, cond := range config.Conditions {
 		// Prepare compile options with custom functions
 		opts := append(
-			FunctionOptions(),
+			expressions.FunctionOptions(),
 			expr.AllowUndefinedVariables(),
 		)
 

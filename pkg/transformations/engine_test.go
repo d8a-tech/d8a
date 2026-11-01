@@ -12,6 +12,7 @@ import (
 	"github.com/d8a-tech/d8a/pkg/columnset"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/dbip"
+	"github.com/d8a-tech/d8a/pkg/expressions"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -19,7 +20,6 @@ import (
 	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
 	"github.com/d8a-tech/d8a/pkg/protocol/matomo"
 	"github.com/d8a-tech/d8a/pkg/schema"
-	"github.com/d8a-tech/d8a/pkg/splitter"
 	"github.com/expr-lang/expr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -146,7 +146,7 @@ func TestInCidrFilterParity(t *testing.T) {
 	for _, address := range []string{"192.168.1.3", "10.0.0.1", "not-an-ip", "2001:db8::1"} {
 		// given
 		expression := fmt.Sprintf(`inCidr(%q, "192.168.0.0/16")`, address)
-		filter, err := expr.Compile(expression, append(splitter.FunctionOptions(), expr.AsBool())...)
+		filter, err := expr.Compile(expression, append(expressions.FunctionOptions(), expr.AsBool())...)
 		require.NoError(t, err)
 		p := compileRules(t, rule{Expression: expression, Actions: []action{{Type: "drop"}}})
 		// when

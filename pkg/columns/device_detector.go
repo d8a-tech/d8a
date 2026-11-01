@@ -3,7 +3,6 @@ package columns
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -106,16 +105,12 @@ func DeviceFullInfo(event *schema.Event) (*detector.FullInfo, error) {
 		}
 	}
 
-	result := DeviceInfoFromHeaders(event.BoundHit.MustParsedRequest().Headers)
-	event.Metadata["device_detector_full_info"] = result
-	return result, nil
-}
-
-// DeviceInfoFromHeaders shares UA/client-hint detection and its global cache with columns.
-// Headers must be canonicalized, as they are by the receiver.
-func DeviceInfoFromHeaders(headers http.Header) *detector.FullInfo {
-	deviceDetectorOnce.Do(initDeviceDetector)
+	// Parse with dd2
+	// Headers are already canonicalized by the receiver package
+	headers := event.BoundHit.MustParsedRequest().Headers
 	ua := headers.Get("User-Agent")
 	ch := clienthints.New(headers)
-	return deviceDetector.GetFullInfo(ua, ch)
+	result := deviceDetector.GetFullInfo(ua, ch)
+	event.Metadata["device_detector_full_info"] = result
+	return result, nil
 }

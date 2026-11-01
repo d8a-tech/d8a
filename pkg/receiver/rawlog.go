@@ -9,7 +9,7 @@ func (s *Server) storeRawLogs(original *hits.ParsedRequest, batch []*hits.Hit, n
 	if normalized {
 		for _, hit := range batch {
 			if err := s.rawLogStorage.Store(hit.Request); err != nil {
-				logrus.Warn("failed to store normalized raw log")
+				logrus.Errorf("failed to store raw log: %v", err)
 			}
 		}
 		return
