@@ -26,7 +26,7 @@ func (p *ga4Protocol) ID() string {
 	return "ga4"
 }
 
-// RequestParams implements protocol.RequestParamsProvider.
+// RequestParams implements protocol.Protocol.
 func (p *ga4Protocol) RequestParams() protocol.RequestParams {
 	return protocol.RequestParams{
 		Fields: map[string]string{

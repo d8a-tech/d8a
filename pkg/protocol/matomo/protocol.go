@@ -26,7 +26,7 @@ func (p *matomoProtocol) ID() string {
 	return "matomo"
 }
 
-// RequestParams implements protocol.RequestParamsProvider. Matomo has no event name
+// RequestParams implements protocol.Protocol. Matomo has no event name
 // parameter to rename and no custom event parameters.
 func (p *matomoProtocol) RequestParams() protocol.RequestParams {
 	return protocol.RequestParams{

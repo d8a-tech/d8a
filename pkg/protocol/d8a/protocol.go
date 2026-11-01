@@ -22,12 +22,9 @@ func (p *d8aProtocol) ID() string {
 	return "d8a"
 }
 
-// RequestParams implements protocol.RequestParamsProvider with the GA4 request layout.
+// RequestParams implements protocol.Protocol with the GA4 request layout.
 func (p *d8aProtocol) RequestParams() protocol.RequestParams {
-	if provider, ok := p.child.(protocol.RequestParamsProvider); ok {
-		return provider.RequestParams()
-	}
-	return protocol.RequestParams{}
+	return p.child.RequestParams()
 }
 
 func (p *d8aProtocol) Columns() schema.Columns {

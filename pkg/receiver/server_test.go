@@ -67,6 +67,10 @@ func (m *mockProtocol) Hits(_ *fasthttp.RequestCtx, request *hits.ParsedRequest)
 	return []*hits.Hit{theHit}, m.err
 }
 
+func (m *mockProtocol) RequestParams() protocol.RequestParams {
+	return protocol.RequestParams{}
+}
+
 func (m *mockProtocol) Columns() schema.Columns {
 	return m.columns
 }

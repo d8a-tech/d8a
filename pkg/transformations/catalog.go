@@ -151,10 +151,7 @@ func NewCatalog(protocols ...protocol.Protocol) *Catalog {
 	for _, implementation := range protocols {
 		protocolID := implementation.ID()
 		ids = append(ids, protocolID)
-		var request protocol.RequestParams
-		if provider, ok := implementation.(protocol.RequestParamsProvider); ok {
-			request = provider.RequestParams()
-		}
+		request := implementation.RequestParams()
 		data.requests[protocolID] = request
 		if request.TextParamPrefix != "" {
 			paramIDs = append(paramIDs, protocolID)
