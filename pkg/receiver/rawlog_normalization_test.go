@@ -121,11 +121,10 @@ func TestNormalizedRawLogsDropPositions(t *testing.T) {
 				logged, err := json.Marshal(raw.requests)
 				require.NoError(t, err)
 				assert.NotContains(t, string(queued), "DROPPED_CANARY")
-				assert.NotContains(t, string(queued), normalizedRequestMetadataKey)
 				assert.NotContains(t, string(logged), "DROPPED_CANARY")
 				for i, request := range raw.requests {
-					assert.Nil(t, request.Body)
-					assert.Nil(t, queue.batch[i].Request.Body)
+					assert.Empty(t, request.Body)
+					assert.Empty(t, queue.batch[i].Request.Body)
 					assert.Equal(t, "example.test", request.Host)
 					assert.Equal(t, "test-agent", request.Headers.Get("User-Agent"))
 					assert.Equal(t, "transformed-user", request.QueryParams.Get("uid"))
@@ -163,8 +162,8 @@ func TestMixedPropertyBatchNormalization(t *testing.T) {
 	require.Len(t, queue.batch, 1)
 	require.Len(t, raw.requests, 1)
 	assert.Equal(t, "legacy", queue.batch[0].PropertyID)
-	assert.Nil(t, queue.batch[0].Request.Body)
-	assert.Nil(t, raw.requests[0].Body)
+	assert.Empty(t, queue.batch[0].Request.Body)
+	assert.Empty(t, raw.requests[0].Body)
 	assert.NotContains(t, raw.requests[0].QueryParams.Encode(), "DROPPED_CANARY")
 }
 

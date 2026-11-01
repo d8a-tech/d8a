@@ -187,8 +187,8 @@ func NewServer(
 		storage:            storage,
 		rawLogStorage:      rawLogStorage,
 		hitProcessingRules: NoopHitProcessingRule,
-		hitBatchProcessingRule: func(_ protocol.Protocol, _ *hits.ParsedRequest, batch []*hits.Hit) ([]*hits.Hit, error) {
-			return batch, nil
+		hitBatchProcessingRule: func(_ protocol.Protocol, _ *hits.ParsedRequest, batch []*hits.Hit) ([]*hits.Hit, bool, error) {
+			return batch, false, nil
 		},
 		validationRules: validationRules,
 		host:            "0.0.0.0",
@@ -231,10 +231,6 @@ func (s *Server) handleRequest(
 			ctx.Error("Internal Server Error", fasthttp.StatusInternalServerError)
 			return
 		}
-		if hit.Metadata == nil {
-			hit.Metadata = make(map[string]string)
-		}
-		delete(hit.Metadata, normalizedRequestMetadataKey)
 		hit.Metadata[HitProtocolMetadataKey] = selectedProtocol.ID()
 
 		hitCounter.Add(reqCtx, 1,
@@ -303,14 +299,13 @@ func (s *Server) createHits(ctx *fasthttp.RequestCtx, p protocol.Protocol) ([]*h
 		}
 	}
 	inputCount := len(hits)
-	hits, err = s.hitBatchProcessingRule(p, request, hits)
+	hits, normalized, err := s.hitBatchProcessingRule(p, request, hits)
 	if err != nil {
 		return nil, errors.New("batch processing failed")
 	}
 	if inputCount > 0 && len(hits) == 0 {
 		return hits, nil
 	}
-	normalized := len(hits) > 0 && hits[0].Metadata[normalizedRequestMetadataKey] == "true"
 	for _, hit := range hits {
 		if hit.Request == nil {
 			return nil, errors.New("missing parsed request")

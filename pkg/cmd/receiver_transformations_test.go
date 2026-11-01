@@ -99,7 +99,7 @@ transformations:
 		case batch := <-queue.batches:
 			require.Len(t, batch, 1)
 			assert.Equal(t, "early-transformed", batch[0].Request.QueryParams.Get("dt"))
-			assert.Nil(t, batch[0].Request.Body)
+			assert.Empty(t, batch[0].Request.Body)
 		case <-time.After(time.Second):
 			t.Fatal("receiver did not queue transformed hit")
 		}

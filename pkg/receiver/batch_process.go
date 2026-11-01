@@ -19,11 +19,10 @@ import (
 
 // HitBatchProcessingRule processes a batch before validation, returning only retained hits.
 // original is the request as received, before per-hit processing such as IP masking.
+// normalized reports that retained hits carry per-hit requests without the original body.
 type HitBatchProcessingRule func(
 	p protocol.Protocol, original *hits.ParsedRequest, batch []*hits.Hit,
-) ([]*hits.Hit, error)
-
-const normalizedRequestMetadataKey = "receiver.normalized_request"
+) (retained []*hits.Hit, normalized bool, err error)
 
 var transformationErrorCounter metric.Int64Counter
 
@@ -98,24 +97,24 @@ func NewTransformationBatchProcessingRule(
 				Warn("event transformation failed; hit dropped")
 		}
 	}
-	return func(p protocol.Protocol, original *hits.ParsedRequest, batch []*hits.Hit) ([]*hits.Hit, error) {
+	return func(p protocol.Protocol, original *hits.ParsedRequest, batch []*hits.Hit) ([]*hits.Hit, bool, error) {
 		plans := make(map[string]transformations.Program)
 		snapshots := make(map[string]*properties.Settings)
 		broken := make(map[string]bool)
 		configured := false
 		for _, hit := range batch {
 			if hit == nil || hit.Request == nil {
-				return nil, errors.New("transformations: missing parsed hit")
+				return nil, false, errors.New("transformations: missing parsed hit")
 			}
 			if _, ok := snapshots[hit.PropertyID]; ok {
 				continue
 			}
 			if settings == nil {
-				return nil, errors.New("transformations: settings unavailable")
+				return nil, false, errors.New("transformations: settings unavailable")
 			}
 			current, err := settings.GetByPropertyID(hit.PropertyID)
 			if err != nil || current == nil {
-				return nil, errors.New("transformations: settings lookup failed")
+				return nil, false, errors.New("transformations: settings lookup failed")
 			}
 			snapshot := *current
 			snapshot.ExcludedURLParams = current.ExcludedURLParamsSafe()
@@ -132,7 +131,7 @@ func NewTransformationBatchProcessingRule(
 			plans[hit.PropertyID] = plan
 		}
 		if !configured {
-			return batch, nil
+			return batch, false, nil
 		}
 		originalIP := ""
 		if original != nil {
@@ -147,11 +146,7 @@ func NewTransformationBatchProcessingRule(
 			// Normalize the entire batch, including unconfigured properties: their
 			// shared body may contain events dropped by another property's rules.
 			hit := source.Copy()
-			hit.Request.Body = nil
-			if hit.Metadata == nil {
-				hit.Metadata = make(map[string]string)
-			}
-			hit.Metadata[normalizedRequestMetadataKey] = "true"
+			hit.Request.Body = []byte{}
 			if plan := plans[hit.PropertyID]; plan != nil {
 				keep, err := plan.Apply(transformations.Input{
 					Protocol: p.ID(), Hit: &hit, Settings: snapshots[hit.PropertyID],
@@ -172,6 +167,6 @@ func NewTransformationBatchProcessingRule(
 			}
 			retained = append(retained, &hit)
 		}
-		return retained, nil
+		return retained, true, nil
 	}
 }

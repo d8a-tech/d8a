@@ -105,9 +105,9 @@ var HitMethodNotEmpty = NewSimpleHitValidatingRule(func(_ protocol.Protocol, hit
 	return nil
 })
 
-// HitBodyNotNil validates legacy bodies; normalized hits deliberately omit the body.
+// HitBodyNotNil validates that Body is not nil.
 var HitBodyNotNil = NewSimpleHitValidatingRule(func(_ protocol.Protocol, hit *hits.Hit) error {
-	if hit.MustParsedRequest().Body == nil && hit.Metadata[normalizedRequestMetadataKey] != "true" {
+	if hit.MustParsedRequest().Body == nil {
 		return fmt.Errorf("hit.Body can not be nil")
 	}
 	return nil

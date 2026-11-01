@@ -94,7 +94,7 @@ func TestTransformationBatchSnapshotAndRefresh(t *testing.T) {
 	}
 	rule := NewTransformationBatchProcessingRule(registry, geoDeps(geo))
 	// when
-	retained, err := rule(&mockProtocol{id: "ga4"}, nil, batch)
+	retained, _, err := rule(&mockProtocol{id: "ga4"}, nil, batch)
 	// then
 	require.NoError(t, err)
 	require.Len(t, retained, 3)
@@ -103,7 +103,7 @@ func TestTransformationBatchSnapshotAndRefresh(t *testing.T) {
 		assert.Equal(t, "captured", hit.Request.QueryParams.Get("dt"))
 	}
 	// when: the next batch sees the refreshed configuration
-	retained, err = rule(&mockProtocol{id: "ga4"}, nil, batch)
+	retained, _, err = rule(&mockProtocol{id: "ga4"}, nil, batch)
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, retained)
@@ -120,7 +120,7 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 				QueryParams: url.Values{"en": {"old-name"}, "uid": {uid}, "dt": {"old-title"}},
 			}
 			first := hits.NewWithServerAttributes(request)
-			first.EventName, first.UserID, first.Metadata = "old-name", &uid, nil
+			first.EventName, first.UserID = "old-name", &uid
 			second := hits.NewWithServerAttributes(request)
 			config := transformationConfig("true", transformationSet("name", "new-name"),
 				transformationSet("user_id", "new-user"), transformationSet("page_title", "new-title"))
@@ -128,7 +128,7 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 				Transformations: config,
 			}))
 			// when
-			retained, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
+			retained, _, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
 				&mockProtocol{id: protocolID}, request, []*hits.Hit{first, second},
 			)
 			// then
@@ -139,7 +139,7 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 				assert.Equal(t, hit.EventName, hit.Request.QueryParams.Get("en"))
 				require.NotNil(t, hit.UserID)
 				assert.Equal(t, *hit.UserID, hit.Request.QueryParams.Get("uid"))
-				assert.Nil(t, hit.Request.Body)
+				assert.Empty(t, hit.Request.Body)
 			}
 			retained[0].Request.Headers["User-Agent"][0] = "changed-agent"
 			retained[0].Request.QueryParams["dt"][0] = "changed-title"
@@ -150,7 +150,7 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 			assert.Equal(t, "new-title", retained[1].Request.QueryParams.Get("dt"))
 			assert.Equal(t, "old-name", first.EventName)
 			assert.Equal(t, "old-user", *first.UserID)
-			assert.Nil(t, first.Metadata)
+			assert.NotContains(t, first.Metadata, "extra")
 			assert.Equal(t, "original-batch", string(request.Body))
 		})
 	}
@@ -169,14 +169,14 @@ func TestBatchProcessingOrder(t *testing.T) {
 		hit.Request.IP = "192.0.2.0"
 		return nil
 	})), WithHitBatchProcessingRule(func(_ protocol.Protocol, original *hits.ParsedRequest, batch []*hits.Hit,
-	) ([]*hits.Hit, error) {
+	) ([]*hits.Hit, bool, error) {
 		order = append(order, "batch")
 		assert.NotEqual(t, "192.0.2.0", original.IP, "the original request keeps the unmasked IP")
 		for _, hit := range batch {
 			assert.Equal(t, "192.0.2.0", hit.Request.IP)
 			hit.EventName = "transformed"
 		}
-		return batch[1:], nil
+		return batch[1:], false, nil
 	}))
 	// when
 	retained, err := s.createHits(&fasthttp.RequestCtx{}, p)
@@ -201,7 +201,7 @@ func TestTransformationBatchRequestFailuresArePayloadFree(t *testing.T) {
 			// given
 			hit := hits.New()
 			// when
-			retained, err := NewTransformationBatchProcessingRule(tc.registry, transformations.ExtractionDependencies{})(
+			retained, _, err := NewTransformationBatchProcessingRule(tc.registry, transformations.ExtractionDependencies{})(
 				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{hit},
 			)
 			// then
@@ -235,7 +235,7 @@ func TestTransformationFailuresDropOnlyTheAffectedHit(t *testing.T) {
 			bad.EventName, good.EventName = "bad", "good"
 			bad.Request.IP, good.Request.IP = "192.0.2.0", "192.0.2.0"
 			// when
-			retained, err := NewTransformationBatchProcessingRule(registry, tc.deps)(
+			retained, _, err := NewTransformationBatchProcessingRule(registry, tc.deps)(
 				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{bad, good},
 			)
 			// then
@@ -259,7 +259,7 @@ func TestTransformationsSeeTheUnmaskedIP(t *testing.T) {
 	hit := hits.New()
 	hit.Request.IP = "10.1.2.0"
 	// when
-	retained, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
+	retained, _, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
 		&mockProtocol{id: "ga4"}, &hits.ParsedRequest{IP: "10.1.2.3"}, []*hits.Hit{hit},
 	)
 	// then
