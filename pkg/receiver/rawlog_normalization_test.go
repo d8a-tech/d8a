@@ -53,6 +53,13 @@ func normalizationProtocol(id string, registry properties.SettingsRegistry) prot
 	}
 }
 
+// testCatalog lists transformation fields for the built-in protocols, as cmd does.
+var testCatalog = func() *transformations.Catalog {
+	registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{}))
+	return transformations.NewCatalog(normalizationProtocol("ga4", registry), normalizationProtocol("d8a", registry),
+		normalizationProtocol("matomo", registry))
+}()
+
 func normalizationRequest(t *testing.T, id string, titles []string) *fasthttp.RequestCtx {
 	t.Helper()
 	ctx := &fasthttp.RequestCtx{}
@@ -107,7 +114,7 @@ func TestNormalizedRawLogsDropPositions(t *testing.T) {
 				ctx := normalizationRequest(t, id, tc.titles)
 				s := NewServer(queue, raw, HitValidatingRuleSet(1024*1024, registry), nil, 0,
 					WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(
-						registry, transformations.ExtractionDependencies{},
+						registry, testCatalog, transformations.ExtractionDependencies{},
 					)))
 				// when
 				s.handleRequest(context.Background(), ctx, p)
@@ -154,7 +161,9 @@ func TestMixedPropertyBatchNormalization(t *testing.T) {
 	ctx.Request.SetBodyString("tid=enabled&en=DROPPED_CANARY\ntid=disabled&en=retained")
 	queue, raw := &normalizedStorage{}, &normalizedRawLog{}
 	s := NewServer(queue, raw, EventNameNotEmpty, nil, 0,
-		WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})))
+		WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(
+			registry, testCatalog, transformations.ExtractionDependencies{},
+		)))
 	// when
 	s.handleRequest(context.Background(), ctx, normalizationProtocol("ga4", registry))
 	// then
@@ -215,7 +224,7 @@ func TestTransformationPersistenceFailures(t *testing.T) {
 			}), nil, 0, WithHitProcessingRule(NewSimpleHitProcessingRule(func(_ protocol.Protocol, hit *hits.Hit) error {
 				hit.Request.IP = "192.0.2.0"
 				return nil
-			})), WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(registry, tc.deps)))
+			})), WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(registry, testCatalog, tc.deps)))
 			// when
 			s.handleRequest(context.Background(), ctx, normalizationProtocol("ga4", parseRegistry))
 			// then
@@ -240,7 +249,7 @@ func TestEmptyTransformationsPreserveLegacyRawLog(t *testing.T) {
 			original := string(ctx.Request.Body())
 			s := NewServer(queue, raw, EventNameNotEmpty, nil, 0,
 				WithHitBatchProcessingRule(NewTransformationBatchProcessingRule(
-					registry, transformations.ExtractionDependencies{},
+					registry, testCatalog, transformations.ExtractionDependencies{},
 				)))
 			// when
 			s.handleRequest(context.Background(), ctx, normalizationProtocol("ga4", registry))

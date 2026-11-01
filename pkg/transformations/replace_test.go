@@ -168,7 +168,9 @@ func TestReplaceCompileErrors(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			// when
-			_, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: actions}}})
+			_, err := testCatalog.Compile(properties.TransformationsConfig{
+				Rules: []rule{{Expression: "true", Actions: actions}},
+			})
 			// then
 			assert.Error(t, err)
 		})
@@ -179,7 +181,7 @@ const benchmarkURL = "https://shop.example.com/checkout/thank-you?utm_source=new
 	"&utm_campaign=autumn_sale&edition=42&gclid=TeSt123"
 
 func benchmarkReplace(b *testing.B, pattern, replacement, location string) {
-	p, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
+	p, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
 		replace(field("page_location"), pattern, text(replacement)),
 	}}}})
 	require.NoError(b, err)
@@ -212,7 +214,7 @@ func BenchmarkReplaceIDs(b *testing.B) {
 
 // Baseline: the same rule shape without regex work, to isolate the pattern cost.
 func BenchmarkReplaceBaselineSetLiteral(b *testing.B) {
-	p, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
+	p, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
 		set(field("page_title"), "x"),
 	}}}})
 	require.NoError(b, err)

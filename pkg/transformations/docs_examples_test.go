@@ -24,7 +24,7 @@ func TestDocumentationExamplesCompile(t *testing.T) {
 		// when
 		config, err := properties.ParseTransformationsConfig(path)
 		require.NoError(t, err, "example %d", i+1)
-		_, err = Compile(config)
+		_, err = testCatalog.Compile(config)
 		// then
 		assert.NoError(t, err, "example %d:\n%s", i+1, block[1])
 		assert.NotEmpty(t, config.Rules, "example %d", i+1)

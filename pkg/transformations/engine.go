@@ -50,7 +50,7 @@ func (p *program) Apply(input Input) (bool, error) {
 	if input.Hit == nil || input.Hit.Request == nil {
 		return false, &Error{Stage: StageExtraction}
 	}
-	view := newEventView(input)
+	view := newEventView(input, p.catalog)
 	env := map[string]any{lazyFieldFunction: view.lookup}
 	for i, rule := range p.rules {
 		view.failed = false
@@ -97,7 +97,7 @@ func applyActions(view *eventView, actions []compiledAction) string {
 			values[i], skip[i] = value, !ok
 			continue
 		}
-		value, ok, err := view.evaluate(action.value, referenceType(action.target))
+		value, ok, err := view.evaluate(action.value, view.catalog.referenceType(action.target))
 		if err != nil {
 			return StageExtraction
 		}

@@ -501,7 +501,8 @@ func buildReceiverServer(
 		receiver.WithHost(cmd.String(serverHostFlag.Name)),
 		receiver.WithHitProcessingRule(receiver.IPMasking(settingsRegistry)),
 		receiver.WithHitBatchProcessingRule(receiver.NewTransformationBatchProcessingRule(
-			settingsRegistry, transformations.ExtractionDependencies{Columns: map[string]schema.ColumnsRegistry{
+			settingsRegistry, transformationsCatalog(cmd),
+			transformations.ExtractionDependencies{Columns: map[string]schema.ColumnsRegistry{
 				currentProtocol.ID(): receiverColumnsRegistry(currentProtocol, settingsRegistry, geoProvider),
 			}},
 		)),
@@ -524,7 +525,7 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 		SessionJoinBySessionStamp:  cmd.Bool(sessionsJoinBySessionStampFlag.Name),
 		SessionJoinByUserID:        cmd.Bool(sessionsJoinByUserIDFlag.Name),
 		IPMaskingLevel:             cmd.Int(propertySettingsIPMaskingLevelFlag.Name),
-		Transformations:            loadTransformationsConfig(),
+		Transformations:            loadTransformationsConfig(cmd),
 		Filters: func() *properties.FiltersConfig {
 			var filtersConfig properties.FiltersConfig
 			// Config file is optional; stat before parsing
@@ -573,7 +574,7 @@ func propertySettings(cmd *cli.Command) properties.SettingsRegistry {
 	)
 }
 
-func loadTransformationsConfig() *properties.TransformationsConfig {
+func loadTransformationsConfig(cmd *cli.Command) *properties.TransformationsConfig {
 	if _, err := os.Stat(configFile); os.IsNotExist(err) {
 		return nil
 	}
@@ -581,7 +582,7 @@ func loadTransformationsConfig() *properties.TransformationsConfig {
 	if err != nil {
 		logrus.WithError(err).Panic("failed to load transformations config")
 	}
-	if _, err := transformations.Compile(config); err != nil {
+	if _, err := transformationsCatalog(cmd).Compile(config); err != nil {
 		logrus.WithError(err).Panic("invalid transformations config")
 	}
 	return &config

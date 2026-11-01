@@ -27,6 +27,7 @@ type ExtractionDependencies struct {
 var errExtraction = errors.New("transformations: extraction failed")
 
 type eventView struct {
+	catalog  *Catalog
 	input    Input
 	protocol string
 	values   map[string]any
@@ -38,11 +39,11 @@ type eventView struct {
 	failed     bool
 }
 
-func newEventView(input Input) *eventView {
-	return &eventView{input: input, protocol: input.Protocol, values: make(map[string]any)}
+func newEventView(input Input, catalog *Catalog) *eventView {
+	return &eventView{catalog: catalog, input: input, protocol: input.Protocol, values: make(map[string]any)}
 }
 
-func (v *eventView) request() protocol.RequestParams { return loadCatalog().requests[v.protocol] }
+func (v *eventView) request() protocol.RequestParams { return v.catalog.requests[v.protocol] }
 
 func (v *eventView) parametersSupported() bool { return v.request().TextParamPrefix != "" }
 
@@ -295,7 +296,7 @@ func (v *eventView) write(ref properties.TransformationFieldReference, value any
 	case ref.URLParameter != "":
 		return v.rewritePage(func(page *url.URL) bool { return setQueryParam(page, ref.URLParameter, text, remove) })
 	}
-	info := loadCatalog().fields[ref.Field]
+	info := v.catalog.fields[ref.Field]
 	if info == nil {
 		return nil
 	}

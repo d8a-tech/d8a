@@ -34,7 +34,7 @@ transformations:
 			settings, err := propertySettings(cmd).GetByPropertyID("any-property")
 			require.NoError(t, err)
 			require.NotNil(t, settings.Transformations)
-			program, err := transformations.Compile(*settings.Transformations)
+			program, err := transformationsCatalog(cmd).Compile(*settings.Transformations)
 			require.NoError(t, err)
 			hit := hits.New()
 			hit.EventName = "page_view"

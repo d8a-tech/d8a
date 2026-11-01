@@ -39,13 +39,13 @@ func TestCatalogReadsMatchWorkerColumns(t *testing.T) {
 				require.NoError(t, column.Write(event), column.Implements().Field.Name)
 			}
 			checked := 0
-			for _, capability := range Catalog() {
+			for _, capability := range testCatalog.Fields() {
 				if capability.ConditionOnly || capability.Field == "parameter" || capability.Field == "url_parameter" ||
 					!contains(capability.ReadProtocols, protocolID) {
 					continue
 				}
 				// when
-				view := newEventView(Input{Protocol: protocolID, Hit: hit, Settings: settings, Dependencies: deps})
+				view := newEventView(Input{Protocol: protocolID, Hit: hit, Settings: settings, Dependencies: deps}, testCatalog)
 				value, err := view.field(capability.Field)
 				// then
 				require.NoError(t, err, capability.Field)
@@ -60,7 +60,7 @@ func TestCatalogReadsMatchWorkerColumns(t *testing.T) {
 func TestCatalogExcludesDeviceDetectionAndExposesKnownParameters(t *testing.T) {
 	// given
 	fields := make(map[string]FieldCapability)
-	for _, capability := range Catalog() {
+	for _, capability := range testCatalog.Fields() {
 		fields[capability.Field] = capability
 	}
 	// then
@@ -74,8 +74,8 @@ func TestCatalogExcludesDeviceDetectionAndExposesKnownParameters(t *testing.T) {
 	assert.Equal(t, []string{"ga4", "d8a"}, fields["name"].WriteProtocols)
 	assert.False(t, fields["name"].Removable)
 	assert.Equal(t, CategoryTrafficSource, fields["utm_source"].Category)
-	assert.Contains(t, KnownParameters(), ParameterHint{Name: "percent_scrolled", Type: "number"})
-	for _, hint := range KnownParameters() {
+	assert.Contains(t, testCatalog.KnownParameters(), ParameterHint{Name: "percent_scrolled", Type: "number"})
+	for _, hint := range testCatalog.KnownParameters() {
 		if field, ok := fields["params_"+hint.Name]; ok {
 			assert.NotContains(t, field.ReadProtocols, "ga4", "known GA4 parameters are hints, not fields")
 		}

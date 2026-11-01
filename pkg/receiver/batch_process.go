@@ -35,10 +35,11 @@ func init() {
 
 // programMemo maps configuration pointers to compiled programs. Settings registries hand
 // out the same *TransformationsConfig until the configuration changes, so a batch costs one
-// map lookup instead of hashing the rules. Entries keep their config alive; the map is
+// map lookup instead of a compile. Entries keep their config alive; the map is
 // bounded and reset when full.
 type programMemo struct {
 	sync.RWMutex
+	catalog  *transformations.Catalog
 	programs map[*properties.TransformationsConfig]transformations.Program
 }
 
@@ -51,7 +52,7 @@ func (m *programMemo) get(config *properties.TransformationsConfig) (transformat
 	if ok {
 		return cached, nil
 	}
-	compiled, err := transformations.Compile(*config)
+	compiled, err := m.catalog.Compile(*config)
 	if err != nil {
 		return nil, err
 	}
@@ -84,9 +85,9 @@ func (l *errorLogLimiter) allow() bool {
 // A failing rule drops only the affected hit (fail-closed): passing it on untransformed
 // could keep data a rule is meant to remove.
 func NewTransformationBatchProcessingRule(
-	settings properties.SettingsRegistry, deps transformations.ExtractionDependencies,
+	settings properties.SettingsRegistry, catalog *transformations.Catalog, deps transformations.ExtractionDependencies,
 ) HitBatchProcessingRule {
-	memo := &programMemo{programs: make(map[*properties.TransformationsConfig]transformations.Program)}
+	memo := &programMemo{catalog: catalog, programs: make(map[*properties.TransformationsConfig]transformations.Program)}
 	limiter := &errorLogLimiter{}
 	report := func(propertyID, stage string, rule int) {
 		transformationErrorCounter.Add(context.Background(), 1, metric.WithAttributes(

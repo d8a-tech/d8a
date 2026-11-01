@@ -45,7 +45,7 @@ func template(target *ref, value string) action {
 func remove(target *ref) action { return action{Type: "remove", Target: target} }
 func compileRules(t *testing.T, rules ...rule) Program {
 	t.Helper()
-	p, err := Compile(properties.TransformationsConfig{Rules: rules})
+	p, err := testCatalog.Compile(properties.TransformationsConfig{Rules: rules})
 	require.NoError(t, err)
 	return p
 }
@@ -57,6 +57,11 @@ func testProtocols(registry properties.SettingsRegistry) []protocol.Protocol {
 		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(registry), registry),
 	}
 }
+
+// testCatalog lists the fields of the built-in protocols, as the composition roots do.
+var testCatalog = NewCatalog(testProtocols(
+	properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{})),
+)...)
 
 // columnDeps builds the same column registries the worker uses.
 func columnDeps(settings *properties.Settings, geo dbip.LookupProvider) ExtractionDependencies {
@@ -173,7 +178,7 @@ func TestIPAddressIsUnmaskedAndConditionOnly(t *testing.T) {
 	for _, actions := range [][]action{
 		{set(field("ip_address"), "x")}, {template(field("page_title"), "{{ip_address}}")},
 	} {
-		_, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: actions}}})
+		_, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: actions}}})
 		assert.Error(t, err)
 	}
 }
@@ -362,7 +367,7 @@ func TestPageURLWrites(t *testing.T) {
 		})
 	}
 	// A rule cannot rewrite the whole URL and parts of it at once.
-	_, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
+	_, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
 		set(field("page_location"), "https://example.com"), set(field("utm_source"), "x"),
 	}}}})
 	assert.Error(t, err)
@@ -525,13 +530,13 @@ func TestTemplates(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "3", hit.Request.QueryParams.Get("epn.copy"))
 	for _, invalid := range []string{"{{page_title}}", "x{{numeric_params.count}}", "{{params.count}}"} {
-		_, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
+		_, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
 			template(parameter("copy", "number"), invalid),
 		}}}})
 		assert.Error(t, err, invalid)
 	}
 	for _, invalid := range []string{"{{page_title", "{{unknown_field}}", "{{device_category}}"} {
-		_, err := Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
+		_, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: []action{
 			template(field("page_title"), invalid),
 		}}}})
 		assert.Error(t, err, invalid)
@@ -563,7 +568,7 @@ func TestCompileRejectsInvalidConfiguration(t *testing.T) {
 		// given
 		config := properties.TransformationsConfig{Rules: []rule{{Expression: expression, Actions: []action{{Type: "drop"}}}}}
 		// when
-		_, err := Compile(config)
+		_, err := testCatalog.Compile(config)
 		// then
 		assert.Error(t, err, expression)
 	}
@@ -588,7 +593,7 @@ func TestCompileRejectsInvalidConfiguration(t *testing.T) {
 		// given
 		config := properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: actions}}}
 		// when
-		_, err := Compile(config)
+		_, err := testCatalog.Compile(config)
 		// then
 		assert.Error(t, err, "%+v", actions)
 	}
@@ -600,7 +605,7 @@ func TestLimitsAndSnapshot(t *testing.T) {
 		Name: strings.Repeat("n", MaxNameLength), Expression: "true",
 		Actions: []action{set(field("page_title"), strings.Repeat("v", MaxValueLength))},
 	}}}
-	p, err := Compile(config)
+	p, err := testCatalog.Compile(config)
 	require.NoError(t, err)
 	// when
 	*config.Rules[0].Actions[0].Value.String = "mutated"
@@ -610,9 +615,9 @@ func TestLimitsAndSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, hit.Request.QueryParams.Get("dt"), MaxValueLength)
 	config.Rules[0].Name = strings.Repeat("n", MaxNameLength+1)
-	_, err = Compile(config)
+	_, err = testCatalog.Compile(config)
 	require.Error(t, err)
-	_, err = Compile(properties.TransformationsConfig{Rules: make([]rule, MaxRules+1)})
+	_, err = testCatalog.Compile(properties.TransformationsConfig{Rules: make([]rule, MaxRules+1)})
 	require.Error(t, err)
 }
 

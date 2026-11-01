@@ -92,7 +92,7 @@ func TestTransformationBatchSnapshotAndRefresh(t *testing.T) {
 		hit.PropertyID = []string{"one", "two", "one"}[i]
 		hit.Request.IP = "192.0.2.0"
 	}
-	rule := NewTransformationBatchProcessingRule(registry, geoDeps(geo))
+	rule := NewTransformationBatchProcessingRule(registry, testCatalog, geoDeps(geo))
 	// when
 	retained, _, err := rule(&mockProtocol{id: "ga4"}, nil, batch)
 	// then
@@ -128,7 +128,9 @@ func TestTransformationBatchOwnsMutableData(t *testing.T) {
 				Transformations: config,
 			}))
 			// when
-			retained, _, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
+			retained, _, err := NewTransformationBatchProcessingRule(
+				registry, testCatalog, transformations.ExtractionDependencies{},
+			)(
 				&mockProtocol{id: protocolID}, request, []*hits.Hit{first, second},
 			)
 			// then
@@ -201,7 +203,9 @@ func TestTransformationBatchRequestFailuresArePayloadFree(t *testing.T) {
 			// given
 			hit := hits.New()
 			// when
-			retained, _, err := NewTransformationBatchProcessingRule(tc.registry, transformations.ExtractionDependencies{})(
+			retained, _, err := NewTransformationBatchProcessingRule(
+				tc.registry, testCatalog, transformations.ExtractionDependencies{},
+			)(
 				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{hit},
 			)
 			// then
@@ -235,7 +239,7 @@ func TestTransformationFailuresDropOnlyTheAffectedHit(t *testing.T) {
 			bad.EventName, good.EventName = "bad", "good"
 			bad.Request.IP, good.Request.IP = "192.0.2.0", "192.0.2.0"
 			// when
-			retained, _, err := NewTransformationBatchProcessingRule(registry, tc.deps)(
+			retained, _, err := NewTransformationBatchProcessingRule(registry, testCatalog, tc.deps)(
 				&mockProtocol{id: "ga4"}, nil, []*hits.Hit{bad, good},
 			)
 			// then
@@ -259,7 +263,9 @@ func TestTransformationsSeeTheUnmaskedIP(t *testing.T) {
 	hit := hits.New()
 	hit.Request.IP = "10.1.2.0"
 	// when
-	retained, _, err := NewTransformationBatchProcessingRule(registry, transformations.ExtractionDependencies{})(
+	retained, _, err := NewTransformationBatchProcessingRule(
+		registry, testCatalog, transformations.ExtractionDependencies{},
+	)(
 		&mockProtocol{id: "ga4"}, &hits.ParsedRequest{IP: "10.1.2.3"}, []*hits.Hit{hit},
 	)
 	// then
@@ -270,7 +276,9 @@ func TestTransformationsSeeTheUnmaskedIP(t *testing.T) {
 
 func TestTransformationProgramsAreMemoizedPerConfiguration(t *testing.T) {
 	// given
-	memo := &programMemo{programs: make(map[*properties.TransformationsConfig]transformations.Program)}
+	memo := &programMemo{
+		catalog: testCatalog, programs: make(map[*properties.TransformationsConfig]transformations.Program),
+	}
 	config := transformationConfig("true", transformationSet("page_title", "x"))
 	// when
 	first, err := memo.get(config)

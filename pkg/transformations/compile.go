@@ -25,7 +25,10 @@ const (
 	urlParamsNamespace     = "url_params"
 )
 
-type program struct{ rules []compiledRule }
+type program struct {
+	catalog *Catalog
+	rules   []compiledRule
+}
 type compiledRule struct {
 	predicate *vm.Program
 	actions   []compiledAction
@@ -53,16 +56,16 @@ type templatePart struct {
 
 // Compile validates and snapshots executable configuration; the result does not retain
 // caller-owned pointers.
-func Compile(config properties.TransformationsConfig) (Program, error) {
+func (c *Catalog) Compile(config properties.TransformationsConfig) (Program, error) {
 	if len(config.Rules) > MaxRules {
 		return nil, fmt.Errorf("transformations: maximum %d rules", MaxRules)
 	}
-	result := &program{rules: make([]compiledRule, len(config.Rules))}
+	result := &program{catalog: c, rules: make([]compiledRule, len(config.Rules))}
 	for i, rule := range config.Rules {
 		if utf8.RuneCountInString(rule.Name) > MaxNameLength {
 			return nil, fmt.Errorf("transformations rule %d: name exceeds %d characters", i+1, MaxNameLength)
 		}
-		compiled, err := compileRule(rule)
+		compiled, err := c.compileRule(rule)
 		if err != nil {
 			return nil, fmt.Errorf("transformations rule %d: %w", i+1, err)
 		}
@@ -72,10 +75,9 @@ func Compile(config properties.TransformationsConfig) (Program, error) {
 }
 
 // typedEnvironment declares every readable name with its type, for validation only.
-func typedEnvironment() map[string]any {
-	catalog := loadCatalog()
-	env := make(map[string]any, len(catalog.fields)+3)
-	for name, info := range catalog.fields {
+func (c *Catalog) typedEnvironment() map[string]any {
+	env := make(map[string]any, len(c.fields)+3)
+	for name, info := range c.fields {
 		if info.capability.Type == "number" {
 			env[name] = float64(0)
 		} else {
@@ -88,9 +90,9 @@ func typedEnvironment() map[string]any {
 	return env
 }
 
-func runtimeNames() map[string]bool {
+func (c *Catalog) runtimeNames() map[string]bool {
 	names := make(map[string]bool)
-	for name := range typedEnvironment() {
+	for name := range c.typedEnvironment() {
 		names[name] = true
 	}
 	return names
@@ -110,7 +112,7 @@ func (p lazyPatcher) Visit(node *ast.Node) {
 	})
 }
 
-func compileRule(rule properties.TransformationRuleConfig) (compiledRule, error) {
+func (c *Catalog) compileRule(rule properties.TransformationRuleConfig) (compiledRule, error) {
 	var result compiledRule
 	if rule.Expression == "" || utf8.RuneCountInString(rule.Expression) > MaxExpressionLength {
 		return result, fmt.Errorf("expression must contain 1 to %d characters", MaxExpressionLength)
@@ -119,13 +121,13 @@ func compileRule(rule properties.TransformationRuleConfig) (compiledRule, error)
 		return result, fmt.Errorf("expected 1 to %d actions", MaxActions)
 	}
 	// Type-check against declared field types first: lazy calls return untyped values.
-	typed := append(expressions.FunctionOptions(), expr.Env(typedEnvironment()), expr.AsBool())
+	typed := append(expressions.FunctionOptions(), expr.Env(c.typedEnvironment()), expr.AsBool())
 	if _, err := expr.Compile(rule.Expression, typed...); err != nil {
 		return result, fmt.Errorf("invalid boolean expression: %w", err)
 	}
 	runtimeEnv := map[string]any{lazyFieldFunction: func(string) (any, error) { return nil, nil }}
 	lazy := append(expressions.FunctionOptions(),
-		expr.Env(runtimeEnv), expr.AsBool(), expr.Patch(lazyPatcher{names: runtimeNames()}))
+		expr.Env(runtimeEnv), expr.AsBool(), expr.Patch(lazyPatcher{names: c.runtimeNames()}))
 	predicate, err := expr.Compile(rule.Expression, lazy...)
 	if err != nil {
 		return result, fmt.Errorf("invalid boolean expression: %w", err)
@@ -134,7 +136,7 @@ func compileRule(rule properties.TransformationRuleConfig) (compiledRule, error)
 	seen := make(map[string]bool)
 	pageLocation, pageDependent := false, false
 	for i, action := range rule.Actions {
-		compiled, err := compileAction(action, len(rule.Actions))
+		compiled, err := c.compileAction(action, len(rule.Actions))
 		if err != nil {
 			return result, fmt.Errorf("action %d: %w", i+1, err)
 		}
@@ -145,7 +147,7 @@ func compileRule(rule properties.TransformationRuleConfig) (compiledRule, error)
 			}
 			seen[key] = true
 			pageLocation = pageLocation || compiled.target.Field == "page_location"
-			pageDependent = pageDependent || isPageDependent(compiled.target)
+			pageDependent = pageDependent || c.isPageDependent(compiled.target)
 		}
 		result.actions = append(result.actions, compiled)
 	}
@@ -165,15 +167,17 @@ func referenceKey(ref properties.TransformationFieldReference) string {
 	return ref.Field
 }
 
-func isPageDependent(ref properties.TransformationFieldReference) bool {
+func (c *Catalog) isPageDependent(ref properties.TransformationFieldReference) bool {
 	if ref.URLParameter != "" {
 		return true
 	}
-	info := loadCatalog().fields[ref.Field]
+	info := c.fields[ref.Field]
 	return ref.Field != "" && info != nil && info.pageDependent()
 }
 
-func normalizeReference(ref *properties.TransformationFieldReference) (properties.TransformationFieldReference, error) {
+func (c *Catalog) normalizeReference(
+	ref *properties.TransformationFieldReference,
+) (properties.TransformationFieldReference, error) {
 	if ref == nil {
 		return properties.TransformationFieldReference{}, fmt.Errorf("missing field reference")
 	}
@@ -193,38 +197,38 @@ func normalizeReference(ref *properties.TransformationFieldReference) (propertie
 		result.Type = ""
 		return result, nil
 	}
-	result.Field = canonicalField(result.Field)
-	if loadCatalog().fields[result.Field] == nil || result.Type != "" {
+	result.Field = c.canonicalField(result.Field)
+	if c.fields[result.Field] == nil || result.Type != "" {
 		return result, fmt.Errorf("unknown field reference")
 	}
 	return result, nil
 }
 
-func referenceType(ref properties.TransformationFieldReference) string {
+func (c *Catalog) referenceType(ref properties.TransformationFieldReference) string {
 	switch {
 	case ref.Parameter != "":
 		return ref.Type
 	case ref.URLParameter != "":
 		return "string"
 	}
-	if info := loadCatalog().fields[ref.Field]; info != nil {
+	if info := c.fields[ref.Field]; info != nil {
 		return info.capability.Type
 	}
 	return "string"
 }
 
-func writableReference(ref properties.TransformationFieldReference) (writable, removable bool) {
+func (c *Catalog) writableReference(ref properties.TransformationFieldReference) (writable, removable bool) {
 	if ref.Parameter != "" || ref.URLParameter != "" {
 		return true, true
 	}
-	info := loadCatalog().fields[ref.Field]
+	info := c.fields[ref.Field]
 	if info == nil {
 		return false, false
 	}
 	return len(info.capability.WriteProtocols) > 0, info.capability.Removable
 }
 
-func compileAction(action properties.TransformationActionConfig, count int) (compiledAction, error) {
+func (c *Catalog) compileAction(action properties.TransformationActionConfig, count int) (compiledAction, error) {
 	result := compiledAction{kind: action.Type}
 	switch action.Type {
 	case properties.TransformationActionDrop:
@@ -238,11 +242,11 @@ func compileAction(action properties.TransformationActionConfig, count int) (com
 	default:
 		return result, fmt.Errorf("unknown action type")
 	}
-	target, err := normalizeReference(action.Target)
+	target, err := c.normalizeReference(action.Target)
 	if err != nil {
 		return result, err
 	}
-	writable, removable := writableReference(target)
+	writable, removable := c.writableReference(target)
 	if !writable {
 		return result, fmt.Errorf("target is read-only")
 	}
@@ -257,14 +261,16 @@ func compileAction(action properties.TransformationActionConfig, count int) (com
 		}
 		return result, nil
 	case properties.TransformationActionReplace:
-		return compileReplace(result, action)
+		return c.compileReplace(result, action)
 	}
-	result.value, err = compileValue(action.Value, referenceType(target))
+	result.value, err = c.compileValue(action.Value, c.referenceType(target))
 	return result, err
 }
 
-func compileReplace(result compiledAction, action properties.TransformationActionConfig) (compiledAction, error) {
-	if referenceType(result.target) != "string" || action.Value != nil {
+func (c *Catalog) compileReplace(
+	result compiledAction, action properties.TransformationActionConfig,
+) (compiledAction, error) {
+	if c.referenceType(result.target) != "string" || action.Value != nil {
 		return result, fmt.Errorf("replace requires a text target and no value")
 	}
 	if action.Pattern == "" || utf8.RuneCountInString(action.Pattern) > MaxPatternLength {
@@ -285,7 +291,7 @@ func compileReplace(result compiledAction, action properties.TransformationActio
 	return result, nil
 }
 
-func compileValue(value *properties.TransformationLiteral, kind string) (compiledValue, error) {
+func (c *Catalog) compileValue(value *properties.TransformationLiteral, kind string) (compiledValue, error) {
 	if value == nil {
 		return compiledValue{}, fmt.Errorf("expected exactly one of string, number or template")
 	}
@@ -299,7 +305,7 @@ func compileValue(value *properties.TransformationLiteral, kind string) (compile
 		return compiledValue{}, fmt.Errorf("expected exactly one of string, number or template")
 	}
 	if value.Template != nil {
-		return compileTemplate(*value.Template, kind)
+		return c.compileTemplate(*value.Template, kind)
 	}
 	if kind == "string" && value.String != nil && utf8.RuneCountInString(*value.String) <= MaxValueLength {
 		return compiledValue{literal: *value.String}, nil
@@ -313,7 +319,7 @@ func compileValue(value *properties.TransformationLiteral, kind string) (compile
 
 // compileTemplate parses "text {{field}} text". "\{{" is a literal "{{". References are
 // catalog fields, params.<name>, numeric_params.<name> or url_params.<name>.
-func compileTemplate(template, kind string) (compiledValue, error) {
+func (c *Catalog) compileTemplate(template, kind string) (compiledValue, error) {
 	if utf8.RuneCountInString(template) > MaxValueLength {
 		return compiledValue{}, fmt.Errorf("template exceeds %d characters", MaxValueLength)
 	}
@@ -329,7 +335,7 @@ func compileTemplate(template, kind string) (compiledValue, error) {
 			if end < 0 {
 				return compiledValue{}, fmt.Errorf("template has an unclosed {{")
 			}
-			ref, err := templateReference(strings.TrimSpace(rest[2:end]))
+			ref, err := c.templateReference(strings.TrimSpace(rest[2:end]))
 			if err != nil {
 				return compiledValue{}, err
 			}
@@ -348,7 +354,7 @@ func compileTemplate(template, kind string) (compiledValue, error) {
 	if text.Len() > 0 {
 		parts = append(parts, templatePart{text: text.String()})
 	}
-	if kind == "number" && (len(parts) != 1 || parts[0].ref == nil || referenceType(*parts[0].ref) != "number") {
+	if kind == "number" && (len(parts) != 1 || parts[0].ref == nil || c.referenceType(*parts[0].ref) != "number") {
 		return compiledValue{}, fmt.Errorf("a number target needs a template with exactly one number field")
 	}
 	if len(parts) == 0 {
@@ -357,7 +363,7 @@ func compileTemplate(template, kind string) (compiledValue, error) {
 	return compiledValue{template: parts}, nil
 }
 
-func templateReference(name string) (properties.TransformationFieldReference, error) {
+func (c *Catalog) templateReference(name string) (properties.TransformationFieldReference, error) {
 	var ref properties.TransformationFieldReference
 	switch {
 	case strings.HasPrefix(name, paramsNamespace+"."):
@@ -373,11 +379,11 @@ func templateReference(name string) (properties.TransformationFieldReference, er
 	default:
 		ref = properties.TransformationFieldReference{Field: name}
 	}
-	normalized, err := normalizeReference(&ref)
+	normalized, err := c.normalizeReference(&ref)
 	if err != nil {
 		return normalized, fmt.Errorf("template references an unknown field")
 	}
-	if normalized.Field != "" && loadCatalog().fields[normalized.Field].capability.ConditionOnly {
+	if normalized.Field != "" && c.fields[normalized.Field].capability.ConditionOnly {
 		return normalized, fmt.Errorf("template cannot reference %s", normalized.Field)
 	}
 	return normalized, nil

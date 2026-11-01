@@ -6,17 +6,12 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/apache/arrow-go/v18/arrow"
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/columnset"
-	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
-	"github.com/d8a-tech/d8a/pkg/protocol/d8a"
-	"github.com/d8a-tech/d8a/pkg/protocol/ga4"
-	"github.com/d8a-tech/d8a/pkg/protocol/matomo"
 )
 
 const (
@@ -67,8 +62,6 @@ type ParameterHint struct {
 }
 
 var (
-	allProtocols    = []string{"ga4", "d8a", "matomo"}
-	paramProtocols  = []string{"ga4", "d8a"}
 	stringOperators = []string{
 		"==", "!=", "in", "contains", "startsWith", "endsWith", "matches", "== nil", "!= nil",
 	}
@@ -113,7 +106,9 @@ func (f *fieldInfo) pageDependent() bool {
 	return false
 }
 
-type catalogData struct {
+// Catalog lists the fields early transformations can read and write with a set of
+// protocols, and compiles rules against them.
+type Catalog struct {
 	fields     map[string]*fieldInfo
 	list       []FieldCapability
 	parameters []ParameterHint
@@ -123,24 +118,13 @@ type catalogData struct {
 	aliases  map[string]string
 }
 
-var (
-	catalogOnce sync.Once
-	catalogVal  *catalogData
-)
-
-func loadCatalog() *catalogData {
-	catalogOnce.Do(func() { catalogVal = buildCatalog() })
-	return catalogVal
-}
-
-// Catalog returns the fields early transformations can read and write. It is derived from
-// the event columns of the built-in protocols; device fields are deliberately excluded.
-// Custom parameters ("parameter") and page URL parameters ("url_parameter") are generic
-// reference kinds listed after the named fields.
-func Catalog() []FieldCapability {
-	source := loadCatalog().list
-	result := make([]FieldCapability, len(source))
-	for i, field := range source {
+// Fields returns the fields transformations can read and write. It is derived from the
+// protocols' event columns; device fields are deliberately excluded. Custom parameters
+// ("parameter") and page URL parameters ("url_parameter") are generic reference kinds
+// listed after the named fields.
+func (c *Catalog) Fields() []FieldCapability {
+	result := make([]FieldCapability, len(c.list))
+	for i, field := range c.list {
 		field.ReadProtocols = append([]string(nil), field.ReadProtocols...)
 		field.WriteProtocols = append([]string(nil), field.WriteProtocols...)
 		field.Operators = append([]string(nil), field.Operators...)
@@ -149,36 +133,32 @@ func Catalog() []FieldCapability {
 	return result
 }
 
-// KnownParameters returns custom event parameters that built-in protocols already map to columns.
-func KnownParameters() []ParameterHint {
-	return append([]ParameterHint(nil), loadCatalog().parameters...)
+// KnownParameters returns custom event parameters that the protocols already map to columns.
+func (c *Catalog) KnownParameters() []ParameterHint {
+	return append([]ParameterHint(nil), c.parameters...)
 }
 
-func catalogProtocols() []protocol.Protocol {
-	registry := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{}))
-	converter := currency.NewDummyConverter(1)
-	return []protocol.Protocol{
-		ga4.NewGA4Protocol(converter, registry),
-		d8a.NewD8AProtocol(converter, registry),
-		matomo.NewMatomoProtocol(matomo.NewFromIDSiteExtractor(registry), registry),
-	}
-}
-
-func buildCatalog() *catalogData {
-	data := &catalogData{
+// NewCatalog builds the catalog for the given protocols, in the order they are listed.
+func NewCatalog(protocols ...protocol.Protocol) *Catalog {
+	data := &Catalog{
 		fields:   make(map[string]*fieldInfo),
 		requests: make(map[string]protocol.RequestParams),
 		aliases:  make(map[string]string),
 	}
 	settings := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{}))
 	params := make(map[string]string)
-	for _, implementation := range catalogProtocols() {
+	var ids, paramIDs []string
+	for _, implementation := range protocols {
 		protocolID := implementation.ID()
+		ids = append(ids, protocolID)
 		var request protocol.RequestParams
 		if provider, ok := implementation.(protocol.RequestParamsProvider); ok {
 			request = provider.RequestParams()
 		}
 		data.requests[protocolID] = request
+		if request.TextParamPrefix != "" {
+			paramIDs = append(paramIDs, protocolID)
+		}
 		for field, key := range request.Fields {
 			data.aliases[key] = field
 		}
@@ -215,7 +195,7 @@ func buildCatalog() *catalogData {
 	}
 	data.fields[IPAddressField] = &fieldInfo{capability: FieldCapability{
 		Field: IPAddressField, Type: "string", Category: CategoryRequest,
-		ReadProtocols: append([]string(nil), allProtocols...), ConditionOnly: true,
+		ReadProtocols: append([]string(nil), ids...), ConditionOnly: true,
 	}, writes: map[string]writeSpec{}}
 	names := make([]string, 0, len(data.fields))
 	for name, info := range data.fields {
@@ -229,8 +209,8 @@ func buildCatalog() *catalogData {
 		if name == IPAddressField {
 			info.capability.Operators = append(append([]string(nil), stringOperators...), "inCidr")
 		}
-		sortProtocols(info.capability.ReadProtocols)
-		sortProtocols(info.capability.WriteProtocols)
+		sortProtocols(info.capability.ReadProtocols, ids)
+		sortProtocols(info.capability.WriteProtocols, ids)
 	}
 	sort.Strings(names)
 	for _, name := range names {
@@ -243,12 +223,12 @@ func buildCatalog() *catalogData {
 		}
 		data.list = append(data.list, FieldCapability{
 			Field: "parameter", Type: kind, Category: CategoryEvent,
-			ReadProtocols: paramProtocols, WriteProtocols: paramProtocols, Removable: true, Operators: operators,
+			ReadProtocols: paramIDs, WriteProtocols: paramIDs, Removable: true, Operators: operators,
 		})
 	}
 	data.list = append(data.list, FieldCapability{
 		Field: "url_parameter", Type: "string", Category: CategoryPage,
-		ReadProtocols: allProtocols, WriteProtocols: allProtocols, Removable: true, Operators: stringOperators,
+		ReadProtocols: ids, WriteProtocols: ids, Removable: true, Operators: stringOperators,
 	})
 	for name, kind := range params {
 		data.parameters = append(data.parameters, ParameterHint{Name: name, Type: kind})
@@ -317,8 +297,8 @@ func category(name string) string {
 	return CategoryOther
 }
 
-func canonicalField(name string) string {
-	if alias, ok := loadCatalog().aliases[name]; ok {
+func (c *Catalog) canonicalField(name string) string {
+	if alias, ok := c.aliases[name]; ok {
 		return alias
 	}
 	return name
@@ -333,7 +313,7 @@ func appendUnique(list []string, value string) []string {
 	return append(list, value)
 }
 
-func sortProtocols(list []string) {
-	order := map[string]int{"ga4": 0, "d8a": 1, "matomo": 2}
-	sort.Slice(list, func(i, j int) bool { return order[list[i]] < order[list[j]] })
+// sortProtocols orders protocol IDs as the catalog's protocols are listed.
+func sortProtocols(list, order []string) {
+	sort.Slice(list, func(i, j int) bool { return slices.Index(order, list[i]) < slices.Index(order, list[j]) })
 }

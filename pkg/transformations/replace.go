@@ -89,7 +89,7 @@ func (v *eventView) replace(action *compiledAction) (any, bool, error) {
 // request parameter are read raw, so rewriting them keeps everything the pattern doesn't
 // match (for example URL parameters excluded from reports) and skips column evaluation.
 func (v *eventView) replaceInput(action *compiledAction) (string, error) {
-	if info := loadCatalog().fields[action.target.Field]; action.target.Field != "" && info != nil {
+	if info := v.catalog.fields[action.target.Field]; action.target.Field != "" && info != nil {
 		if spec, ok := info.writes[v.protocol]; ok && spec.kind == writeQuery {
 			return v.input.Hit.Request.QueryParams.Get(spec.key), nil
 		}
