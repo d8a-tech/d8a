@@ -46,7 +46,8 @@ type compiledAction struct {
 	target properties.TransformationFieldReference
 	value  compiledValue
 	// replace actions only: compiled once per program.
-	branches    []replaceBranch
+	pattern     *regexp.Regexp
+	literals    []string
 	replacement string
 }
 
@@ -311,7 +312,7 @@ func compileReplace(result compiledAction, action properties.TransformationActio
 	if err != nil {
 		return result, fmt.Errorf("invalid pattern: %w", err)
 	}
-	result.branches = compileReplaceBranches(pattern)
+	result.pattern, result.literals = pattern, replaceLiterals(pattern)
 	result.replacement = DefaultReplacement
 	if action.Replacement != nil {
 		if utf8.RuneCountInString(*action.Replacement) > MaxValueLength {

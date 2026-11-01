@@ -90,6 +90,31 @@ func TestReplaceAction(t *testing.T) {
 	assert.Equal(t, "https://www.google.com/search", hit.Request.QueryParams.Get("dr"))
 }
 
+func TestReplaceMatchesLikeOneRegularExpression(t *testing.T) {
+	for _, tc := range []struct {
+		name, pattern, replacement, input string
+	}{
+		{"leftmost match wins over earlier alternative", `bcd|ab`, "X", "abcd"},
+		{"replacement is not matched again", `secret|\d+`, "id1", "secret"},
+		{"library patterns", piiPattern, "[REDACTED]", "a@b.co, +4860012345, 10.0.0.1, 4111 1111 1111 1111"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			hit := hits.New()
+			hit.Request.QueryParams.Set("dt", tc.input)
+			p := compileRules(t, rule{Expression: "true", Actions: []action{
+				replace(field("page_title"), tc.pattern, text(tc.replacement)),
+			}})
+			// when
+			_, err := apply(p, "ga4", hit, nil, columnDeps(nil, nil))
+			// then
+			require.NoError(t, err)
+			want := regexp.MustCompile(tc.pattern).ReplaceAllString(tc.input, tc.replacement)
+			assert.Equal(t, want, hit.Request.QueryParams.Get("dt"))
+		})
+	}
+}
+
 func TestReplaceSkipsMissingUnchangedAndOversizedValues(t *testing.T) {
 	// given
 	long := strings.Repeat("a@b.co ", MaxReplaceInputLength/7+1)

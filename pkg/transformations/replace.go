@@ -7,33 +7,15 @@ import (
 	"unicode"
 )
 
-// replaceBranch is one alternative of a replace pattern. literals lists strings of which at
-// least one must occur for the branch to match; nil means the branch always has to run.
-type replaceBranch struct {
-	pattern  *regexp.Regexp
-	literals []string
-}
-
-// compileReplaceBranches splits a top-level alternation ("email|phone|...") into branches
-// with literal prefilters, so values without "@" never run the email regex. Patterns with
-// capture groups stay whole: splitting would renumber groups used by $1 replacements.
-func compileReplaceBranches(pattern *regexp.Regexp) []replaceBranch {
+// replaceLiterals returns strings of which at least one occurs in every match of the
+// pattern, so values without any of them (for example no "@" for an email pattern) skip
+// the regular expression. nil means the pattern always has to run.
+func replaceLiterals(pattern *regexp.Regexp) []string {
 	parsed, err := syntax.Parse(pattern.String(), syntax.Perl)
 	if err != nil {
-		return []replaceBranch{{pattern: pattern}}
+		return nil
 	}
-	if parsed.Op != syntax.OpAlternate || pattern.NumSubexp() > 0 {
-		return []replaceBranch{{pattern: pattern, literals: requiredLiterals(parsed)}}
-	}
-	branches := make([]replaceBranch, 0, len(parsed.Sub))
-	for _, sub := range parsed.Sub {
-		compiled, err := regexp.Compile(sub.String())
-		if err != nil {
-			return []replaceBranch{{pattern: pattern, literals: requiredLiterals(parsed)}}
-		}
-		branches = append(branches, replaceBranch{pattern: compiled, literals: requiredLiterals(sub)})
-	}
-	return branches
+	return requiredLiterals(parsed)
 }
 
 // requiredLiterals returns strings of which at least one occurs in every match, or nil when
@@ -93,13 +75,10 @@ func (v *eventView) replace(action *compiledAction) (any, bool, error) {
 	if err != nil || text == "" || len(text) > MaxReplaceInputLength {
 		return nil, false, err
 	}
-	replaced := text
-	for _, branch := range action.branches {
-		if branch.literals != nil && !containsAny(replaced, branch.literals) {
-			continue
-		}
-		replaced = branch.pattern.ReplaceAllString(replaced, action.replacement)
+	if action.literals != nil && !containsAny(text, action.literals) {
+		return nil, false, nil
 	}
+	replaced := action.pattern.ReplaceAllString(text, action.replacement)
 	if replaced == text {
 		return nil, false, nil
 	}
