@@ -12,6 +12,7 @@ import (
 
 	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/properties"
+	"github.com/d8a-tech/d8a/pkg/protocol"
 	"github.com/d8a-tech/d8a/pkg/schema"
 )
 
@@ -41,9 +42,19 @@ func newEventView(input Input) *eventView {
 	return &eventView{input: input, protocol: input.Protocol, values: make(map[string]any)}
 }
 
-func (v *eventView) parametersSupported() bool { return v.protocol == "ga4" || v.protocol == "d8a" }
+func (v *eventView) request() protocol.RequestParams { return loadCatalog().requests[v.protocol] }
 
-func (v *eventView) pageLocationKey() string { return coreWireKeys[v.protocol]["page_location"] }
+func (v *eventView) parametersSupported() bool { return v.request().TextParamPrefix != "" }
+
+func (v *eventView) pageLocationKey() string { return v.request().Fields["page_location"] }
+
+// parameterPrefix returns the request prefix of a custom event parameter of the given type.
+func (v *eventView) parameterPrefix(kind string) string {
+	if kind == "number" {
+		return v.request().NumberParamPrefix
+	}
+	return v.request().TextParamPrefix
+}
 
 // lookup backs the lazily patched __field calls of compiled predicates.
 func (v *eventView) lookup(name string) (any, error) {
@@ -82,11 +93,7 @@ func (v *eventView) parameter(ref properties.TransformationFieldReference) any {
 	if !v.parametersSupported() {
 		return nil
 	}
-	prefix := "ep."
-	if ref.Type == "number" {
-		prefix = "epn."
-	}
-	values, exists := v.input.Hit.Request.QueryParams[prefix+ref.Parameter]
+	values, exists := v.input.Hit.Request.QueryParams[v.parameterPrefix(ref.Type)+ref.Parameter]
 	if !exists || len(values) == 0 {
 		return nil
 	}
@@ -101,10 +108,11 @@ func (v *eventView) parameter(ref properties.TransformationFieldReference) any {
 }
 
 func (v *eventView) parameterMap(numeric bool) map[string]any {
-	kind, prefix := "string", "ep."
+	kind := "string"
 	if numeric {
-		kind, prefix = "number", "epn."
+		kind = "number"
 	}
+	prefix := v.parameterPrefix(kind)
 	params := make(map[string]any)
 	if !v.parametersSupported() {
 		return params
@@ -216,7 +224,7 @@ func (v *eventView) coreField(name string) (any, error) {
 	case "page_location", "page_hostname", "page_path":
 		return nil, errExtraction
 	}
-	key := coreWireKeys[v.protocol][name]
+	key := v.request().Fields[name]
 	if key == "" {
 		return nil, nil
 	}
@@ -278,14 +286,10 @@ func (v *eventView) write(ref properties.TransformationFieldReference, value any
 		if !v.parametersSupported() {
 			return nil
 		}
-		params.Del("ep." + ref.Parameter)
-		params.Del("epn." + ref.Parameter)
+		params.Del(v.parameterPrefix("string") + ref.Parameter)
+		params.Del(v.parameterPrefix("number") + ref.Parameter)
 		if !remove {
-			prefix := "ep."
-			if ref.Type == "number" {
-				prefix = "epn."
-			}
-			params.Set(prefix+ref.Parameter, text)
+			params.Set(v.parameterPrefix(ref.Type)+ref.Parameter, text)
 		}
 		return nil
 	case ref.URLParameter != "":

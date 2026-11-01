@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
 	"github.com/d8a-tech/d8a/pkg/protocol"
@@ -23,6 +24,20 @@ type matomoProtocol struct {
 
 func (p *matomoProtocol) ID() string {
 	return "matomo"
+}
+
+// RequestParams implements protocol.RequestParamsProvider. Matomo has no event name
+// parameter to rename and no custom event parameters.
+func (p *matomoProtocol) RequestParams() protocol.RequestParams {
+	return protocol.RequestParams{
+		Fields: map[string]string{
+			columns.CoreInterfaces.EventPageLocation.Field.Name: "url",
+			columns.CoreInterfaces.EventPageTitle.Field.Name:    "action_name",
+			columns.CoreInterfaces.EventPageReferrer.Field.Name: "urlref",
+			columns.CoreInterfaces.EventUserID.Field.Name:       "uid",
+		},
+		ReadOnly: []string{"idsite", "_id", "rec", "_idn", "_idvc"},
+	}
 }
 
 func (p *matomoProtocol) Hits(fhCtx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {

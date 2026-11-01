@@ -50,3 +50,22 @@ type Protocol interface {
 	Endpoints() []ProtocolEndpoint
 	Hits(*fasthttp.RequestCtx, *hits.ParsedRequest) ([]*hits.Hit, error)
 }
+
+// RequestParams tells tools that rewrite tracking requests (early event transformations)
+// where a protocol keeps event data.
+type RequestParams struct {
+	// Fields maps core event fields (name, page_location, page_title, page_referrer,
+	// user_id) to the query parameter that stores them.
+	Fields map[string]string
+	// TextParamPrefix and NumberParamPrefix prefix custom event parameters ("ep.", "epn.");
+	// empty when the protocol has none.
+	TextParamPrefix, NumberParamPrefix string
+	// ReadOnly lists query parameters that identify the hit or drive protocol plumbing.
+	ReadOnly []string
+}
+
+// RequestParamsProvider is implemented by protocols whose requests can be rewritten.
+// Other protocols are read-only for transformations.
+type RequestParamsProvider interface {
+	RequestParams() RequestParams
+}

@@ -3,6 +3,7 @@
 package transformations
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -72,29 +73,13 @@ var (
 		"==", "!=", "in", "contains", "startsWith", "endsWith", "matches", "== nil", "!= nil",
 	}
 	numberOperators = []string{"==", "!=", "in", "<", "<=", ">", ">=", "== nil", "!= nil"}
-	aliases         = map[string]string{
-		"en": "name", "dl": "page_location", "url": "page_location",
-		"dt": "page_title", "action_name": "page_title", "dr": "page_referrer",
-		"urlref": "page_referrer", "uid": "user_id",
-	}
-	// Request keys that identify the hit or drive protocol plumbing stay read-only.
-	readOnlyQueryParams = map[string]bool{
-		"tid": true, "cid": true, "sid": true, "sct": true, "_et": true, "_s": true, "_p": true,
-		"v": true, "idsite": true, "_id": true, "rec": true, "_idn": true, "_idvc": true,
-		"ep.ga_session_id": true, "epn.ga_session_number": true,
-	}
-	excludedFields = map[string]bool{
+	excludedFields  = map[string]bool{
 		"id": true, "client_id": true, "property_id": true, "property_name": true,
 		"ip_address": true, "geo_sub_continent": true, "geo_metro": true,
 		// Device detection (UA parsing) is too expensive to run on every incoming hit.
 		"device_category": true, "device_mobile_brand_name": true, "device_mobile_model_name": true,
 		"device_operating_system": true, "device_operating_system_version": true,
 		"device_web_browser": true, "device_web_browser_version": true,
-	}
-	coreWireKeys = map[string]map[string]string{
-		"ga4":    {"name": "en", "page_location": "dl", "page_title": "dt", "page_referrer": "dr", "user_id": "uid"},
-		"d8a":    {"name": "en", "page_location": "dl", "page_title": "dt", "page_referrer": "dr", "user_id": "uid"},
-		"matomo": {"page_location": "url", "page_title": "action_name", "page_referrer": "urlref", "user_id": "uid"},
 	}
 	overrideFields = map[string]bool{"geo_continent": true, "geo_country": true, "geo_region": true, "geo_city": true}
 )
@@ -132,6 +117,10 @@ type catalogData struct {
 	fields     map[string]*fieldInfo
 	list       []FieldCapability
 	parameters []ParameterHint
+	// requests holds each protocol's request layout by protocol ID; aliases maps the
+	// request parameters of core fields (wire names such as "dl") to field names.
+	requests map[string]protocol.RequestParams
+	aliases  map[string]string
 }
 
 var (
@@ -176,11 +165,23 @@ func catalogProtocols() []protocol.Protocol {
 }
 
 func buildCatalog() *catalogData {
-	data := &catalogData{fields: make(map[string]*fieldInfo)}
+	data := &catalogData{
+		fields:   make(map[string]*fieldInfo),
+		requests: make(map[string]protocol.RequestParams),
+		aliases:  make(map[string]string),
+	}
 	settings := properties.NewStaticSettingsRegistry(nil, properties.WithDefaultConfig(&properties.Settings{}))
 	params := make(map[string]string)
 	for _, implementation := range catalogProtocols() {
 		protocolID := implementation.ID()
+		var request protocol.RequestParams
+		if provider, ok := implementation.(protocol.RequestParamsProvider); ok {
+			request = provider.RequestParams()
+		}
+		data.requests[protocolID] = request
+		for field, key := range request.Fields {
+			data.aliases[key] = field
+		}
 		cols, err := columnset.DefaultColumnRegistry(implementation, settings).Get("")
 		if err != nil {
 			panic("transformations: building field catalog: " + err.Error())
@@ -193,8 +194,8 @@ func buildCatalog() *catalogData {
 				continue
 			}
 			queryParam, pageURLParam := columns.EventColumnSources(column)
-			if strings.HasPrefix(queryParam, "ep.") || strings.HasPrefix(queryParam, "epn.") {
-				params[strings.SplitN(queryParam, ".", 2)[1]] = kind
+			if name, ok := customParameter(request, queryParam); ok {
+				params[name] = kind
 				continue
 			}
 			info := data.fields[name]
@@ -206,7 +207,7 @@ func buildCatalog() *catalogData {
 				data.fields[name] = info
 			}
 			info.capability.ReadProtocols = appendUnique(info.capability.ReadProtocols, protocolID)
-			if spec, ok := writeSpecFor(protocolID, name, queryParam, pageURLParam); ok {
+			if spec, ok := writeSpecFor(request, name, queryParam, pageURLParam); ok {
 				info.writes[protocolID] = spec
 				info.capability.WriteProtocols = appendUnique(info.capability.WriteProtocols, protocolID)
 			}
@@ -256,8 +257,18 @@ func buildCatalog() *catalogData {
 	return data
 }
 
-func writeSpecFor(protocolID, name, queryParam, pageURLParam string) (writeSpec, bool) {
-	if key := coreWireKeys[protocolID][name]; key != "" {
+// customParameter returns the custom event parameter a request parameter holds, if any.
+func customParameter(request protocol.RequestParams, queryParam string) (string, bool) {
+	for _, prefix := range []string{request.TextParamPrefix, request.NumberParamPrefix} {
+		if name, ok := strings.CutPrefix(queryParam, prefix); prefix != "" && ok {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func writeSpecFor(request protocol.RequestParams, name, queryParam, pageURLParam string) (writeSpec, bool) {
+	if key := request.Fields[name]; key != "" {
 		return writeSpec{kind: writeQuery, key: key}, true
 	}
 	if name == "name" {
@@ -270,7 +281,7 @@ func writeSpecFor(protocolID, name, queryParam, pageURLParam string) (writeSpec,
 		return writeSpec{kind: writeOverride, key: name}, true
 	case pageURLParam != "":
 		return writeSpec{kind: writePageURLParam, key: pageURLParam}, true
-	case queryParam != "" && !readOnlyQueryParams[queryParam]:
+	case queryParam != "" && !slices.Contains(request.ReadOnly, queryParam):
 		return writeSpec{kind: writeQuery, key: queryParam}, true
 	}
 	return writeSpec{}, false
@@ -307,7 +318,7 @@ func category(name string) string {
 }
 
 func canonicalField(name string) string {
-	if alias, ok := aliases[name]; ok {
+	if alias, ok := loadCatalog().aliases[name]; ok {
 		return alias
 	}
 	return name

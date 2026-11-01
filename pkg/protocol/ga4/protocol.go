@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/d8a-tech/d8a/pkg/columns"
 	"github.com/d8a-tech/d8a/pkg/currency"
 	"github.com/d8a-tech/d8a/pkg/hits"
 	"github.com/d8a-tech/d8a/pkg/properties"
@@ -23,6 +24,24 @@ type ga4Protocol struct {
 
 func (p *ga4Protocol) ID() string {
 	return "ga4"
+}
+
+// RequestParams implements protocol.RequestParamsProvider.
+func (p *ga4Protocol) RequestParams() protocol.RequestParams {
+	return protocol.RequestParams{
+		Fields: map[string]string{
+			columns.CoreInterfaces.EventName.Field.Name:         "en",
+			columns.CoreInterfaces.EventPageLocation.Field.Name: "dl",
+			columns.CoreInterfaces.EventPageTitle.Field.Name:    "dt",
+			columns.CoreInterfaces.EventPageReferrer.Field.Name: "dr",
+			columns.CoreInterfaces.EventUserID.Field.Name:       "uid",
+		},
+		TextParamPrefix:   "ep.",
+		NumberParamPrefix: "epn.",
+		ReadOnly: []string{
+			"tid", "cid", "sid", "sct", "_et", "_s", "_p", "v", "ep.ga_session_id", "epn.ga_session_number",
+		},
+	}
 }
 
 func (p *ga4Protocol) Hits(reqCtx *fasthttp.RequestCtx, request *hits.ParsedRequest) ([]*hits.Hit, error) {
