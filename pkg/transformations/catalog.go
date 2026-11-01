@@ -25,7 +25,13 @@ const (
 	MaxValueLength      = 8192
 	MaxExpressionLength = 16384
 	MaxCachedPrograms   = 256
+	MaxPatternLength    = 2000
+	// MaxReplaceInputLength bounds the text a replace action scans; longer values are left as is.
+	MaxReplaceInputLength = 16384
 )
+
+// DefaultReplacement is what replace actions insert when no replacement is configured.
+const DefaultReplacement = "[REDACTED]"
 
 // Field categories group the catalog for editors.
 const (

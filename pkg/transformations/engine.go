@@ -89,6 +89,14 @@ func applyActions(view *eventView, actions []compiledAction) string {
 		if action.kind == "remove" {
 			continue
 		}
+		if action.kind == "replace" {
+			value, ok, err := view.replace(action)
+			if err != nil {
+				return StageExtraction
+			}
+			values[i], skip[i] = value, !ok
+			continue
+		}
 		value, ok, err := view.evaluate(action.value, referenceType(action.target))
 		if err != nil {
 			return StageExtraction

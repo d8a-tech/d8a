@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"strings"
 	"sync"
 	"unicode/utf8"
@@ -44,6 +45,9 @@ type compiledAction struct {
 	kind   string
 	target properties.TransformationFieldReference
 	value  compiledValue
+	// replace actions only: compiled once per program.
+	branches    []replaceBranch
+	replacement string
 }
 
 // compiledValue is either a literal or a parsed template.
@@ -267,7 +271,7 @@ func compileAction(action properties.TransformationActionConfig, count int) (com
 		return result, nil
 	case "copy":
 		return result, fmt.Errorf("copy was replaced by set with a template value, e.g. {{page_title}}")
-	case "set", "remove":
+	case "set", "remove", "replace":
 	default:
 		return result, fmt.Errorf("unknown action type")
 	}
@@ -280,14 +284,42 @@ func compileAction(action properties.TransformationActionConfig, count int) (com
 		return result, fmt.Errorf("target is read-only")
 	}
 	result.target = target
-	if action.Type == "remove" {
+	if action.Type != "replace" && (action.Pattern != "" || action.Replacement != nil) {
+		return result, fmt.Errorf("pattern and replacement are only allowed in replace actions")
+	}
+	switch action.Type {
+	case "remove":
 		if !removable || action.Value != nil {
 			return result, fmt.Errorf("remove requires a removable target and no value")
 		}
 		return result, nil
+	case "replace":
+		return compileReplace(result, action)
 	}
 	result.value, err = compileValue(action.Value, referenceType(target))
 	return result, err
+}
+
+func compileReplace(result compiledAction, action properties.TransformationActionConfig) (compiledAction, error) {
+	if referenceType(result.target) != "string" || action.Value != nil {
+		return result, fmt.Errorf("replace requires a text target and no value")
+	}
+	if action.Pattern == "" || utf8.RuneCountInString(action.Pattern) > MaxPatternLength {
+		return result, fmt.Errorf("pattern must contain 1 to %d characters", MaxPatternLength)
+	}
+	pattern, err := regexp.Compile(action.Pattern)
+	if err != nil {
+		return result, fmt.Errorf("invalid pattern: %w", err)
+	}
+	result.branches = compileReplaceBranches(pattern)
+	result.replacement = DefaultReplacement
+	if action.Replacement != nil {
+		if utf8.RuneCountInString(*action.Replacement) > MaxValueLength {
+			return result, fmt.Errorf("replacement exceeds %d characters", MaxValueLength)
+		}
+		result.replacement = *action.Replacement
+	}
+	return result, nil
 }
 
 func compileValue(value *properties.TransformationLiteral, kind string) (compiledValue, error) {

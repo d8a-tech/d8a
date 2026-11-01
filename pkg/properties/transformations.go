@@ -38,11 +38,16 @@ type TransformationLiteral struct {
 	Template *string  `yaml:"template,omitempty" json:"template,omitempty"`
 }
 
-// TransformationActionConfig describes a set, remove or exclusive drop action.
+// TransformationActionConfig describes a set, remove, replace or exclusive drop action.
 type TransformationActionConfig struct {
 	Type   string                        `yaml:"type" json:"type"`
 	Target *TransformationFieldReference `yaml:"target,omitempty" json:"target,omitempty"`
 	Value  *TransformationLiteral        `yaml:"value,omitempty" json:"value,omitempty"`
+	// Pattern is the regular expression a replace action searches for (RE2 syntax).
+	Pattern string `yaml:"pattern,omitempty" json:"pattern,omitempty"`
+	// Replacement replaces every match; nil means "[REDACTED]" and "" removes matches.
+	// $1 or ${name} insert capture groups; $$ is a literal dollar sign.
+	Replacement *string `yaml:"replacement,omitempty" json:"replacement,omitempty"`
 }
 
 // ParseTransformationsConfig reads only the transformations section, strictly checking its keys.
