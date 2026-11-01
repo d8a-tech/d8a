@@ -43,6 +43,9 @@ const (
 // IPAddressField is the condition-only, unmasked client IP of the incoming request.
 const IPAddressField = "ip_address"
 
+// PropertyIDField is the condition-only ID of the property the hit was sent to.
+const PropertyIDField = "property_id"
+
 // FieldCapability describes the early field contract, not the warehouse schema.
 type FieldCapability struct {
 	Field          string   `json:"field"`
@@ -66,7 +69,9 @@ var (
 		"==", "!=", "in", "contains", "startsWith", "endsWith", "matches", "== nil", "!= nil",
 	}
 	numberOperators = []string{"==", "!=", "in", "<", "<=", ">", ">=", "== nil", "!= nil"}
-	excludedFields  = map[string]bool{
+	// Every hit has a property, so only exact matches are meaningful.
+	propertyOperators = []string{"==", "!=", "in"}
+	excludedFields    = map[string]bool{
 		"id": true, "client_id": true, "property_id": true, "property_name": true,
 		"ip_address": true, "geo_sub_continent": true, "geo_metro": true,
 		// Device detection (UA parsing) is too expensive to run on every incoming hit.
@@ -194,6 +199,10 @@ func NewCatalog(protocols ...protocol.Protocol) *Catalog {
 		Field: IPAddressField, Type: "string", Category: CategoryRequest,
 		ReadProtocols: append([]string(nil), ids...), ConditionOnly: true,
 	}, writes: map[string]writeSpec{}}
+	data.fields[PropertyIDField] = &fieldInfo{capability: FieldCapability{
+		Field: PropertyIDField, Type: "string", Category: CategoryRequest,
+		ReadProtocols: append([]string(nil), ids...), ConditionOnly: true,
+	}, writes: map[string]writeSpec{}}
 	names := make([]string, 0, len(data.fields))
 	for name, info := range data.fields {
 		names = append(names, name)
@@ -205,6 +214,9 @@ func NewCatalog(protocols ...protocol.Protocol) *Catalog {
 		}
 		if name == IPAddressField {
 			info.capability.Operators = append(append([]string(nil), stringOperators...), "inCidr")
+		}
+		if name == PropertyIDField {
+			info.capability.Operators = propertyOperators
 		}
 		sortProtocols(info.capability.ReadProtocols, ids)
 		sortProtocols(info.capability.WriteProtocols, ids)

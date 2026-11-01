@@ -47,6 +47,7 @@ Expressions use the same language as [traffic filtering](traffic-filtering.md):
 | a number parameter | `numeric_params["value"] != nil && numeric_params["value"] > 1000` |
 | a page URL parameter | `url_params["utm_source"] == "newsletter"` |
 | an IP range | `inCidr(ip_address, "10.0.0.0/8")` |
+| one property | `property_id == "your-property-id"` |
 | a pattern | `page_title matches "(?i)error"` |
 
 Fields without a value are `nil`. When a missing value must not match, check for it first:
@@ -80,6 +81,8 @@ matched group (for example `/orders/123` → `/orders/:id`).
   rule, so the actions don't affect each other.
 - **One change per field per rule.** To change a field twice, use two rules. A rule can't
   change the page URL together with its parts (path, domain, URL parameters).
+- **`property_id` limits a rule to some properties.** It is the property the event was sent
+  to (for Matomo, the property its `idsite` belongs to) and can only be used to choose events.
 - **`ip_address` is the full address before IP masking.** It can only be used to choose
   events, so office ranges can be excluded even when masking is on. Location fields are
   looked up from the masked address, as in your reports.
@@ -106,7 +109,7 @@ matched group (for example `/orders/123` → `/orders/:id`).
 | Page | `page_location`, `page_title`, `page_referrer`, `page_hostname`, `page_path` | yes |
 | Traffic source | `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, other `utm_*`, click IDs such as `click_id_gclid` | yes |
 | Location | `geo_country`, `geo_region`, `geo_city`, `geo_continent` | yes |
-| Request | `ip_address` | no, conditions only |
+| Request | `ip_address`, `property_id` | no, conditions only |
 | Parameters | any custom event parameter, any page URL parameter | yes |
 | Other | e.g. `device_language`, `device_screen_resolution`, e-commerce values | some |
 
@@ -349,6 +352,17 @@ transformations:
   rules:
     - name: Drop Tag Manager previews
       expression: 'gtm_debug != nil'
+      actions:
+        - type: drop
+```
+
+**Drop test events on one property only.**
+
+```yaml
+transformations:
+  rules:
+    - name: Drop shop test events
+      expression: 'property_id == "your-property-id" && page_hostname == "staging.example.com"'
       actions:
         - type: drop
 ```

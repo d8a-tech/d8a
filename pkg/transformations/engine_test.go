@@ -183,6 +183,26 @@ func TestIPAddressIsUnmaskedAndConditionOnly(t *testing.T) {
 	}
 }
 
+func TestPropertyIDIsConditionOnly(t *testing.T) {
+	// given
+	p := compileRules(t, rule{Expression: `property_id in ["p1", "p3"]`, Actions: []action{{Type: "drop"}}})
+	for propertyID, wantKeep := range map[string]bool{"p1": false, "p2": true} {
+		hit := hits.New()
+		hit.PropertyID = propertyID
+		// when
+		keep, err := p.Apply(Input{Protocol: "matomo", Hit: hit})
+		// then
+		require.NoError(t, err)
+		assert.Equal(t, wantKeep, keep, propertyID)
+	}
+	for _, actions := range [][]action{
+		{set(field("property_id"), "x")}, {template(field("page_title"), "{{property_id}}")},
+	} {
+		_, err := testCatalog.Compile(properties.TransformationsConfig{Rules: []rule{{Expression: "true", Actions: actions}}})
+		assert.Error(t, err)
+	}
+}
+
 func TestMissingEmptyAndParameterNamespaces(t *testing.T) {
 	// given
 	hit := hits.New()

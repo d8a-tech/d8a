@@ -165,6 +165,8 @@ func (v *eventView) field(name string) (any, error) {
 		if value == "" {
 			value = v.input.Hit.Request.IP
 		}
+	} else if name == PropertyIDField {
+		value = v.input.Hit.PropertyID
 	} else if plan := v.columnPlan(); plan != nil && plan.byField[name] != nil {
 		value, err = v.columnValue(plan, name)
 	} else {
