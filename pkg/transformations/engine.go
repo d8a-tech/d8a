@@ -68,7 +68,7 @@ func (p *program) Apply(input Input) (bool, error) {
 		if !match {
 			continue
 		}
-		if rule.actions[0].kind == "drop" {
+		if rule.actions[0].kind == properties.TransformationActionDrop {
 			return false, nil
 		}
 		if stage := applyActions(view, rule.actions); stage != "" {
@@ -86,10 +86,10 @@ func applyActions(view *eventView, actions []compiledAction) string {
 	skip := make([]bool, len(actions))
 	for i := range actions {
 		action := &actions[i]
-		if action.kind == "remove" {
+		if action.kind == properties.TransformationActionRemove {
 			continue
 		}
-		if action.kind == "replace" {
+		if action.kind == properties.TransformationActionReplace {
 			value, ok, err := view.replace(action)
 			if err != nil {
 				return StageExtraction
@@ -108,7 +108,7 @@ func applyActions(view *eventView, actions []compiledAction) string {
 		if skip[i] {
 			continue
 		}
-		if err := view.write(action.target, values[i], action.kind == "remove"); err != nil {
+		if err := view.write(action.target, values[i], action.kind == properties.TransformationActionRemove); err != nil {
 			return StageAction
 		}
 	}

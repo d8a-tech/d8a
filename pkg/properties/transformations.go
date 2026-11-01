@@ -38,9 +38,23 @@ type TransformationLiteral struct {
 	Template *string  `yaml:"template,omitempty" json:"template,omitempty"`
 }
 
+// TransformationActionType is the kind of a transformation action.
+type TransformationActionType string
+
+const (
+	// TransformationActionSet sets the target to a literal or template value.
+	TransformationActionSet TransformationActionType = "set"
+	// TransformationActionRemove removes the target.
+	TransformationActionRemove TransformationActionType = "remove"
+	// TransformationActionReplace replaces pattern matches in the target.
+	TransformationActionReplace TransformationActionType = "replace"
+	// TransformationActionDrop discards the event; it must be the rule's only action.
+	TransformationActionDrop TransformationActionType = "drop"
+)
+
 // TransformationActionConfig describes a set, remove, replace or exclusive drop action.
 type TransformationActionConfig struct {
-	Type   string                        `yaml:"type" json:"type"`
+	Type   TransformationActionType      `yaml:"type" json:"type"`
 	Target *TransformationFieldReference `yaml:"target,omitempty" json:"target,omitempty"`
 	Value  *TransformationLiteral        `yaml:"value,omitempty" json:"value,omitempty"`
 	// Pattern is the regular expression a replace action searches for (RE2 syntax).

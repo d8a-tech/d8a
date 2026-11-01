@@ -31,7 +31,7 @@ type compiledRule struct {
 	actions   []compiledAction
 }
 type compiledAction struct {
-	kind   string
+	kind   properties.TransformationActionType
 	target properties.TransformationFieldReference
 	value  compiledValue
 	// replace actions only: compiled once per program.
@@ -138,7 +138,7 @@ func compileRule(rule properties.TransformationRuleConfig) (compiledRule, error)
 		if err != nil {
 			return result, fmt.Errorf("action %d: %w", i+1, err)
 		}
-		if compiled.kind != "drop" {
+		if compiled.kind != properties.TransformationActionDrop {
 			key := referenceKey(compiled.target)
 			if seen[key] {
 				return result, fmt.Errorf("action %d: duplicate canonical target", i+1)
@@ -227,14 +227,14 @@ func writableReference(ref properties.TransformationFieldReference) (writable, r
 func compileAction(action properties.TransformationActionConfig, count int) (compiledAction, error) {
 	result := compiledAction{kind: action.Type}
 	switch action.Type {
-	case "drop":
+	case properties.TransformationActionDrop:
 		if count != 1 || action.Target != nil || action.Value != nil {
 			return result, fmt.Errorf("drop must be exclusive and have no target or value")
 		}
 		return result, nil
 	case "copy":
 		return result, fmt.Errorf("copy was replaced by set with a template value, e.g. {{page_title}}")
-	case "set", "remove", "replace":
+	case properties.TransformationActionSet, properties.TransformationActionRemove, properties.TransformationActionReplace:
 	default:
 		return result, fmt.Errorf("unknown action type")
 	}
@@ -247,16 +247,16 @@ func compileAction(action properties.TransformationActionConfig, count int) (com
 		return result, fmt.Errorf("target is read-only")
 	}
 	result.target = target
-	if action.Type != "replace" && (action.Pattern != "" || action.Replacement != nil) {
+	if action.Type != properties.TransformationActionReplace && (action.Pattern != "" || action.Replacement != nil) {
 		return result, fmt.Errorf("pattern and replacement are only allowed in replace actions")
 	}
 	switch action.Type {
-	case "remove":
+	case properties.TransformationActionRemove:
 		if !removable || action.Value != nil {
 			return result, fmt.Errorf("remove requires a removable target and no value")
 		}
 		return result, nil
-	case "replace":
+	case properties.TransformationActionReplace:
 		return compileReplace(result, action)
 	}
 	result.value, err = compileValue(action.Value, referenceType(target))
