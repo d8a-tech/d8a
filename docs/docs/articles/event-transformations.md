@@ -129,7 +129,8 @@ transformations:
 
 **Redact personal data anywhere in page URLs, titles and referrers.** Masks email
 addresses (also URL-encoded ones), international phone numbers, card numbers and IP
-addresses. Card numbers are matched by length, so other long numbers are masked too.
+addresses. Card numbers are recognized as any sequence of 13–19 digits; because a pattern
+can't tell them apart from other long numbers, long order or tracking numbers are masked as well.
 
 ```yaml
 transformations:
