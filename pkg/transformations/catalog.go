@@ -24,7 +24,6 @@ const (
 	MaxNameLength       = 100
 	MaxValueLength      = 8192
 	MaxExpressionLength = 16384
-	MaxCachedPrograms   = 256
 	MaxPatternLength    = 2000
 	// MaxReplaceInputLength bounds the text a replace action scans; longer values are left as is.
 	MaxReplaceInputLength = 16384

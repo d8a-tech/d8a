@@ -594,7 +594,7 @@ func TestCompileRejectsInvalidConfiguration(t *testing.T) {
 	}
 }
 
-func TestLimitsAndCacheSnapshot(t *testing.T) {
+func TestLimitsAndSnapshot(t *testing.T) {
 	// given
 	config := properties.TransformationsConfig{Rules: []rule{{
 		Name: strings.Repeat("n", MaxNameLength), Expression: "true",
@@ -602,15 +602,11 @@ func TestLimitsAndCacheSnapshot(t *testing.T) {
 	}}}
 	p, err := Compile(config)
 	require.NoError(t, err)
-	config.Rules[0].Name = "another name"
 	// when
-	cached, err := Compile(config)
-	// then
-	require.NoError(t, err)
-	assert.Same(t, p, cached)
 	*config.Rules[0].Actions[0].Value.String = "mutated"
 	hit := hits.New()
 	_, err = apply(p, "ga4", hit, nil, ExtractionDependencies{})
+	// then
 	require.NoError(t, err)
 	assert.Len(t, hit.Request.QueryParams.Get("dt"), MaxValueLength)
 	config.Rules[0].Name = strings.Repeat("n", MaxNameLength+1)
@@ -618,13 +614,6 @@ func TestLimitsAndCacheSnapshot(t *testing.T) {
 	require.Error(t, err)
 	_, err = Compile(properties.TransformationsConfig{Rules: make([]rule, MaxRules+1)})
 	require.Error(t, err)
-	for i := 0; i < MaxCachedPrograms+1; i++ {
-		compileRules(t, rule{Expression: "true", Actions: []action{set(field("page_title"), fmt.Sprint(i))}})
-	}
-	compiledCache.Lock()
-	defer compiledCache.Unlock()
-	assert.LessOrEqual(t, len(compiledCache.programs), MaxCachedPrograms)
-	assert.Len(t, compiledCache.order, len(compiledCache.programs))
 }
 
 func TestEvaluationErrorIsPayloadFree(t *testing.T) {

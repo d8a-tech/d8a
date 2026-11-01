@@ -1,13 +1,10 @@
 package transformations
 
 import (
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
 	"strings"
-	"sync"
 	"unicode/utf8"
 
 	"github.com/d8a-tech/d8a/pkg/expressions"
@@ -27,14 +24,6 @@ const (
 	numericParamsNamespace = "numeric_params"
 	urlParamsNamespace     = "url_params"
 )
-
-// A mutex-protected FIFO keeps at most MaxCachedPrograms immutable plans. The lock only
-// guards the map: compilation itself runs outside it.
-var compiledCache = struct {
-	sync.Mutex
-	programs map[[32]byte]*program
-	order    [][32]byte
-}{programs: make(map[[32]byte]*program)}
 
 type program struct{ rules []compiledRule }
 type compiledRule struct {
@@ -62,50 +51,23 @@ type templatePart struct {
 	ref  *properties.TransformationFieldReference
 }
 
-// Compile validates and snapshots executable configuration. The bounded cache does
-// not retain caller-owned pointers. Rule names do not affect executable identity.
+// Compile validates and snapshots executable configuration; the result does not retain
+// caller-owned pointers.
 func Compile(config properties.TransformationsConfig) (Program, error) {
 	if len(config.Rules) > MaxRules {
 		return nil, fmt.Errorf("transformations: maximum %d rules", MaxRules)
 	}
-	identity := properties.TransformationsConfig{Rules: make([]properties.TransformationRuleConfig, len(config.Rules))}
+	result := &program{rules: make([]compiledRule, len(config.Rules))}
 	for i, rule := range config.Rules {
 		if utf8.RuneCountInString(rule.Name) > MaxNameLength {
 			return nil, fmt.Errorf("transformations rule %d: name exceeds %d characters", i+1, MaxNameLength)
 		}
-		identity.Rules[i] = rule
-		identity.Rules[i].Name = ""
-	}
-	encoded, err := json.Marshal(identity)
-	if err != nil {
-		return nil, fmt.Errorf("transformations: invalid literal encoding")
-	}
-	key := sha256.Sum256(encoded)
-	compiledCache.Lock()
-	cached := compiledCache.programs[key]
-	compiledCache.Unlock()
-	if cached != nil {
-		return cached, nil
-	}
-	result := &program{rules: make([]compiledRule, len(config.Rules))}
-	for i, rule := range config.Rules {
 		compiled, err := compileRule(rule)
 		if err != nil {
 			return nil, fmt.Errorf("transformations rule %d: %w", i+1, err)
 		}
 		result.rules[i] = compiled
 	}
-	compiledCache.Lock()
-	defer compiledCache.Unlock()
-	if existing := compiledCache.programs[key]; existing != nil {
-		return existing, nil
-	}
-	if len(compiledCache.order) == MaxCachedPrograms {
-		delete(compiledCache.programs, compiledCache.order[0])
-		compiledCache.order = compiledCache.order[1:]
-	}
-	compiledCache.programs[key] = result
-	compiledCache.order = append(compiledCache.order, key)
 	return result, nil
 }
 
