@@ -23,8 +23,10 @@ import (
 const (
 	defaultDestinationDir = "./currency"
 	defaultRefreshEvery   = 6 * time.Hour
-	jsDelivrBase          = "https://cdn.jsdelivr.net/npm/@FWA0/currency-api@latest/v1/currencies"
+	jsDelivrBase          = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies"
 	cloudflareBase        = "https://latest.currency-api.pages.dev/v1/currencies"
+	// Same JSON shape as currency-api (ECB fiat only; 404 for other codes), by allratestoday.com.
+	compatBase = "https://allratestoday.com/api/compat/currency-api/latest/v1/currencies"
 )
 
 const IntervalNever = time.Duration(0)
@@ -287,6 +289,7 @@ func (d *apiDownloader) fetchRates(ctx context.Context, base string) (map[string
 	urls := []string{
 		fmt.Sprintf("%s/%s.json", jsDelivrBase, base),
 		fmt.Sprintf("%s/%s.json", cloudflareBase, base),
+		fmt.Sprintf("%s/%s.json", compatBase, base),
 	}
 	var lastErr error
 	for _, url := range urls {

@@ -6,8 +6,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,6 +282,9 @@ func TestAPIDownloader_Download_ArrayDriven(t *testing.T) {
 	cfURL := func(base string) string {
 		return cloudflareBase + "/" + base + ".json"
 	}
+	compatURL := func(base string) string {
+		return compatBase + "/" + base + ".json"
+	}
 
 	tests := []struct {
 		name      string
@@ -321,6 +327,34 @@ func TestAPIDownloader_Download_ArrayDriven(t *testing.T) {
 			},
 		},
 		{
+			name:  "falls back to third endpoint when both mirrors fail",
+			bases: []string{"USD"},
+			responses: map[string]struct {
+				status int
+				body   string
+			}{
+				jsURL("usd"):     {status: 404, body: ""},
+				cfURL("usd"):     {status: 503, body: ""},
+				compatURL("usd"): {status: 200, body: `{"date":"2026-10-30","usd":{"eur":0.89}}`},
+			},
+			expectRates: map[string]map[string]float64{
+				"usd": {"eur": 0.89},
+			},
+		},
+		{
+			name:  "returns error when every endpoint fails",
+			bases: []string{"USD"},
+			responses: map[string]struct {
+				status int
+				body   string
+			}{
+				jsURL("usd"):     {status: 500, body: ""},
+				cfURL("usd"):     {status: 500, body: ""},
+				compatURL("usd"): {status: 404, body: ""},
+			},
+			expectErr: true,
+		},
+		{
 			name:  "returns error on malformed payload",
 			bases: []string{"USD"},
 			responses: map[string]struct {
@@ -360,4 +394,43 @@ func TestAPIDownloader_Download_ArrayDriven(t *testing.T) {
 			assert.Equal(t, tt.expectRates, snapshot.Rates)
 		})
 	}
+}
+
+func TestAPIDownloader_FetchRates_TriesEndpointsInOrder(t *testing.T) {
+	// given
+	var requested []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requested = append(requested, r.Header.Get("X-Original-URL"))
+		if strings.HasPrefix(r.Header.Get("X-Original-URL"), compatBase) {
+			_, _ = w.Write([]byte(`{"date":"2026-10-30","eur":{"usd":1.12}}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+	downloader := &apiDownloader{
+		httpClient: newMockClient(func(r *http.Request) (*http.Response, error) {
+			r = r.Clone(r.Context())
+			r.Header.Set("X-Original-URL", r.URL.String())
+			r.URL.Scheme = serverURL.Scheme
+			r.URL.Host = serverURL.Host
+			return http.DefaultTransport.RoundTrip(r)
+		}),
+		bases: []string{"EUR"},
+	}
+
+	// when
+	rates, err := downloader.fetchRates(context.Background(), "eur")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, map[string]float64{"usd": 1.12}, rates)
+	assert.Equal(t, []string{
+		"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json",
+		"https://latest.currency-api.pages.dev/v1/currencies/eur.json",
+		"https://allratestoday.com/api/compat/currency-api/latest/v1/currencies/eur.json",
+	}, requested)
 }
