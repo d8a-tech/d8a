@@ -244,7 +244,7 @@ func TestProtocolWrites(t *testing.T) {
 func TestURLExclusionAndDerivedInvalidation(t *testing.T) {
 	settings := &properties.Settings{ExcludedURLParams: []string{"secret"}}
 	for name, deps := range map[string]ExtractionDependencies{
-		"columns": columnDeps(settings, nil), "core fallback": {},
+		"columns": columnDeps(settings, nil),
 	} {
 		t.Run(name, func(t *testing.T) {
 			// given
@@ -268,7 +268,7 @@ func TestURLExclusionAndDerivedInvalidation(t *testing.T) {
 
 func TestRuleWritesInvalidateReadsForLaterRules(t *testing.T) {
 	for name, deps := range map[string]ExtractionDependencies{
-		"columns": columnDeps(nil, nil), "core fallback": {},
+		"columns": columnDeps(nil, nil),
 	} {
 		t.Run(name, func(t *testing.T) {
 			// given

@@ -17,7 +17,8 @@ import (
 
 // ExtractionDependencies supplies the event column registries the worker uses, keyed by
 // protocol ID, so early reads match stored values (page URL exclusions, geo lookups and
-// so on). Without a registry only core event and page fields are readable.
+// so on). Without a registry only fields read straight from the request are available;
+// page URL fields fail.
 type ExtractionDependencies struct {
 	Columns map[string]schema.ColumnsRegistry
 }
@@ -200,6 +201,8 @@ func (v *eventView) columnValue(plan *columnPlan, name string) (any, error) {
 }
 
 // coreField reads core fields directly from the request when no column registry is configured.
+// Page URL fields need the protocols' page columns (URL exclusions, parsing), so they fail
+// instead of being derived a second time here.
 func (v *eventView) coreField(name string) (any, error) {
 	hit := v.input.Hit
 	switch name {
@@ -210,38 +213,14 @@ func (v *eventView) coreField(name string) (any, error) {
 			return *hit.UserID, nil
 		}
 		return nil, nil
-	case "page_hostname", "page_path":
-		location, err := v.field("page_location")
-		text, _ := location.(string)
-		if err != nil || text == "" {
-			return nil, err
-		}
-		parsed, err := url.Parse(text)
-		if err != nil {
-			return nil, errExtraction
-		}
-		if name == "page_hostname" {
-			return parsed.Hostname(), nil
-		}
-		return parsed.Path, nil
+	case "page_location", "page_hostname", "page_path":
+		return nil, errExtraction
 	}
 	key := coreWireKeys[v.protocol][name]
 	if key == "" {
 		return nil, nil
 	}
-	raw := hit.Request.QueryParams.Get(key)
-	if name != "page_location" || raw == "" {
-		return raw, nil
-	}
-	var excluded []string
-	if v.input.Settings != nil {
-		excluded = v.input.Settings.ExcludedURLParamsSafe()
-	}
-	cleaned, _, err := columns.StripExcludedParams(raw, excluded)
-	if err != nil {
-		return nil, errExtraction
-	}
-	return cleaned, nil
+	return hit.Request.QueryParams.Get(key), nil
 }
 
 // normalizeValue maps column values onto the expression types: strings and float64
