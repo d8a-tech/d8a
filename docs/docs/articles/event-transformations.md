@@ -280,20 +280,20 @@ transformations:
           replacement: '/'
 ```
 
-**Move a URL parameter into an event parameter**, for example the site search term, and
+**Move a URL parameter into an event parameter**, for example a referral code, and
 remove it from the page URL. Both actions read the event as it was before the rule.
 
 ```yaml
 transformations:
   rules:
-    - name: Search term from URL
-      expression: 'url_params["q"] != nil'
+    - name: Referral code from URL
+      expression: 'url_params["ref"] != nil'
       actions:
         - type: set
-          target: {parameter: search_term, type: string}
-          value: {template: '{{url_params.q}}'}
+          target: {parameter: referral_code, type: string}
+          value: {template: '{{url_params.ref}}'}
         - type: remove
-          target: {url_parameter: q}
+          target: {url_parameter: ref}
 ```
 
 **Merge trailing slashes**, so `/pricing/` and `/pricing` are one page.

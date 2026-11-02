@@ -42,21 +42,21 @@ func TestRecipeLanguagePrefix(t *testing.T) {
 func TestRecipeURLParameterToEventParameter(t *testing.T) {
 	// given
 	p := compileRules(t, rule{
-		Expression: `url_params["q"] != nil`,
+		Expression: `url_params["ref"] != nil`,
 		Actions: []action{
-			template(parameter("search_term", "string"), "{{url_params.q}}"),
-			remove(urlParameter("q")),
+			template(parameter("referral_code", "string"), "{{url_params.ref}}"),
+			remove(urlParameter("ref")),
 		},
 	})
 	// when
-	hit := applyToPage(t, p, "https://example.com/search?q=shoes&page=2")
+	hit := applyToPage(t, p, "https://example.com/pricing?ref=partner42&page=2")
 	// then
-	assert.Equal(t, "shoes", hit.Request.QueryParams.Get("ep.search_term"))
-	assert.Equal(t, "https://example.com/search?page=2", hit.Request.QueryParams.Get("dl"))
+	assert.Equal(t, "partner42", hit.Request.QueryParams.Get("ep.referral_code"))
+	assert.Equal(t, "https://example.com/pricing?page=2", hit.Request.QueryParams.Get("dl"))
 	// when: no parameter, nothing changes
-	hit = applyToPage(t, p, "https://example.com/search?page=2")
+	hit = applyToPage(t, p, "https://example.com/pricing?page=2")
 	// then
-	assert.False(t, hit.Request.QueryParams.Has("ep.search_term"))
+	assert.False(t, hit.Request.QueryParams.Has("ep.referral_code"))
 }
 
 func TestRecipeTrailingSlashAndWWW(t *testing.T) {
