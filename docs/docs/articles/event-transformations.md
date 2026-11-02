@@ -264,6 +264,66 @@ transformations:
           replacement: ''
 ```
 
+**Merge pages across languages**, so `/de/pricing` and `/pricing` are reported together.
+The language itself isn't kept. Two-letter segments that aren't languages (such as `/us/`)
+are affected too; adjust the pattern for region codes such as `/pt-br/`.
+
+```yaml
+transformations:
+  rules:
+    - name: Remove language prefix
+      expression: 'page_path != nil && page_path matches "^/[a-z]{2}(/|$)"'
+      actions:
+        - type: replace
+          target: {field: page_path}
+          pattern: '^/[a-z]{2}(/|$)'
+          replacement: '/'
+```
+
+**Move a URL parameter into an event parameter**, for example the site search term, and
+remove it from the page URL. Both actions read the event as it was before the rule.
+
+```yaml
+transformations:
+  rules:
+    - name: Search term from URL
+      expression: 'url_params["q"] != nil'
+      actions:
+        - type: set
+          target: {parameter: search_term, type: string}
+          value: {template: '{{url_params.q}}'}
+        - type: remove
+          target: {url_parameter: q}
+```
+
+**Merge trailing slashes**, so `/pricing/` and `/pricing` are one page.
+
+```yaml
+transformations:
+  rules:
+    - name: No trailing slash
+      expression: 'true'
+      actions:
+        - type: replace
+          target: {field: page_path}
+          pattern: '(.)/$'
+          replacement: '$1'
+```
+
+**Ignore `www.`**, so `www.shop.com` and `shop.com` are reported together.
+
+```yaml
+transformations:
+  rules:
+    - name: No www
+      expression: 'true'
+      actions:
+        - type: replace
+          target: {field: page_hostname}
+          pattern: '^www\.'
+          replacement: ''
+```
+
 **Merge campaign sources.**
 
 ```yaml
@@ -341,6 +401,18 @@ transformations:
   rules:
     - name: Drop test sites
       expression: 'page_hostname in ["localhost", "staging.example.com"] || (page_hostname != nil && page_hostname endsWith ".test")'
+      actions:
+        - type: drop
+```
+
+**Only count your own domains.** Drops events from copies of your site and spam sent with
+your tracking ID. Events without a page hostname are kept.
+
+```yaml
+transformations:
+  rules:
+    - name: Own domains only
+      expression: 'page_hostname != nil && page_hostname not in ["example.com", "www.example.com"]'
       actions:
         - type: drop
 ```
