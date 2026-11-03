@@ -368,7 +368,11 @@ func TestAPIDownloader_FetchRates_TriesExtraSourcesAfterMirrors(t *testing.T) {
 	converter, err := NewFWAConverter(
 		[]string{"USD"},
 		WithStore(NewFileStore(t.TempDir())),
-		WithExtraSourceURLs([]string{" https://extra-one.example/v1/currencies/ ", "", "https://extra-two.example/v1/currencies"}),
+		WithExtraSourceURLs([]string{
+			" https://extra-one.example/v1/currencies/ ",
+			"",
+			"https://extra-two.example/v1/currencies",
+		}),
 	)
 	require.NoError(t, err)
 	fwa, ok := converter.(*FWAConverter)

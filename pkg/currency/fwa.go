@@ -303,10 +303,11 @@ func (d *apiDownloader) Download(ctx context.Context) (*Snapshot, error) {
 }
 
 func (d *apiDownloader) fetchRates(ctx context.Context, base string) (map[string]float64, error) {
-	urls := []string{
+	urls := make([]string, 0, 2+len(d.extraURLs))
+	urls = append(urls,
 		fmt.Sprintf("%s/%s.json", jsDelivrBase, base),
 		fmt.Sprintf("%s/%s.json", cloudflareBase, base),
-	}
+	)
 	for _, extra := range d.extraURLs {
 		urls = append(urls, fmt.Sprintf("%s/%s.json", extra, base))
 	}
