@@ -282,9 +282,6 @@ func TestAPIDownloader_Download_ArrayDriven(t *testing.T) {
 	cfURL := func(base string) string {
 		return cloudflareBase + "/" + base + ".json"
 	}
-	compatURL := func(base string) string {
-		return compatBase + "/" + base + ".json"
-	}
 
 	tests := []struct {
 		name      string
@@ -327,30 +324,14 @@ func TestAPIDownloader_Download_ArrayDriven(t *testing.T) {
 			},
 		},
 		{
-			name:  "falls back to third endpoint when both mirrors fail",
-			bases: []string{"USD"},
-			responses: map[string]struct {
-				status int
-				body   string
-			}{
-				jsURL("usd"):     {status: 404, body: ""},
-				cfURL("usd"):     {status: 503, body: ""},
-				compatURL("usd"): {status: 200, body: `{"date":"2026-10-30","usd":{"eur":0.89}}`},
-			},
-			expectRates: map[string]map[string]float64{
-				"usd": {"eur": 0.89},
-			},
-		},
-		{
 			name:  "returns error when every endpoint fails",
 			bases: []string{"USD"},
 			responses: map[string]struct {
 				status int
 				body   string
 			}{
-				jsURL("usd"):     {status: 500, body: ""},
-				cfURL("usd"):     {status: 500, body: ""},
-				compatURL("usd"): {status: 404, body: ""},
+				jsURL("usd"): {status: 500, body: ""},
+				cfURL("usd"): {status: 500, body: ""},
 			},
 			expectErr: true,
 		},
@@ -401,7 +382,7 @@ func TestAPIDownloader_FetchRates_TriesEndpointsInOrder(t *testing.T) {
 	var requested []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requested = append(requested, r.Header.Get("X-Original-URL"))
-		if strings.HasPrefix(r.Header.Get("X-Original-URL"), compatBase) {
+		if strings.HasPrefix(r.Header.Get("X-Original-URL"), cloudflareBase) {
 			_, _ = w.Write([]byte(`{"date":"2026-10-30","eur":{"usd":1.12}}`))
 			return
 		}
@@ -431,6 +412,5 @@ func TestAPIDownloader_FetchRates_TriesEndpointsInOrder(t *testing.T) {
 	assert.Equal(t, []string{
 		"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/eur.json",
 		"https://latest.currency-api.pages.dev/v1/currencies/eur.json",
-		"https://allratestoday.com/api/compat/currency-api/latest/v1/currencies/eur.json",
 	}, requested)
 }
