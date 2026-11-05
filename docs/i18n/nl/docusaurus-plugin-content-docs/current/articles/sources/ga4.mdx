@@ -111,7 +111,7 @@ Je kunt nu [je web tracking-setup testen](#testing-your-web-tracking-setup).
 
 ## Methode 3: GA4-verzoeken rechtstreeks dupliceren met `gtag`
 
-Deze methode dupliceert verzoeken op het niveau van de Google Tag (`gtag`) door `service_container_url` als extra bestemming toe te voegen.
+Deze methode dupliceert verzoeken op het niveau van de Google Tag (`gtag`) door een tweede Google tag-bestemming toe te voegen waarvan `server_container_url` naar d8a wijst.
 
 :::note
 Deze methode gaat ervan uit dat `gtag` al rechtstreeks in je HTML is geïnstalleerd (zonder web-GTM).
@@ -125,9 +125,10 @@ Deze methode gaat ervan uit dat `gtag` al rechtstreeks in je HTML is geïnstalle
 2. **Behoud je bestaande GA4-config-aanroep**
    - Laat je primaire `gtag('config', 'G-XXXXXXX')`-aanroep ongewijzigd
 
-3. **Voeg een tweede config-aanroep toe met `service_container_url`**
-   - Voeg nog een `gtag('config', ...)`-aanroep toe voor dezelfde Google tag-ID
-   - Stel `service_container_url` in op je d8a-endpoint-URL, bijvoorbeeld: `https://global.t.d8a.tech/13370000-1984-0042-0069-c0ffee123456/g/collect`
+3. **Voeg een tweede config-aanroep toe met `server_container_url`**
+   - Voeg nog een `gtag('config', ...)`-aanroep toe met een tweede meet-ID, bijvoorbeeld `G-DUPLICATE`. `gtag` negeert ID's die niet met een Google-prefix zoals `G-` beginnen, en als je je bestaande GA4-ID hergebruikt, wordt het verkeer omgeleid in plaats van gedupliceerd.
+   - d8a slaat dit ID bij elk gedupliceerd event op als meet-ID (de kolom `measurement_id`). Het bepaalt niet de d8a-property: in d8a Cloud doet de property-ID in de URL dat, en een self-hosted instantie slaat elk event op onder de geconfigureerde `property.id`.
+   - Stel `server_container_url` in op je d8a-tracking-URL **zonder** `/g/collect`, bijvoorbeeld `https://global.t.d8a.tech/13370000-1984-0042-0069-c0ffee123456` (Cloud) of `https://d8a.example.org` (self-hosted). Google voegt `/g/collect` zelf toe aan deze waarde.
    - Voorbeeld:
 
 ```html
@@ -146,8 +147,8 @@ Deze methode gaat ervan uit dat `gtag` al rechtstreeks in je HTML is geïnstalle
   gtag("config", "G-XXXXXXX");
 
   // Additional destination for duplicated traffic
-  gtag("config", "<property_id>", {
-    service_container_url: "https://global.t.d8a.tech/<property_id>/g/collect",
+  gtag("config", "G-DUPLICATE", {
+    server_container_url: "https://global.t.d8a.tech/<property_id>",
   });
 </script>
 ```
@@ -165,7 +166,7 @@ Deze methode gaat ervan uit dat `gtag` al rechtstreeks in je HTML is geïnstalle
 3. **Verifieer de datastroom**
    - Methode 1: Controleer of zowel GA4 als je endpoint data ontvangen
    - Methode 2: Controleer of alleen je endpoint data ontvangt
-   - Methode 3: Controleer of GA4-verkeer wordt gedupliceerd naar je `service_container_url`-endpoint
+   - Methode 3: Controleer of GA4-verkeer wordt gedupliceerd naar je `server_container_url`-endpoint, als `/g/collect`-verzoeken met `tid=G-DUPLICATE`
 
 4. **Optioneel: gebruik de GTM Preview-modus (alleen Methode 1 en 2)**
    - Schakel de Preview-modus in GTM in
