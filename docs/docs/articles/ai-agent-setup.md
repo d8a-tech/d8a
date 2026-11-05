@@ -82,7 +82,9 @@ See [Web tracker](/articles/sources/web-tracker/) for all options.
 
 ## Option B: site already runs GA4 with gtag
 
-Keep the existing `gtag('config', 'G-…')` call and add a second one. Use the `/g/collect` tracking URL.
+Keep the existing `gtag('config', 'G-…')` call and add a second one with another `G-` ID, such as `G-DUPLICATE`. gtag ignores IDs without a Google prefix, and reusing the site's GA4 ID would redirect its hits instead of copying them. d8a stores this ID as each event's measurement ID; the property comes from the URL (Cloud) or `property.id` (self-hosted).
+
+Set `server_container_url` to the `/g/collect` tracking URL from the table **without** `/g/collect`: `https://global.t.d8a.tech/<property_id>` on Cloud, `https://<host>` self-hosted. Google appends `/g/collect` itself.
 
 ```html
 <script>
@@ -90,8 +92,8 @@ Keep the existing `gtag('config', 'G-…')` call and add a second one. Use the `
   gtag('config', 'G-XXXXXXX');
 
   // Duplicate to d8a.tech
-  gtag('config', '<property_id>', {
-    service_container_url: '<tracking_url>'
+  gtag('config', 'G-DUPLICATE', {
+    server_container_url: 'https://global.t.d8a.tech/<property_id>' // self-hosted: 'https://<host>'
   });
 </script>
 ```
