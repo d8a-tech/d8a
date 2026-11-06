@@ -9,6 +9,10 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// mdxBraces escapes braces, which MDX would otherwise evaluate as JavaScript
+// expressions when the generated docs are built (e.g. "{base}" in a description).
+var mdxBraces = strings.NewReplacer("{", `\{`, "}", `\}`)
+
 type flagInfo struct {
 	Name        string
 	ConfigKey   string
@@ -145,7 +149,7 @@ func generateConfigDocs(flags []cli.Flag) (string, error) {
 		fmt.Fprintf(&buf, "### `--%s`\n\n", info.Name)
 
 		if info.Description != "" {
-			fmt.Fprintf(&buf, "%s\n\n", info.Description)
+			fmt.Fprintf(&buf, "%s\n\n", mdxBraces.Replace(info.Description))
 		}
 
 		var details []string
