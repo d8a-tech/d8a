@@ -518,6 +518,96 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_YahooSearchP",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://search.yahoo.com/search?p=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooSearchQ",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://search.yahoo.com/search?q=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooSearchNoTerm",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://search.yahoo.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!"),
+					s("organic"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooMalaysiaSearch",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://malaysia.search.yahoo.com/search?p=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooJapanSearchP",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://search.yahoo.co.jp/search?p=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!-japan"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooJapanSearchVP",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://search.yahoo.co.jp/search?vp=keyword"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo!-japan"),
+					s("organic"),
+					s("keyword"),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_GoogleWWW",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
@@ -1033,6 +1123,126 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 				TestHitOne().ID: {
 					s("gmail"),
 					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooMail",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://mail.yahoo.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo-mail"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Ymail",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://ymail.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo-mail"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_Rocketmail",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://rocketmail.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo-mail"),
+					s("email"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooRootReferral",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://yahoo.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo.com"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooUKRootReferral",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://yahoo.co.uk/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo.co.uk"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooFranceRootReferral",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://yahoo.fr/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo.fr"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooGermanyRootReferral",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://yahoo.de/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo.de"),
+					s("referral"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_YahooJapanRootReferral",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page"),
+				EnsureQueryParam(0, "dr", "https://yahoo.co.jp/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("yahoo.co.jp"),
+					s("referral"),
 					s(""),
 				},
 			},
