@@ -414,3 +414,42 @@ func TestAPIDownloader_FetchRates_TriesEndpointsInOrder(t *testing.T) {
 		"https://latest.currency-api.pages.dev/v1/currencies/eur.json",
 	}, requested)
 }
+
+func TestAPIDownloader_FetchRates_TriesExtraSourcesAfterMirrors(t *testing.T) {
+	// given
+	var requested []string
+	converter, err := NewFWAConverter(
+		[]string{"USD"},
+		WithStore(NewFileStore(t.TempDir())),
+		WithExtraSourceURLs([]string{
+			" https://extra-one.example/v1/currencies/ ",
+			"",
+			"https://extra-two.example/v1/currencies",
+		}),
+	)
+	require.NoError(t, err)
+	fwa, ok := converter.(*FWAConverter)
+	require.True(t, ok)
+	downloader, ok := fwa.downloader.(*apiDownloader)
+	require.True(t, ok)
+	downloader.httpClient = newMockClient(func(r *http.Request) (*http.Response, error) {
+		requested = append(requested, r.URL.String())
+		if r.URL.String() == "https://extra-two.example/v1/currencies/usd.json" {
+			return httpJSON(200, `{"usd":{"eur":0.9}}`), nil
+		}
+		return httpJSON(503, ""), nil
+	})
+
+	// when
+	snapshot, err := downloader.Download(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, map[string]map[string]float64{"usd": {"eur": 0.9}}, snapshot.Rates)
+	assert.Equal(t, []string{
+		jsDelivrBase + "/usd.json",
+		cloudflareBase + "/usd.json",
+		"https://extra-one.example/v1/currencies/usd.json",
+		"https://extra-two.example/v1/currencies/usd.json",
+	}, requested)
+}

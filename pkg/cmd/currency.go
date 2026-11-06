@@ -14,6 +14,7 @@ func buildCurrencyConverter(
 		nil,
 		currency.WithDestination(cmd.String(currencyDestinationDirectoryFlag.Name)),
 		currency.WithInterval(cmd.Duration(currencyRefreshIntervalFlag.Name)),
+		currency.WithExtraSourceURLs(cmd.StringSlice(currencyExtraSourceURLsFlag.Name)),
 	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create currency converter: %w", err)
