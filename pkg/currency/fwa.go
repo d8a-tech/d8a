@@ -64,6 +64,7 @@ type fwaOption func(*FWAConverter)
 type apiDownloader struct {
 	httpClient *http.Client
 	bases      []string
+	extraURLs  []string
 }
 
 type fileStore struct {
@@ -103,6 +104,24 @@ func WithDestination(directory string) fwaOption {
 func WithInterval(interval time.Duration) fwaOption {
 	return func(c *FWAConverter) {
 		c.refreshEvery = interval
+	}
+}
+
+// WithExtraSourceURLs appends rate sources that are tried, in order, after the
+// built-in mirrors fail. Each value is a base URL; "/{currency}.json" is appended,
+// and the response must use the currency-api JSON shape.
+func WithExtraSourceURLs(urls []string) fwaOption {
+	return func(c *FWAConverter) {
+		d, ok := c.downloader.(*apiDownloader)
+		if !ok {
+			return
+		}
+		for _, u := range urls {
+			u = strings.TrimRight(strings.TrimSpace(u), "/")
+			if u != "" {
+				d.extraURLs = append(d.extraURLs, u)
+			}
+		}
 	}
 }
 
@@ -284,9 +303,13 @@ func (d *apiDownloader) Download(ctx context.Context) (*Snapshot, error) {
 }
 
 func (d *apiDownloader) fetchRates(ctx context.Context, base string) (map[string]float64, error) {
-	urls := []string{
+	urls := make([]string, 0, 2+len(d.extraURLs))
+	urls = append(urls,
 		fmt.Sprintf("%s/%s.json", jsDelivrBase, base),
 		fmt.Sprintf("%s/%s.json", cloudflareBase, base),
+	)
+	for _, extra := range d.extraURLs {
+		urls = append(urls, fmt.Sprintf("%s/%s.json", extra, base))
 	}
 	var lastErr error
 	for _, url := range urls {

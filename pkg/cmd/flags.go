@@ -179,6 +179,13 @@ var currencyRefreshIntervalFlag *cli.DurationFlag = &cli.DurationFlag{
 	Value: 6 * time.Hour,
 }
 
+var currencyExtraSourceURLsFlag *cli.StringSliceFlag = &cli.StringSliceFlag{
+	Name: "currency-extra-source-urls",
+	Usage: "Extra currency-rate source base URLs, tried in order after the built-in mirrors fail. " +
+		"Each must serve {base}/{currency}.json in the currency-api format. Empty (default) adds no sources.", //nolint:lll // it's a description
+	Sources: defaultSourceChain("CURRENCY_EXTRA_SOURCE_URLS", "currency.extra_source_urls"),
+}
+
 var deviceDetectionProviderFlag *cli.StringFlag = &cli.StringFlag{
 	Name:    "device-detector-provider",
 	Usage:   "Device detector provider (dd2 or stub)",
@@ -715,6 +722,7 @@ func getServerFlags() []cli.Flag {
 			dbipRefreshIntervalFlag,
 			currencyDestinationDirectoryFlag,
 			currencyRefreshIntervalFlag,
+			currencyExtraSourceURLsFlag,
 			deviceDetectionProviderFlag,
 			propertyIDFlag,
 			propertyNameFlag,
