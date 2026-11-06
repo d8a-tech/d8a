@@ -154,4 +154,4 @@ End with a short summary:
 
 ## Next: ask AI about the data (Cloud only)
 
-With d8a.tech Cloud, the person can connect the read-only [MCP connector](/articles/mcp) so Claude and other MCP clients can read reports, explain what converts, and audit the tracking you installed. It is not available for self-hosted d8a.tech.
+With d8a.tech Cloud, the person can connect the [MCP connector](/articles/mcp) so Claude and other MCP clients can read reports, explain what converts, and audit the tracking you installed. With read and write access, they can also set up goals, insights and traffic filters after the person approves each change. It is not available for self-hosted d8a.tech.
