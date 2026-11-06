@@ -23,15 +23,17 @@ Detection follows a priority order. The first matching rule determines the initi
 
 ## Detection rules (in priority order)
 
-### 1. Paid advertising click ids
+### 1. Click IDs
 
-Sessions with landing page URLs containing specific query parameters are immediately classified as paid traffic (medium=cpc). Examples:
+Click IDs in landing page URLs determine the initial source and medium. Examples:
 
 | Parameter | Source | Medium |
 |:----------|:-------|:-------|
 | `gclid`, `gbraid`, `wbraid` | google | cpc |
 | `msclkid` | bing | cpc |
-| `fbclid` | facebook | cpc |
+| `fbclid` | facebook | social |
+
+`fbclid` alone does not distinguish paid from organic Facebook clicks. The `social` fallback is not proof that the visit was unpaid.
 
 A full list can be found in the source code: [`pkg/columns/sessioncolumns/session_smt_source.go`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/session_smt_source.go).
 
@@ -65,7 +67,7 @@ Any external referrer (from a different domain than your site) that doesn't matc
 
 ### 8. Direct traffic
 
-If no referrer exists and no paid click IDs are present, traffic is classified as `source=direct`, `medium=none`. This includes:
+If no referrer exists and no recognized click IDs are present, traffic is classified as `source=direct`, `medium=none`. This includes:
 
 - Typing the URL directly into the browser
 - Clicking bookmarks
@@ -81,13 +83,21 @@ You can manually control attribution by adding UTM tags to your URLs:
 https://yoursite.com/?utm_source=newsletter&utm_medium=email&utm_term=spring_sale
 ```
 
-UTM parameters always override the automatically detected values:
+Non-empty UTM parameters override the automatically detected values:
 
 - `utm_source` → overrides Source
 - `utm_medium` → overrides Medium  
 - `utm_term` → overrides Term
 
 Each parameter is applied independently. If you only provide `utm_source`, the detected medium and term remain unchanged.
+
+For Facebook paid campaigns, `https://yoursite.com/?fbclid=ABC123&utm_medium=cpc` produces `source=facebook, medium=cpc`: only the medium is overridden. A fully tagged example is:
+
+```
+https://yoursite.com/?utm_source=facebook&utm_medium=cpc&utm_campaign=summer
+```
+
+`utm_campaign` names the campaign; it does not set the medium. Facebook may append `fbclid` without changing the explicit medium. You can also use `utm_medium=paid_social`, which is preserved as `paid_social`, not converted to `cpc`. UTM tags describe your tagging choices; they do not verify actual ad spend.
 
 **Example**: A visitor clicks a YouTube video description link to `yoursite.com/?utm_source=youtube_channel&utm_medium=video_description`. The referrer would normally detect `source=youtube, medium=video`, but the UTM tags override this to `source=youtube_channel, medium=video_description`.
 

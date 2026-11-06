@@ -18,7 +18,7 @@ var sessionSourceMediumTermDetector = NewCompositeSourceMediumTermDetector(
 		IfHasQueryParam("gbraid", SessionSourceMediumTerm{Source: "google", Medium: "cpc", Term: ""}),
 		IfHasQueryParam("wbraid", SessionSourceMediumTerm{Source: "google", Medium: "cpc", Term: ""}),
 		IfHasQueryParam("msclkid", SessionSourceMediumTerm{Source: "bing", Medium: "cpc", Term: ""}),
-		IfHasQueryParam("fbclid", SessionSourceMediumTerm{Source: "facebook", Medium: "cpc", Term: ""}),
+		IfHasQueryParam("fbclid", SessionSourceMediumTerm{Source: "facebook", Medium: "social", Term: ""}),
 		IfHasQueryParam("twclid", SessionSourceMediumTerm{Source: "twitter", Medium: "cpc", Term: ""}),
 		IfHasQueryParam("li_fat_id", SessionSourceMediumTerm{Source: "linkedin", Medium: "cpc", Term: ""}),
 		IfHasQueryParam("ttclid", SessionSourceMediumTerm{Source: "tiktok", Medium: "cpc", Term: ""}),

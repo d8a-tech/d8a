@@ -504,6 +504,64 @@ func TestSessionSourceMediumTerm(t *testing.T) {
 			},
 		},
 		{
+			name: "SessionSourceMediumTerm_FbclidWithoutReferrer",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page?fbclid=ABC123"),
+				EnsureQueryParam(0, "dr", ""),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("facebook"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_FbclidWithFacebookReferrer",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page?fbclid=ABC123"),
+				EnsureQueryParam(0, "dr", "https://www.facebook.com/"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("facebook"),
+					s("social"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_FbclidWithUtmMediumCpc",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page?fbclid=ABC123&utm_medium=cpc"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("facebook"),
+					s("cpc"),
+					s(""),
+				},
+			},
+		},
+		{
+			name: "SessionSourceMediumTerm_FbclidWithUtmMediumPaidSocial",
+			hits: TestHits{TestHitOne()},
+			caseConfigFuncs: []CaseConfigFunc{
+				EnsureQueryParam(0, "dl", "https://example.com/page?fbclid=ABC123&utm_medium=paid_social"),
+			},
+			expected: map[string][]*string{
+				TestHitOne().ID: {
+					s("facebook"),
+					s("paid_social"),
+					s(""),
+				},
+			},
+		},
+		{
 			name: "SessionSourceMediumTerm_SearchEngine",
 			hits: TestHits{TestHitOne()},
 			caseConfigFuncs: []CaseConfigFunc{
