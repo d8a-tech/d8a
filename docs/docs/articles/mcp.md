@@ -54,6 +54,28 @@ New and edited traffic filters start in Test mode, which labels matching traffic
 
 If you remove access, the client can't make further changes. A change that is already being saved still finishes. The client can still read data for up to 6 hours.
 
+## What the assistant can see
+
+The assistant receives the results of the tools it calls, up to 500 rows per query. These results leave d8a.tech and are processed by your AI assistant's provider under its own terms. See the [privacy policy](https://d8a.tech/privacy/).
+
+By default, the connector can use every dimension of a property, including identifiers. Grouping by an identifier returns one row per visitor, session or event, so the assistant can see values such as:
+
+- visitor, user, session and event IDs: `client_id`, `user_id`, `session_id`, `id`
+- IP addresses: `ip_address`, unless the property masks or doesn't collect them
+- click IDs: `gclid`, `fbclid`, `msclkid`, `dclid`, `gbraid`, `wbraid`, `srsltid`, and their session-level versions
+- full URLs: `page_location`, entry and exit page locations, and referrers, whose query strings may carry IDs or email addresses
+
+### Hide personal data from MCP
+
+To keep these values away from AI assistants, turn on **Hide personal data from MCP** in the property settings under **Available features**. The connector then enforces these rules on its own side, for queries, funnels and journeys:
+
+- Identifiers and click IDs don't appear in the query catalog or the property overview. Queries can't group by them, filter on their values or use them as a funnel or journeys breakdown. They can still be counted with the `count_distinct` transformation, and filters can check whether they're set (`is_null`, `is_not_null`, `is_empty`, `is_not_empty`).
+- Full URLs and referrers work only with the `to_url_path` transformation, which drops the host and query string.
+
+The connector can't change this setting, even with read and write access. Organization and account admins can set it as a default for new properties, or lock it, in **Property defaults**.
+
+The setting doesn't affect Ask AI in the app. For data that must not leave your own infrastructure, use Ask AI with your own model instead of an external assistant.
+
 ## Tools
 
 | Tool | What it does |
