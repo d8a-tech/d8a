@@ -23,15 +23,17 @@ Detectie volgt een prioriteitsvolgorde. De eerste overeenkomende regel bepaalt d
 
 ## Detectieregels (in prioriteitsvolgorde)
 
-### 1. Click-id's van betaalde advertenties
+### 1. Click-id's
 
-Sessions met landingspagina-URL's die specifieke queryparameters bevatten, worden direct geclassificeerd als betaald verkeer (medium=cpc). Voorbeelden:
+Click-id's in landingspagina-URL's bepalen de initiële source en het medium. Voorbeelden:
 
 | Parameter | Source | Medium |
 |:----------|:-------|:-------|
 | `gclid`, `gbraid`, `wbraid` | google | cpc |
 | `msclkid` | bing | cpc |
-| `fbclid` | facebook | cpc |
+| `fbclid` | facebook | social |
+
+`fbclid` alleen maakt geen onderscheid tussen betaalde en organische Facebook-klikken. De terugvalwaarde `social` is geen bewijs dat het bezoek onbetaald was.
 
 Een volledige lijst is te vinden in de broncode: [`pkg/columns/sessioncolumns/session_smt_source.go`](https://github.com/d8a-tech/d8a/tree/master/pkg/columns/sessioncolumns/session_smt_source.go).
 
@@ -65,7 +67,7 @@ Elke externe referrer (van een ander domein dan je site) die niet aan bovenstaan
 
 ### 8. Direct verkeer
 
-Als er geen referrer bestaat en er geen betaalde click-id's aanwezig zijn, wordt verkeer geclassificeerd als `source=direct`, `medium=none`. Dit omvat:
+Als er geen referrer bestaat en er geen herkende click-id's aanwezig zijn, wordt verkeer geclassificeerd als `source=direct`, `medium=none`. Dit omvat:
 
 - De URL rechtstreeks in de browser typen
 - Op bladwijzers klikken
@@ -81,13 +83,21 @@ Je kunt attribution handmatig sturen door UTM-tags aan je URL's toe te voegen:
 https://yoursite.com/?utm_source=newsletter&utm_medium=email&utm_term=spring_sale
 ```
 
-UTM-parameters overschrijven altijd de automatisch gedetecteerde waarden:
+Niet-lege UTM-parameters overschrijven de automatisch gedetecteerde waarden:
 
 - `utm_source` → overschrijft Source
 - `utm_medium` → overschrijft Medium  
 - `utm_term` → overschrijft Term
 
 Elke parameter wordt afzonderlijk toegepast. Als je alleen `utm_source` opgeeft, blijven het gedetecteerde medium en de term ongewijzigd.
+
+Voor betaalde Facebook-campagnes levert `https://yoursite.com/?fbclid=ABC123&utm_medium=cpc` het resultaat `source=facebook, medium=cpc` op: alleen het medium wordt overschreven. Een volledig getagd voorbeeld is:
+
+```
+https://yoursite.com/?utm_source=facebook&utm_medium=cpc&utm_campaign=summer
+```
+
+`utm_campaign` geeft de campagne een naam; het stelt niet het medium in. Facebook kan `fbclid` toevoegen zonder het expliciete medium te veranderen. Je kunt ook `utm_medium=paid_social` gebruiken; dit blijft `paid_social` en wordt niet omgezet naar `cpc`. UTM-tags beschrijven je taggingkeuzes; ze verifiëren geen daadwerkelijke advertentie-uitgaven.
 
 **Voorbeeld**: Een bezoeker klikt op een link in een YouTube-videobeschrijving naar `yoursite.com/?utm_source=youtube_channel&utm_medium=video_description`. De referrer zou normaal gesproken `source=youtube, medium=video` detecteren, maar de UTM-tags overschrijven dit naar `source=youtube_channel, medium=video_description`.
 
