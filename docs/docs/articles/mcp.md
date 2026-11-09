@@ -70,7 +70,7 @@ By default, the connector can use every dimension of a property, including ident
 To keep these values away from AI assistants, turn on **Hide personal data from MCP** in the property settings under **Available features**. The connector then enforces these rules on its own side, for queries, funnels and journeys:
 
 - Identifiers and click IDs don't appear in the query catalog or the property overview. Queries can't group by them, filter on their values or use them as a funnel or journeys breakdown. They can still be counted with the `count_distinct` transformation, and filters can check whether they're set (`is_null`, `is_not_null`, `is_empty`, `is_not_empty`).
-- Full URLs and referrers work only with the `to_url_path` transformation, which drops the host and query string.
+- Full URLs and referrers work only with the `to_url_path` transformation, which keeps the host and path and drops the query string. A path can still contain identifiers, such as `/users/123`.
 
 The connector can't change this setting, even with read and write access. Organization and account admins can set it as a default for new properties, or lock it, in **Property defaults**.
 
