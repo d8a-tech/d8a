@@ -12,6 +12,7 @@ import (
 type clickhouseQueryMapper struct {
 	fieldTypeMapper  warehouse.FieldTypeMapper[SpecificClickhouseType]
 	engine           string
+	cluster          string
 	partitionBy      string
 	orderBy          []string
 	indexGranularity int
@@ -41,6 +42,13 @@ type Options func(*clickhouseQueryMapper)
 func WithEngine(engine string) Options {
 	return func(q *clickhouseQueryMapper) {
 		q.engine = engine
+	}
+}
+
+// WithCluster enables idempotent DDL and creates tables on the named cluster.
+func WithCluster(name string) Options {
+	return func(q *clickhouseQueryMapper) {
+		q.cluster = name
 	}
 }
 
@@ -74,6 +82,9 @@ func (q *clickhouseQueryMapper) withHints(orderBy []string, partitionBy string) 
 }
 
 func (q *clickhouseQueryMapper) TablePredicate(table string) string {
+	if q.cluster != "" {
+		return fmt.Sprintf("TABLE IF NOT EXISTS %s ON CLUSTER %s", table, quoteIdentifier(q.cluster))
+	}
 	return fmt.Sprintf("TABLE %s", table)
 }
 

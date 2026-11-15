@@ -452,6 +452,33 @@ func (suite *ClickHouseTestSuite) TestCreateTableAlreadyExists() {
 	testutils.TestCreateTable(suite.T(), suite.driver, tableName)
 }
 
+func (suite *ClickHouseTestSuite) TestAddColumnWithCluster() {
+	// given
+	tableName := "test_add_column_with_cluster"
+	schema := arrow.NewSchema([]arrow.Field{
+		{Name: "id", Type: arrow.PrimitiveTypes.Int64},
+	}, nil)
+	suite.Require().NoError(suite.driver.CreateTable(tableName, schema))
+	driver, err := NewClickHouseTableDriver(suite.opts, "testdb", WithCluster("test_cluster"))
+	suite.Require().NoError(err)
+	defer func() {
+		suite.Assert().NoError(driver.Close())
+	}()
+	field := arrow.Field{Name: "new_column", Type: arrow.BinaryTypes.String}
+
+	// when
+	firstErr := driver.AddColumn(tableName, &field)
+	secondErr := driver.AddColumn(tableName, &field)
+
+	// then
+	suite.Require().NoError(firstErr)
+	suite.Require().NoError(secondErr)
+	expectedSchema := arrow.NewSchema(append(schema.Fields(), field), nil)
+	missing, err := driver.MissingColumns(tableName, expectedSchema)
+	suite.Require().NoError(err)
+	suite.Assert().Empty(missing)
+}
+
 // TestClickHouseTestSuite runs the entire test suite
 func TestClickHouseTestSuite(t *testing.T) {
 	suite.Run(t, new(ClickHouseTestSuite))
