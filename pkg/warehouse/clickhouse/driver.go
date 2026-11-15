@@ -93,25 +93,27 @@ func (d *clickhouseDriver) CreateTable(table string, schema *arrow.Schema) error
 }
 
 func (d *clickhouseDriver) AddColumn(table string, field *arrow.Field) error {
-	// First check if column already exists by querying system.columns
 	ctx, cancel := context.WithTimeout(context.Background(), d.queryTimeout)
 	defer cancel()
 
-	checkQuery := `
+	if d.queryMapper.cluster == "" {
+		// First check if column already exists by querying system.columns
+		checkQuery := `
 		SELECT COUNT(*) 
 		FROM system.columns 
 		WHERE database = ? AND table = ? AND name = ?
 	`
 
-	var count int
-	err := d.db.QueryRowContext(ctx, checkQuery, d.database, table, field.Name).Scan(&count)
-	if err != nil {
-		return fmt.Errorf("error checking if column exists: %w", err)
-	}
+		var count int
+		err := d.db.QueryRowContext(ctx, checkQuery, d.database, table, field.Name).Scan(&count)
+		if err != nil {
+			return fmt.Errorf("error checking if column exists: %w", err)
+		}
 
-	// If column already exists, return appropriate error
-	if count > 0 {
-		return warehouse.NewColumnAlreadyExistsError(fmt.Sprintf("%s.%s", d.database, table), field.Name)
+		// If column already exists, return appropriate error
+		if count > 0 {
+			return warehouse.NewColumnAlreadyExistsError(fmt.Sprintf("%s.%s", d.database, table), field.Name)
+		}
 	}
 
 	// Convert Arrow field to ClickHouse column type
@@ -123,7 +125,11 @@ func (d *clickhouseDriver) AddColumn(table string, field *arrow.Field) error {
 	// Build ALTER TABLE ADD COLUMN query
 	fullTableName := quoteFullTableName(d.database, table)
 	rawTableName := fmt.Sprintf("%s.%s", d.database, table)
-	alterQuery := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", fullTableName, quoteIdentifier(field.Name), columnType)
+	addColumn := "ADD COLUMN"
+	if d.queryMapper.cluster != "" {
+		addColumn += " IF NOT EXISTS"
+	}
+	alterQuery := fmt.Sprintf("ALTER TABLE %s %s %s %s", fullTableName, addColumn, quoteIdentifier(field.Name), columnType)
 
 	// Execute the ALTER TABLE query
 	_, err = d.db.ExecContext(ctx, alterQuery)

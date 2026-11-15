@@ -60,6 +60,7 @@ func TestGetPartitionBy_absent(t *testing.T) {
 func TestCreateTableQuery_schemaMetaOverridesOrderBy(t *testing.T) {
 	// given: driver mapper with default order_by
 	mapper := newClickHouseQueryMapper(
+		WithCluster("analytics_cluster"),
 		WithOrderBy([]string{"default_col"}),
 		WithPartitionBy("default_partition"),
 	)
@@ -75,6 +76,7 @@ func TestCreateTableQuery_schemaMetaOverridesOrderBy(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	assert.Contains(t, query, "CREATE TABLE IF NOT EXISTS db.tbl ON CLUSTER `analytics_cluster`")
 	assert.Contains(t, query, "ORDER BY (col_a, col_b)")
 	// partition_by falls back to empty (not set in schema)
 	assert.NotContains(t, query, "PARTITION BY")
@@ -83,6 +85,7 @@ func TestCreateTableQuery_schemaMetaOverridesOrderBy(t *testing.T) {
 func TestCreateTableQuery_schemaMetaOverridesPartitionBy(t *testing.T) {
 	// given
 	mapper := newClickHouseQueryMapper(
+		WithCluster("analytics_cluster"),
 		WithOrderBy([]string{"default_col"}),
 		WithPartitionBy("default_partition"),
 	)
@@ -98,6 +101,7 @@ func TestCreateTableQuery_schemaMetaOverridesPartitionBy(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	assert.Contains(t, query, "CREATE TABLE IF NOT EXISTS db.tbl ON CLUSTER `analytics_cluster`")
 	assert.Contains(t, query, "PARTITION BY toYYYYMM(ts)")
 	assert.Contains(t, query, "ORDER BY (default_col)")
 }

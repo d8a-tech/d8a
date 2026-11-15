@@ -130,24 +130,64 @@ func TestQueryMapperTablePredicate(t *testing.T) {
 
 func TestCreateQueryWithQuotedIdentifiers(t *testing.T) {
 	// given
-	mapper := NewClickHouseQueryMapper(
-		WithEngine("MergeTree()"),
-		WithOrderBy([]string{"id"}),
-	)
-
 	schema := arrow.NewSchema([]arrow.Field{
 		{Name: "id", Type: arrow.BinaryTypes.String},
 	}, nil)
 	quotedTable := quoteFullTableName("testdb", "events")
+	testCases := []struct {
+		name          string
+		opts          []Options
+		expectedQuery string
+	}{
+		{
+			name: "default cluster",
+			expectedQuery: "CREATE TABLE `testdb`.`events` (\n  `id` String\n) " +
+				"ENGINE = MergeTree()\nORDER BY (id);",
+		},
+		{
+			name: "empty cluster",
+			opts: []Options{WithCluster("")},
+			expectedQuery: "CREATE TABLE `testdb`.`events` (\n  `id` String\n) " +
+				"ENGINE = MergeTree()\nORDER BY (id);",
+		},
+		{
+			name: "named cluster",
+			opts: []Options{WithCluster("analytics_cluster")},
+			expectedQuery: "CREATE TABLE IF NOT EXISTS `testdb`.`events` ON CLUSTER `analytics_cluster` " +
+				"(\n  `id` String\n) ENGINE = MergeTree()\nORDER BY (id);",
+		},
+		{
+			name: "cluster with backtick",
+			opts: []Options{WithCluster("analytics`cluster")},
+			expectedQuery: "CREATE TABLE IF NOT EXISTS `testdb`.`events` ON CLUSTER `analytics``cluster` " +
+				"(\n  `id` String\n) ENGINE = MergeTree()\nORDER BY (id);",
+		},
+		{
+			name: "cluster with replicated engine",
+			opts: []Options{
+				WithCluster("analytics_cluster"),
+				WithEngine("ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')"),
+			},
+			expectedQuery: "CREATE TABLE IF NOT EXISTS `testdb`.`events` ON CLUSTER `analytics_cluster` " +
+				"(\n  `id` String\n) " +
+				"ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/events', '{replica}')\nORDER BY (id);",
+		},
+	}
 
-	// when
-	query, err := warehouse.CreateTableQuery(mapper, quotedTable, schema)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			opts := append([]Options{WithOrderBy([]string{"id"})}, tc.opts...)
+			mapper := NewClickHouseQueryMapper(opts...)
 
-	// then
-	require.NoError(t, err)
-	assert.Contains(t, query, "CREATE TABLE `testdb`.`events`")
-	// Column names must be backtick-quoted
-	assert.Contains(t, query, "`id`")
+			// when
+			query, err := warehouse.CreateTableQuery(mapper, quotedTable, schema)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedQuery, query)
+		})
+	}
 }
 
 func TestQueryMapperTypeErrors(t *testing.T) {
