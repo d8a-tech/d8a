@@ -23,7 +23,7 @@ import (
 const (
 	defaultDestinationDir = "./currency"
 	defaultRefreshEvery   = 6 * time.Hour
-	jsDelivrBase          = "https://cdn.jsdelivr.net/npm/@FWA0/currency-api@latest/v1/currencies"
+	jsDelivrBase          = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies"
 	cloudflareBase        = "https://latest.currency-api.pages.dev/v1/currencies"
 )
 
