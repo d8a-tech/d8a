@@ -12,12 +12,15 @@ import type { WindowLikeTransport } from "../types.ts";
 
 export async function sendWithRetries({
   url,
+  body,
   windowRef,
   useBeacon,
   maxRetries = 1,
   initialBackoffMs = 200,
 }: {
   url: string;
+  // Optional request body (one URL-encoded hit per line).
+  body?: string;
   windowRef: WindowLikeTransport;
   useBeacon: boolean;
   maxRetries?: number;
@@ -29,7 +32,7 @@ export async function sendWithRetries({
   if (useBeacon && typeof beacon === "function") {
     // sendBeacon doesn't give us status, so it's best-effort.
     try {
-      beacon.call(w.navigator, url);
+      beacon.call(w.navigator, url, body);
       return { ok: true, via: "beacon" as const };
     } catch {
       // fall back to fetch path
@@ -48,6 +51,7 @@ export async function sendWithRetries({
     cache: "no-store",
     redirect: "follow",
     mode: "no-cors",
+    ...(body != null ? { body } : {}),
   } as const;
 
   let attempt = 0;

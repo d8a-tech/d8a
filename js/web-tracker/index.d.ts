@@ -148,10 +148,17 @@ export type QueueConsumer = {
   setOnConfig(fn: (propertyId: string, params: D8aConfigParams) => void): void;
 };
 
+export type EnqueueEventOptions = {
+  /** Params sent as-is on the wire (no `ep.`/`epn.` prefix). */
+  wireParams?: Record<string, string>;
+  /** When true, the event does not take the accumulated engagement time (`_et`). */
+  passive?: boolean;
+};
+
 export type Dispatcher = {
-  enqueueEvent(name: string, params?: D8aEventParams): void;
-  flush(opts: { useBeacon: boolean }): Promise<{ sent: number }>;
-  flushNow(opts?: { useBeacon?: boolean }): Promise<{ sent: number }>;
+  enqueueEvent(name: string, params?: D8aEventParams, opts?: EnqueueEventOptions): void;
+  flush(opts: { useBeacon: boolean; concurrent?: boolean }): Promise<{ sent: number }>;
+  flushNow(opts?: { useBeacon?: boolean; concurrent?: boolean }): Promise<{ sent: number }>;
   attachLifecycleFlush(): void;
 };
 

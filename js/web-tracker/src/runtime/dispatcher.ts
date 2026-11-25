@@ -69,6 +69,19 @@ function getGlobalCustomEventParams(setParams: Record<string, unknown>) {
   return merged;
 }
 
+/**
+ * Options for events enqueued by tracker extensions.
+ * - `wireParams`: sent as-is (no `ep.`/`epn.` prefix), after the standard collect params.
+ * - `passive`: the event does not take the accumulated engagement time (`_et`).
+ */
+export type EnqueueEventOptions = {
+  wireParams?: Record<string, string>;
+  passive?: boolean;
+};
+
+// Hits whose query string is longer than this are sent in the POST body instead of the URL.
+const MAX_QUERY_LENGTH = 2000;
+
 export function createDispatcher({
   windowRef,
   getState,
@@ -79,7 +92,11 @@ export function createDispatcher({
   const w = windowRef;
   if (!w) throw new Error("createDispatcher: windowRef is required");
 
-  const queue: Array<{ name: string; params: Record<string, unknown> }> = [];
+  const queue: Array<{
+    name: string;
+    params: Record<string, unknown>;
+    opts?: EnqueueEventOptions;
+  }> = [];
   let timerId: number | null = null;
   let lifecycleAttached = false;
   const jar = createCookieJar({ windowRef: w });
@@ -128,8 +145,8 @@ export function createDispatcher({
     return s.pageLoadMs;
   }
 
-  function enqueueEvent(name: string, params: Record<string, unknown>) {
-    queue.push({ name, params: params || {} });
+  function enqueueEvent(name: string, params: Record<string, unknown>, opts?: EnqueueEventOptions) {
+    queue.push({ name, params: params || {}, opts });
 
     const cfg = getPrimaryConfig();
     const maxBatchSize = Number(cfg?.max_batch_size ?? 25);
@@ -151,7 +168,16 @@ export function createDispatcher({
     }, interval);
   }
 
-  async function flush({ useBeacon }: { useBeacon: boolean }) {
+  // `concurrent`: start every request before awaiting any (used on page exit, where only
+  // requests started synchronously survive). Otherwise events go out one after another,
+  // so the collector receives them in order.
+  async function flush({
+    useBeacon,
+    concurrent = false,
+  }: {
+    useBeacon: boolean;
+    concurrent?: boolean;
+  }) {
     if (timerId != null) {
       w.clearTimeout(timerId);
       timerId = null;
@@ -205,6 +231,7 @@ export function createDispatcher({
     }
 
     let sent = 0;
+    const pending: Array<Promise<unknown>> = [];
     for (const ev of batch) {
       const rawParams = isRecord(ev.params) ? ev.params : {};
       const sendTo = normalizeSendTo(rawParams["send_to"]);
@@ -222,7 +249,7 @@ export function createDispatcher({
       // We compute this once per event and reuse it:
       // - send as `_et`
       // - accumulate to flip session engagement (`seg`) after N seconds
-      const engagementTimeMs = engagementTimer.getAndReset();
+      const engagementTimeMs = ev.opts?.passive ? 0 : engagementTimer.getAndReset();
 
       // Shared session update (one per event) to keep per-property cookies identical.
       if (!analyticsDenied && state) {
@@ -416,22 +443,34 @@ export function createDispatcher({
           debugMode: resolvedDebugMode,
         });
         attachD8aCollectMetadata(q);
-        const url = `${collectBase}?${q.toString()}`;
-        sendPromises.push(sendWithRetries({ url, windowRef: w, useBeacon }));
+        for (const [k, v] of Object.entries(ev.opts?.wireParams || {})) q.set(k, v);
+        const query = q.toString();
+        if (query.length > MAX_QUERY_LENGTH) {
+          sendPromises.push(
+            sendWithRetries({ url: collectBase, body: query, windowRef: w, useBeacon }),
+          );
+        } else {
+          sendPromises.push(
+            sendWithRetries({ url: `${collectBase}?${query}`, windowRef: w, useBeacon }),
+          );
+        }
       }
-      if (sendPromises.length > 0) {
-        await Promise.all(sendPromises);
-        sent += sendPromises.length;
-      }
+      sent += sendPromises.length;
+      if (concurrent) pending.push(...sendPromises);
+      else if (sendPromises.length > 0) await Promise.all(sendPromises);
     }
+    if (pending.length > 0) await Promise.all(pending);
 
     // If there are more events pending, schedule another flush.
     if (queue.length > 0) ensureTimer();
     return { sent };
   }
 
-  function flushNow({ useBeacon = false }: { useBeacon?: boolean } = {}) {
-    return flush({ useBeacon: useBeacon === true });
+  function flushNow({
+    useBeacon = false,
+    concurrent = false,
+  }: { useBeacon?: boolean; concurrent?: boolean } = {}) {
+    return flush({ useBeacon: useBeacon === true, concurrent: concurrent === true });
   }
 
   function attachLifecycleFlush() {
@@ -449,7 +488,7 @@ export function createDispatcher({
       } catch {
         // ignore
       }
-      flush({ useBeacon: false });
+      flush({ useBeacon: false, concurrent: true });
     });
 
     if (w.document?.addEventListener) {
@@ -464,7 +503,7 @@ export function createDispatcher({
             // ignore
           }
           // Always use fetch(keepalive) on lifecycle flushes (no sendBeacon/ping).
-          flush({ useBeacon: false });
+          flush({ useBeacon: false, concurrent: true });
         }
       });
     }

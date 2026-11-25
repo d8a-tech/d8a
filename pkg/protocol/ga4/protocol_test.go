@@ -64,6 +64,20 @@ func TestHits(t *testing.T) {
 			},
 		},
 		{
+			name:         "only_body_line_with_json_param",
+			queryParams:  url.Values{},
+			body:         "v=2&tid=G-2VEWJC5YPE&cid=1369988567.1756151735&en=ext_event&_xj=%7B%22a%22%3A%5B1%2C2%5D%7D",
+			expectedHits: 1,
+			expectedParams: []map[string]string{
+				{
+					"tid": "G-2VEWJC5YPE",
+					"cid": "1369988567.1756151735",
+					"en":  "ext_event",
+					"_xj": `{"a":[1,2]}`,
+				},
+			},
+		},
+		{
 			name: "query_params_plus_two_lines_with_override",
 			queryParams: url.Values{
 				"v":   []string{"2"},
