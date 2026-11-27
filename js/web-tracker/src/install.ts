@@ -9,12 +9,14 @@ import {
 import { createGtagConsentBridge } from "./runtime/gtag_consent_bridge.ts";
 import { createEnhancedMeasurement } from "./runtime/enhanced_measurement.ts";
 import { createLinker } from "./runtime/linker.ts";
+import { createConsentHook } from "./runtime/consent_hook.ts";
 import type { D8aTagData, WindowLike } from "./types.ts";
 import { ensureArraySlot, getWindowSlot, setWindowSlot } from "./utils/window_slots.ts";
 
 type InstallResult = {
   consumer: ReturnType<typeof createQueueConsumer>;
   dispatcher: ReturnType<typeof createDispatcher>;
+  consent: ReturnType<typeof createConsentHook>;
   dataLayerName: string;
   globalName: string;
 };
@@ -77,6 +79,7 @@ export function installD8a({
     const alias = {
       consumer: existingForDl.consumer,
       dispatcher: existingForDl.dispatcher,
+      consent: existingForDl.consent,
       dataLayerName: dl,
       globalName: gn,
     };
@@ -152,7 +155,8 @@ export function installD8a({
     // ignore
   }
 
-  const result = { consumer, dispatcher, dataLayerName: dl, globalName: gn };
+  const consent = createConsentHook(consumer.getState);
+  const result = { consumer, dispatcher, consent, dataLayerName: dl, globalName: gn };
   installResults[key] = result;
   installResultsByDl[dl] = result;
   return result;

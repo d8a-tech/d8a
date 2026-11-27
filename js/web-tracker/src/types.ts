@@ -86,6 +86,8 @@ export type RuntimeState = {
   __lastEffectiveAnalyticsStorage: ConsentValue | undefined;
   __consentPingInitScheduled?: boolean;
   __consentPingInitDone?: boolean;
+  // Extension hooks notified when the effective analytics_storage changes (see consent_hook.ts).
+  __analyticsStorageListeners?: Array<(value: ConsentValue | undefined) => void>;
 };
 
 // Minimal "browser-like" surface used by runtime modules and tests.

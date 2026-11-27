@@ -1,5 +1,5 @@
 import { getEffectiveConsent } from "./consent_resolver.ts";
-import type { RuntimeState } from "../types.ts";
+import type { ConsentValue, RuntimeState } from "../types.ts";
 
 function scheduleMicrotask(fn: () => void) {
   if (typeof queueMicrotask === "function") {
@@ -8,6 +8,16 @@ function scheduleMicrotask(fn: () => void) {
   }
   // Fallback (older environments)
   Promise.resolve().then(fn);
+}
+
+function notifyAnalyticsStorageListeners(s: RuntimeState, value: ConsentValue | undefined) {
+  for (const cb of (s.__analyticsStorageListeners || []).slice()) {
+    try {
+      cb(value);
+    } catch {
+      // an extension must never break consent handling
+    }
+  }
 }
 
 /**
@@ -29,6 +39,8 @@ export function maybeEmitConsentUpdatePing(getState: () => RuntimeState) {
       : undefined;
 
   const prev = s.__lastEffectiveAnalyticsStorage;
+  // Extensions see every change, including the first value and a same-tick default->update.
+  if (next !== prev) notifyAnalyticsStorageListeners(s, next);
   // First observation initializes consent state; no ping.
   // We also start a one-tick "init window" so immediate default->update (same tick)
   // is treated as initial consent setup rather than a user-visible consent change.

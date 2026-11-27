@@ -162,9 +162,18 @@ export type Dispatcher = {
   attachLifecycleFlush(): void;
 };
 
+/** Consent access for extensions bundled with the tracker. */
+export type ConsentHook = {
+  /** Effective `analytics_storage` (mirrored gtag/GTM consent first), or undefined when unset. */
+  analyticsStorage(): "granted" | "denied" | undefined;
+  /** Called whenever the effective `analytics_storage` changes; returns an unsubscribe function. */
+  onAnalyticsStorageChange(cb: (value: "granted" | "denied" | undefined) => void): () => void;
+};
+
 export type InstallD8aResult = {
   consumer: QueueConsumer;
   dispatcher: Dispatcher;
+  consent: ConsentHook;
   dataLayerName: string;
   globalName: string;
 };
