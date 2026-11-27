@@ -13,6 +13,8 @@ export const EXTENSION_CAPABILITIES = Object.freeze({
   concurrentFlush: true,
   /** `consent.analyticsStorage()` and `consent.onAnalyticsStorageChange(cb)`. */
   consentHook: true,
+  /** `wireParams` may be a function, resolved when the hit is sent with that hit's consent. */
+  dispatchTimeWireParams: true,
 } as const);
 
 export type ExtensionCapabilities = typeof EXTENSION_CAPABILITIES;

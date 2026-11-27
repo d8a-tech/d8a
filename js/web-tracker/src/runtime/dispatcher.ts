@@ -69,15 +69,35 @@ function getGlobalCustomEventParams(setParams: Record<string, unknown>) {
   return merged;
 }
 
+/** What a wire params resolver learns about the hit it is resolved for. */
+export type WireParamsContext = {
+  /** Effective `analytics_storage` is denied for this hit (the consent its `gcs` reports). */
+  analyticsStorageDenied: boolean;
+};
+
 /**
  * Options for events enqueued by tracker extensions.
- * - `wireParams`: sent as-is (no `ep.`/`epn.` prefix), after the standard collect params.
+ * - `wireParams`: sent as-is (no `ep.`/`epn.` prefix), after the standard collect params. A
+ *   function is called when the event is sent, with the consent that hit is sent with; it
+ *   returns the params, or null to drop the event (as does throwing).
  * - `passive`: the event does not take the accumulated engagement time (`_et`).
  */
 export type EnqueueEventOptions = {
-  wireParams?: Record<string, string>;
+  wireParams?: Record<string, string> | ((ctx: WireParamsContext) => Record<string, string> | null);
   passive?: boolean;
 };
+
+function resolveWireParams(
+  wireParams: EnqueueEventOptions["wireParams"],
+  ctx: WireParamsContext,
+): Record<string, string> | null {
+  if (typeof wireParams !== "function") return wireParams || {};
+  try {
+    return wireParams(ctx);
+  } catch {
+    return null;
+  }
+}
 
 // Hits whose query string is longer than this are sent in the POST body instead of the URL.
 const MAX_QUERY_LENGTH = 2000;
@@ -237,6 +257,13 @@ export function createDispatcher({
       const sendTo = normalizeSendTo(rawParams["send_to"]);
       const destinations = sendTo ? sendTo : propertyIds;
       if (!destinations || destinations.length === 0) continue;
+
+      // Extension params are resolved with the consent this batch is sent with; null drops the
+      // event before it takes engagement time or a hit number.
+      const wireParams = resolveWireParams(ev.opts?.wireParams, {
+        analyticsStorageDenied: analyticsDenied,
+      });
+      if (wireParams === null) continue;
 
       // Merge global set() custom params into each event; event payload wins.
       // This mirrors gtag semantics for custom params without changing
@@ -443,7 +470,7 @@ export function createDispatcher({
           debugMode: resolvedDebugMode,
         });
         attachD8aCollectMetadata(q);
-        for (const [k, v] of Object.entries(ev.opts?.wireParams || {})) q.set(k, v);
+        for (const [k, v] of Object.entries(wireParams)) q.set(k, v);
         const query = q.toString();
         if (query.length > MAX_QUERY_LENGTH) {
           sendPromises.push(

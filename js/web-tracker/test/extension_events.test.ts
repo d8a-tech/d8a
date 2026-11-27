@@ -19,7 +19,7 @@ function setup({ fetchNeverResolves = false } = {}) {
     [PROPERTY_ID]: { server_container_url: `${TRACKER_DOMAIN}/${PROPERTY_ID}/d/c` },
   };
   const d = createDispatcher({ windowRef: w, getState: () => state });
-  return { w, d };
+  return { w, d, state };
 }
 
 function sentParams(call: { url: string; opts?: unknown }) {
@@ -117,4 +117,58 @@ test("a regular flush waits for each request before sending the next", () => {
 
   // then
   assert.equal(w.fetchCalls.length, 1);
+});
+
+test("a wireParams function is resolved when sent, with that hit's consent", async () => {
+  // given: granted when the event is queued
+  const { w, d, state } = setup();
+  state.consent = { analytics_storage: "granted" };
+  const seen: boolean[] = [];
+  d.enqueueEvent(
+    "ext_event",
+    {},
+    {
+      wireParams: ({ analyticsStorageDenied }) => {
+        seen.push(analyticsStorageDenied);
+        return { _xc: analyticsStorageDenied ? "reduced" : "full" };
+      },
+    },
+  );
+
+  // when: denied before the batch is sent
+  state.consent = { analytics_storage: "denied" };
+  await d.flushNow();
+
+  // then
+  const p = sentParams(w.fetchCalls[0]);
+  assert.deepEqual(seen, [true]);
+  assert.equal(p.get("_xc"), "reduced");
+  assert.match(p.get("gcs") || "", /^G1.0$/);
+});
+
+test("a wireParams function returning null or throwing drops only that event", async () => {
+  // given
+  const { w, d, state } = setup();
+
+  // when
+  d.enqueueEvent("dropped", {}, { wireParams: () => null });
+  d.enqueueEvent(
+    "broken",
+    {},
+    {
+      wireParams: () => {
+        throw new Error("extension bug");
+      },
+    },
+  );
+  d.enqueueEvent("kept", {}, { wireParams: () => ({ _xd: "1" }) });
+  await d.flushNow();
+
+  // then
+  assert.deepEqual(
+    w.fetchCalls.map((c) => sentParams(c).get("en")),
+    ["kept"],
+  );
+  assert.equal(sentParams(w.fetchCalls[0]).get("_s"), "1");
+  assert.equal(state.hitCounter, 1);
 });

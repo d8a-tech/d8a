@@ -148,9 +148,18 @@ export type QueueConsumer = {
   setOnConfig(fn: (propertyId: string, params: D8aConfigParams) => void): void;
 };
 
+/** What a wire params resolver learns about the hit it is resolved for. */
+export type WireParamsContext = {
+  /** Effective `analytics_storage` is denied for this hit (the consent its `gcs` reports). */
+  analyticsStorageDenied: boolean;
+};
+
 export type EnqueueEventOptions = {
-  /** Params sent as-is on the wire (no `ep.`/`epn.` prefix). */
-  wireParams?: Record<string, string>;
+  /**
+   * Params sent as-is on the wire (no `ep.`/`epn.` prefix). A function is called when the
+   * event is sent, with that hit's consent; it returns the params, or null to drop the event.
+   */
+  wireParams?: Record<string, string> | ((ctx: WireParamsContext) => Record<string, string> | null);
   /** When true, the event does not take the accumulated engagement time (`_et`). */
   passive?: boolean;
 };
@@ -179,6 +188,7 @@ export type ExtensionCapabilities = Readonly<{
   passive: true;
   concurrentFlush: true;
   consentHook: true;
+  dispatchTimeWireParams: true;
 }>;
 
 export type InstallD8aResult = {
