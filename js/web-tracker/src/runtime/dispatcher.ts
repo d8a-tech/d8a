@@ -71,14 +71,17 @@ function getGlobalCustomEventParams(setParams: Record<string, unknown>) {
 
 /** What a wire params resolver learns about the hit it is resolved for. */
 export type WireParamsContext = {
-  /** Effective `analytics_storage` is denied for this hit (the consent its `gcs` reports). */
+  /**
+   * Effective `analytics_storage` is denied for this hit: the consent read when its dispatch
+   * starts, which its `gcs`, cookies and identifiers also use.
+   */
   analyticsStorageDenied: boolean;
 };
 
 /**
  * Options for events enqueued by tracker extensions.
  * - `wireParams`: sent as-is (no `ep.`/`epn.` prefix), after the standard collect params. A
- *   function is called when the event is sent, with the consent that hit is sent with; it
+ *   function is called when the event's dispatch starts, with the consent it is sent with; it
  *   returns the params, or null to drop the event (as does throwing).
  * - `passive`: the event does not take the accumulated engagement time (`_et`).
  */
@@ -210,16 +213,12 @@ export function createDispatcher({
     const maxBatchSize = Number(cfgPrimary?.max_batch_size ?? 25);
     const batch = queue.splice(0, maxBatchSize);
 
-    const consent = getEffectiveConsent(getState);
-    const consentParts = getConsentParts(getState);
     const sessionTimeoutMsRaw = cfgPrimary["session_timeout_ms"];
     const sessionTimeoutMs =
       typeof sessionTimeoutMsRaw === "number" ? sessionTimeoutMsRaw : 30 * 60 * 1000;
     const state = getState();
     const pageLoadMs = ensurePageLoadMs();
 
-    const analyticsStorage = String(consent?.analytics_storage || "").toLowerCase();
-    const analyticsDenied = analyticsStorage === "denied";
     const setParams = state?.set && typeof state.set === "object" ? state.set : {};
     const globalCustomEventParams = getGlobalCustomEventParams(setParams);
     const https = isHttps();
@@ -235,8 +234,6 @@ export function createDispatcher({
     logger.log("[d8a] flush", {
       href: String(w?.location?.href || ""),
       propertyIds,
-      analyticsStorage: analyticsStorage || "(unset)",
-      analyticsDenied,
       cookieHeader: String(w?.document?.cookie || ""),
     });
 
@@ -258,8 +255,21 @@ export function createDispatcher({
       const destinations = sendTo ? sendTo : propertyIds;
       if (!destinations || destinations.length === 0) continue;
 
-      // Extension params are resolved with the consent this batch is sent with; null drops the
-      // event before it takes engagement time or a hit number.
+      // One consent snapshot per event, read when its dispatch starts: it drives the extension
+      // payload, cookies and identifiers, and gcs/gcd alike. In a sequential flush the next
+      // event reads it again after this one's requests finished, so consent changed meanwhile
+      // applies to every request not started yet.
+      const consent = getEffectiveConsent(getState);
+      const consentParts = getConsentParts(getState);
+      const analyticsStorage = String(consent?.analytics_storage || "").toLowerCase();
+      const analyticsDenied = analyticsStorage === "denied";
+      logger.log("[d8a] dispatch", {
+        event: ev.name,
+        analyticsStorage: analyticsStorage || "(unset)",
+      });
+
+      // Extension params are resolved with that consent; null drops the event before it takes
+      // engagement time or a hit number.
       const wireParams = resolveWireParams(ev.opts?.wireParams, {
         analyticsStorageDenied: analyticsDenied,
       });

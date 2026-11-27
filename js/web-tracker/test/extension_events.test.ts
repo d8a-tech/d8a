@@ -172,3 +172,47 @@ test("a wireParams function returning null or throwing drops only that event", a
   assert.equal(sentParams(w.fetchCalls[0]).get("_s"), "1");
   assert.equal(state.hitCounter, 1);
 });
+
+test("consent revoked while a sequential flush is in flight applies to the next event", async () => {
+  // given: granted consent, a page view and an extension event in one normal flush, and a
+  // request barrier that holds the first request until the test releases it
+  const { w, d, state } = setup();
+  state.consent = { analytics_storage: "granted" };
+  const releases: Array<() => void> = [];
+  w.fetch = (url: string, opts?: unknown) => {
+    w.fetchCalls.push({ url, opts });
+    return new Promise((resolve) => releases.push(() => resolve({ status: 204 })));
+  };
+  d.enqueueEvent("page_view", {});
+  d.enqueueEvent(
+    "bot_environment",
+    {},
+    {
+      wireParams: ({ analyticsStorageDenied }): Record<string, string> =>
+        analyticsStorageDenied ? { _bse: "reduced" } : { _bsh: "h", _bse: "full" },
+    },
+  );
+  const flushing = d.flushNow();
+  while (w.fetchCalls.length < 1) await new Promise((r) => setImmediate(r));
+
+  // when: consent is revoked while the first request is in flight
+  state.consent = { analytics_storage: "denied" };
+  releases[0]();
+  while (w.fetchCalls.length < 2) await new Promise((r) => setImmediate(r));
+  releases[1]();
+  await flushing;
+
+  // then
+  assert.equal(w.fetchCalls.length, 2);
+  const first = sentParams(w.fetchCalls[0]);
+  const second = sentParams(w.fetchCalls[1]);
+  assert.equal(first.get("en"), "page_view");
+  assert.match(first.get("gcs") || "", /^G1.1$/);
+  assert.equal(second.get("en"), "bot_environment");
+  assert.match(second.get("gcs") || "", /^G1.0$/);
+  assert.equal(second.get("_bsh"), null);
+  assert.equal(second.get("_bse"), "reduced");
+  assert.ok(state.anonCid);
+  assert.equal(second.get("cid"), state.anonCid);
+  assert.notEqual(first.get("cid"), state.anonCid);
+});
