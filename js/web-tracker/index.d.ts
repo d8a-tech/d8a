@@ -170,10 +170,22 @@ export type ConsentHook = {
   onAnalyticsStorageChange(cb: (value: "granted" | "denied" | undefined) => void): () => void;
 };
 
+/**
+ * Features the runtime offers to bundled extensions. `installD8a()` may return a runtime that an
+ * older tracker on the page installed (without this field), so extensions check it first.
+ */
+export type ExtensionCapabilities = Readonly<{
+  wireParams: true;
+  passive: true;
+  concurrentFlush: true;
+  consentHook: true;
+}>;
+
 export type InstallD8aResult = {
   consumer: QueueConsumer;
   dispatcher: Dispatcher;
   consent: ConsentHook;
+  capabilities: ExtensionCapabilities;
   dataLayerName: string;
   globalName: string;
 };
