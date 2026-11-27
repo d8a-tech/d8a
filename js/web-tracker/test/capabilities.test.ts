@@ -26,6 +26,7 @@ test("installD8a reports the capabilities it offers to extensions", () => {
     concurrentFlush: true,
     consentHook: true,
     dispatchTimeWireParams: true,
+    configHook: true,
   });
   assert.ok(Object.isFrozen(capabilities));
 });

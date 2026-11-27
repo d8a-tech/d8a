@@ -11,6 +11,7 @@ import { createEnhancedMeasurement } from "./runtime/enhanced_measurement.ts";
 import { createLinker } from "./runtime/linker.ts";
 import { createConsentHook } from "./runtime/consent_hook.ts";
 import { EXTENSION_CAPABILITIES } from "./runtime/capabilities.ts";
+import { createConfigHook } from "./runtime/config_hook.ts";
 import type { D8aTagData, WindowLike } from "./types.ts";
 import { ensureArraySlot, getWindowSlot, setWindowSlot } from "./utils/window_slots.ts";
 
@@ -19,6 +20,7 @@ type InstallResult = {
   dispatcher: ReturnType<typeof createDispatcher>;
   consent: ReturnType<typeof createConsentHook>;
   capabilities: typeof EXTENSION_CAPABILITIES;
+  config: ReturnType<typeof createConfigHook>;
   dataLayerName: string;
   globalName: string;
 };
@@ -83,6 +85,7 @@ export function installD8a({
       dispatcher: existingForDl.dispatcher,
       consent: existingForDl.consent,
       capabilities: existingForDl.capabilities,
+      config: existingForDl.config,
       dataLayerName: dl,
       globalName: gn,
     };
@@ -159,11 +162,15 @@ export function installD8a({
   }
 
   const consent = createConsentHook(consumer.getState);
+  const config = createConfigHook(consumer.getState, (cb) =>
+    onConfigCbs.push((propertyId) => cb(propertyId)),
+  );
   const result = {
     consumer,
     dispatcher,
     consent,
     capabilities: EXTENSION_CAPABILITIES,
+    config,
     dataLayerName: dl,
     globalName: gn,
   };

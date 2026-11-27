@@ -189,13 +189,24 @@ export type ExtensionCapabilities = Readonly<{
   concurrentFlush: true;
   consentHook: true;
   dispatchTimeWireParams: true;
+  configHook: true;
 }>;
+
+/** Configured properties for extensions bundled with the tracker. */
+export type ConfigHook = {
+  /**
+   * Calls `cb` for every property already configured, then for each later `config` call
+   * (repeats included). Returns a function that removes the listener.
+   */
+  onPropertyConfigured(cb: (propertyId: string) => void): () => void;
+};
 
 export type InstallD8aResult = {
   consumer: QueueConsumer;
   dispatcher: Dispatcher;
   consent: ConsentHook;
   capabilities: ExtensionCapabilities;
+  config: ConfigHook;
   dataLayerName: string;
   globalName: string;
 };
