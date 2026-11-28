@@ -52,6 +52,9 @@ func NewBatchedProtosessionsIOBackend(
 		if err != nil {
 			return err
 		}
+		if err := ensureAnnotationBuckets(tx); err != nil {
+			return err
+		}
 		// Load existing session-to-bucket mappings into memory
 		return mapBucket.ForEach(func(k, v []byte) error {
 			//nolint:gosec // bucket IDs are always positive
@@ -453,6 +456,7 @@ func (b *boltBatchedIOBackend) GetAllProtosessionsForBucket(
 }
 
 func (b *boltBatchedIOBackend) removeProtoSessionHits(
+	tx *bolt.Tx,
 	sessionsBucket *bolt.Bucket,
 	mapBucket *bolt.Bucket,
 	requests []*protosessions.RemoveProtoSessionHitsRequest,
@@ -469,6 +473,11 @@ func (b *boltBatchedIOBackend) removeProtoSessionHits(
 		}
 		// Remove from persisted session-to-bucket map
 		if err := mapBucket.Delete([]byte(request.ProtoSessionID)); err != nil {
+			responses[i] = protosessions.NewRemoveProtoSessionHitsResponse(err)
+			continue
+		}
+		// Annotations and the close claim go with the proto-session.
+		if err := b.removeAnnotationState(tx, request.ProtoSessionID); err != nil {
 			responses[i] = protosessions.NewRemoveProtoSessionHitsResponse(err)
 			continue
 		}
@@ -532,7 +541,7 @@ func (b *boltBatchedIOBackend) Cleanup(
 		bucketsBucket := tx.Bucket([]byte(timingWheelBucketsBucket))
 		mapBucket := tx.Bucket([]byte(sessionToBucketMapBucket))
 
-		mapDeletions = b.removeProtoSessionHits(sessionsBucket, mapBucket, hitsRequests, hitsResponses, mapDeletions)
+		mapDeletions = b.removeProtoSessionHits(tx, sessionsBucket, mapBucket, hitsRequests, hitsResponses, mapDeletions)
 		b.removeIdentifierMetadata(identifiersBucket, metadataRequests, metadataResponses)
 		b.removeBucketMetadata(bucketsBucket, bucketMetadataRequests, bucketResponses)
 

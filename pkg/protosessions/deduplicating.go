@@ -11,9 +11,59 @@ type deduplicatingBatchedIOBackend struct {
 	underlying BatchedIOBackend
 }
 
-// NewDeduplicatingBatchedIOBackend wraps a BatchedIOBackend and deduplicates requests
+// NewDeduplicatingBatchedIOBackend wraps a BatchedIOBackend and deduplicates requests. The
+// result implements AnnotationBackend exactly when the underlying backend does.
 func NewDeduplicatingBatchedIOBackend(underlying BatchedIOBackend) BatchedIOBackend {
-	return &deduplicatingBatchedIOBackend{underlying: underlying}
+	d := &deduplicatingBatchedIOBackend{underlying: underlying}
+	if annotationBackend, ok := underlying.(AnnotationBackend); ok {
+		return &deduplicatingAnnotationBackend{deduplicatingBatchedIOBackend: d, annotations: annotationBackend}
+	}
+	return d
+}
+
+type deduplicatingAnnotationBackend struct {
+	*deduplicatingBatchedIOBackend
+	annotations AnnotationBackend
+}
+
+func (d *deduplicatingAnnotationBackend) LookupIdentifierOwners(
+	ctx context.Context,
+	requests []*IdentifierConflictRequest,
+) []*LookupIdentifierOwnerResponse {
+	return d.annotations.LookupIdentifierOwners(ctx, requests)
+}
+
+// AttachAnnotations passes requests through: the orchestrator sends one per proto-session.
+func (d *deduplicatingAnnotationBackend) AttachAnnotations(
+	ctx context.Context,
+	requests []*AttachAnnotationsRequest,
+) []*AttachAnnotationsResponse {
+	return d.annotations.AttachAnnotations(ctx, requests)
+}
+
+// ClaimForClose claims each proto-session once.
+func (d *deduplicatingAnnotationBackend) ClaimForClose(
+	ctx context.Context,
+	requests []*ClaimForCloseRequest,
+) []*ClaimForCloseResponse {
+	seen := make(map[hits.ClientID]int)
+	var dedup []*ClaimForCloseRequest
+	originalToDedup := make([]int, len(requests))
+	for i, req := range requests {
+		idx, exists := seen[req.ProtoSessionID]
+		if !exists {
+			idx = len(dedup)
+			seen[req.ProtoSessionID] = idx
+			dedup = append(dedup, req)
+		}
+		originalToDedup[i] = idx
+	}
+	dedupResponses := d.annotations.ClaimForClose(ctx, dedup)
+	responses := make([]*ClaimForCloseResponse, len(requests))
+	for i := range requests {
+		responses[i] = dedupResponses[originalToDedup[i]]
+	}
+	return responses
 }
 
 func (d *deduplicatingBatchedIOBackend) GetIdentifierConflicts(
