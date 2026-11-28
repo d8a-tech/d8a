@@ -160,8 +160,12 @@ export type EnqueueEventOptions = {
    * event is sent, with that hit's consent; it returns the params, or null to drop the event.
    */
   wireParams?: Record<string, string> | ((ctx: WireParamsContext) => Record<string, string> | null);
-  /** When true, the event does not take the accumulated engagement time (`_et`). */
-  passive?: boolean;
+  /**
+   * The event describes the visit rather than being user activity: it reads the tracker's state
+   * and changes none of it (no engagement time or `_et`, no session activity or new session, no
+   * hit counter advance, no cookie writes).
+   */
+  annotation?: boolean;
 };
 
 export type Dispatcher = {
@@ -185,7 +189,7 @@ export type ConsentHook = {
  */
 export type ExtensionCapabilities = Readonly<{
   wireParams: true;
-  passive: true;
+  annotation: true;
   concurrentFlush: true;
   consentHook: true;
   dispatchTimeWireParams: true;

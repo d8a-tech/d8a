@@ -7,8 +7,11 @@
 export const EXTENSION_CAPABILITIES = Object.freeze({
   /** `dispatcher.enqueueEvent(name, params, { wireParams })` sends params as-is, long hits in the body. */
   wireParams: true,
-  /** `dispatcher.enqueueEvent(name, params, { passive: true })` takes no engagement time. */
-  passive: true,
+  /**
+   * `dispatcher.enqueueEvent(name, params, { annotation: true })` reads the tracker's state
+   * without changing it: no engagement time, session activity, hit counter or cookie writes.
+   */
+  annotation: true,
   /** `dispatcher.flushNow({ concurrent: true })` starts every queued request at once. */
   concurrentFlush: true,
   /** `consent.analyticsStorage()` and `consent.onAnalyticsStorageChange(cb)`. */

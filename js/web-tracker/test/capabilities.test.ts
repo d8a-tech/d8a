@@ -22,7 +22,7 @@ test("installD8a reports the capabilities it offers to extensions", () => {
   // then
   assert.deepEqual(capabilities, {
     wireParams: true,
-    passive: true,
+    annotation: true,
     concurrentFlush: true,
     consentHook: true,
     dispatchTimeWireParams: true,

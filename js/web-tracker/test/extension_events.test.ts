@@ -65,7 +65,7 @@ test("a hit with a long query string is sent in the POST body", async () => {
   assert.equal(p.get("tid"), PROPERTY_ID);
 });
 
-test("a passive event leaves the engagement time to the next event", async () => {
+test("an annotation event leaves the engagement time to the next event and sends no _et", async () => {
   // given
   const realNow = Date.now;
   let now = 1_000;
@@ -77,16 +77,72 @@ test("a passive event leaves the engagement time to the next event", async () =>
     now += 4_000;
 
     // when
-    d.enqueueEvent("ext_event", {}, { passive: true });
+    d.enqueueEvent("ext_event", {}, { annotation: true });
     d.enqueueEvent("user_engagement", {});
     await d.flushNow();
 
     // then
-    assert.equal(sentParams(w.fetchCalls[1]).get("_et"), "0");
+    assert.equal(sentParams(w.fetchCalls[1]).get("_et"), null);
     assert.equal(sentParams(w.fetchCalls[2]).get("_et"), "4000");
   } finally {
     Date.now = realNow;
   }
+});
+
+test("an annotation event changes no session, counter or cookie state for the next hit", async () => {
+  // given: the same visit with and without an annotation event between two page views
+  // (fixed clock and randomness, so both runs generate the same client ID)
+  const realNow = Date.now;
+  const realRandom = Math.random;
+  const visit = async (withAnnotation: boolean) => {
+    let now = 1_000;
+    Date.now = () => now;
+    Math.random = () => 0.5;
+    const { w, d } = setup();
+    d.enqueueEvent("page_view", {});
+    await d.flushNow();
+    now += 20 * 60 * 1000;
+    if (withAnnotation) {
+      d.enqueueEvent("ext_event", {}, { annotation: true });
+      await d.flushNow();
+    }
+    now += 15 * 60 * 1000;
+    d.enqueueEvent("page_view", {});
+    await d.flushNow();
+    const last = sentParams(w.fetchCalls[w.fetchCalls.length - 1]);
+    return {
+      cookie: w.document.cookie,
+      params: Object.fromEntries(
+        ["sid", "sct", "seg", "_s", "_et", "cid"].map((k) => [k, last.get(k)]),
+      ),
+    };
+  };
+  try {
+    // when
+    const without = await visit(false);
+    const withAnnotation = await visit(true);
+
+    // then: 35 minutes after the first page view the session timed out in both runs, and the
+    // annotation 20 minutes in neither kept it alive nor advanced anything
+    assert.deepEqual(withAnnotation, without);
+  } finally {
+    Date.now = realNow;
+    Math.random = realRandom;
+  }
+});
+
+test("an annotation event as the first event writes no cookie", async () => {
+  // given
+  const { w, d } = setup();
+
+  // when
+  d.enqueueEvent("ext_event", {}, { annotation: true });
+  await d.flushNow();
+
+  // then
+  assert.equal(w.fetchCalls.length, 1);
+  assert.equal(w.document.cookie, "");
+  assert.equal(sentParams(w.fetchCalls[0]).get("_s"), "0");
 });
 
 test("a concurrent flush starts every request before any response", () => {

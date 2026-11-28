@@ -83,11 +83,16 @@ export type WireParamsContext = {
  * - `wireParams`: sent as-is (no `ep.`/`epn.` prefix), after the standard collect params. A
  *   function is called when the event's dispatch starts, with the consent it is sent with; it
  *   returns the params, or null to drop the event (as does throwing).
- * - `passive`: the event does not take the accumulated engagement time (`_et`).
+ * - `annotation`: the event describes the visit rather than being user activity. It reads the
+ *   tracker's state and changes none of it: it takes no engagement time and sends no `_et`, does
+ *   not touch the session (no activity time, no new session, no engagement flip, no cookie
+ *   write), does not advance the hit counter `_s`, and does not create or refresh the client
+ *   cookie. Servers decide on their own whether such hits count; this only keeps the client
+ *   state as if the event had not happened.
  */
 export type EnqueueEventOptions = {
   wireParams?: Record<string, string> | ((ctx: WireParamsContext) => Record<string, string> | null);
-  passive?: boolean;
+  annotation?: boolean;
 };
 
 function resolveWireParams(
@@ -282,14 +287,18 @@ export function createDispatcher({
       // Remove routing metadata from params so it doesn't end up in `ep.*`.
       delete eventParams["send_to"];
 
+      // Annotation events read the tracker's state without changing it (see EnqueueEventOptions).
+      const annotation = ev.opts?.annotation === true;
+
       // Engagement time `_et`: active+visible+focused time since last reset.
       // We compute this once per event and reuse it:
       // - send as `_et`
       // - accumulate to flip session engagement (`seg`) after N seconds
-      const engagementTimeMs = ev.opts?.passive ? 0 : engagementTimer.getAndReset();
+      // An annotation leaves the time for the next ordinary event and sends no `_et`.
+      const engagementTimeMs = annotation ? null : engagementTimer.getAndReset();
 
       // Shared session update (one per event) to keep per-property cookies identical.
-      if (!analyticsDenied && state) {
+      if (!annotation && !analyticsDenied && state) {
         updateAndWriteSharedSession({
           state,
           destinations,
@@ -297,15 +306,15 @@ export function createDispatcher({
           getPropertyConfig: (pid: string) => getPropertyConfig(getState, pid),
           resolveCookieSettings: resolveCookiesFor,
           sessionTimeoutMs,
-          engagementTimeMs,
+          engagementTimeMs: engagementTimeMs ?? 0,
           engagedThresholdMs,
           nowMs: Date.now(),
           log: logger.enabled ? logger.log : null,
         });
       }
 
-      // Maintain GA hit counter `_s` per session (shared).
-      if (state) state.hitCounter = (state.hitCounter || 0) + 1;
+      // Maintain GA hit counter `_s` per session (shared). An annotation carries the current value.
+      if (!annotation && state) state.hitCounter = (state.hitCounter || 0) + 1;
 
       const sendPromises: Array<Promise<unknown>> = [];
       for (const pid of destinations) {
@@ -404,8 +413,9 @@ export function createDispatcher({
         if (language) browser.ul = language;
         if (screenResolution) browser.sr = screenResolution;
 
-        // Ensure client cookie exists for this property cookie namespace (if allowed).
-        if (!analyticsDenied) {
+        // Ensure client cookie exists for this property cookie namespace (if allowed). An
+        // annotation only reads the existing cookie.
+        if (!annotation && !analyticsDenied) {
           if (cs.debug) {
             const clientCookieName = buildD8aClientCookieName(cs.cookiePrefix);
             const clientCookieBefore = jar.get(clientCookieName);
