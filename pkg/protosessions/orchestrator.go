@@ -234,6 +234,16 @@ func (o *Orchestrator) processBatch(
 	if len(hitsBatch) == 0 {
 		return nil
 	}
+
+	// Annotation hits (hits.RoleAnnotation) only enrich sessions that are already open. They take
+	// none of the steps below - no identifier registration, eviction, bucket mark or timing wheel
+	// update - and are attached after the ordinary hits are saved, so they can join a session
+	// created in this very batch. See attachAnnotations.
+	hitsBatch, annotations := partitionAnnotations(hitsBatch)
+	if len(hitsBatch) == 0 {
+		return o.attachAnnotations(ctx, annotations)
+	}
+
 	// At this point, batch can contain hits from different properties, so we prepare a
 	// settings registry, that will help us determine some metadata about the hits, for example
 	// how long does the session for this hit should last.
@@ -329,7 +339,7 @@ func (o *Orchestrator) processBatch(
 		o.timingWheel.UpdateTime(newBatch[len(newBatch)-1].MustParsedRequest().ServerReceivedTime)
 		o.hitsReceivedCounter.Add(ctx, int64(len(newBatch)))
 	}
-	return nil
+	return o.attachAnnotations(ctx, annotations)
 }
 
 func (o *Orchestrator) addProtoSessionsHitsForLog(n int) {
@@ -721,6 +731,14 @@ func (o *Orchestrator) processBucket(
 	protoSessionsBatch, removeHitReqs, removeMetadataReqs, totalHits, err := o.buildProtoSessionsBatch(
 		response.ProtoSessions,
 	)
+	if err != nil {
+		o.lastFailedResponses <- responses
+		return err
+	}
+
+	// Claim the proto-sessions for close: from now on no annotation attaches to them, and the ones
+	// attached so far travel with their hits to the Closer.
+	protoSessionsBatch, err = o.claimAnnotationsForClose(ctx, protoSessionsBatch)
 	if err != nil {
 		o.lastFailedResponses <- responses
 		return err
